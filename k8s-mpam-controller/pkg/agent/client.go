@@ -50,6 +50,7 @@ func startClient(server, caFile, certFile, keyFile, serverName string) error {
 		Certificates: []tls.Certificate{cert},
 		ClientCAs:    caPool,
 		ServerName:   serverName, //CN: common name
+		MinVersion:   tls.VersionTLS12,
 	}
 
 	klog.Info("Connecting to server: " + server)
