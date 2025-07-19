@@ -1,0 +1,41 @@
+diff --git a/system/common/message_loop_thread.cc b/system/common/message_loop_thread.cc
+
+--- a/system/common/message_loop_thread.cc
++++ b/system/common/message_loop_thread.cc
+@@ -156,7 +156,8 @@ bool MessageLoopThread::EnableRealTimeScheduling() {
+     log::error("thread {} is not running", *this);
+     return false;
+   }
+-
++  return true; // kbox mock
++ 
+   struct sched_param rt_params = {.sched_priority = kRealTimeFifoSchedulingPriority};
+   int rc = sched_setscheduler(linux_tid_, SCHED_FIFO, &rt_params);
+   if (rc != 0) {
+diff --git a/system/osi/src/alarm.cc b/system/osi/src/alarm.cc
+
+--- a/system/osi/src/alarm.cc
++++ b/system/osi/src/alarm.cc
+@@ -672,7 +672,8 @@ static bool timer_create_internal(const clockid_t clock_id, timer_t* timer) {
+   memset(&sigevent, 0, sizeof(sigevent));
+   sigevent.sigev_notify = SIGEV_THREAD;
+   sigevent.sigev_notify_function = (void (*)(union sigval))timer_callback;
+-  sigevent.sigev_notify_attributes = &thread_attr;
++  //sigevent.sigev_notify_attributes = &thread_attr;
++  sigevent.sigev_notify_attributes = nullptr;
+   if (timer_create(clock_id, &sigevent, timer) == -1) {
+     log::error("unable to create timer with clock {}: {}", clock_id, strerror(errno));
+     if (clock_id == CLOCK_BOOTTIME_ALARM) {
+diff --git a/system/osi/src/thread.cc b/system/osi/src/thread.cc
+
+--- a/system/osi/src/thread.cc
++++ b/system/osi/src/thread.cc
+@@ -162,6 +162,7 @@ bool thread_set_priority(thread_t* thread, int priority) {
+   if (!thread) {
+     return false;
+   }
++  return true; // kbox mock
+ 
+   const int rc = setpriority(PRIO_PROCESS, thread->tid, priority);
+   if (rc < 0) {
+

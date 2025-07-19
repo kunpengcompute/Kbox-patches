@@ -1,0 +1,25 @@
+diff --git a/KernelConfigs.cpp b/KernelConfigs.cpp
+
+--- a/KernelConfigs.cpp
++++ b/KernelConfigs.cpp
+@@ -34,6 +34,7 @@ status_t LoadKernelConfigs(std::map<std::string, std::string>* configs) {
+     gzFile f = gzopen("/proc/config.gz", "rb");
+     if (f == NULL) {
+         LOG(ERROR) << "Could not open /proc/config.gz: " << errno;
++        errno = 0; // kbox_hacked
+         return -errno;
+     }
+ 
+diff --git a/VintfObject.cpp b/VintfObject.cpp
+
+--- a/VintfObject.cpp
++++ b/VintfObject.cpp
+@@ -738,7 +738,6 @@ int32_t VintfObject::checkCompatibility(std::string* error, CheckFlags::Type fla
+                 error->insert(0,
+                               "Runtime info and framework compatibility matrix are incompatible: ");
+             }
+-            return INCOMPATIBLE;
+         }
+     }
+ 
+
