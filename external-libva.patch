@@ -1,0 +1,46 @@
+diff --git a/configure.ac b/configure.ac
+
+--- a/configure.ac
++++ b/configure.ac
+@@ -26,7 +26,7 @@
+ # - increment micro for any other change (new flag, new codec definition, etc.)
+ # - reset micro version to zero when minor version is incremented
+ # - reset minor version to zero when major version is incremented
+-m4_define([va_api_major_version], [1])
++m4_define([va_api_major_version], [2])
+ m4_define([va_api_minor_version], [21])
+ m4_define([va_api_micro_version], [0])
+ 
+diff --git a/va/Android.mk.disabled b/va/Android.mk.disabled
+
+--- a/va/Android.mk.disabled
++++ b/va/Android.mk.disabled
+@@ -53,13 +53,14 @@ LOCAL_CFLAGS := \
+ 	$(IGNORED_WARNNING) \
+ 	-DLOG_TAG=\"libva\"
+ 
++LOCAL_CFLAGS += -DSYSCONFDIR=\"/etc\"
+ LOCAL_C_INCLUDES := $(LOCAL_PATH)/..
+ 
++LOCAL_VENDOR_MODULE := true
+ LOCAL_MODULE_TAGS := optional
+ LOCAL_MODULE := libva
+ LOCAL_MODULE_CLASS := SHARED_LIBRARIES
+-LOCAL_PROPRIETARY_MODULE := true
+-
++#LOCAL_PROPRIETARY_MODULE := true
+ LOCAL_SHARED_LIBRARIES := libdl libdrm libcutils liblog
+ 
+ intermediates := $(call local-generated-sources-dir)
+@@ -95,8 +96,9 @@ LOCAL_C_INCLUDES += \
+ 
+ LOCAL_MODULE_TAGS := optional
+ LOCAL_MODULE := libva-android
+-LOCAL_PROPRIETARY_MODULE := true
++#LOCAL_PROPRIETARY_MODULE := true
+ 
++LOCAL_VENDOR_MODULE := true
+ LOCAL_SHARED_LIBRARIES := libva libdrm liblog
+ 
+ include $(BUILD_SHARED_LIBRARY)
+

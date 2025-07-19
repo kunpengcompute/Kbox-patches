@@ -1,0 +1,21 @@
+diff --git a/libminijail.c b/libminijail.c
+
+--- a/libminijail.c
++++ b/libminijail.c
+@@ -2487,6 +2487,7 @@ static void set_seccomp_filter(const struct minijail *j)
+ 	/*
+ 	 * Install the syscall filter.
+ 	 */
++#if 0 // kbox_hacked
+ 	if (j->flags.seccomp_filter) {
+ 		if (j->flags.seccomp_filter_tsync ||
+ 		    j->flags.seccomp_filter_allow_speculation) {
+@@ -2508,6 +2509,7 @@ static void set_seccomp_filter(const struct minijail *j)
+ 			}
+ 		}
+ 	}
++#endif
+ }
+ 
+ static pid_t forward_pid = -1;
+

@@ -1,0 +1,726 @@
+diff --git a/android/Android.mk b/android/Android.mk
+new file mode 100644
+
+--- /dev/null
++++ b/android/Android.mk
+@@ -0,0 +1,193 @@
++# Mesa 3-D graphics library
++#
++# Copyright (C) 2021 GlobalLogic Ukraine
++# Copyright (C) 2021 Roman Stratiienko (r.stratiienko@gmail.com)
++#
++# Permission is hereby granted, free of charge, to any person obtaining a
++# copy of this software and associated documentation files (the "Software"),
++# to deal in the Software without restriction, including without limitation
++# the rights to use, copy, modify, merge, publish, distribute, sublicense,
++# and/or sell copies of the Software, and to permit persons to whom the
++# Software is furnished to do so, subject to the following conditions:
++#
++# The above copyright notice and this permission notice shall be included
++# in all copies or substantial portions of the Software.
++#
++# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
++# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++# DEALINGS IN THE SOFTWARE.
++
++ifneq ($(filter true, $(BOARD_MESA3D_USES_MESON_BUILD)),)
++
++LOCAL_PATH := $(call my-dir)
++MESA3D_TOP := $(dir $(LOCAL_PATH))
++
++LIBDRM_VERSION = $(shell cat external/libdrm/meson.build | grep -o "\<version\>\s*:\s*'\w*\.\w*\.\w*'" | grep -o "\w*\.\w*\.\w*" | head -1)
++LIBVA_VERSION = $(shell cat external/libva/meson.build | grep -o "\<version\>\s*:\s*'\w*\.\w*\.\w*'" | grep -o "\w*\.\w*\.\w*" | head -1)
++LLVM_VERSION_MAJOR = $(shell \
++    if [ -f external/llvm-project/cmake/Modules/LLVMVersion.cmake ]; then \
++        grep 'set.LLVM_VERSION_MAJOR ' external/llvm-project/cmake/Modules/LLVMVersion.cmake | grep -o '[0-9]\+'; \
++    else \
++        grep 'set.LLVM_VERSION_MAJOR ' external/llvm-project/llvm/CMakeLists.txt | grep -o '[0-9]\+'; \
++    fi)
++
++MESA_VK_LIB_SUFFIX_amd := radeon
++MESA_VK_LIB_SUFFIX_intel := intel
++MESA_VK_LIB_SUFFIX_intel_hasvk := intel_hasvk
++MESA_VK_LIB_SUFFIX_freedreno := freedreno
++MESA_VK_LIB_SUFFIX_broadcom := broadcom
++MESA_VK_LIB_SUFFIX_panfrost := panfrost
++MESA_VK_LIB_SUFFIX_virtio := virtio
++MESA_VK_LIB_SUFFIX_swrast := lvp
++
++include $(CLEAR_VARS)
++
++LOCAL_SHARED_LIBRARIES := libc libdl libdrm libm liblog libcutils libz libc++ libnativewindow libsync libhardware libva
++LOCAL_STATIC_LIBRARIES := libexpat libarect libelf libzstd
++LOCAL_HEADER_LIBRARIES := libnativebase_headers hwvulkan_headers
++MESON_GEN_PKGCONFIGS := log cutils expat hardware libdrm:$(LIBDRM_VERSION) nativewindow sync zlib:1.2.11 libelf libva:$(LIBVA_VERSION)
++LOCAL_CFLAGS += $(BOARD_MESA3D_CFLAGS)
++
++ifneq ($(filter swrast,$(BOARD_MESA3D_GALLIUM_DRIVERS) $(BOARD_MESA3D_VULKAN_DRIVERS)),)
++ifeq ($(BOARD_MESA3D_FORCE_SOFTPIPE),)
++MESON_GEN_LLVM_STUB := true
++endif
++endif
++
++ifneq ($(filter zink,$(BOARD_MESA3D_GALLIUM_DRIVERS)),)
++LOCAL_SHARED_LIBRARIES += libvulkan
++MESON_GEN_PKGCONFIGS += vulkan
++endif
++
++ifneq ($(filter iris,$(BOARD_MESA3D_GALLIUM_DRIVERS)),)
++LOCAL_SHARED_LIBRARIES += libdrm_intel
++MESON_GEN_PKGCONFIGS += libdrm_intel:$(LIBDRM_VERSION)
++endif
++
++ifneq ($(filter radeonsi,$(BOARD_MESA3D_GALLIUM_DRIVERS)),)
++ifneq ($(MESON_GEN_LLVM_STUB),)
++LOCAL_CFLAGS += -DFORCE_BUILD_AMDGPU   # instructs LLVM to declare LLVMInitializeAMDGPU* functions
++# The flag is required for the Android-x86 LLVM port that follows the AOSP LLVM porting rules
++# https://osdn.net/projects/android-x86/scm/git/external-llvm-project
++endif
++endif
++
++ifneq ($(filter radeonsi amd,$(BOARD_MESA3D_GALLIUM_DRIVERS) $(BOARD_MESA3D_VULKAN_DRIVERS)),)
++LOCAL_SHARED_LIBRARIES += libdrm_amdgpu
++MESON_GEN_PKGCONFIGS += libdrm_amdgpu:$(LIBDRM_VERSION)
++endif
++
++ifneq ($(filter radeonsi r300 r600,$(BOARD_MESA3D_GALLIUM_DRIVERS)),)
++LOCAL_SHARED_LIBRARIES += libdrm_radeon
++MESON_GEN_PKGCONFIGS += libdrm_radeon:$(LIBDRM_VERSION)
++endif
++
++ifneq ($(filter d3d12,$(BOARD_MESA3D_GALLIUM_DRIVERS)),)
++LOCAL_HEADER_LIBRARIES += DirectX-Headers
++LOCAL_STATIC_LIBRARIES += DirectX-Guids
++MESON_GEN_PKGCONFIGS += DirectX-Headers
++endif
++
++ifneq ($(MESON_GEN_LLVM_STUB),)
++MESON_LLVM_VERSION := 13.0.1
++LOCAL_SHARED_LIBRARIES += libLLVM70
++endif
++
++ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 30; echo $$?), 0)
++LOCAL_SHARED_LIBRARIES += \
++    android.hardware.graphics.mapper@4.0 \
++    libgralloctypes \
++    libhidlbase \
++    libutils
++ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 35; echo $$?), 0)
++LOCAL_SHARED_LIBRARIES += libui
++MESON_GEN_PKGCONFIGS += ui
++endif
++MESON_GEN_PKGCONFIGS += android.hardware.graphics.mapper:4.0
++endif
++
++__MY_SHARED_LIBRARIES := $(LOCAL_SHARED_LIBRARIES)
++
++MESA_LIBGBM_NAME := libgbm
++
++ifeq ($(TARGET_IS_64_BIT),true)
++LOCAL_MULTILIB := 64
++else
++LOCAL_MULTILIB := 32
++endif
++include $(LOCAL_PATH)/mesa3d_cross.mk
++
++
++ifdef TARGET_2ND_ARCH
++LOCAL_MULTILIB := 32
++include $(LOCAL_PATH)/mesa3d_cross.mk
++endif
++
++#-------------------------------------------------------------------------------
++
++# $1: name
++# $2: subdir
++# $3: source prebuilt
++# $4: export headers
++define mesa3d-lib
++include $(CLEAR_VARS)
++LOCAL_MODULE_CLASS := SHARED_LIBRARIES
++LOCAL_MODULE := $1
++LOCAL_VENDOR_MODULE := true
++LOCAL_MODULE_RELATIVE_PATH := $2
++LOCAL_PREBUILT_MODULE_FILE := $($3)
++LOCAL_MULTILIB := first
++LOCAL_CHECK_ELF_FILES := false
++LOCAL_MODULE_SUFFIX := .so
++LOCAL_SHARED_LIBRARIES := $(__MY_SHARED_LIBRARIES)
++LOCAL_EXPORT_C_INCLUDE_DIRS := $4
++include $(BUILD_PREBUILT)
++
++ifdef TARGET_2ND_ARCH
++include $(CLEAR_VARS)
++LOCAL_MODULE_CLASS := SHARED_LIBRARIES
++LOCAL_MODULE := $1
++LOCAL_VENDOR_MODULE := true
++LOCAL_MODULE_RELATIVE_PATH := $2
++LOCAL_PREBUILT_MODULE_FILE := $(2ND_$3)
++LOCAL_MULTILIB := 32
++LOCAL_CHECK_ELF_FILES := false
++LOCAL_MODULE_SUFFIX := .so
++LOCAL_SHARED_LIBRARIES := $(__MY_SHARED_LIBRARIES)
++LOCAL_EXPORT_C_INCLUDE_DIRS := $4
++include $(BUILD_PREBUILT)
++endif
++endef
++
++ifneq ($(strip $(BOARD_MESA3D_GALLIUM_DRIVERS)),)
++# Module 'libgallium_dri', produces '/vendor/lib{64}/libgallium_dri.so'
++# This module also trigger DRI symlinks creation process
++$(eval $(call mesa3d-lib,libgallium_dri,,MESA3D_GALLIUM_BIN))
++# Module 'libglapi', produces '/vendor/lib{64}/libglapi.so'
++$(eval $(call mesa3d-lib,libglapi,,MESA3D_LIBGLAPI_BIN))
++$(eval $(call mesa3d-lib,dri_gbm,dri,MESA3D_DRI_GBM_BIN))
++
++# Module 'libEGL_mesa', produces '/vendor/lib{64}/egl/libEGL_mesa.so'
++$(eval $(call mesa3d-lib,libEGL_mesa,egl,MESA3D_LIBEGL_BIN))
++# Module 'libGLESv1_CM_mesa', produces '/vendor/lib{64}/egl/libGLESv1_CM_mesa.so'
++$(eval $(call mesa3d-lib,libGLESv1_CM_mesa,egl,MESA3D_LIBGLESV1_BIN))
++# Module 'libGLESv2_mesa', produces '/vendor/lib{64}/egl/libGLESv2_mesa.so'
++$(eval $(call mesa3d-lib,libGLESv2_mesa,egl,MESA3D_LIBGLESV2_BIN))
++endif
++
++# Modules 'vulkan.{driver_name}', produces '/vendor/lib{64}/hw/vulkan.{driver_name}.so' HAL
++$(foreach driver,$(BOARD_MESA3D_VULKAN_DRIVERS), \
++    $(eval $(call mesa3d-lib,vulkan.$(MESA_VK_LIB_SUFFIX_$(driver)),hw,MESA3D_VULKAN_$(driver)_BIN)))
++
++#ifneq ($(filter true, $(BOARD_MESA3D_BUILD_LIBGBM)),)
++# Modules 'libgbm', produces '/vendor/lib{64}/libgbm.so'
++$(eval $(call mesa3d-lib,$(MESA_LIBGBM_NAME),,MESA3D_LIBGBM_BIN,$(MESA3D_TOP)/src/gbm/main))
++#endif
++
++#-------------------------------------------------------------------------------
++
++endif
+diff --git a/android/mesa3d_cross.mk b/android/mesa3d_cross.mk
+new file mode 100644
+
+--- /dev/null
++++ b/android/mesa3d_cross.mk
+@@ -0,0 +1,325 @@
++# Mesa 3-D graphics library
++#
++# Copyright (C) 2021 GlobalLogic Ukraine
++# Copyright (C) 2021 Roman Stratiienko (r.stratiienko@gmail.com)
++#
++# Permission is hereby granted, free of charge, to any person obtaining a
++# copy of this software and associated documentation files (the "Software"),
++# to deal in the Software without restriction, including without limitation
++# the rights to use, copy, modify, merge, publish, distribute, sublicense,
++# and/or sell copies of the Software, and to permit persons to whom the
++# Software is furnished to do so, subject to the following conditions:
++#
++# The above copyright notice and this permission notice shall be included
++# in all copies or substantial portions of the Software.
++#
++# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
++# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++# DEALINGS IN THE SOFTWARE.
++
++MY_PATH := $(call my-dir)
++
++AOSP_ABSOLUTE_PATH := $(realpath .)
++define relative-to-absolute
++$(if $(patsubst /%,,$1),$(AOSP_ABSOLUTE_PATH)/$1,$1)
++endef
++
++LOCAL_MODULE_CLASS := SHARED_LIBRARIES
++LOCAL_MODULE := meson.dummy.$(LOCAL_MULTILIB)
++
++m_dummy := $(local-generated-sources-dir)/dummy.c
++$(m_dummy):
++	mkdir -p $(dir $@)
++	touch $@
++
++LOCAL_GENERATED_SOURCES := $(m_dummy) 
++LOCAL_VENDOR_MODULE := true
++
++# Prepare intermediate variables by AOSP make/core internals
++include $(BUILD_SHARED_LIBRARY)
++
++LOCAL_PATH := $(MY_PATH)
++
++link_deps := \
++	$(built_static_libraries) \
++	$(built_shared_libraries) \
++	$(built_whole_libraries) \
++	$(strip $(all_objects)) \
++	$(my_target_libatomic) \
++	$(my_target_libcrt_builtins) \
++	$(my_target_crtbegin_so_o) \
++	$(my_target_crtend_so_o)
++
++# Build mesa3d using intermediate variables provided by AOSP make/core internals
++M_TARGET_PREFIX := $(my_2nd_arch_prefix)
++
++MESA3D_LIB_DIR := lib$(subst 32,,$(LOCAL_MULTILIB))
++
++MESON_OUT_DIR                            := $($(M_TARGET_PREFIX)TARGET_OUT_INTERMEDIATES)/MESON_MESA3D
++MESON_GEN_DIR                            := $(MESON_OUT_DIR)_GEN
++MESON_GEN_FILES_TARGET                   := $(MESON_GEN_DIR)/.timestamp
++
++MESA3D_GALLIUM_DIR                       := $(MESON_OUT_DIR)/install/usr/local/lib
++$(M_TARGET_PREFIX)MESA3D_GALLIUM_BIN     := $(MESON_OUT_DIR)/install/usr/local/lib/libgallium_dri.so
++$(M_TARGET_PREFIX)MESA3D_LIBEGL_BIN      := $(MESON_OUT_DIR)/install/usr/local/lib/libEGL.so
++$(M_TARGET_PREFIX)MESA3D_LIBGLESV1_BIN   := $(MESON_OUT_DIR)/install/usr/local/lib/libGLESv1_CM.so
++$(M_TARGET_PREFIX)MESA3D_LIBGLESV2_BIN   := $(MESON_OUT_DIR)/install/usr/local/lib/libGLESv2.so
++$(M_TARGET_PREFIX)MESA3D_LIBGLAPI_BIN    := $(MESON_OUT_DIR)/install/usr/local/lib/libglapi.so
++$(M_TARGET_PREFIX)MESA3D_LIBGBM_BIN      := $(MESON_OUT_DIR)/install/usr/local/lib/$(MESA_LIBGBM_NAME).so
++$(M_TARGET_PREFIX)MESA3D_DRI_GBM_BIN     := $(MESON_OUT_DIR)/install/usr/local/lib/gbm/dri_gbm.so
++
++
++MESA3D_GBM_BINS := \
++    $($(M_TARGET_PREFIX)MESA3D_LIBGBM_BIN) \
++    $($(M_TARGET_PREFIX)MESA3D_DRI_GBM_BIN)   \
++
++MESA3D_GLES_BINS := \
++    $($(M_TARGET_PREFIX)MESA3D_GALLIUM_BIN) \
++    $($(M_TARGET_PREFIX)MESA3D_LIBEGL_BIN)    \
++    $($(M_TARGET_PREFIX)MESA3D_LIBGLESV1_BIN) \
++    $($(M_TARGET_PREFIX)MESA3D_LIBGLESV2_BIN) \
++    $($(M_TARGET_PREFIX)MESA3D_LIBGLAPI_BIN)  \
++
++MESON_GEN_NINJA := \
++	cd $(MESON_OUT_DIR) && PATH=/usr/bin:/usr/local/bin:$$PATH meson.py ./build     \
++	--cross-file $(call relative-to-absolute,$(MESON_GEN_DIR))/aosp_cross        \
++	--buildtype=release                                                          \
++	-Dgbm-backends-path=/vendor/$(MESA3D_LIB_DIR)/dri                              \
++	-Dplatforms=android                                                          \
++	-Dplatform-sdk-version=$(PLATFORM_SDK_VERSION)                               \
++	-Dgallium-drivers=radeonsi \
++	-Dvulkan-drivers=$(subst $(space),$(comma),$(subst radeon,amd,$(BOARD_MESA3D_VULKAN_DRIVERS)))   \
++	-Dgbm=enabled                                                                \
++	-Degl=enabled                                                                \
++	-Dllvm=disabled                                                                \
++	-Dcpp_rtti=false                                                             \
++	-Dlmsensors=disabled                                                          \
++	-Dandroid-libbacktrace=enabled                                                \
++	$(BOARD_MESA3D_MESON_ARGS)                                                    \
++	-Dgallium-va=enabled                                                           \
++	-Dandroid-stub=true                                                            \
++	-Degl-native-platform=android                                                  \
++
++MESON_BUILD := PATH=/usr/bin:/bin:/sbin:$$PATH ninja -C $(MESON_OUT_DIR)/build
++
++$(MESON_GEN_FILES_TARGET): MESON_CPU_FAMILY := $(subst arm64,aarch64,$(TARGET_$(M_TARGET_PREFIX)ARCH))
++
++define create-pkgconfig
++echo -e "Name: $2" \
++	"\nDescription: $2" \
++	"\nVersion: $3" > $1/$2.pc
++
++endef
++
++# Taken from build/make/core/binary.mk. We need this
++# to use definitions from build/make/core/definitions.mk
++$(MESON_GEN_FILES_TARGET): PRIVATE_GLOBAL_C_INCLUDES := $(my_target_global_c_includes)
++$(MESON_GEN_FILES_TARGET): PRIVATE_GLOBAL_C_SYSTEM_INCLUDES := $(my_target_global_c_system_includes)
++
++$(MESON_GEN_FILES_TARGET): PRIVATE_2ND_ARCH_VAR_PREFIX := $(M_TARGET_PREFIX)
++$(MESON_GEN_FILES_TARGET): PRIVATE_CC := $(my_cc)
++$(MESON_GEN_FILES_TARGET): PRIVATE_LINKER := $(my_linker)
++$(MESON_GEN_FILES_TARGET): PRIVATE_CXX := $(my_cxx)
++$(MESON_GEN_FILES_TARGET): PRIVATE_CXX_LINK := $(my_cxx_link)
++$(MESON_GEN_FILES_TARGET): PRIVATE_YACCFLAGS := $(LOCAL_YACCFLAGS)
++$(MESON_GEN_FILES_TARGET): PRIVATE_ASFLAGS := $(my_asflags)
++$(MESON_GEN_FILES_TARGET): PRIVATE_CONLYFLAGS := $(my_conlyflags)
++$(MESON_GEN_FILES_TARGET): PRIVATE_CFLAGS := $(my_cflags)
++$(MESON_GEN_FILES_TARGET): PRIVATE_CPPFLAGS := $(my_cppflags)
++$(MESON_GEN_FILES_TARGET): PRIVATE_CFLAGS_NO_OVERRIDE := $(my_cflags_no_override)
++$(MESON_GEN_FILES_TARGET): PRIVATE_CPPFLAGS_NO_OVERRIDE := $(my_cppflags_no_override)
++$(MESON_GEN_FILES_TARGET): PRIVATE_RTTI_FLAG := $(LOCAL_RTTI_FLAG)
++$(MESON_GEN_FILES_TARGET): PRIVATE_DEBUG_CFLAGS := $(debug_cflags)
++$(MESON_GEN_FILES_TARGET): PRIVATE_C_INCLUDES := $(my_c_includes)
++$(MESON_GEN_FILES_TARGET): PRIVATE_IMPORTED_INCLUDES := $(imported_includes)
++$(MESON_GEN_FILES_TARGET): PRIVATE_LDFLAGS := $(my_ldflags)
++$(MESON_GEN_FILES_TARGET): PRIVATE_LDLIBS := $(my_ldlibs)
++$(MESON_GEN_FILES_TARGET): PRIVATE_TIDY_CHECKS := $(my_tidy_checks)
++$(MESON_GEN_FILES_TARGET): PRIVATE_TIDY_FLAGS := $(my_tidy_flags)
++$(MESON_GEN_FILES_TARGET): PRIVATE_ARFLAGS := $(my_arflags)
++$(MESON_GEN_FILES_TARGET): PRIVATE_ALL_SHARED_LIBRARIES := $(built_shared_libraries)
++$(MESON_GEN_FILES_TARGET): PRIVATE_ALL_STATIC_LIBRARIES := $(built_static_libraries)
++$(MESON_GEN_FILES_TARGET): PRIVATE_ALL_WHOLE_STATIC_LIBRARIES := $(built_whole_libraries)
++$(MESON_GEN_FILES_TARGET): PRIVATE_ALL_OBJECTS := $(strip $(all_objects))
++
++$(MESON_GEN_FILES_TARGET): PRIVATE_ARM_CFLAGS := $(normal_objects_cflags)
++
++$(MESON_GEN_FILES_TARGET): PRIVATE_TARGET_GLOBAL_CFLAGS := $(my_target_global_cflags)
++$(MESON_GEN_FILES_TARGET): PRIVATE_TARGET_GLOBAL_CONLYFLAGS := $(my_target_global_conlyflags)
++$(MESON_GEN_FILES_TARGET): PRIVATE_TARGET_GLOBAL_CPPFLAGS := $(my_target_global_cppflags)
++$(MESON_GEN_FILES_TARGET): PRIVATE_TARGET_GLOBAL_LDFLAGS := $(my_target_global_ldflags)
++
++$(MESON_GEN_FILES_TARGET): PRIVATE_TARGET_LIBCRT_BUILTINS := $(my_target_libcrt_builtins)
++$(MESON_GEN_FILES_TARGET): PRIVATE_TARGET_LIBATOMIC := $(my_target_libatomic)
++$(MESON_GEN_FILES_TARGET): PRIVATE_TARGET_CRTBEGIN_SO_O := $(my_target_crtbegin_so_o)
++$(MESON_GEN_FILES_TARGET): PRIVATE_TARGET_CRTEND_SO_O := $(my_target_crtend_so_o)
++##
++
++define m-lld-flags
++  -Wl,-e,main \
++  -nostdlib -Wl,--gc-sections \
++  $(PRIVATE_TARGET_CRTBEGIN_SO_O) \
++  $(PRIVATE_ALL_OBJECTS) \
++  -Wl,--whole-archive \
++  $(PRIVATE_ALL_WHOLE_STATIC_LIBRARIES) \
++  -Wl,--no-whole-archive \
++  $(if $(PRIVATE_GROUP_STATIC_LIBRARIES),-Wl$(comma)--start-group) \
++  $(PRIVATE_ALL_STATIC_LIBRARIES) \
++  $(if $(PRIVATE_GROUP_STATIC_LIBRARIES),-Wl$(comma)--end-group) \
++  $(if $(filter true,$(NATIVE_COVERAGE)),$(PRIVATE_TARGET_COVERAGE_LIB)) \
++  $(PRIVATE_TARGET_LIBCRT_BUILTINS) \
++  $(PRIVATE_TARGET_LIBATOMIC) \
++  $(PRIVATE_TARGET_GLOBAL_LDFLAGS) \
++  $(PRIVATE_LDFLAGS) \
++  $(PRIVATE_ALL_SHARED_LIBRARIES) \
++  $(PRIVATE_TARGET_CRTEND_SO_O) \
++  $(PRIVATE_LDLIBS)
++endef
++
++define m-lld-flags-cleaned
++  $(patsubst -Wl$(comma)--build-id=%,, \
++  $(subst prebuilts/,$(AOSP_ABSOLUTE_PATH)/prebuilts/, \
++  $(subst $(OUT_DIR)/,$(call relative-to-absolute,$(OUT_DIR))/, \
++  $(subst -Wl$(comma)--fatal-warnings,,                \
++  $(subst -Wl$(comma)--no-undefined-version,,          \
++  $(subst -Wl$(comma)--gc-sections,,                   \
++  $(patsubst %dummy.o,,                                \
++    $(m-lld-flags))))))))
++endef
++
++define m-cpp-flags
++  $(PRIVATE_TARGET_GLOBAL_CFLAGS) \
++  $(PRIVATE_TARGET_GLOBAL_CPPFLAGS) \
++  $(PRIVATE_ARM_CFLAGS) \
++  $(PRIVATE_RTTI_FLAG) \
++  $(PRIVATE_CFLAGS) \
++  $(PRIVATE_CPPFLAGS) \
++  $(PRIVATE_DEBUG_CFLAGS) \
++  $(PRIVATE_CFLAGS_NO_OVERRIDE) \
++  $(PRIVATE_CPPFLAGS_NO_OVERRIDE)
++endef
++
++define m-c-flags
++  $(PRIVATE_TARGET_GLOBAL_CFLAGS) \
++  $(PRIVATE_TARGET_GLOBAL_CONLYFLAGS) \
++  $(PRIVATE_ARM_CFLAGS) \
++  $(PRIVATE_CFLAGS) \
++  $(PRIVATE_CONLYFLAGS) \
++  $(PRIVATE_DEBUG_CFLAGS) \
++  $(PRIVATE_CFLAGS_NO_OVERRIDE)
++endef
++
++define filter-c-flags
++  $(filter-out -std=gnu++17 -std=gnu++14 -std=gnu99 -fno-rtti \
++    -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang \
++    -ftrivial-auto-var-init=zero,
++    $(patsubst  -W%,, $1))
++endef
++
++define nospace-includes
++  $(subst $(space)-isystem$(space),$(space)-isystem, \
++  $(subst $(space)-I$(space),$(space)-I, \
++  $(strip $(c-includes)))) 
++endef
++
++# Ensure include paths are always absolute
++# When OUT_DIR_COMMON_BASE env variable is set the AOSP/KATI will use absolute paths
++# for headers in intermediate output directories, but relative for all others.
++define abs-include
++$(strip \
++  $(if $(patsubst -I%,,$1),\
++    $(if $(patsubst -isystem/%,,$1),\
++      $(subst -isystem,-isystem$(AOSP_ABSOLUTE_PATH)/,$1),\
++      $1\
++    ),\
++    $(if $(patsubst -I/%,,$1),\
++      $(subst -I,-I$(AOSP_ABSOLUTE_PATH)/,$1),\
++      $1\
++    )\
++  )
++)
++endef
++
++$(MESON_GEN_FILES_TARGET): PREPROCESS_MESON_CONFIGS:=$(PREPROCESS_MESON_CONFIGS)
++$(MESON_GEN_FILES_TARGET): MESON_GEN_DIR:=$(MESON_GEN_DIR)
++$(MESON_GEN_FILES_TARGET): $(sort $(shell find -L $(MESA3D_TOP) -not -path '*/\.*'))
++	mkdir -p $(dir $@)
++	echo -e "[properties]\n"                                                                                                  \
++		"c_args = [$(foreach flag,$(call filter-c-flags,$(m-c-flags)),'$(flag)', )  \
++		             $(foreach inc,$(nospace-includes),'$(call abs-include,$(inc))', )'']\n" \
++		"cpp_args = [$(foreach flag,$(call filter-c-flags,$(m-cpp-flags)),'$(flag)', ) \
++		               $(foreach inc,$(nospace-includes),'$(call abs-include,$(inc))', )'']\n" \
++		"c_link_args = [$(foreach flag, $(m-lld-flags-cleaned),'$(flag)',)'']\n"                                          \
++		"cpp_link_args = [$(foreach flag, $(m-lld-flags-cleaned),'$(flag)',)'']\n"                                        \
++		"needs_exe_wrapper = true\n"                                                                                      \
++		"[binaries]\n"                                                                                                    \
++		"ar = '$(AOSP_ABSOLUTE_PATH)/$($($(M_TARGET_PREFIX))TARGET_AR)'\n"                                                \
++		"c = [$(foreach arg,$(PRIVATE_CC),'$(subst prebuilts/,$(AOSP_ABSOLUTE_PATH)/prebuilts/,$(arg))',)'']\n"           \
++		"cpp = [$(foreach arg,$(PRIVATE_CXX),'$(subst prebuilts/,$(AOSP_ABSOLUTE_PATH)/prebuilts/,$(arg))',)'']\n"        \
++		"c_ld = 'lld'\n"                                                                                                  \
++		"cpp_ld = 'lld'\n\n"                                                                                              \
++		"pkgconfig = ['env', 'PKG_CONFIG_LIBDIR=' + '$(call relative-to-absolute,$(MESON_GEN_DIR))', '/usr/bin/pkg-config']\n\n" \
++		"llvm-config = '/dev/null'\n"                                                                                     \
++		"[host_machine]\n"                                                                                                \
++		"system = 'android'\n"                                                                                              \
++		"cpu_family = '$(MESON_CPU_FAMILY)'\n"                                                                            \
++		"cpu = '$(MESON_CPU_FAMILY)'\n"                                                                                   \
++		"endian = 'little'" > $(dir $@)/aosp_cross
++
++	#
++	$(foreach pkg, $(MESON_GEN_PKGCONFIGS), $(call create-pkgconfig,$(dir $@),$(word 1, $(subst :, ,$(pkg))),$(word 2, $(subst :, ,$(pkg)))))
++	touch $@
++
++$(MESON_OUT_DIR)/.build.timestamp: MESON_GEN_NINJA:=$(MESON_GEN_NINJA)
++$(MESON_OUT_DIR)/.build.timestamp: MESON_BUILD:=$(MESON_BUILD)
++$(MESON_OUT_DIR)/.build.timestamp: $(MESON_GEN_FILES_TARGET) $(link_deps)
++	rm -rf $(dir $@)
++	mkdir -p $(dir $@)
++	mkdir -p $(dir $@)/build
++	# Meson will update timestamps in sources directory, continuously retriggering the build
++	# even if nothing changed. Copy sources into intermediate dir to avoid this effect.
++	cp -r $(MESA3D_TOP)/* $(dir $@)
++ifneq ($(MESON_GEN_LLVM_STUB),)
++	mkdir -p $(dir $@)/subprojects/llvm/
++	echo -e "project('llvm', 'cpp', version : '$(MESON_LLVM_VERSION)')\n" \
++		"dep_llvm = declare_dependency()\n"                           \
++		"has_rtti = false\n" > $(dir $@)/subprojects/llvm/meson.build
++endif
++	$(MESON_GEN_NINJA)
++	$(MESON_BUILD)
++	touch $@
++
++MESON_COPY_LIBGALLIUM := \
++	cp $($(M_TARGET_PREFIX)MESA3D_DRI_GBM_BIN) $(MESA3D_GALLIUM_DIR)
++
++$(MESON_OUT_DIR)/install/.install.timestamp: MESON_COPY_LIBGALLIUM:=$(MESON_COPY_LIBGALLIUM)
++$(MESON_OUT_DIR)/install/.install.timestamp: MESON_BUILD:=$(MESON_BUILD)
++$(MESON_OUT_DIR)/install/.install.timestamp: $(MESON_OUT_DIR)/.build.timestamp
++	rm -rf $(dir $@)
++	mkdir -p $(dir $@)
++	DESTDIR=$(call relative-to-absolute,$(dir $@)) $(MESON_BUILD) install
++	$(MESON_COPY_LIBGALLIUM)
++	touch $@
++
++$(MESA3D_GBM_BINS) $(MESA3D_GLES_BINS): $(MESON_OUT_DIR)/install/.install.timestamp
++	echo "Build $@"
++	touch $@
++
++define vulkan_target
++$(M_TARGET_PREFIX)MESA3D_VULKAN_$1_BIN := $(MESON_OUT_DIR)/install/usr/local/lib/libvulkan_$(MESA_VK_LIB_SUFFIX_$1).so
++$(MESON_OUT_DIR)/install/usr/local/lib/libvulkan_$(MESA_VK_LIB_SUFFIX_$1).so: $(MESON_OUT_DIR)/install/.install.timestamp
++	touch $(MESON_OUT_DIR)/install/usr/local/lib/libvulkan_$(MESA_VK_LIB_SUFFIX_$1).so
++
++endef
++
++$(foreach driver,$(BOARD_MESA3D_VULKAN_DRIVERS), $(eval $(call vulkan_target,$(driver))))
++
++$($(M_TARGET_PREFIX)TARGET_OUT_VENDOR_SHARED_LIBRARIES)/dri/.symlinks.timestamp: $(MESON_OUT_DIR)/install/.install.timestamp
++	# Create Symlinks
++	mkdir -p $(dir $@)
++	ln -s -f libgallium_dri.so $(dir $@)/radeonsi_dri.so
++	touch $@
+diff --git a/meson.build b/meson.build
+
+--- a/meson.build
++++ b/meson.build
+@@ -570,8 +570,8 @@ if with_vulkan_icd_dir == ''
+   with_vulkan_icd_dir = join_paths(get_option('datadir'), 'vulkan/icd.d')
+ endif
+ 
+-with_dri2 = (with_dri or with_any_vk) and (with_dri_platform == 'drm' or with_dri_platform == 'apple')
+-
++with_dri2 = (with_dri or with_any_vk) and (with_dri_platform == 'drm' or
++  host_machine.system() == 'gnu')
+ with_x11_dri2 = with_dri2 and get_option('legacy-x11').contains('dri2')
+ 
+ if with_dri
+diff --git a/src/gallium/frontends/dri/dri2.c b/src/gallium/frontends/dri/dri2.c
+
+--- a/src/gallium/frontends/dri/dri2.c
++++ b/src/gallium/frontends/dri/dri2.c
+@@ -1834,6 +1834,18 @@ dri2_blit_image(__DRIcontext *context, __DRIimage *dst, __DRIimage *src,
+    }
+ }
+ 
++void *
++dri2_map_image_native(__DRIcontext *context, __DRIimage *image,
++                int x0, int y0, int width, int height,
++                unsigned int flags, int *stride, void **data)
++{
++   struct dri_context *ctx = dri_context(context);
++   dri_image_fence_sync(ctx, image);
++   struct pipe_resource *resource = image->texture;
++   pipe_reference_described(NULL, &resource->reference, (debug_reference_descriptor)debug_describe_resource);
++   return resource;
++}
++
+ void *
+ dri2_map_image(__DRIcontext *context, __DRIimage *image,
+		  int x0, int y0, int width, int height,
+diff --git a/src/gallium/frontends/dri/dri_util.h b/src/gallium/frontends/dri/dri_util.h
+
+--- a/src/gallium/frontends/dri/dri_util.h
++++ b/src/gallium/frontends/dri/dri_util.h
+@@ -270,6 +270,10 @@ PUBLIC void *
+ dri2_map_image(__DRIcontext *context, __DRIimage *image,
+                 int x0, int y0, int width, int height,
+                 unsigned int flags, int *stride, void **data);
++PUBLIC void *
++dri2_map_image_native(__DRIcontext *context, __DRIimage *image,
++                int x0, int y0, int width, int height,
++                unsigned int flags, int *stride, void **data);
+ PUBLIC void
+ dri2_unmap_image(__DRIcontext *context, __DRIimage *image, void *data);
+ PUBLIC bool
+diff --git a/src/gallium/targets/dri/dri.sym.in b/src/gallium/targets/dri/dri.sym.in
+
+--- a/src/gallium/targets/dri/dri.sym.in
++++ b/src/gallium/targets/dri/dri.sym.in
+@@ -44,6 +44,7 @@
+ 		dri2_blit_image;
+ 		dri2_get_capabilities;
+ 		dri2_map_image;
++ 		dri2_map_image_native;
+ 		dri2_unmap_image;
+ 		dri_query_dma_buf_formats;
+ 		dri_query_dma_buf_modifiers;
+diff --git a/src/gbm/backends/dri/gbm_dri.c b/src/gbm/backends/dri/gbm_dri.c
+
+--- a/src/gbm/backends/dri/gbm_dri.c
++++ b/src/gbm/backends/dri/gbm_dri.c
+@@ -1040,6 +1040,39 @@ gbm_dri_bo_map(struct gbm_bo *_bo,
+                                width, height, flags, (int *)stride,
+                                map_data);
+ }
++static void *
++gbm_dri_bo_map_native(struct gbm_bo *_bo,
++               uint32_t x, uint32_t y,
++              uint32_t width, uint32_t height,
++               uint32_t flags, uint32_t *stride, void **map_data)
++{
++   struct gbm_dri_device *dri = gbm_dri_device(_bo->gbm);
++   struct gbm_dri_bo *bo = gbm_dri_bo(_bo);
++
++   /* If it's a dumb buffer, we already have a mapping */
++   if (bo->map) {
++      *map_data = (char *)bo->map + (bo->base.v0.stride * y) + (x * 4);
++      *stride = bo->base.v0.stride;
++      return *map_data;
++   }
++
++   mtx_lock(&dri->mutex);
++   if (!dri->context) {
++      unsigned error;
++
++      dri->context = driCreateContextAttribs(dri->screen,
++                                             __DRI_API_OPENGL,
++                                             NULL, NULL, 0, NULL,
++                                             &error, NULL);
++   }
++   assert(dri->context);
++   mtx_unlock(&dri->mutex);
++
++   /* GBM flags and DRI flags are the same, so just pass them on */
++   return dri2_map_image_native(dri->context, bo->image, x, y,
++                                      width, height, flags, (int *)stride,
++                                      map_data);
++}
+ 
+ static void
+ gbm_dri_bo_unmap(struct gbm_bo *_bo, void *map_data)
+@@ -1166,6 +1199,7 @@ dri_device_create(int fd, uint32_t gbm_backend_version)
+    dri->base.v0.bo_create = gbm_dri_bo_create;
+    dri->base.v0.bo_import = gbm_dri_bo_import;
+    dri->base.v0.bo_map = gbm_dri_bo_map;
++   dri->base.v0.bo_map_native = gbm_dri_bo_map_native;
+    dri->base.v0.bo_unmap = gbm_dri_bo_unmap;
+    dri->base.v0.is_format_supported = gbm_dri_is_format_supported;
+    dri->base.v0.get_format_modifier_plane_count =
+diff --git a/src/gbm/main/gbm.c b/src/gbm/main/gbm.c
+
+--- a/src/gbm/main/gbm.c
++++ b/src/gbm/main/gbm.c
+@@ -44,6 +44,8 @@
+ #include "gbm.h"
+ #include "gbmint.h"
+ #include "backend.h"
++#include "log/log.h"
++
+ 
+ /** Returns the file description for the gbm device
+  *
+@@ -626,6 +628,20 @@ gbm_bo_map(struct gbm_bo *bo,
+                              flags, stride, map_data);
+ }
+ 
++GBM_EXPORT void *
++gbm_bo_map_native(struct gbm_bo *bo,
++                  uint32_t x, uint32_t y,
++                  uint32_t width, uint32_t height,
++                  uint32_t flags, uint32_t *stride, void **map_data)
++{
++   if (!bo || width == 0 || height == 0 || !stride || !map_data) {
++      errno = EINVAL;
++      return NULL;
++   }
++
++   return bo->gbm->v0.bo_map_native(bo, x, y, width, height, flags, stride, map_data);
++}
++
+ /**
+  * Unmap a previously mapped region of a gbm buffer object
+  *
+diff --git a/src/gbm/main/gbm.h b/src/gbm/main/gbm.h
+
+--- a/src/gbm/main/gbm.h
++++ b/src/gbm/main/gbm.h
+@@ -438,6 +438,10 @@ gbm_bo_map(struct gbm_bo *bo,
+            uint32_t x, uint32_t y, uint32_t width, uint32_t height,
+            uint32_t flags, uint32_t *stride, void **map_data);
++void *
++gbm_bo_map_native(struct gbm_bo *bo,
++           uint32_t x, uint32_t y, uint32_t width, uint32_t height,
++           uint32_t flags, uint32_t *stride, void **map_data);
+ 
+ void
+ gbm_bo_unmap(struct gbm_bo *bo, void *map_data);
+ 
+diff --git a/src/gbm/main/gbm_backend_abi.h b/src/gbm/main/gbm_backend_abi.h
+
+--- a/src/gbm/main/gbm_backend_abi.h
++++ b/src/gbm/main/gbm_backend_abi.h
+@@ -130,6 +130,11 @@ struct gbm_device_v0 {
+                                uint32_t width, uint32_t height,
+                                uint32_t flags, uint32_t *stride, 
+                                void **map_data);
++   void *(*bo_map_native)(struct gbm_bo *bo,
++                               uint32_t x, uint32_t y,
++                               uint32_t width, uint32_t height,
++                               uint32_t flags, uint32_t *stride,
++                               void **map_data);
+    void (*bo_unmap)(struct gbm_bo *bo, void *map_data);
+    int (*bo_write)(struct gbm_bo *bo, const void *buf, size_t data);
+    int (*bo_get_fd)(struct gbm_bo *bo);
+ 
+diff --git a/src/gbm/meson.build b/src/gbm/meson.build
+
+--- a/src/gbm/meson.build
++++ b/src/gbm/meson.build
+@@ -26,7 +26,7 @@ if with_platform_android and get_option('platform-sdk-version') >= 30
+ endif
+ 
+ libgbm = shared_library(
+-  libgbm_name,
++  'gbm',
+   files_gbm,
+   include_directories : incs_gbm,
+   c_args : [args_gbm],
