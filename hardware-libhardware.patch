@@ -1,0 +1,29 @@
+diff --git a/hardware.c b/hardware.c
+
+--- a/hardware.c
++++ b/hardware.c
+@@ -178,6 +178,24 @@ static bool __attribute__ ((unused)) path_in_path(const char *path, const char *
+ static int hw_module_exists(char *path, size_t path_len, const char *name,
+                             const char *subname)
+ {
++if ( (strcmp(name, "audio.primary") == 0) && (strcmp(subname, "kbox") == 0)){
++    snprintf(path, path_len, "%s/%s.%s.so",
++             HAL_LIBRARY_PATH3, name, subname);
++    if (path_in_path(path, HAL_LIBRARY_PATH3) && access(path, R_OK) == 0)
++        return 0;
++ 
++    snprintf(path, path_len, "%s/%s.%s.so",
++             HAL_LIBRARY_PATH2, name, subname);
++    if (path_in_path(path, HAL_LIBRARY_PATH2) && access(path, R_OK) == 0) 
++        return 0;
++ 
++    #ifndef __ANDROID_VNDK__
++        snprintf(path, path_len, "%s/%s.%s.so",
++                HAL_LIBRARY_PATH1, name, subname);
++        if (path_in_path(path, HAL_LIBRARY_PATH1) && access(path, R_OK) == 0)
++            return 0;
++    #endif
++}
+ #ifdef __ANDROID_APEX__
+     // When used in VAPEX, it should look only into the same APEX because
+     // libhardware modules don't provide ABI stability.

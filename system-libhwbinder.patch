@@ -1,0 +1,33 @@
+diff --git a/Binder.cpp b/Binder.cpp
+
+--- a/Binder.cpp
++++ b/Binder.cpp
+@@ -96,6 +96,7 @@ bool BHwBinder::isRequestingSid() {
+ }
+ 
+ void BHwBinder::setRequestingSid(bool requestingSid) {
++    requestingSid = false; // kbox_hacked
+     Extras* e = mExtras.load(std::memory_order_acquire);
+ 
+     if (!e) {
+diff --git a/ProcessState.cpp b/ProcessState.cpp
+
+--- a/ProcessState.cpp
++++ b/ProcessState.cpp
+@@ -127,12 +127,15 @@ void ProcessState::becomeContextManager()
+ {
+     AutoMutex _l(mLock);
+ 
++#if 0 // kbox_hacked
+     flat_binder_object obj {
+         .flags = FLAT_BINDER_FLAG_TXN_SECURITY_CTX,
+     };
+ 
+     status_t result = ioctl(mDriverFD, BINDER_SET_CONTEXT_MGR_EXT, &obj);
++#endif
+ 
++    status_t result = 1;
+     // fallback to original method
+     if (result != 0) {
+         android_errorWriteLog(0x534e4554, "121035042");
+

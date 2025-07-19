@@ -1,0 +1,27 @@
+diff --git a/Utils.cpp b/Utils.cpp
+
+--- a/Utils.cpp
++++ b/Utils.cpp
+@@ -246,7 +246,6 @@ int SetQuotaProjectId(const std::string& path, long projectId) {
+     ret = ioctl(fd, FS_IOC_FSSETXATTR, &fsx);
+     if (ret == -1) {
+         PLOG(ERROR) << "Failed to set project id on " << path;
+-        return ret;
+     }
+     return 0;
+ }
+diff --git a/VolumeManager.cpp b/VolumeManager.cpp
+
+--- a/VolumeManager.cpp
++++ b/VolumeManager.cpp
+@@ -210,7 +210,9 @@ void VolumeManager::handleBlockEvent(NetlinkEvent* evt) {
+     std::string devType(evt->findParam("DEVTYPE") ? evt->findParam("DEVTYPE") : "");
+ 
+     if (devType != "disk") return;
+-
++    if(evt->findParam("MAJOR") == nullptr){
++        return;
++    }
+     int major = std::stoi(evt->findParam("MAJOR"));
+     int minor = std::stoi(evt->findParam("MINOR"));
+     dev_t device = makedev(major, minor);

@@ -1,0 +1,19 @@
+diff --git a/include/android-base/macros.h b/include/android-base/macros.h
+
+--- a/include/android-base/macros.h
++++ b/include/android-base/macros.h
+@@ -21,6 +21,13 @@
+ 
+ #include <utility>
+ 
++#ifndef kbox_hack
++#define kbox_hack() if (true) return
++#endif
++#ifndef kbox_hack_p
++#define kbox_hack_p(p) if (true) return p
++#endif
++
+ // bionic and glibc both have TEMP_FAILURE_RETRY, but eg Mac OS' libc doesn't.
+ #ifndef TEMP_FAILURE_RETRY
+ #define TEMP_FAILURE_RETRY(exp)	     \
+

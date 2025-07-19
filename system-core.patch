@@ -1,0 +1,580 @@
+diff --git a/fs_mgr/libfstab/boot_config.cpp b/fs_mgr/libfstab/boot_config.cpp
+
+--- a/fs_mgr/libfstab/boot_config.cpp
++++ b/fs_mgr/libfstab/boot_config.cpp
+@@ -154,13 +154,15 @@ bool GetKernelCmdlineFromString(const std::string& cmdline, const std::string& k
+ 
+ void ImportKernelCmdline(const std::function<void(std::string, std::string)>& fn) {
+     std::string cmdline;
+-    android::base::ReadFileToString("/proc/cmdline", &cmdline);
++    android::base::ReadFileToString("/proc/self/cmdline", &cmdline); // kbox_hacked
++    std::replace(cmdline.begin(), cmdline.end(), '\0', ' '); // kbox_hacked
+     ImportKernelCmdlineFromString(android::base::Trim(cmdline), fn);
+ }
+ 
+ bool GetKernelCmdline(const std::string& key, std::string* out) {
+     std::string cmdline;
+-    android::base::ReadFileToString("/proc/cmdline", &cmdline);
++    android::base::ReadFileToString("/proc/self/cmdline", &cmdline); // kbox_hacked
++    std::replace(cmdline.begin(), cmdline.end(), '\0', ' '); // kbox_hacked
+     return GetKernelCmdlineFromString(android::base::Trim(cmdline), key, out);
+ }
+ 
+diff --git a/init/Android.bp b/init/Android.bp
+
+--- a/init/Android.bp
++++ b/init/Android.bp
+@@ -247,6 +247,10 @@ cc_defaults {
+ cc_library_static {
+     name: "libinit",
+     defaults: ["libinit_defaults"],
++    cflags: [
++       "-Wno-unused-argument",
++       "-Wno-unused-function",
++    ],
+ }
+ 
+ cc_library_static {
+diff --git a/init/devices.cpp b/init/devices.cpp
+
+--- a/init/devices.cpp
++++ b/init/devices.cpp
+@@ -444,6 +444,15 @@ std::vector<std::string> DeviceHandler::GetBlockDeviceSymlinks(const Uevent& uev
+     return links;
+ }
+ 
++void DeviceHandler::chinit_dev(const char *path)
++{
++    std::vector<std::string> links;
++    auto[mode, uid, gid] = GetDevicePermissions(path, links);
++    // NOTICE("chinit_dev %s %d %d 0%o\n", path, uid, gid, mode);
++    chown(path, uid, gid);
++    chmod(path, mode);
++}
++
+ static void RemoveDeviceMapperLinks(const std::string& devpath) {
+     std::vector<std::string> dirs = {
+             "/dev/block/mapper",
+@@ -473,6 +482,12 @@ static void RemoveDeviceMapperLinks(const std::string& devpath) {
+ 
+ void DeviceHandler::HandleDevice(const std::string& action, const std::string& devpath, bool block,
+                                  int major, int minor, const std::vector<std::string>& links) const {
++ 
++    std::string temp = devpath.substr(0, 11);
++    if ((temp.compare("/dev/input/")) == 0) {
++        return;
++    }
++
+     if (action == "add") {
+         MakeDevice(devpath, block, major, minor, links);
+     }
+@@ -609,7 +624,14 @@ DeviceHandler::DeviceHandler(std::vector<Permissions> dev_permissions,
+       subsystems_(std::move(subsystems)),
+       boot_devices_(std::move(boot_devices)),
+       skip_restorecon_(skip_restorecon),
+-      sysfs_mount_point_("/sys") {}
++      sysfs_mount_point_("/sys") {
++    chinit_dev("/dev/binder");
++    chinit_dev("/dev/hwbinder");
++    chinit_dev("/dev/vndbinder");
++    chinit_dev("/dev/ashmem");
++    chinit_dev("/dev/uinput");
++    chinit_dev("/dev/dri/renderD128");
++}
+ 
+ DeviceHandler::DeviceHandler()
+     : DeviceHandler(std::vector<Permissions>{}, std::vector<SysfsPermissions>{},
+diff --git a/init/devices.h b/init/devices.h
+
+--- a/init/devices.h
++++ b/init/devices.h
+@@ -142,6 +142,7 @@ class DeviceHandler : public UeventHandler {
+     void MakeDevice(const std::string& path, bool block, int major, int minor,
+                     const std::vector<std::string>& links) const;
+     std::vector<std::string> GetBlockDeviceSymlinks(const Uevent& uevent) const;
++    void chinit_dev(const char *path);
+     void HandleDevice(const std::string& action, const std::string& devpath, bool block, int major,
+                       int minor, const std::vector<std::string>& links) const;
+     void FixupSysPermissions(const std::string& upath, const std::string& subsystem) const;
+diff --git a/init/first_stage_init.cpp b/init/first_stage_init.cpp
+
+--- a/init/first_stage_init.cpp
++++ b/init/first_stage_init.cpp
+@@ -36,6 +36,7 @@
+ #include <android-base/chrono_utils.h>
+ #include <android-base/file.h>
+ #include <android-base/logging.h>
++#include <android-base/strings.h>
+ #include <android-base/stringprintf.h>
+ #include <android/avf_cc_flags.h>
+ #include <fs_mgr.h>
+@@ -348,10 +349,11 @@ int FirstStageMain(int argc, char** argv) {
+     CHECKCALL(setenv("PATH", _PATH_DEFPATH, 1));
+     // Get the basic filesystem setup we need put together in the initramdisk
+     // on / and then we'll let the rc file figure out the rest.
+-    CHECKCALL(mount("tmpfs", "/dev", "tmpfs", MS_NOSUID, "mode=0755"));
+     CHECKCALL(mkdir("/dev/pts", 0755));
+     CHECKCALL(mkdir("/dev/socket", 0755));
+     CHECKCALL(mkdir("/dev/dm-user", 0755));
++    mount("/system/etc", "/etc", "none", MS_BIND, NULL); // cgroup fix
++    unshare(CLONE_NEWCGROUP);
+     CHECKCALL(mount("devpts", "/dev/pts", "devpts", 0, NULL));
+ #define MAKE_STR(x) __STRING(x)
+     CHECKCALL(mount("proc", "/proc", "proc", 0, "hidepid=2,gid=" MAKE_STR(AID_READPROC)));
+@@ -420,7 +422,6 @@ int FirstStageMain(int argc, char** argv) {
+         for (const auto& [error_string, error_errno] : errors) {
+             LOG(ERROR) << error_string << " " << strerror(error_errno);
+         }
+-        LOG(FATAL) << "Init encountered errors starting first stage, aborting";
+     }
+ 
+     LOG(INFO) << "init first stage started!";
+@@ -528,6 +529,7 @@ int FirstStageMain(int argc, char** argv) {
+         if (!fsm) {
+             fsm = CreateFirstStageMount(cmdline);
+         }
++        #if 0
+         if (!fsm) {
+             LOG(FATAL) << "FirstStageMount not available";
+         }
+@@ -537,8 +539,9 @@ int FirstStageMain(int argc, char** argv) {
+         }
+ 
+         if (!fsm->DoFirstStageMount()) {
+-            LOG(FATAL) << "Failed to mount required partitions early ...";
++            LOG(ERROR) << "Failed to mount required partitions early ...";
+         }
++        #endif
+     }
+ 
+     struct stat new_root_info {};
+@@ -557,12 +560,22 @@ int FirstStageMain(int argc, char** argv) {
+            1);
+ 
+     const char* path = "/system/bin/init";
+-    const char* args[] = {path, "selinux_setup", nullptr};
++    std::vector<const char *> args = {path, "second_stage"};
++    std::string init_cmdline;
++    android::base::ReadFileToString("/proc/self/cmdline", &init_cmdline);
++    std::replace(init_cmdline.begin(), init_cmdline.end(), '\0', ' ');
++    auto cmd_vector = android::base::Split(android::base::Trim(init_cmdline), " ");
++    int i = 0;
++    for (const auto& entry : cmd_vector) {
++        if (i++ == 0) continue; // ignore first arg '/init'
++        args.push_back(entry.c_str());
++    }
++    args.push_back(nullptr);
+     auto fd = open("/dev/kmsg", O_WRONLY | O_CLOEXEC);
+     dup2(fd, STDOUT_FILENO);
+     dup2(fd, STDERR_FILENO);
+     close(fd);
+-    execv(path, const_cast<char**>(args));
++    execv(path, const_cast<char**>(args.data()));
+ 
+     // execv() only returns if an error happened, in which case we
+     // panic and never fall through this conditional.
+diff --git a/init/init.cpp b/init/init.cpp
+
+--- a/init/init.cpp
++++ b/init/init.cpp
+@@ -937,7 +937,7 @@ int SecondStageMain(int argc, char** argv) {
+     trigger_shutdown = [](const std::string& command) { shutdown_state.TriggerShutdown(command); };
+ 
+     SetStdioToDevNull(argv);
+-    InitKernelLogging(argv);
++    // InitKernelLogging(argv);
+     LOG(INFO) << "init second stage started!";
+ 
+     SelinuxSetupKernelLogging();
+diff --git a/init/property_service.cpp b/init/property_service.cpp
+
+--- a/init/property_service.cpp
++++ b/init/property_service.cpp
+@@ -1351,7 +1351,7 @@ static void ExportKernelBootProps() {
+         { "ro.boot.mode",       "ro.bootmode",   "unknown", },
+         { "ro.boot.baseband",   "ro.baseband",   "unknown", },
+         { "ro.boot.bootloader", "ro.bootloader", "unknown", },
+-        { "ro.boot.hardware",   "ro.hardware",   "unknown", },
++        { "ro.boot.hardware",   "ro.hardware",   "kbox", },
+         { "ro.boot.revision",   "ro.revision",   "0", },
+             // clang-format on
+     };
+@@ -1393,6 +1393,8 @@ static void ProcessKernelCmdline() {
+     android::fs_mgr::ImportKernelCmdline([&](const std::string& key, const std::string& value) {
+         if (StartsWith(key, ANDROIDBOOT_PREFIX)) {
+             InitPropertySet("ro.boot." + key.substr(ANDROIDBOOT_PREFIX.size()), value);
++        } else if (StartsWith(key, "ro.")) {
++            InitPropertySet(key, value);
+         }
+     });
+ }
+diff --git a/init/selinux.cpp b/init/selinux.cpp
+
+--- a/init/selinux.cpp
++++ b/init/selinux.cpp
+@@ -106,6 +106,7 @@ EnforcingStatus StatusFromProperty() {
+ }
+ 
+ bool IsEnforcing() {
++    kbox_hack_p(false);
+     if (ALLOW_PERMISSIVE_SELINUX) {
+         return StatusFromProperty() == SELINUX_ENFORCING;
+     }
+@@ -693,7 +694,7 @@ int SetupSelinux(char** argv) {
+     }
+ 
+     boot_clock::time_point start_time = boot_clock::now();
+-
++#if 0
+     SelinuxSetupKernelLogging();
+ 
+     // TODO(b/287206497): refactor into different headers to only include what we need.
+@@ -721,7 +722,7 @@ int SetupSelinux(char** argv) {
+     if (selinux_android_restorecon("/system/bin/init", 0) == -1) {
+         PLOG(FATAL) << "restorecon failed of /system/bin/init failed";
+     }
+-
++#endif
+     setenv(kEnvSelinuxStartedAt, std::to_string(start_time.time_since_epoch().count()).c_str(), 1);
+ 
+     const char* path = "/system/bin/init";
+diff --git a/init/service.cpp b/init/service.cpp
+
+--- a/init/service.cpp
++++ b/init/service.cpp
+@@ -76,6 +76,7 @@ namespace android {
+ namespace init {
+ 
+ static Result<std::string> ComputeContextFromExecutable(const std::string& service_path) {
++    kbox_hack_p("KBOX_HACKED");
+     std::string computed_context;
+ 
+     char* raw_con = nullptr;
+diff --git a/init/subcontext.cpp b/init/subcontext.cpp
+
+--- a/init/subcontext.cpp
++++ b/init/subcontext.cpp
+@@ -346,6 +346,7 @@ Result<std::vector<std::string>> Subcontext::ExpandArgs(const std::vector<std::s
+ }
+ 
+ void InitializeSubcontext() {
++    kbox_hack();
+     if (IsMicrodroid()) {
+         LOG(INFO) << "Not using subcontext for microdroid";
+         return;
+diff --git a/libprocessgroup/processgroup.cpp b/libprocessgroup/processgroup.cpp
+
+--- a/libprocessgroup/processgroup.cpp
++++ b/libprocessgroup/processgroup.cpp
+@@ -273,6 +273,7 @@ static bool RemoveEmptyUidCgroups(const std::string& uid_path) {
+ }
+ 
+ void removeAllEmptyProcessGroups() {
++    kbox_hack();
+     LOG(VERBOSE) << "removeAllEmptyProcessGroups()";
+ 
+     std::vector<std::string> cgroups;
+diff --git a/libsysutils/src/NetlinkEvent.cpp b/libsysutils/src/NetlinkEvent.cpp
+
+--- a/libsysutils/src/NetlinkEvent.cpp
++++ b/libsysutils/src/NetlinkEvent.cpp
+@@ -159,12 +159,14 @@ NetlinkEvent::~NetlinkEvent() {
+ 
+ void NetlinkEvent::dump() {
+     int i;
+-
++    std::string buffer ;
+     for (i = 0; i < NL_PARAMS_MAX; i++) {
+         if (!mParams[i])
+             break;
+-        SLOGD("NL param '%s'\n", mParams[i]);
++        buffer += std::to_string(i) + ":" + mParams[i] ;
+     }
++    SLOGE("NL param '%s'\n",buffer.c_str());
++    SLOGE(" 下一个 \n");
+ }
+ 
+ /*
+diff --git a/rootdir/init.rc b/rootdir/init.rc
+
+--- a/rootdir/init.rc
++++ b/rootdir/init.rc
+@@ -265,10 +265,10 @@ on init
+     mkdir /dev/binderfs
+     mount binder binder /dev/binderfs stats=global
+     chmod 0755 /dev/binderfs
++    # exec -- /vendor/bin/binder_alloc /dev/binderfs/binder-control binder hwbinder vndbinder
+ 
+     # Mount fusectl
+-    mount fusectl none /sys/fs/fuse/connections
+-
++    # mount fusectl none /sys/fs/fuse/connections
+     symlink /dev/binderfs/binder /dev/binder
+     symlink /dev/binderfs/hwbinder /dev/hwbinder
+     symlink /dev/binderfs/vndbinder /dev/vndbinder
+@@ -588,7 +588,6 @@ on post-fs
+ 
+     # Once everything is setup, no need to modify /.
+     # The bind+remount combination allows this to work in containers.
+-    mount rootfs rootfs / remount bind ro nodev
+ 
+     # Mount default storage into root namespace
+     mount none /mnt/user/0 /storage bind rec
+
+diff --git a/init/ipconfigstore/Android.bp b/init/ipconfigstore/Android.bp
+new file mode 100644
+index 000000000..bec200e45
+--- /dev/null
++++ b/init/ipconfigstore/Android.bp
+@@ -0,0 +1,12 @@
++cc_binary {
++    name: "ipconfigstore",
++    srcs: ["*.cpp"],
++    cflags: ["-Wall", "-Werror"],
++    shared_libs: [
++        "libbase",
++        "libc++",
++        "liblog",
++        "libcutils",
++    ],
++    vendor: true,
++}
+diff --git a/init/ipconfigstore/ipconfigstore.cpp b/init/ipconfigstore/ipconfigstore.cpp
+new file mode 100644
+index 000000000..95496e1fd
+--- /dev/null
++++ b/init/ipconfigstore/ipconfigstore.cpp
+@@ -0,0 +1,230 @@
++#include <ifaddrs.h>
++#include <sys/types.h>
++#include <fstream>
++#include <sstream>
++#include <sys/socket.h>
++#include <netinet/in.h>
++#include <net/if.h>
++#include <sys/ioctl.h>
++#include <sys/stat.h>
++#include <errno.h>
++#include <string.h>
++#include <net/route.h>
++#include <unistd.h>
++#include <stdio.h>
++#include <arpa/inet.h>
++#include <set>
++#include <vector>
++#include <strings.h>
++#include <stdlib.h>
++#include <ctype.h>
++
++
++#include <android-base/properties.h>
++
++using namespace android::base;
++
++struct ipconfig {
++    uint32_t mask;
++    char ipv4[16];
++    char gateway[16];
++};
++
++const std::string g_ipconfigfile = "/data/misc/ethernet/ipconfig.txt";
++const std::string g_ipconfigpath = "/data/misc/ethernet";
++const std::string g_apexipconfigfile = "/data/misc/apexdata/com.android.tethering/misc/ethernet/ipconfig.txt";
++
++uint16_t convertBigEndianUInt16(uint16_t value);
++uint32_t convertBigEndianUInt32(uint32_t value);
++bool writePackedString(const std::string& str, FILE *stream);
++bool writePackedUInt16(uint16_t value, FILE *stream);
++bool writePackedUInt32(uint32_t value, FILE *stream);
++
++
++uint16_t convertBigEndianUInt16(uint16_t value)
++{
++	union { uint16_t value; unsigned char data[2]; } aux = { 0x4142 };
++
++	if (aux.data[0] == 0x41)
++	{
++		return value;
++	}
++
++	aux.data[0] = (value >> 8) & 0xff;
++	aux.data[1] = value & 0xff;
++
++	return aux.value;
++}
++
++uint32_t convertBigEndianUInt32(uint32_t value)
++{
++	union { uint32_t value; unsigned char data[4]; } aux = { 0x41424344 };
++
++	if (aux.data[0] == 0x41)
++	{
++		return value;
++	}
++
++	aux.data[0] = (value >> 24) & 0xff;
++	aux.data[1] = (value >> 16) & 0xff;
++	aux.data[2] = (value >> 8) & 0xff;
++	aux.data[3] = value & 0xff;
++
++	return aux.value;
++}
++
++bool writePackedString(const std::string& str, FILE *stream)
++{
++    const char *string = str.c_str();
++	size_t stringLength = strlen(string);
++
++	if (!writePackedUInt16(stringLength, stream))
++	{
++		return false;
++	}
++
++	return fwrite(string, stringLength, 1, stream) == 1;
++}
++
++bool writePackedUInt16(uint16_t value, FILE *stream)
++{
++	uint16_t buffer = convertBigEndianUInt16(value);
++	return fwrite(&buffer, sizeof buffer, 1, stream) == 1;
++}
++
++bool writePackedUInt32(uint32_t value, FILE *stream)
++{
++	uint32_t buffer = convertBigEndianUInt32(value);
++	return fwrite(&buffer, sizeof buffer, 1, stream) == 1;
++}
++
++int get_gateway(char *dev, char *ret) {
++    FILE *fp;
++    char buf[256]; // 128 is enough for linux
++    char iface[16];
++    unsigned long dest_addr, gate_addr;
++    fp = fopen("/proc/net/route", "r");
++    if (fp == NULL) return -1;
++    /* Skip title line */
++    fgets(buf, sizeof(buf), fp);
++    while (fgets(buf, sizeof(buf), fp)) {
++        if (sscanf(buf, "%s\t%lX\t%lX", iface, &dest_addr, &gate_addr) != 3 || dest_addr != 0 || strcmp(dev, iface)) continue;
++        inet_ntop(AF_INET, &gate_addr, ret, INET_ADDRSTRLEN);
++        break;
++    }
++
++    fclose(fp);
++    return 0;
++}
++
++int bitcount(uint32_t n)
++{
++    int count=0;
++    while (n) {
++        count++;
++        n &= (n - 1);
++    }
++    return count;
++}
++
++int get_conf(struct ipconfig *conf) {
++    struct ifaddrs *ifAddrStruct;
++    void *tmpAddrPtr=NULL;
++    getifaddrs(&ifAddrStruct);
++    while (ifAddrStruct != NULL) {
++        if (ifAddrStruct->ifa_addr->sa_family==AF_INET && !strcmp("eth0", ifAddrStruct->ifa_name)) {
++            tmpAddrPtr=&((struct sockaddr_in *)ifAddrStruct->ifa_addr)->sin_addr;
++            inet_ntop(AF_INET, tmpAddrPtr, conf->ipv4, INET_ADDRSTRLEN);
++            conf->mask = bitcount(((struct sockaddr_in *)ifAddrStruct->ifa_netmask)->sin_addr.s_addr);
++            break;
++        }
++        ifAddrStruct=ifAddrStruct->ifa_next;
++    }
++    freeifaddrs(ifAddrStruct);
++    get_gateway((char *) "eth0", conf->gateway);
++    return 0;
++}
++std::string readPropFromFile (const std::string& filename, const std::string&key) {
++    std::ifstream file(filename);
++    if(!file){
++    	return "";
++    }
++    std::string line;
++    while (std::getline(file,line)) {
++	    if(line.find(key) != std::string::npos) {
++	        size_t pos = line.find('=');
++		if(pos != std::string::npos){
++			return line.substr(pos + 1);
++		}
++	    }
++    }
++    return "";
++}
++std::string get_dns(int index) {
++    char key[32];
++    snprintf(key,sizeof(key),"net.dns%d",index);
++    std::string dns = readPropFromFile("/vendor/build.prop",key);
++    if(!dns.empty()) {
++    	return dns;
++    }
++    dns = readPropFromFile("/system/build.prop",key);
++    return dns;
++
++}
++
++
++int write_conf(struct ipconfig *conf, uint32_t v) {
++    FILE *fp = fopen(g_ipconfigfile.c_str(), "w+");
++
++    writePackedUInt32(v, fp); // version
++
++    writePackedString("ipAssignment", fp);
++    writePackedString("STATIC", fp);
++
++    writePackedString("linkAddress", fp);
++    writePackedString(conf->ipv4, fp);
++    writePackedUInt32(conf->mask, fp);
++
++    writePackedString("gateway", fp);
++    writePackedUInt32(1, fp); // Default route (dest).
++    writePackedString("0.0.0.0", fp);
++    writePackedUInt32(0, fp);
++    writePackedUInt32(1, fp); // Have a gateway.
++
++    writePackedString(conf->gateway, fp);
++    writePackedString("dns", fp);
++    writePackedString(get_dns(1), fp);
++    writePackedString("dns", fp);
++    writePackedString(get_dns(2), fp);
++    writePackedString("dns", fp);
++    writePackedString(get_dns(3), fp);
++
++    writePackedString("id", fp);
++    writePackedString("eth0", fp);
++    writePackedString("eos", fp);
++
++    fclose(fp);
++    return 0;
++}
++
++int main(int argc, char **argv) {
++    (void)argc;
++    (void)argv;
++    unlink(g_ipconfigfile.c_str());
++    struct stat info;
++    if(stat(g_ipconfigpath.c_str(), &info) != 0){
++    	mkdir(g_ipconfigpath.c_str(),0755);
++    }
++    uint32_t v = 3; // use v3 for advanced than Android 8.1
++
++    struct ipconfig conf;
++    get_conf(&conf);
++    write_conf(&conf, v);
++
++    if(access(g_apexipconfigfile.c_str(),F_OK) == 0){
++        std::ifstream src(g_ipconfigfile, std::ios::binary);
++	std::ofstream dst(g_apexipconfigfile,std::ios::binary | std::ios::trunc);
++	dst << src.rdbuf();
++    }
++    return 0;
++}
+-- 
+2.33.0
+
