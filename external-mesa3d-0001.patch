@@ -1,6 +1,8 @@
+
+project external/mesa3d/
 diff --git a/android/Android.mk b/android/Android.mk
 new file mode 100644
-
+index 00000000000..94cb0b97341
 --- /dev/null
 +++ b/android/Android.mk
 @@ -0,0 +1,193 @@
@@ -199,10 +201,10 @@ new file mode 100644
 +endif
 diff --git a/android/mesa3d_cross.mk b/android/mesa3d_cross.mk
 new file mode 100644
-
+index 00000000000..5e080ac1474
 --- /dev/null
 +++ b/android/mesa3d_cross.mk
-@@ -0,0 +1,325 @@
+@@ -0,0 +1,326 @@
 +# Mesa 3-D graphics library
 +#
 +# Copyright (C) 2021 GlobalLogic Ukraine
@@ -284,6 +286,7 @@ new file mode 100644
 +
 +MESA3D_GLES_BINS := \
 +    $($(M_TARGET_PREFIX)MESA3D_GALLIUM_BIN) \
++    $($(M_TARGET_PREFIX)MESA3D_RADEONSI_DRI_VIDEO_BIN) \
 +    $($(M_TARGET_PREFIX)MESA3D_LIBEGL_BIN)    \
 +    $($(M_TARGET_PREFIX)MESA3D_LIBGLESV1_BIN) \
 +    $($(M_TARGET_PREFIX)MESA3D_LIBGLESV2_BIN) \
@@ -528,26 +531,208 @@ new file mode 100644
 +	mkdir -p $(dir $@)
 +	ln -s -f libgallium_dri.so $(dir $@)/radeonsi_dri.so
 +	touch $@
+diff --git a/include/GL/internal/dri_interface.h b/include/GL/internal/dri_interface.h
+index 87c046b2545..db5f0a6819c 100644
+--- a/include/GL/internal/dri_interface.h
++++ b/include/GL/internal/dri_interface.h
+@@ -1583,6 +1583,10 @@ struct __DRIimageExtensionRec {
+                      int x0, int y0, int width, int height,
+                      unsigned int flags, int *stride, void **data);
+ 
++   void *(*mapImage_native)(__DRIcontext *context, __DRIimage *image,
++                     int x0, int y0, int width, int height,
++                     unsigned int flags, int *stride, void **data);
++
+    /**
+     * Unmap a previously mapped __DRIimage
+     *
 diff --git a/meson.build b/meson.build
-
+index eeefe7a97f3..25b6e5d86fa 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -570,8 +570,8 @@ if with_vulkan_icd_dir == ''
+@@ -8,7 +8,7 @@ project(
+   license : 'MIT',
+   meson_version : '>= 1.1.0',
+   default_options : [
+-    'buildtype=debugoptimized',
++    'buildtype=release',
+     'b_ndebug=if-release',
+     'c_std=c11',
+     'cpp_std=c++17',
+@@ -570,7 +570,7 @@ if with_vulkan_icd_dir == ''
    with_vulkan_icd_dir = join_paths(get_option('datadir'), 'vulkan/icd.d')
  endif
  
 -with_dri2 = (with_dri or with_any_vk) and (with_dri_platform == 'drm' or with_dri_platform == 'apple')
--
-+with_dri2 = (with_dri or with_any_vk) and (with_dri_platform == 'drm' or
-+  host_machine.system() == 'gnu')
++with_dri2 = (with_dri or with_any_vk) and (with_dri_platform == 'drm' or host_machine.system() == 'gnu')
+ 
  with_x11_dri2 = with_dri2 and get_option('legacy-x11').contains('dri2')
  
- if with_dri
+@@ -671,7 +671,7 @@ with_gallium_va = dep_va.found()
+ 
+ va_drivers_path = get_option('va-libs-path')
+ if va_drivers_path == ''
+-  va_drivers_path = join_paths(get_option('libdir'), 'dri')
++  va_drivers_path = join_paths(get_option('prefix'), get_option('libdir'), 'dri')
+ endif
+ 
+ with_gallium_xa = get_option('gallium-xa') \
+@@ -1060,7 +1060,6 @@ if cc.get_argument_syntax() == 'msvc'
+ else
+   _trial_c = [
+     '-Werror=implicit-function-declaration',
+-    '-Werror=missing-prototypes',
+     '-Werror=return-type',
+     '-Werror=empty-body',
+     '-Werror=incompatible-pointer-types',
+@@ -1101,7 +1100,7 @@ else
+ 
+   # MinGW chokes on format specifiers and I can't get it all working
+   if not (cc.get_argument_syntax() == 'gcc' and host_machine.system() == 'windows')
+-    _trial_c += ['-Werror=format', '-Wformat-security']
++    _trial_c += ['-Wformat-security']
+     _trial_cpp += ['-Werror=format', '-Wformat-security']
+   endif
+ 
+@@ -1139,7 +1138,7 @@ else
+   # Check for C and C++ arguments for MSVC compatibility. These are only used
+   # in parts of the mesa code base that need to compile with MSVC, mainly
+   # common code
+-  _trial_msvc = ['-Werror=pointer-arith', '-Werror=vla', '-Werror=gnu-empty-initializer']
++  _trial_msvc = ['-Werror=vla', '-Werror=gnu-empty-initializer']
+   c_msvc_compat_args += cc.get_supported_arguments(_trial_msvc)
+   cpp_msvc_compat_args += cpp.get_supported_arguments(_trial_msvc)
+ endif
+diff --git a/src/amd/llvm/ac_llvm_util.c b/src/amd/llvm/ac_llvm_util.c
+index 221cb99ee60..890d1cab5bb 100644
+--- a/src/amd/llvm/ac_llvm_util.c
++++ b/src/amd/llvm/ac_llvm_util.c
+@@ -17,6 +17,8 @@
+ #include <stdio.h>
+ #include <string.h>
+ 
++extern void LLVMInitializeAMDGPUDisassembler();
++
+ static void ac_init_llvm_target(void)
+ {
+    LLVMInitializeAMDGPUTargetInfo();
+diff --git a/src/compiler/glsl/builtin_variables.cpp b/src/compiler/glsl/builtin_variables.cpp
+index 6496a6d24e5..dcf64361970 100644
+--- a/src/compiler/glsl/builtin_variables.cpp
++++ b/src/compiler/glsl/builtin_variables.cpp
+@@ -743,13 +743,11 @@ builtin_variable_generator::generate_constants()
+    if (!state->es_shader) {
+       add_const("gl_MaxFragmentUniformComponents",
+                 state->Const.MaxFragmentUniformComponents);
+-      add_const("gl_MaxVertexUniformComponents",
+-                state->Const.MaxVertexUniformComponents);
++      add_const("gl_MaxVertexUniformComponents", 1024); //修复原神角色加载异常
+    }
+ 
+    if (state->is_version(410, 100)) {
+-      add_const("gl_MaxVertexUniformVectors",
+-                state->Const.MaxVertexUniformComponents / 4);
++      add_const("gl_MaxVertexUniformVectors", 256);//修复原神角色加载异常
+       add_const("gl_MaxFragmentUniformVectors",
+                 state->Const.MaxFragmentUniformComponents / 4);
+ 
+diff --git a/src/gallium/auxiliary/pipe-loader/driinfo_gallium.h b/src/gallium/auxiliary/pipe-loader/driinfo_gallium.h
+index f764916b630..6b8b4a98848 100644
+--- a/src/gallium/auxiliary/pipe-loader/driinfo_gallium.h
++++ b/src/gallium/auxiliary/pipe-loader/driinfo_gallium.h
+@@ -44,7 +44,7 @@ DRI_CONF_SECTION_DEBUG
+    DRI_CONF_FORCE_GL_NAMES_REUSE(false)
+    DRI_CONF_FORCE_GL_MAP_BUFFER_SYNCHRONIZED(false)
+    DRI_CONF_TRANSCODE_ETC(false)
+-   DRI_CONF_TRANSCODE_ASTC(false)
++   DRI_CONF_TRANSCODE_ASTC(true)
+    DRI_CONF_FORCE_GL_VENDOR()
+    DRI_CONF_FORCE_GL_RENDERER()
+    DRI_CONF_OVERRIDE_VRAM_SIZE()
+diff --git a/src/gallium/auxiliary/vl/vl_codec.c b/src/gallium/auxiliary/vl/vl_codec.c
+index b7876f6e645..3d2ac008f12 100644
+--- a/src/gallium/auxiliary/vl/vl_codec.c
++++ b/src/gallium/auxiliary/vl/vl_codec.c
+@@ -32,6 +32,7 @@ bool vl_codec_supported(struct pipe_screen *screen,
+                         enum pipe_video_profile profile,
+                         bool encode)
+ {
++/*
+    static_assert(PIPE_VIDEO_PROFILE_MAX == 26, "Update table below when adding new video profiles");
+    if (profile == PIPE_VIDEO_PROFILE_AV1_MAIN) {
+       if (encode) {
+@@ -70,6 +71,6 @@ bool vl_codec_supported(struct pipe_screen *screen,
+          return false;
+       }
+    }
+-
++*/
+    return screen->get_video_param(screen, profile, encode ? PIPE_VIDEO_ENTRYPOINT_ENCODE : PIPE_VIDEO_ENTRYPOINT_BITSTREAM, PIPE_VIDEO_CAP_SUPPORTED);
+ }
+diff --git a/src/gallium/auxiliary/vl/vl_video_buffer.c b/src/gallium/auxiliary/vl/vl_video_buffer.c
+index 3c395fdb227..e74a0a6504c 100644
+--- a/src/gallium/auxiliary/vl/vl_video_buffer.c
++++ b/src/gallium/auxiliary/vl/vl_video_buffer.c
+@@ -215,6 +215,12 @@ vl_video_buffer_destroy(struct pipe_video_buffer *buffer)
+       pipe_sampler_view_reference(&buf->sampler_view_planes[i], NULL);
+       pipe_sampler_view_reference(&buf->sampler_view_components[i], NULL);
+       pipe_resource_reference(&buf->resources[i], NULL);
++
++      if (buf->resourceflag == 0) {
++          pipe_resource_reference(&buf->resources[i], NULL);
++      } else {
++          buf->resources[i] = NULL;
++      }
+    }
+ 
+    for (i = 0; i < VL_MAX_SURFACES; ++i)
+@@ -492,7 +498,7 @@ vl_video_buffer_create_ex2(struct pipe_context *pipe,
+       if (resources[i])
+          buffer->num_planes++;
+    }
+-
++   buffer->resourceflag = 0;
+    return &buffer->base;
+ }
+ 
+@@ -543,3 +549,10 @@ vl_video_buffer_create_as_resource(struct pipe_context *pipe,
+    vidtemplate.contiguous_planes = true;
+    return vl_video_buffer_create_ex2(pipe, &vidtemplate, resources);
+ }
++
++void
++vl_video_setresourceflag(struct pipe_video_buffer *buffer)
++{
++    struct vl_video_buffer *newbuffer = (struct vl_video_buffer *)buffer;
++    newbuffer->resourceflag = 1;
++}
+diff --git a/src/gallium/auxiliary/vl/vl_video_buffer.h b/src/gallium/auxiliary/vl/vl_video_buffer.h
+index 8363bc678ed..9291394c47b 100644
+--- a/src/gallium/auxiliary/vl/vl_video_buffer.h
++++ b/src/gallium/auxiliary/vl/vl_video_buffer.h
+@@ -46,6 +46,7 @@ struct vl_video_buffer
+    struct pipe_sampler_view *sampler_view_planes[VL_NUM_COMPONENTS];
+    struct pipe_sampler_view *sampler_view_components[VL_NUM_COMPONENTS];
+    struct pipe_surface      *surfaces[VL_MAX_SURFACES];
++   unsigned int             resourceflag;
+ };
+ 
+ static inline void
+@@ -68,6 +69,9 @@ vl_video_buffer_adjust_size(unsigned *width, unsigned *height, unsigned plane,
+    }
+ }
+ 
++void
++vl_video_setresourceflag(struct pipe_video_buffer *buffer);
++
+ /**
+  * get subformats for each plane
+  */
 diff --git a/src/gallium/frontends/dri/dri2.c b/src/gallium/frontends/dri/dri2.c
-
+index 6bea1466a2e..16be16af5e9 100644
 --- a/src/gallium/frontends/dri/dri2.c
 +++ b/src/gallium/frontends/dri/dri2.c
-@@ -1834,6 +1834,18 @@ dri2_blit_image(__DRIcontext *context, __DRIimage *dst, __DRIimage *src,
+@@ -1834,6 +1834,19 @@ dri2_blit_image(__DRIcontext *context, __DRIimage *dst, __DRIimage *src,
     }
  }
  
@@ -556,21 +741,22 @@ diff --git a/src/gallium/frontends/dri/dri2.c b/src/gallium/frontends/dri/dri2.c
 +                int x0, int y0, int width, int height,
 +                unsigned int flags, int *stride, void **data)
 +{
-+   struct dri_context *ctx = dri_context(context);
-+   dri_image_fence_sync(ctx, image);
-+   struct pipe_resource *resource = image->texture;
-+   pipe_reference_described(NULL, &resource->reference, (debug_reference_descriptor)debug_describe_resource);
-+   return resource;
++    struct dri_context *ctx = dri_context(context);
++    dri_image_fence_sync(ctx, image);
++    struct pipe_resource *resource = image->texture;
++    pipe_reference_described(NULL, &resource->reference, (debug_reference_descriptor)debug_describe_resource);
++    return resource;
 +}
++
 +
  void *
  dri2_map_image(__DRIcontext *context, __DRIimage *image,
-		  int x0, int y0, int width, int height,
+                 int x0, int y0, int width, int height,
 diff --git a/src/gallium/frontends/dri/dri_util.h b/src/gallium/frontends/dri/dri_util.h
-
+index 09ee4b6ba6e..0004c34295d 100644
 --- a/src/gallium/frontends/dri/dri_util.h
 +++ b/src/gallium/frontends/dri/dri_util.h
-@@ -270,6 +270,10 @@ PUBLIC void *
+@@ -270,6 +270,11 @@ PUBLIC void *
  dri2_map_image(__DRIcontext *context, __DRIimage *image,
                  int x0, int y0, int width, int height,
                  unsigned int flags, int *stride, void **data);
@@ -578,34 +764,294 @@ diff --git a/src/gallium/frontends/dri/dri_util.h b/src/gallium/frontends/dri/dr
 +dri2_map_image_native(__DRIcontext *context, __DRIimage *image,
 +                int x0, int y0, int width, int height,
 +                unsigned int flags, int *stride, void **data);
++
  PUBLIC void
  dri2_unmap_image(__DRIcontext *context, __DRIimage *image, void *data);
  PUBLIC bool
+diff --git a/src/gallium/frontends/va/config.c b/src/gallium/frontends/va/config.c
+index 37e7307c3a7..678c0023ce8 100644
+--- a/src/gallium/frontends/va/config.c
++++ b/src/gallium/frontends/va/config.c
+@@ -236,7 +236,7 @@ vlVaGetConfigAttributes(VADriverContextP ctx, VAProfile profile, VAEntrypoint en
+                                              PIPE_VIDEO_CAP_MAX_HEIGHT);
+             value = value ? value : VA_ATTRIB_NOT_SUPPORTED;
+          } break;
+-#if VA_CHECK_VERSION(1, 21, 0)
++#if VA_CHECK_VERSION(2, 21, 0)
+          case VAConfigAttribDecJPEG:
+          {
+             VAConfigAttribValDecJPEG attr_jpeg = { .value = 0 };
+@@ -528,7 +528,7 @@ vlVaGetConfigAttributes(VADriverContextP ctx, VAProfile profile, VAEntrypoint en
+                value = encode_tile_support;
+          } break;
+ #endif
+-#if VA_CHECK_VERSION(1, 21, 0)
++#if VA_CHECK_VERSION(2, 21, 0)
+          case VAConfigAttribEncMaxTileRows:
+          {
+             int max_tile_rows = pscreen->get_video_param(pscreen, ProfileToPipe(profile),
+diff --git a/src/gallium/frontends/va/context.c b/src/gallium/frontends/va/context.c
+index c90aaf08a63..6c6cc8a9c91 100644
+--- a/src/gallium/frontends/va/context.c
++++ b/src/gallium/frontends/va/context.c
+@@ -106,7 +106,7 @@ static struct VADriverVTable vtable =
+    &vlVaSyncSurface2,
+    &vlVaSyncBuffer,
+ #endif
+-#if VA_CHECK_VERSION(1, 21, 0)
++#if VA_CHECK_VERSION(2, 21, 0)
+    NULL, /* vaCopy */
+    &vlVaMapBuffer2,
+ #endif
+diff --git a/src/gallium/frontends/va/image.c b/src/gallium/frontends/va/image.c
+index 658b1093331..62986a4b464 100644
+--- a/src/gallium/frontends/va/image.c
++++ b/src/gallium/frontends/va/image.c
+@@ -525,6 +525,41 @@ vlVaSetImagePalette(VADriverContextP ctx, VAImageID image, unsigned char *palett
+ 
+    return VA_STATUS_ERROR_UNIMPLEMENTED;
+ }
++static inline void u_copy_nv12_to_yv12_simd(void *const *destination_data,
++		uint32_t const *destination_pitches,
++		int src_plane, int src_field,
++		int src_stride, int num_fields,
++		uint8_t const *src, int width, int height )
++{
++    int x, y;
++    unsigned u_stride = destination_pitches[2] * num_fields;
++    unsigned v_stride = destination_pitches[1] * num_fields;
++    uint8_t *u_dst = (uint8_t *)destination_data[2] + destination_pitches[2] * src_field;
++    uint8_t *v_dst = (uint8_t *)destination_data[1] + destination_pitches[1] * src_field;
++#if defined(__aarch64_)
++    int clc_width = width / 16 * 16;
++    nv12_to_yv12_arm64(src, src_stride, u_dst, u_stride, v_dst, v_stride, clc_width, height);
++    if (clc_width < width) {
++        for (y = 0; y < height; y++) {
++	    u_dst[x] = src[2 * x];
++	    v_dst[x] = src[2 * x + 1];
++	}
++	u_dst += u_stride;
++	v_dst += v_stride;
++	src += src_stride;
++    }
++#else
++    for (y = 0; y < height; y++) {
++	for (x = 0; x < width; x++) {
++	    u_dst[x] = src[2 * x];
++	    v_dst[x] = src[2 * x + 1];
++	    }
++        u_dst += u_stride;
++        v_dst += v_stride;
++        src += src_stride;
++    }
++#endif
++}
+ 
+ VAStatus
+ vlVaGetImage(VADriverContextP ctx, VASurfaceID surface, int x, int y,
+@@ -651,7 +686,7 @@ vlVaGetImage(VADriverContextP ctx, VASurfaceID surface, int x, int y,
+          }
+ 
+          if (i == 1 && convert) {
+-            u_copy_nv12_to_yv12((void *const *)data, pitches, i, j,
++            u_copy_nv12_to_yv12_simd((void *const *)data, pitches, i, j,
+                transfer->stride, view_resources[i]->array_size,
+                map, box.width, box.height);
+          } else {
+diff --git a/src/gallium/frontends/va/meson.build b/src/gallium/frontends/va/meson.build
+index ff5e7995575..3f2a910aa25 100644
+--- a/src/gallium/frontends/va/meson.build
++++ b/src/gallium/frontends/va/meson.build
+@@ -3,13 +3,17 @@
+ 
+ libva_version = dep_va.version().split('.')
+ 
++
++message('===hrh test libva major version: ' + libva_version[0])
++message('===hrh test libva minor version: ' + libva_version[1])
++message('===hrh test full libva version: ' + dep_va.version())
+ libva_st = static_library(
+   'va_st',
+   files(
+     'buffer.c', 'config.c', 'context.c', 'display.c', 'image.c', 'picture.c',
+     'picture_mpeg12.c', 'picture_mpeg4.c', 'picture_h264.c', 'picture_hevc.c',
+     'picture_vc1.c', 'picture_mjpeg.c', 'picture_vp9.c','picture_av1.c','postproc.c',
+-    'subpicture.c', 'surface.c', 'picture_h264_enc.c', 'picture_hevc_enc.c',
++    'subpicture.c', 'surface.c', 'picture_h264_enc.c', 'picture_hevc_enc.c','nv12_to_yv12.S',
+     'picture_av1_enc.c',
+   ),
+   c_args : [
+diff --git a/src/gallium/frontends/va/nv12_to_yv12.S b/src/gallium/frontends/va/nv12_to_yv12.S
+new file mode 100644
+index 00000000000..edc2502cf94
+--- /dev/null
++++ b/src/gallium/frontends/va/nv12_to_yv12.S
+@@ -0,0 +1,30 @@
++.section .rodata
++.align 4
++.text
++
++#if defined(__aarch64__)
++
++.globl nv12_to_yv12_arm64
++nv12_to_yv12_arm64:
++  nv12toyv12Loop:
++    mov         x8, x0
++    mov         x9, x6
++    mov         x10, x2
++    mov         x11, x4
++      1:
++      ld2         {v0.16b,v1.16b},[x8], #32
++      prfm        pldl1keep, [x8, 448]
++      subs        x9, x9, #16
++      st1         {v0.16b},[x10], #16
++      st1         {v1.16b},[x11], #16
++      b.gt        1b
++    add         x0, x0, x1
++    add         x2, x2, x3
++    add         x4, x4, x5
++  subs        x7, x7, #1
++  cmp         x7, #0
++  b.gt        nv12toyv12Loop
++  ret
++
++
++#endif
+diff --git a/src/gallium/frontends/va/surface.c b/src/gallium/frontends/va/surface.c
+index 062b60bd544..d0cb1f22c67 100644
+--- a/src/gallium/frontends/va/surface.c
++++ b/src/gallium/frontends/va/surface.c
+@@ -903,7 +903,60 @@ fail:
+       pipe_resource_reference(&resources[i], NULL);
+    return result;
+ }
++static VAStatus
++surface_from_external_memory_native(VADriverContextP ctx, vlVaSurface *surface,
++                             VASurfaceAttribExternalBuffers *memory_attribute,
++                             unsigned index, struct pipe_video_buffer *templat)
++{
++   vlVaDriver *drv;
++   struct pipe_screen *pscreen;
++   struct pipe_resource *resources[VL_NUM_COMPONENTS];
++   enum pipe_format resource_formats[VL_NUM_COMPONENTS];
++   VAStatus result;
++   int i;
++
++   pscreen = VL_VA_PSCREEN(ctx);
++   drv = VL_VA_DRIVER(ctx);
++
++   if (!memory_attribute || !memory_attribute->buffers ||
++       index > memory_attribute->num_buffers)
++      return VA_STATUS_ERROR_INVALID_PARAMETER;
++
++   if (surface->templat.width != memory_attribute->width ||
++       surface->templat.height != memory_attribute->height ||
++       memory_attribute->num_planes != 1)
++      return VA_STATUS_ERROR_INVALID_PARAMETER;
++
++   if (memory_attribute->num_planes > VL_NUM_COMPONENTS)
++      return VA_STATUS_ERROR_INVALID_PARAMETER;
+ 
++   vl_get_video_buffer_formats(pscreen, templat->buffer_format, resource_formats);
++
++   unsigned long nativebuffer = memory_attribute->buffers[index];
++   // Create a resource for each plane.
++   memset(resources, 0, sizeof resources);
++   resources[0] = (struct pipe_resource *)nativebuffer;
++   if (!resources[0]) {
++      result = VA_STATUS_ERROR_ALLOCATION_FAILED;
++      goto fail;
++   }
++   if (resource_formats[0] == PIPE_FORMAT_B8G8R8X8_UNORM &&
++       resources[0]->format == PIPE_FORMAT_R8G8B8A8_UNORM) {
++       resources[0]->format == PIPE_FORMAT_R8G8B8X8_UNORM;
++   }
++   surface->buffer = vl_video_buffer_create_ex2(drv->pipe, templat, resources);
++   if (!surface->buffer) {
++      result = VA_STATUS_ERROR_ALLOCATION_FAILED;
++      goto fail;
++   }
++   vl_video_setresourceflag(surface->buffer);
++   return VA_STATUS_SUCCESS;
++fail:
++   for (i = 0; i < VL_NUM_COMPONENTS; i++)
++      pipe_resource_reference(&resources[i], NULL);
++   return result;
++
++}
+ static VAStatus
+ surface_from_prime_2(VADriverContextP ctx, vlVaSurface *surface,
+                      VADRMPRIMESurfaceDescriptor *desc,
+@@ -1197,6 +1250,7 @@ vlVaCreateSurfaces2(VADriverContextP ctx, unsigned int format,
+ #else
+          case VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME:
+          case VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2:
++         case VA_SURFACE_ATTRIB_MEM_TYPE_KERNEL_DRM:
+ #endif
+             memory_type = attrib_list[i].value.value.i;
+             break;
+@@ -1264,7 +1318,8 @@ vlVaCreateSurfaces2(VADriverContextP ctx, unsigned int format,
+             return VA_STATUS_ERROR_INVALID_PARAMETER;
+          break;
+ #else
+-   case VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME:
++	 case VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME:
++	 case VA_SURFACE_ATTRIB_MEM_TYPE_KERNEL_DRM:
+       if (!memory_attribute)
+          return VA_STATUS_ERROR_INVALID_PARAMETER;
+       if (modifiers)
+@@ -1367,6 +1422,13 @@ vlVaCreateSurfaces2(VADriverContextP ctx, unsigned int format,
+          if (vaStatus != VA_STATUS_SUCCESS)
+             goto free_surf;
+          break;
++      
++      case VA_SURFACE_ATTRIB_MEM_TYPE_KERNEL_DRM:
++         vaStatus = surface_from_external_memory_native(ctx, surf, memory_attribute, i, &templat);
++         if (vaStatus != VA_STATUS_SUCCESS)
++            goto free_surf;
++         break;
++
+ #endif
+       default:
+          assert(0);
+diff --git a/src/gallium/frontends/va/va_private.h b/src/gallium/frontends/va/va_private.h
+index 917c13c6f1a..658b9561e54 100644
+--- a/src/gallium/frontends/va/va_private.h
++++ b/src/gallium/frontends/va/va_private.h
+@@ -616,6 +616,8 @@ VAStatus vlVaHandleVAEncMiscParameterTypeMaxFrameSizeHEVC(vlVaContext *context,
+ VAStatus vlVaHandleVAEncMiscParameterTypeHRDHEVC(vlVaContext *context, VAEncMiscParameterBuffer *buf);
+ VAStatus vlVaHandleVAEncMiscParameterTypeTemporalLayerHEVC(vlVaContext *context, VAEncMiscParameterBuffer *buf);
+ 
++void nv12_to_yv12_arm64(uint8_t const *src, int src_stride, uint8_t *u_dst,int u_stride, uint8_t *v_dst, int v_stride, int clc_width, int height);
++
+ #if VA_CHECK_VERSION(1, 16, 0)
+ VAStatus vlVaHandleVAEncSequenceParameterBufferTypeAV1(vlVaDriver *drv, vlVaContext *context, vlVaBuffer *buf);
+ VAStatus vlVaHandleVAEncPictureParameterBufferTypeAV1(vlVaDriver *drv, vlVaContext *context, vlVaBuffer *buf);
 diff --git a/src/gallium/targets/dri/dri.sym.in b/src/gallium/targets/dri/dri.sym.in
-
+index 0add030eccc..09ecf514159 100644
 --- a/src/gallium/targets/dri/dri.sym.in
 +++ b/src/gallium/targets/dri/dri.sym.in
 @@ -44,6 +44,7 @@
  		dri2_blit_image;
  		dri2_get_capabilities;
  		dri2_map_image;
-+ 		dri2_map_image_native;
++		dri2_map_image_native;
  		dri2_unmap_image;
  		dri_query_dma_buf_formats;
  		dri_query_dma_buf_modifiers;
 diff --git a/src/gbm/backends/dri/gbm_dri.c b/src/gbm/backends/dri/gbm_dri.c
-
+index 4e6b2b5278d..5d148878987 100644
 --- a/src/gbm/backends/dri/gbm_dri.c
 +++ b/src/gbm/backends/dri/gbm_dri.c
-@@ -1040,6 +1040,39 @@ gbm_dri_bo_map(struct gbm_bo *_bo,
-                                width, height, flags, (int *)stride,
+@@ -1041,6 +1041,40 @@ gbm_dri_bo_map(struct gbm_bo *_bo,
                                 map_data);
  }
+ 
 +static void *
 +gbm_dri_bo_map_native(struct gbm_bo *_bo,
-+               uint32_t x, uint32_t y,
++              uint32_t x, uint32_t y,
 +              uint32_t width, uint32_t height,
-+               uint32_t flags, uint32_t *stride, void **map_data)
++              uint32_t flags, uint32_t *stride, void **map_data)
 +{
 +   struct gbm_dri_device *dri = gbm_dri_device(_bo->gbm);
 +   struct gbm_dri_bo *bo = gbm_dri_bo(_bo);
@@ -631,13 +1077,14 @@ diff --git a/src/gbm/backends/dri/gbm_dri.c b/src/gbm/backends/dri/gbm_dri.c
 +
 +   /* GBM flags and DRI flags are the same, so just pass them on */
 +   return dri2_map_image_native(dri->context, bo->image, x, y,
-+                                      width, height, flags, (int *)stride,
-+                                      map_data);
++                               width, height, flags, (int *)stride,
++                               map_data);
 +}
- 
++
  static void
  gbm_dri_bo_unmap(struct gbm_bo *_bo, void *map_data)
-@@ -1166,6 +1199,7 @@ dri_device_create(int fd, uint32_t gbm_backend_version)
+ {
+@@ -1166,6 +1200,7 @@ dri_device_create(int fd, uint32_t gbm_backend_version)
     dri->base.v0.bo_create = gbm_dri_bo_create;
     dri->base.v0.bo_import = gbm_dri_bo_import;
     dri->base.v0.bo_map = gbm_dri_bo_map;
@@ -645,45 +1092,59 @@ diff --git a/src/gbm/backends/dri/gbm_dri.c b/src/gbm/backends/dri/gbm_dri.c
     dri->base.v0.bo_unmap = gbm_dri_bo_unmap;
     dri->base.v0.is_format_supported = gbm_dri_is_format_supported;
     dri->base.v0.get_format_modifier_plane_count =
+diff --git a/src/gbm/main/backend.c b/src/gbm/main/backend.c
+index 321c7e10141..e9268decf67 100644
+--- a/src/gbm/main/backend.c
++++ b/src/gbm/main/backend.c
+@@ -110,7 +110,7 @@ load_backend_by_name(const char *name, int fd, bool warn_on_fail)
+ {
+    void *lib = loader_open_driver_lib(name, BACKEND_LIB_SUFFIX,
+                                       backend_search_path_vars,
+-                                      DEFAULT_BACKENDS_PATH,
++                                      "/system" DEFAULT_BACKENDS_PATH,
+                                       warn_on_fail);
+ 
+    if (!lib)
 diff --git a/src/gbm/main/gbm.c b/src/gbm/main/gbm.c
-
+index 599f7aae9b6..f824e2a12a3 100644
 --- a/src/gbm/main/gbm.c
 +++ b/src/gbm/main/gbm.c
-@@ -44,6 +44,8 @@
+@@ -44,6 +44,7 @@
  #include "gbm.h"
  #include "gbmint.h"
  #include "backend.h"
 +#include "log/log.h"
-+
  
  /** Returns the file description for the gbm device
   *
-@@ -626,6 +628,20 @@ gbm_bo_map(struct gbm_bo *bo,
+@@ -626,6 +627,21 @@ gbm_bo_map(struct gbm_bo *bo,
                               flags, stride, map_data);
  }
  
 +GBM_EXPORT void *
 +gbm_bo_map_native(struct gbm_bo *bo,
-+                  uint32_t x, uint32_t y,
-+                  uint32_t width, uint32_t height,
-+                  uint32_t flags, uint32_t *stride, void **map_data)
++              uint32_t x, uint32_t y,
++              uint32_t width, uint32_t height,
++              uint32_t flags, uint32_t *stride, void **map_data)
 +{
 +   if (!bo || width == 0 || height == 0 || !stride || !map_data) {
 +      errno = EINVAL;
 +      return NULL;
 +   }
 +
-+   return bo->gbm->v0.bo_map_native(bo, x, y, width, height, flags, stride, map_data);
++   return bo->gbm->v0.bo_map_native(bo, x, y, width, height,
++                             flags, stride, map_data);
 +}
 +
  /**
   * Unmap a previously mapped region of a gbm buffer object
   *
 diff --git a/src/gbm/main/gbm.h b/src/gbm/main/gbm.h
-
+index 9c680f65b95..893a4128fef 100644
 --- a/src/gbm/main/gbm.h
 +++ b/src/gbm/main/gbm.h
-@@ -438,6 +438,10 @@ gbm_bo_map(struct gbm_bo *bo,
+@@ -437,6 +437,10 @@ void *
+ gbm_bo_map(struct gbm_bo *bo,
             uint32_t x, uint32_t y, uint32_t width, uint32_t height,
             uint32_t flags, uint32_t *stride, void **map_data);
 +void *
@@ -693,26 +1154,25 @@ diff --git a/src/gbm/main/gbm.h b/src/gbm/main/gbm.h
  
  void
  gbm_bo_unmap(struct gbm_bo *bo, void *map_data);
- 
 diff --git a/src/gbm/main/gbm_backend_abi.h b/src/gbm/main/gbm_backend_abi.h
-
+index 222ce3404cb..1015707ba8a 100644
 --- a/src/gbm/main/gbm_backend_abi.h
 +++ b/src/gbm/main/gbm_backend_abi.h
-@@ -130,6 +130,11 @@ struct gbm_device_v0 {
+@@ -130,6 +130,12 @@ struct gbm_device_v0 {
                                 uint32_t width, uint32_t height,
-                                uint32_t flags, uint32_t *stride, 
+                                uint32_t flags, uint32_t *stride,
                                 void **map_data);
 +   void *(*bo_map_native)(struct gbm_bo *bo,
 +                               uint32_t x, uint32_t y,
 +                               uint32_t width, uint32_t height,
 +                               uint32_t flags, uint32_t *stride,
 +                               void **map_data);
++
     void (*bo_unmap)(struct gbm_bo *bo, void *map_data);
     int (*bo_write)(struct gbm_bo *bo, const void *buf, size_t data);
     int (*bo_get_fd)(struct gbm_bo *bo);
- 
 diff --git a/src/gbm/meson.build b/src/gbm/meson.build
-
+index eaed028d049..4fed2228c15 100644
 --- a/src/gbm/meson.build
 +++ b/src/gbm/meson.build
 @@ -26,7 +26,7 @@ if with_platform_android and get_option('platform-sdk-version') >= 30
@@ -724,3 +1184,199 @@ diff --git a/src/gbm/meson.build b/src/gbm/meson.build
    files_gbm,
    include_directories : incs_gbm,
    c_args : [args_gbm],
+diff --git a/src/mapi/glapi/gen/gl_API.xml b/src/mapi/glapi/gen/gl_API.xml
+index 305c1fa558d..8e87b7a0526 100644
+--- a/src/mapi/glapi/gen/gl_API.xml
++++ b/src/mapi/glapi/gen/gl_API.xml
+@@ -2196,6 +2196,20 @@
+         <glx rop="110" large="true"/>
+     </function>
+ 
++    <function name="nativeTexImage2D" es1="1.0" es2="2.0" no_error="true">
++        <param name="target" type="GLenum"/>
++        <param name="level" type="GLint"/>
++        <param name="internalformat" type="GLint"/>
++        <param name="width" type="GLsizei"/>
++        <param name="height" type="GLsizei"/>
++        <param name="border" type="GLint"/>
++        <param name="format" type="GLenum"/>
++        <param name="type" type="GLenum"/>
++        <param name="handle" type="unsigned long *"/>
++        <param name="pixels" type="const GLvoid *" img_width="width" img_height="height" img_format="format" img_type="type" img_target="target" img_send_null="true" img_pad_dimensions="true"/>
++    </function>
++
++
+     <function name="TexEnvf" es1="1.0" deprecated="3.1" exec="dlist">
+         <param name="target" type="GLenum"/>
+         <param name="pname" type="GLenum"/>
+diff --git a/src/mapi/glapi/gen/static_data.py b/src/mapi/glapi/gen/static_data.py
+index 97b64d9157d..2db12152def 100644
+--- a/src/mapi/glapi/gen/static_data.py
++++ b/src/mapi/glapi/gen/static_data.py
+@@ -1709,6 +1709,7 @@ offsets = {
+     "TexStorageAttribs2DEXT": 1673,
+     "TexStorageAttribs3DEXT": 1674,
+     "FramebufferTextureMultiviewOVR": 1675,
++    "nativeTexImage2D": 1677,
+     "NamedFramebufferTextureMultiviewOVR": 1676,
+ }
+ 
+diff --git a/src/mesa/main/get.c b/src/mesa/main/get.c
+index 35b79b35828..c23c07c2aea 100644
+--- a/src/mesa/main/get.c
++++ b/src/mesa/main/get.c
+@@ -1160,7 +1160,7 @@ find_custom_value(struct gl_context *ctx, const struct value_desc *d, union valu
+          v->value_float = ctx->Color.AlphaRefUnclamped;
+       break;
+    case GL_MAX_VERTEX_UNIFORM_VECTORS:
+-      v->value_int = ctx->Const.Program[MESA_SHADER_VERTEX].MaxUniformComponents / 4;
++      v->value_int = 256; //修复原神
+       break;
+ 
+    case GL_MAX_FRAGMENT_UNIFORM_VECTORS:
+@@ -2023,6 +2023,10 @@ _mesa_GetIntegerv(GLenum pname, GLint *params)
+    int shift, i;
+    void *p;
+ 
++   if (pname == GL_MAX_VERTEX_UNIFORM_COMPONENTS) {
++       *params = 1024;
++       return;
++   }
+    d = find_value("glGetIntegerv", pname, &p, &v);
+    switch (d->type) {
+    case TYPE_INVALID:
+diff --git a/src/mesa/main/teximage.c b/src/mesa/main/teximage.c
+index 0a728a13c63..6191c6fd67c 100644
+--- a/src/mesa/main/teximage.c
++++ b/src/mesa/main/teximage.c
+@@ -3328,6 +3328,26 @@ teximage(struct gl_context *ctx, GLboolean compressed, GLuint dims,
+    }
+ }
+ 
++static ALWAYS_INLINE unsigned long *
++nativeteximage(struct gl_context *ctx, GLboolean compressed, GLuint dims,
++             GLenum target, GLint level, GLint internalFormat,
++             GLsizei width, GLsizei height, GLsizei depth,
++             GLint border, GLenum format, GLenum type,
++             GLsizei imageSize, const GLvoid *pixels, bool no_error)
++{
++    struct gl_texture_image *texImage;
++    unsigned long *handle;
++    const struct gl_pixelstore_attrib *unpack = &ctx->Unpack;
++    struct gl_texture_object *texObj = _mesa_get_current_tex_object(ctx, target);
++    _mesa_lock_texture(ctx, texObj);
++    {
++        texImage = _mesa_get_tex_image(ctx, texObj, target, level);
++	handle = st_nativeTexImage(ctx, dims,texImage, format, type, pixels, unpack);
++    }
++    _mesa_unlock_texture(ctx, texObj);
++    return handle;
++
++}
+ 
+ /* This is a wrapper around teximage() so that we can force the KHR_no_error
+  * logic to be inlined without inlining the function into all the callers.
+@@ -3343,6 +3363,16 @@ teximage_err(struct gl_context *ctx, GLboolean compressed, GLuint dims,
+             depth, border, format, type, imageSize, pixels, false);
+ }
+ 
++static unsigned long *
++nativeteximage_err(struct gl_context *ctx, GLboolean compressed, GLuint dims,
++             GLenum target, GLint level, GLint internalFormat,
++             GLsizei width, GLsizei height, GLsizei depth,
++             GLint border, GLenum format, GLenum type,
++             GLsizei imageSize, const GLvoid *pixels)
++{
++   return nativeteximage(ctx, compressed, dims, target, level, internalFormat, width, height,
++            depth, border, format, type, imageSize, pixels, false);
++}
+ 
+ static void
+ teximage_no_error(struct gl_context *ctx, GLboolean compressed, GLuint dims,
+@@ -3414,6 +3444,18 @@ _mesa_TexImage2D( GLenum target, GLint level, GLint internalFormat,
+                 border, format, type, 0, pixels);
+ }
+ 
++void GLAPIENTRY
++_mesa_nativeTexImage2D( GLenum target, GLint level, GLint internalFormat,
++                  GLsizei width, GLsizei height, GLint border,
++                  GLenum format, GLenum type,unsigned long *handle,
++                  const GLvoid *pixels )
++{
++   GET_CURRENT_CONTEXT(ctx);
++   *handle = (unsigned long)(nativeteximage_err(ctx, GL_FALSE, 2, target, level, internalFormat, width, height, 1,
++                border, format, type, 0, pixels));
++}
++
++
+ void GLAPIENTRY
+ _mesa_TextureImage2DEXT(GLuint texture, GLenum target, GLint level,
+                       GLint internalFormat, GLsizei width, GLsizei height,
+@@ -3431,6 +3473,14 @@ _mesa_TextureImage2DEXT(GLuint texture, GLenum target, GLint level,
+             width, height, 1, border, format, type, 0, pixels, false);
+ }
+ 
++void GLAPIENTRY
++_mesa_nativeTexImage2D_no_error(GLenum target, GLint level, GLint internalFormat,
++                  GLsizei width, GLsizei height, 
++                  GLint border, GLenum format, GLenum type,unsigned long *handle, const GLvoid *pixels)
++{
++	GET_CURRENT_CONTEXT(ctx);
++}
++
+ void GLAPIENTRY
+ _mesa_MultiTexImage2DEXT(GLenum texunit, GLenum target, GLint level,
+                          GLint internalFormat, GLsizei width, GLsizei height,
+diff --git a/src/mesa/state_tracker/st_cb_texture.c b/src/mesa/state_tracker/st_cb_texture.c
+index 74dc1d94f0f..6f414c42641 100644
+--- a/src/mesa/state_tracker/st_cb_texture.c
++++ b/src/mesa/state_tracker/st_cb_texture.c
+@@ -2451,6 +2451,19 @@ st_try_pbo_compressed_texsubimage(struct gl_context *ctx,
+    return success;
+ }
+ 
++unsigned long *
++st_nativeTexImage(struct gl_context * ctx, GLuint dims,
++            struct gl_texture_image *texImage,
++            GLenum format, GLenum type, const void *pixels,
++            const struct gl_pixelstore_attrib *unpack)
++{
++   struct st_context *st = st_context(ctx);
++   struct pipe_screen *screen = st->pipe->screen;
++   struct gl_texture_object *texObj = texImage->TexObject;
++   struct pipe_resource *src = texObj->pt;
++   return (unsigned long *)src;
++}
++
+ void
+ st_CompressedTexSubImage(struct gl_context *ctx, GLuint dims,
+                          struct gl_texture_image *texImage,
+diff --git a/src/mesa/state_tracker/st_cb_texture.h b/src/mesa/state_tracker/st_cb_texture.h
+index a2a14f2a9f7..6a9537c3076 100644
+--- a/src/mesa/state_tracker/st_cb_texture.h
++++ b/src/mesa/state_tracker/st_cb_texture.h
+@@ -80,6 +80,11 @@ void st_TexImage(struct gl_context * ctx, GLuint dims,
+                  struct gl_texture_image *texImage,
+                  GLenum format, GLenum type, const void *pixels,
+                  const struct gl_pixelstore_attrib *unpack);
++unsigned long * st_nativeTexImage(struct gl_context * ctx, GLuint dims,
++                 struct gl_texture_image *texImage,
++                 GLenum format, GLenum type, const void *pixels,
++                 const struct gl_pixelstore_attrib *unpack);
++
+ void st_CompressedTexSubImage(struct gl_context *ctx, GLuint dims,
+                               struct gl_texture_image *texImage,
+                               GLint x, GLint y, GLint z,
+diff --git a/src/util/blake3/meson.build b/src/util/blake3/meson.build
+index 6b53daab6b3..454988566ca 100644
+--- a/src/util/blake3/meson.build
++++ b/src/util/blake3/meson.build
+@@ -33,6 +33,8 @@ elif cpu_family == 'x86'
+   blake3_defs += blake3_x86_no_simd_defs
+ elif cpu_family == 'aarch64'
+   files_blake3 += ['blake3_neon.c']
++elif cpu_family == 'arm'
++  files_blake3 += ['blake3_neon.c']
+ endif
+ 
+ blake3 = static_library(
