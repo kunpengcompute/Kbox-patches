@@ -323,70 +323,31 @@ diff --git a/rootdir/init.rc b/rootdir/init.rc
 
 diff --git a/init/ipconfigstore/Android.bp b/init/ipconfigstore/Android.bp
 new file mode 100644
-index 000000000..bec200e45
+index 000000000..34ed932dd
 --- /dev/null
 +++ b/init/ipconfigstore/Android.bp
-@@ -0,0 +1,12 @@
+@@ -0,0 +1,8 @@
 +cc_binary {
 +    name: "ipconfigstore",
-+    srcs: ["*.cpp"],
++    srcs: ["*.cc"],
 +    cflags: ["-Wall", "-Werror"],
-+    shared_libs: [
-+        "libbase",
-+        "libc++",
-+        "liblog",
-+        "libcutils",
-+    ],
++    shared_libs: ["libbase"],
 +    vendor: true,
 +}
-diff --git a/init/ipconfigstore/ipconfigstore.cpp b/init/ipconfigstore/ipconfigstore.cpp
++
+diff --git a/init/ipconfigstore/data.cc b/init/ipconfigstore/data.cc
 new file mode 100644
-index 000000000..95496e1fd
+index 000000000..b87e77069
 --- /dev/null
-+++ b/init/ipconfigstore/ipconfigstore.cpp
-@@ -0,0 +1,230 @@
-+#include <ifaddrs.h>
-+#include <sys/types.h>
-+#include <fstream>
-+#include <sstream>
-+#include <sys/socket.h>
-+#include <netinet/in.h>
-+#include <net/if.h>
-+#include <sys/ioctl.h>
-+#include <sys/stat.h>
-+#include <errno.h>
++++ b/init/ipconfigstore/data.cc
+@@ -0,0 +1,65 @@
 +#include <string.h>
-+#include <net/route.h>
-+#include <unistd.h>
-+#include <stdio.h>
-+#include <arpa/inet.h>
-+#include <set>
-+#include <vector>
 +#include <strings.h>
 +#include <stdlib.h>
++#include <stdio.h>
 +#include <ctype.h>
 +
-+
-+#include <android-base/properties.h>
-+
-+using namespace android::base;
-+
-+struct ipconfig {
-+    uint32_t mask;
-+    char ipv4[16];
-+    char gateway[16];
-+};
-+
-+const std::string g_ipconfigfile = "/data/misc/ethernet/ipconfig.txt";
-+const std::string g_ipconfigpath = "/data/misc/ethernet";
-+const std::string g_apexipconfigfile = "/data/misc/apexdata/com.android.tethering/misc/ethernet/ipconfig.txt";
-+
-+uint16_t convertBigEndianUInt16(uint16_t value);
-+uint32_t convertBigEndianUInt32(uint32_t value);
-+bool writePackedString(const std::string& str, FILE *stream);
-+bool writePackedUInt16(uint16_t value, FILE *stream);
-+bool writePackedUInt32(uint32_t value, FILE *stream);
-+
++#include "data.h"
 +
 +uint16_t convertBigEndianUInt16(uint16_t value)
 +{
@@ -445,7 +406,59 @@ index 000000000..95496e1fd
 +	return fwrite(&buffer, sizeof buffer, 1, stream) == 1;
 +}
 +
-+int get_gateway(char *dev, char *ret) {
+diff --git a/init/ipconfigstore/data.h b/init/ipconfigstore/data.h
+new file mode 100644
+index 000000000..12c3a1af9
+--- /dev/null
++++ b/init/ipconfigstore/data.h
+@@ -0,0 +1,13 @@
++#pragma once
++
++#include <cstdint>
++#include <string>
++
++#include <stdio.h>
++
++uint16_t convertBigEndianUInt16(uint16_t value);
++uint32_t convertBigEndianUInt32(uint32_t value);
++
++bool writePackedString(const std::string& str, FILE *stream);
++bool writePackedUInt16(uint16_t value, FILE *stream);
++bool writePackedUInt32(uint32_t value, FILE *stream);
+diff --git a/init/ipconfigstore/main.cc b/init/ipconfigstore/main.cc
+new file mode 100644
+index 000000000..f5f2e0f46
+--- /dev/null
++++ b/init/ipconfigstore/main.cc
+@@ -0,0 +1,165 @@
++#include <sys/types.h>
++#include <ifaddrs.h>
++#include <sys/socket.h>
++#include <netinet/in.h>
++#include <net/if.h>
++#include <sys/ioctl.h>
++#include <errno.h>
++#include <string.h>
++#include <net/route.h>
++#include <unistd.h>
++#include <stdio.h>
++#include <arpa/inet.h>
++
++#include <set>
++
++#include <android-base/properties.h>
++
++#include "data.h"
++
++using namespace android::base;
++
++struct ipconfig {
++    uint32_t mask;
++    char ipv4[16];
++    char gateway[16];
++};
++
++static int get_gateway(char *dev, char *ret) {
 +    FILE *fp;
 +    char buf[256]; // 128 is enough for linux
 +    char iface[16];
@@ -464,7 +477,7 @@ index 000000000..95496e1fd
 +    return 0;
 +}
 +
-+int bitcount(uint32_t n)
++static int bitcount(uint32_t n)
 +{
 +    int count=0;
 +    while (n) {
@@ -474,7 +487,7 @@ index 000000000..95496e1fd
 +    return count;
 +}
 +
-+int get_conf(struct ipconfig *conf) {
++static int get_conf(struct ipconfig *conf) {
 +    struct ifaddrs *ifAddrStruct;
 +    void *tmpAddrPtr=NULL;
 +    getifaddrs(&ifAddrStruct);
@@ -491,37 +504,52 @@ index 000000000..95496e1fd
 +    get_gateway((char *) "eth0", conf->gateway);
 +    return 0;
 +}
-+std::string readPropFromFile (const std::string& filename, const std::string&key) {
-+    std::ifstream file(filename);
-+    if(!file){
-+    	return "";
-+    }
-+    std::string line;
-+    while (std::getline(file,line)) {
-+	    if(line.find(key) != std::string::npos) {
-+	        size_t pos = line.find('=');
-+		if(pos != std::string::npos){
-+			return line.substr(pos + 1);
-+		}
-+	    }
-+    }
-+    return "";
-+}
-+std::string get_dns(int index) {
-+    char key[32];
-+    snprintf(key,sizeof(key),"net.dns%d",index);
-+    std::string dns = readPropFromFile("/vendor/build.prop",key);
-+    if(!dns.empty()) {
-+    	return dns;
-+    }
-+    dns = readPropFromFile("/system/build.prop",key);
-+    return dns;
 +
++static void write_dns(FILE *fp) {
++    std::set<std::string> dnsList;
++    auto ndns = GetIntProperty("ro.boot.kbox_net_ndns", 0);
++    for (int i = 1; i <= ndns; ++i) {
++        dnsList.insert(GetProperty("ro.boot.kbox_net_dns" + std::to_string(i), ""));
++    }
++    if (dnsList.empty()) dnsList.insert("8.8.8.8");
++
++    for (auto& dns: dnsList) {
++        writePackedString("dns", fp);
++        writePackedString(dns.c_str(), fp);
++    }
 +}
 +
++static void write_proxy(FILE *fp) {
++    // static | pac | none | unassigned
++    std::string proxy_type = GetProperty("ro.boot.kbox_net_proxy_type", "");
++    if ("static" == proxy_type) {
++        writePackedString("proxySettings", fp);
++        writePackedString("STATIC", fp);
 +
-+int write_conf(struct ipconfig *conf, uint32_t v) {
-+    FILE *fp = fopen(g_ipconfigfile.c_str(), "w+");
++        writePackedString("proxyHost", fp);
++        writePackedString(GetProperty("ro.boot.kbox_net_proxy_host", "").c_str(), fp);
++
++        writePackedString("proxyPort", fp);
++        writePackedUInt32(GetIntProperty("ro.boot.kbox_net_proxy_port", 3128), fp);
++
++        writePackedString("exclusionList", fp);
++        writePackedString(GetProperty("ro.boot.kbox_net_proxy_exclude_list", "").c_str(), fp);
++    } else if ("pac" == proxy_type) {
++        writePackedString("proxySettings", fp);
++        writePackedString("PAC", fp);
++
++        writePackedString("proxyPac", fp);
++        writePackedString(GetProperty("ro.boot.kbox_net_proxy_pac", "").c_str(), fp);
++    } else if ("none" == proxy_type) {
++        writePackedString("proxySettings", fp);
++        writePackedString("NONE", fp);
++    } else {
++        // ignored
++    }
++}
++
++static int write_conf(struct ipconfig *conf, uint32_t v) {
++    FILE *fp = fopen("/data/misc/ethernet/ipconfig.txt", "w+");
 +
 +    writePackedUInt32(v, fp); // version
 +
@@ -537,17 +565,16 @@ index 000000000..95496e1fd
 +    writePackedString("0.0.0.0", fp);
 +    writePackedUInt32(0, fp);
 +    writePackedUInt32(1, fp); // Have a gateway.
-+
 +    writePackedString(conf->gateway, fp);
-+    writePackedString("dns", fp);
-+    writePackedString(get_dns(1), fp);
-+    writePackedString("dns", fp);
-+    writePackedString(get_dns(2), fp);
-+    writePackedString("dns", fp);
-+    writePackedString(get_dns(3), fp);
++
++    write_dns(fp);
++
++    write_proxy(fp);
 +
 +    writePackedString("id", fp);
-+    writePackedString("eth0", fp);
++    if (v == 2) writePackedUInt32(0, fp);
++    else writePackedString("eth0", fp);
++
 +    writePackedString("eos", fp);
 +
 +    fclose(fp);
@@ -557,24 +584,15 @@ index 000000000..95496e1fd
 +int main(int argc, char **argv) {
 +    (void)argc;
 +    (void)argv;
-+    unlink(g_ipconfigfile.c_str());
-+    struct stat info;
-+    if(stat(g_ipconfigpath.c_str(), &info) != 0){
-+    	mkdir(g_ipconfigpath.c_str(),0755);
-+    }
-+    uint32_t v = 3; // use v3 for advanced than Android 8.1
++
++    uint32_t v = 3;
++    // use V2 for Android 8.1
++    if (GetIntProperty("ro.build.version.sdk", 0) <= 27) v = 2;
 +
 +    struct ipconfig conf;
 +    get_conf(&conf);
++    printf("ipconfig: ipv4: %s, mask: %i, gateway: %s", conf.ipv4, conf.mask, conf.gateway);
 +    write_conf(&conf, v);
-+
-+    if(access(g_apexipconfigfile.c_str(),F_OK) == 0){
-+        std::ifstream src(g_ipconfigfile, std::ios::binary);
-+	std::ofstream dst(g_apexipconfigfile,std::ios::binary | std::ios::trunc);
-+	dst << src.rdbuf();
-+    }
 +    return 0;
 +}
--- 
-2.33.0
-
++
