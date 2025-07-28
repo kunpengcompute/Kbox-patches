@@ -1,5 +1,3 @@
-
-project external/mesa3d/
 diff --git a/android/Android.mk b/android/Android.mk
 new file mode 100644
 index 00000000000..94cb0b97341
@@ -859,20 +857,10 @@ index 658b1093331..62986a4b464 100644
                 map, box.width, box.height);
           } else {
 diff --git a/src/gallium/frontends/va/meson.build b/src/gallium/frontends/va/meson.build
-index ff5e7995575..3f2a910aa25 100644
+index ff5e7995575..79362ea3026 100644
 --- a/src/gallium/frontends/va/meson.build
 +++ b/src/gallium/frontends/va/meson.build
-@@ -3,13 +3,17 @@
- 
- libva_version = dep_va.version().split('.')
- 
-+
-+message('===hrh test libva major version: ' + libva_version[0])
-+message('===hrh test libva minor version: ' + libva_version[1])
-+message('===hrh test full libva version: ' + dep_va.version())
- libva_st = static_library(
-   'va_st',
-   files(
+@@ -9,7 +9,7 @@ libva_st = static_library(
      'buffer.c', 'config.c', 'context.c', 'display.c', 'image.c', 'picture.c',
      'picture_mpeg12.c', 'picture_mpeg4.c', 'picture_h264.c', 'picture_hevc.c',
      'picture_vc1.c', 'picture_mjpeg.c', 'picture_vp9.c','picture_av1.c','postproc.c',
