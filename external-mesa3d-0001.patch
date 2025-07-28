@@ -1233,6 +1233,31 @@ index 35b79b35828..c23c07c2aea 100644
     d = find_value("glGetIntegerv", pname, &p, &v);
     switch (d->type) {
     case TYPE_INVALID:
+diff --git a/src/mesa/main/getstring.c b/src/mesa/main/getstring.c
+index 45987488b84..49cfc6468e6 100644
+--- a/src/mesa/main/getstring.c
++++ b/src/mesa/main/getstring.c
+@@ -39,6 +39,8 @@
+ #include "pipe/p_context.h"
+ #include "pipe/p_screen.h"
+ 
++#include <cutils/properties.h>
++
+ /**
+  * Return the string for a glGetString(GL_SHADING_LANGUAGE_VERSION) query.
+  */
+@@ -146,6 +148,11 @@ _mesa_GetString( GLenum name )
+          return (const GLubyte *) vendor;
+       }
+       case GL_RENDERER: {
++	 const char* rendererPropName = "ro.hardware.gpurenderer";
++	 static char rendererProp[PROPERTY_VALUE_MAX];
++	 if (property_get(rendererPropName, rendererProp, NULL) > 0) {
++	    return (const GLubyte *) rendererProp;
++	 }
+          const GLubyte *str = (const GLubyte *)screen->get_name(screen);
+          if (str)
+             return str;
 diff --git a/src/mesa/main/teximage.c b/src/mesa/main/teximage.c
 index 0a728a13c63..6191c6fd67c 100644
 --- a/src/mesa/main/teximage.c
