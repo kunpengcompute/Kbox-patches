@@ -1,31 +1,3 @@
-From cee4b02c400a0ecb33e403dfa50ec107b2154851 Mon Sep 17 00:00:00 2001
-From: root <puhaodong@huawei.com>
-Date: Fri, 18 Jul 2025 19:50:03 +0800
-Subject: [PATCH] telephony_mock
-
-Change-Id: Ia1c55de32f517f618e465406072a0e927c0941b2
----
- .../ril/reference-libril/RefRadioModem.cpp    |  29 ----
- .../hals/ril/reference-libril/RefRadioModem.h |  13 --
- guest/hals/ril/reference-libril/ril.cpp       |   1 +
- .../hals/ril/reference-libril/ril_service.cpp |   2 -
- guest/hals/ril/reference-ril/reference-ril.c  |  35 +----
- guest/hals/rild/rild_cuttlefish.c             |  11 +-
- host/commands/modem_simulator/Android.bp      |  10 +-
- .../files/.cuttlefish_config.json             |  11 ++
- .../files/iccprofile_for_sim0.xml             |   6 +-
- .../files/numeric_operator.xml                |   3 +-
- host/commands/modem_simulator/main.cpp        |  57 ++-----
- .../commands/modem_simulator/misc_service.cpp |  24 ++-
- .../modem_simulator/modem_simulator.rc        |   4 +
- .../modem_simulator/network_service.cpp       | 142 +++++++++++-------
- host/commands/modem_simulator/sim_service.cpp | 111 ++++++++++----
- host/commands/modem_simulator/sim_service.h   |   3 +
- host/libs/config/config_utils.cpp             |   2 +-
- 17 files changed, 244 insertions(+), 220 deletions(-)
- create mode 100644 host/commands/modem_simulator/files/.cuttlefish_config.json
- create mode 100644 host/commands/modem_simulator/modem_simulator.rc
-
 diff --git a/guest/hals/ril/reference-libril/RefRadioModem.cpp b/guest/hals/ril/reference-libril/RefRadioModem.cpp
 index 4dfffa496..9441491e9 100644
 --- a/guest/hals/ril/reference-libril/RefRadioModem.cpp
@@ -278,7 +250,7 @@ index 000000000..46202a9b5
 +	"root_dir" : "/system/vendor/etc/modem_simulator/files/"
 +}
 diff --git a/host/commands/modem_simulator/files/iccprofile_for_sim0.xml b/host/commands/modem_simulator/files/iccprofile_for_sim0.xml
-index 655c37a96..ddc5e5351 100755
+index 655c37a96..42fe547aa 100755
 --- a/host/commands/modem_simulator/files/iccprofile_for_sim0.xml
 +++ b/host/commands/modem_simulator/files/iccprofile_for_sim0.xml
 @@ -11,7 +11,7 @@
@@ -295,7 +267,7 @@ index 655c37a96..ddc5e5351 100755
      <ADF name="USIM" path="7FFF" aid="A0000000871002FF86FF0389FFFFFFFF">
          <EF name="EF_IMSI" id="6F07" structure="transparent">
 -            <CIMI>311740123456789</CIMI>
-+            <CIMI>460000123456789</CIMI>
++            <CIMI>460110123456789</CIMI>
          </EF>
          <EF name="EF_MSISDN" id="6F40" structure="linear fixed">
              <SIMIO cmd="C0" p1="0" p2="0" p3="F" data="">144,0,621982054221001C0283026F408A01058B036F0605800200388800</SIMIO>
@@ -497,7 +469,7 @@ index 000000000..e420ef69b
 +	user root 
 +	group root
 diff --git a/host/commands/modem_simulator/network_service.cpp b/host/commands/modem_simulator/network_service.cpp
-index 3dc77b5b6..54e10910a 100644
+index 3dc77b5b6..e8b3b4e7b 100644
 --- a/host/commands/modem_simulator/network_service.cpp
 +++ b/host/commands/modem_simulator/network_service.cpp
 @@ -20,6 +20,7 @@
@@ -526,7 +498,7 @@ index 3dc77b5b6..54e10910a 100644
  }
  
 +#define MIN_NUMERICCPH_LENGTH 5
-+#define MAX_NUMERICCPH_LENGTH 5
++#define MAX_NUMERICCPH_LENGTH 6
 +#define MIN_ALPHACPH_LENGTH 1
 +#define MAX_ALPHACPH_LENGTH 20
 +
@@ -678,7 +650,7 @@ index 3dc77b5b6..54e10910a 100644
  }
  
 diff --git a/host/commands/modem_simulator/sim_service.cpp b/host/commands/modem_simulator/sim_service.cpp
-index 8d3968967..b45e76acf 100644
+index 8d3968967..7f3de2a55 100644
 --- a/host/commands/modem_simulator/sim_service.cpp
 +++ b/host/commands/modem_simulator/sim_service.cpp
 @@ -24,6 +24,7 @@
@@ -689,7 +661,7 @@ index 8d3968967..b45e76acf 100644
  namespace cuttlefish {
  
  const std::pair<int, int> kSimPinSizeRange(4, 8);
-@@ -46,9 +47,13 @@ static const std::string DF_ADF       = "7FFF";  // UICC access
+@@ -46,9 +47,16 @@ static const std::string DF_ADF       = "7FFF";  // UICC access
  constexpr int kFooterSizeBytes = 14;
  // Maximum size of the un-extended number field
  constexpr int kMaxNumberSizeBytes = 11;
@@ -699,17 +671,41 @@ index 8d3968967..b45e76acf 100644
  
 +constexpr int LENGTH_OF_IMSI = 15;
 +constexpr int LENGTH_OF_ICCID = 20;
++#define MIN_ALPHACPH_LENGTH 1 
++#define MAX_ALPHACPH_LENGTH 20 
++
 +
  const std::map<SimService::SimStatus, std::string> gSimStatusResponse = {
      {SimService::SIM_STATUS_ABSENT,     ModemService::kCmeErrorSimNotInserted},
      {SimService::SIM_STATUS_NOT_READY,  ModemService::kCmeErrorSimBusy},
-@@ -368,6 +373,30 @@ void SimService::InitializeServiceState() {
+@@ -368,6 +376,51 @@ void SimService::InitializeServiceState() {
    };
  }
  
++static inline bool isDigit(char c) {
++	return '0' <= c && c <= '9';
++}
++
 +static inline bool isDigits(char* s) {
 +	for (int i = 0; i < strlen(s); i++) {
 +		if ('0' > s[i] || s[i] > '9') {
++			return false;
++		}
++	}
++	return true;
++}
++
++static inline bool isLetter(char c) {
++	return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');
++}
++
++static inline bool isLetterOrDigit(char c) {
++	return isLetter(c) || isDigit(c);
++}
++
++static inline bool isLetterOrDigits(char* s) {
++	for (int i = 0; i < strlen(s); i++) {
++		if (!isLetterOrDigit(s[i])) {
 +			return false;
 +		}
 +	}
@@ -734,7 +730,7 @@ index 8d3968967..b45e76acf 100644
  void SimService::InitializeSimFileSystemAndSimState() {
    auto nvram_config = NvramConfig::Get();
    auto sim_type = nvram_config->sim_type();
-@@ -379,8 +408,7 @@ void SimService::InitializeSimFileSystemAndSimState() {
+@@ -379,8 +432,7 @@ void SimService::InitializeSimFileSystemAndSimState() {
    }
    auto icc_profile_name = ss.str();
  
@@ -744,7 +740,7 @@ index 8d3968967..b45e76acf 100644
    std::string file = icc_profile_path;
  
    if (!cuttlefish::FileExists(icc_profile_path) ||
-@@ -483,6 +511,7 @@ void SimService::InitializeSimFileSystemAndSimState() {
+@@ -483,6 +535,7 @@ void SimService::InitializeSimFileSystemAndSimState() {
        pin2_status_.puk_remaining_times_ = std::stoi(puk2_remaining_times->GetText());
      }
    }
@@ -752,7 +748,7 @@ index 8d3968967..b45e76acf 100644
  }
  
  void SimService::InitializeFacilityLock() {
-@@ -798,6 +827,21 @@ SimService::SimStatus SimService::GetSimStatus() const {
+@@ -798,6 +851,21 @@ SimService::SimStatus SimService::GetSimStatus() const {
    return sim_status_;
  }
  
@@ -774,7 +770,7 @@ index 8d3968967..b45e76acf 100644
  std::string SimService::GetSimOperator() {
    XMLElement* root = sim_file_system_.GetRootElement();
    if (!root) {
-@@ -825,31 +869,12 @@ std::string SimService::GetSimOperator() {
+@@ -825,31 +893,12 @@ std::string SimService::GetSimOperator() {
    }
  
    std::string imsi = cimi->GetText();
@@ -782,11 +778,7 @@ index 8d3968967..b45e76acf 100644
 -  ef = SimFileSystem::FindAttribute(df, "id", "6FAD");
 -  if (!ef) {
 -    return "";
-+  
-+  std::string propImsi = GetPropImsi();
-+  if (propImsi.size() > 0) {
-+	  imsi = propImsi;
-   }
+-  }
 -
 -  XMLElement *sim_io = ef->FirstChildElement("SIMIO");
 -  while (sim_io) {
@@ -797,7 +789,11 @@ index 8d3968967..b45e76acf 100644
 -    }
 -
 -    sim_io = sim_io->NextSiblingElement("SIMIO");
--  }
++  
++  std::string propImsi = GetPropImsi();
++  if (propImsi.size() > 0) {
++	  imsi = propImsi;
+   }
 -
 -  if (!sim_io) {
 -    return "";
@@ -811,20 +807,28 @@ index 8d3968967..b45e76acf 100644
  }
  
  void SimService::SetupDependency(NetworkService* net) {
-@@ -927,6 +952,12 @@ void SimService::HandleSIMStatusReq(const Client& client) {
+@@ -927,6 +976,20 @@ void SimService::HandleSIMStatusReq(const Client& client) {
   */
  void SimService::HandleSIM_IO(const Client& client,
                                const std::string& command) {
-+  
 +  char propBuf[PROPERTY_VALUE_MAX] = {0};
 +  property_get("persist.gsm.sim.operator.alphacph", propBuf, NULL);
 +  std::string propStr(propBuf);
-+  property_set("gsm.sim.operator.alpha", propBuf);
++  property_set("gsm.sim.operator.alpha", propStr.c_str());
++  if (strlen(propBuf) < MIN_ALPHACPH_LENGTH || strlen(propBuf) > MAX_ALPHACPH_LENGTH) {
++       LOG(ERROR) << "opearator alphacph %s length error" << propBuf;
++     property_set("gsm.sim.operator.alpha", "CMCC");
++  }
++
++  if (!isLetterOrDigits(propBuf)) {
++	LOG(ERROR) << "operator alphacph %s Character error" << propBuf;
++      property_set("gsm.sim.operator.alpha", "CMCC");
++  }      
 +
    std::vector<std::string> kFileNotFoud = {"+CRSM: 106,130", "OK"};
    std::vector<std::string> responses;
  
-@@ -1278,8 +1309,13 @@ void SimService::HandleGetIMSI(const Client& client) {
+@@ -1278,8 +1341,13 @@ void SimService::HandleGetIMSI(const Client& client) {
      client.SendCommandResponse(kCmeErrorNotFound);
      return;
    }
@@ -839,7 +843,7 @@ index 8d3968967..b45e76acf 100644
    responses.push_back("OK");
    client.SendCommandResponse(responses);
  }
-@@ -1291,6 +1327,20 @@ void SimService::HandleGetIMSI(const Client& client) {
+@@ -1291,6 +1359,20 @@ void SimService::HandleGetIMSI(const Client& client) {
   *
   * see RIL_REQUEST_GET_SIM_STATUS in RIL
   */
@@ -860,7 +864,7 @@ index 8d3968967..b45e76acf 100644
  void SimService::HandleGetIccId(const Client& client) {
    std::vector<std::string> responses;
  
-@@ -1318,7 +1368,12 @@ void SimService::HandleGetIccId(const Client& client) {
+@@ -1318,7 +1400,12 @@ void SimService::HandleGetIccId(const Client& client) {
      return;
    }
  
@@ -901,6 +905,3 @@ index ba22ed381..63ab91424 100644
  }
  
  std::string ForCurrentInstance(const char* prefix) {
--- 
-2.33.0
-
