@@ -1,0 +1,173 @@
+diff --git a/AndroidManifest.xml b/AndroidManifest.xml
+index ab2fe05..86fc1ec 100644
+--- a/AndroidManifest.xml
++++ b/AndroidManifest.xml
+@@ -167,7 +167,6 @@
+         <receiver android:name=".SettingsInitialize">
+             <intent-filter>
+                 <action android:name="android.intent.action.USER_INITIALIZE"/>
+-                <action android:name="android.intent.action.PRE_BOOT_COMPLETED"/>
+             </intent-filter>
+         </receiver>
+ 
+@@ -3278,7 +3277,6 @@
+         <receiver android:name=".fuelgauge.batterytip.AnomalyConfigReceiver">
+             <intent-filter>
+                 <action android:name="android.app.action.STATSD_STARTED"/>
+-                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+             </intent-filter>
+         </receiver>
+ 
+diff --git a/res/xml/connected_devices.xml b/res/xml/connected_devices.xml
+index e7e3c2c..527b0e2 100644
+--- a/res/xml/connected_devices.xml
++++ b/res/xml/connected_devices.xml
+@@ -62,14 +62,6 @@
+             android:fragment="com.android.settings.connecteddevice.PreviouslyConnectedDeviceDashboardFragment"/>
+     </PreferenceCategory>
+ 
+-    <Preference
+-        android:key="connection_preferences"
+-        android:title="@string/connected_device_connections_title"
+-        android:summary="@string/summary_placeholder"
+-        android:fragment="com.android.settings.connecteddevice.AdvancedConnectedDeviceDashboardFragment"
+-        settings:allowDividerAbove="true"
+-        settings:controller="com.android.settings.connecteddevice.AdvancedConnectedDeviceController"/>
+-
+     <com.android.settingslib.widget.FooterPreference
+         android:key="discoverable_footer"
+         android:title="@string/bluetooth_off_footer"
+diff --git a/src/com/android/settings/CryptKeeper.java b/src/com/android/settings/CryptKeeper.java
+index 7e75ee2..ab54bc5 100644
+--- a/src/com/android/settings/CryptKeeper.java
++++ b/src/com/android/settings/CryptKeeper.java
+@@ -410,7 +410,7 @@ public class CryptKeeper extends Activity implements TextView.OnEditorActionList
+             // activity manager to explicitly launch the crypt keeper instead of
+             // home in the situation where we need to decrypt the device
+             finish();
+-            return;
++            System.exit(0);
+         }
+ 
+         try {
+diff --git a/src/com/android/settings/accessibility/AccessibilityHearingAidPreferenceController.java b/src/com/android/settings/accessibility/AccessibilityHearingAidPreferenceController.java
+index 8f0ca3e..a1f969a 100644
+--- a/src/com/android/settings/accessibility/AccessibilityHearingAidPreferenceController.java
++++ b/src/com/android/settings/accessibility/AccessibilityHearingAidPreferenceController.java
+@@ -169,6 +169,7 @@ public class AccessibilityHearingAidPreferenceController extends BasePreferenceC
+     }
+ 
+     private boolean isHearingAidProfileSupported() {
++        /*
+         if (mBluetoothAdapter == null || !mBluetoothAdapter.isEnabled()) {
+             return false;
+         }
+@@ -176,6 +177,7 @@ public class AccessibilityHearingAidPreferenceController extends BasePreferenceC
+         if (supportedList.contains(BluetoothProfile.HEARING_AID)) {
+             return true;
+         }
++        */
+         return false;
+     }
+ 
+diff --git a/src/com/android/settings/accessibility/AccessibilitySettings.java b/src/com/android/settings/accessibility/AccessibilitySettings.java
+index f918046..5486f5e 100644
+--- a/src/com/android/settings/accessibility/AccessibilitySettings.java
++++ b/src/com/android/settings/accessibility/AccessibilitySettings.java
+@@ -83,7 +83,7 @@ public class AccessibilitySettings extends DashboardFragment {
+     private static final String CATEGORY_DOWNLOADED_SERVICES = "user_installed_services_category";
+ 
+     private static final String[] CATEGORIES = new String[] {
+-            CATEGORY_SCREEN_READER, CATEGORY_AUDIO_AND_CAPTIONS, CATEGORY_DISPLAY,
++            CATEGORY_AUDIO_AND_CAPTIONS, CATEGORY_DISPLAY,
+             CATEGORY_INTERACTION_CONTROL, CATEGORY_EXPERIMENTAL, CATEGORY_DOWNLOADED_SERVICES
+     };
+ 
+@@ -354,8 +354,6 @@ public class AccessibilitySettings extends DashboardFragment {
+             category.removePreference(service);
+         }
+ 
+-        initializePreBundledServicesMapFromArray(CATEGORY_SCREEN_READER,
+-                R.array.config_preinstalled_screen_reader_services);
+         initializePreBundledServicesMapFromArray(CATEGORY_AUDIO_AND_CAPTIONS,
+                 R.array.config_preinstalled_audio_and_caption_services);
+         initializePreBundledServicesMapFromArray(CATEGORY_DISPLAY,
+@@ -383,8 +381,6 @@ public class AccessibilitySettings extends DashboardFragment {
+         }
+ 
+         // Update the order of all the category according to the order defined in xml file.
+-        updateCategoryOrderFromArray(CATEGORY_SCREEN_READER,
+-            R.array.config_order_screen_reader_services);
+         updateCategoryOrderFromArray(CATEGORY_AUDIO_AND_CAPTIONS,
+             R.array.config_order_audio_and_caption_services);
+         updateCategoryOrderFromArray(CATEGORY_INTERACTION_CONTROL,
+diff --git a/src/com/android/settings/core/gateway/SettingsGateway.java b/src/com/android/settings/core/gateway/SettingsGateway.java
+index ad4da08..1e7ba9f 100644
+--- a/src/com/android/settings/core/gateway/SettingsGateway.java
++++ b/src/com/android/settings/core/gateway/SettingsGateway.java
+@@ -312,27 +312,16 @@ public class SettingsGateway {
+ 
+     public static final String[] SETTINGS_FOR_RESTRICTED = {
+             // Home page
+-            Settings.NetworkDashboardActivity.class.getName(),
+-            Settings.ConnectedDeviceDashboardActivity.class.getName(),
+             Settings.AppAndNotificationDashboardActivity.class.getName(),
+             Settings.DisplaySettingsActivity.class.getName(),
+             Settings.SoundSettingsActivity.class.getName(),
+             Settings.StorageDashboardActivity.class.getName(),
+-            Settings.PowerUsageSummaryActivity.class.getName(),
+             Settings.AccountDashboardActivity.class.getName(),
+             Settings.PrivacySettingsActivity.class.getName(),
+             Settings.SecurityDashboardActivity.class.getName(),
+             Settings.AccessibilitySettingsActivity.class.getName(),
+             Settings.SystemDashboardActivity.class.getName(),
+             SupportDashboardActivity.class.getName(),
+-            // Home page > Network & Internet
+-            Settings.WifiSettingsActivity.class.getName(),
+-            Settings.WifiSettings2Activity.class.getName(),
+-            Settings.DataUsageSummaryActivity.class.getName(),
+-            // Home page > Connected devices
+-            Settings.BluetoothSettingsActivity.class.getName(),
+-            Settings.WifiDisplaySettingsActivity.class.getName(),
+-            Settings.PrintSettingsActivity.class.getName(),
+             // Home page > Apps & Notifications
+             Settings.UserSettingsActivity.class.getName(),
+             Settings.ConfigureNotificationSettingsActivity.class.getName(),
+diff --git a/src/com/android/settings/sim/SimDialogActivity.java b/src/com/android/settings/sim/SimDialogActivity.java
+index 252b6c0..e9677dd 100644
+--- a/src/com/android/settings/sim/SimDialogActivity.java
++++ b/src/com/android/settings/sim/SimDialogActivity.java
+@@ -74,6 +74,7 @@ public class SimDialogActivity extends FragmentActivity {
+ 
+         if (dialogType == PICK_DISMISS) {
+             finishAndRemoveTask();
++            System.exit(0);
+             return;
+         }
+ 
+diff --git a/src/com/android/settings/wifi/WifiEnabler.java b/src/com/android/settings/wifi/WifiEnabler.java
+index dc5be42..66abf73 100644
+--- a/src/com/android/settings/wifi/WifiEnabler.java
++++ b/src/com/android/settings/wifi/WifiEnabler.java
+@@ -27,6 +27,7 @@ import android.net.wifi.SupplicantState;
+ import android.net.wifi.WifiInfo;
+ import android.net.wifi.WifiManager;
+ import android.provider.Settings;
++import android.util.Log;
+ import android.widget.Toast;
+ 
+ import androidx.annotation.VisibleForTesting;
+@@ -180,6 +181,13 @@ public class WifiEnabler implements SwitchWidgetController.OnSwitchChangeListene
+ 
+     @Override
+     public boolean onSwitchToggled(boolean isChecked) {
++		// set onSwitchToggled always true, shiled wifi controls
++        Log.e("onSwitchToggled ", "hwmock isChecked status is:" + isChecked);
++        boolean isWifiOnFlag = true;
++        if (isWifiOnFlag) {
++            return true;
++        }
++		
+         //Do nothing if called as a result of a state machine event
+         if (mStateMachineEvent) {
+             return true;

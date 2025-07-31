@@ -1,0 +1,21 @@
+diff --git a/AndroidManifest.xml b/AndroidManifest.xml
+index 43cf258ed..526d2f9e2 100644
+--- a/AndroidManifest.xml
++++ b/AndroidManifest.xml
+@@ -119,13 +119,8 @@
+ 
+         <receiver android:name=".DownloadReceiver" android:exported="false">
+             <intent-filter>
+-                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                 <action android:name="android.intent.action.UID_REMOVED" />
+             </intent-filter>
+-            <intent-filter>
+-                <action android:name="android.intent.action.MEDIA_MOUNTED" />
+-                <data android:scheme="file" />
+-            </intent-filter>
+         </receiver>
+     </application>
+ </manifest>
+-- 
+2.34.1
+

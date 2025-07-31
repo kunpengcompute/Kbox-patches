@@ -1,0 +1,17 @@
+diff --git a/AndroidManifest.xml b/AndroidManifest.xml
+index 0453ee56..381f8248 100644
+--- a/AndroidManifest.xml
++++ b/AndroidManifest.xml
+@@ -84,9 +84,6 @@
+         <receiver android:name=".Receiver"
+                   android:permission="android.permission.DUMP"
+                   androidprv:systemUserOnly="true">
+-            <intent-filter>
+-                <action android:name="android.intent.action.BOOT_COMPLETED" />
+-            </intent-filter>
+         </receiver>
+ 
+         <service android:name=".StopTraceService"
+-- 
+2.34.1
+
