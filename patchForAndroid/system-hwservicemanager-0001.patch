@@ -1,0 +1,11 @@
+diff --git a/hwservicemanager.rc b/hwservicemanager.rc
+index b09ac11..df7d3cc 100644
+--- a/hwservicemanager.rc
++++ b/hwservicemanager.rc
+@@ -1,5 +1,5 @@
+ service hwservicemanager /system/bin/hwservicemanager
+-    user system
++    user root
+     disabled
+     group system readproc
+     critical
