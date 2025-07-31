@@ -1,0 +1,441 @@
+diff --git a/media/codec2/vndk/C2AllocatorIon.cpp b/media/codec2/vndk/C2AllocatorIon.cpp
+index 6d27a02..83ca73b 100644
+--- a/media/codec2/vndk/C2AllocatorIon.cpp
++++ b/media/codec2/vndk/C2AllocatorIon.cpp
+@@ -456,13 +456,13 @@ C2AllocatorIon::C2AllocatorIon(id_t id)
+         case ENOENT:    mInit = C2_OMITTED; break;
+         default:        mInit = c2_map_errno<EACCES>(errno); break;
+         }
+-    } else {
++    }
+         C2MemoryUsage minUsage = { 0, 0 };
+         C2MemoryUsage maxUsage = { C2MemoryUsage::CPU_READ, C2MemoryUsage::CPU_WRITE };
+         Traits traits = { "android.allocator.ion", id, LINEAR, minUsage, maxUsage };
+         mTraits = std::make_shared<Traits>(traits);
+         mBlockSize = ::getpagesize();
+-    }
++
+ }
+ 
+ C2AllocatorIon::~C2AllocatorIon() {
+diff --git a/media/libstagefright/Android.bp b/media/libstagefright/Android.bp
+index 3bccb7b..be1a0b4 100644
+--- a/media/libstagefright/Android.bp
++++ b/media/libstagefright/Android.bp
+@@ -241,6 +241,7 @@ cc_library {
+         "RemoteMediaSource.cpp",
+         "SimpleDecodingSource.cpp",
+         "StagefrightMediaScanner.cpp",
++        "StagefrightPluginLoader.cpp",
+         "SurfaceUtils.cpp",
+         "ThrottledSource.cpp",
+         "Utils.cpp",
+diff --git a/media/libstagefright/MediaCodecList.cpp b/media/libstagefright/MediaCodecList.cpp
+index ac54fa1..1fefed6 100644
+--- a/media/libstagefright/MediaCodecList.cpp
++++ b/media/libstagefright/MediaCodecList.cpp
+@@ -19,6 +19,7 @@
+ #include <utils/Log.h>
+ 
+ #include "MediaCodecListOverrides.h"
++#include "StagefrightPluginLoader.h"
+ 
+ #include <binder/IServiceManager.h>
+ 
+@@ -88,7 +89,9 @@ std::unique_ptr<MediaCodecListBuilderBase> sCodec2InfoBuilder;
+ MediaCodecListBuilderBase *GetCodec2InfoBuilder() {
+     Mutex::Autolock _l(sCodec2InfoBuilderMutex);
+     if (!sCodec2InfoBuilder) {
+-        sCodec2InfoBuilder.reset(new Codec2InfoBuilder);
++        //sCodec2InfoBuilder.reset(new Codec2InfoBuilder);
++        // kbox use acodex instead of codec2
++        sCodec2InfoBuilder.reset(StagefrightPluginLoader::GetCCodecInstance()->createBuilder());
+     }
+     return sCodec2InfoBuilder.get();
+ }
+diff --git a/media/libstagefright/StagefrightPluginLoader.cpp b/media/libstagefright/StagefrightPluginLoader.cpp
+new file mode 100644
+index 0000000..519e870
+--- /dev/null
++++ b/media/libstagefright/StagefrightPluginLoader.cpp
+@@ -0,0 +1,95 @@
++/*
++ * Copyright 2018, The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++//#define LOG_NDEBUG 0
++#define LOG_TAG "StagefrightPluginLoader"
++#include <utils/Log.h>
++
++#include <dlfcn.h>
++
++#include "StagefrightPluginLoader.h"
++
++namespace android {
++
++/* static */ Mutex StagefrightPluginLoader::sMutex;
++/* static */ std::unique_ptr<StagefrightPluginLoader> StagefrightPluginLoader::sInstance;
++
++StagefrightPluginLoader::StagefrightPluginLoader(const char *libPath)
++    : mCreateCodec(nullptr),
++      mCreateBuilder(nullptr) {
++    mLibHandle = dlopen(libPath, RTLD_NOW | RTLD_NODELETE);
++    if (mLibHandle == nullptr) {
++        ALOGD("Failed to load library: %s (%s)", libPath, dlerror());
++        return;
++    }
++    mCreateCodec = (CodecBase::CreateCodecFunc)dlsym(mLibHandle, "CreateCodec");
++    if (mCreateCodec == nullptr) {
++        ALOGD("Failed to find symbol: CreateCodec (%s)", dlerror());
++    }
++    mCreateBuilder = (MediaCodecListBuilderBase::CreateBuilderFunc)dlsym(
++            mLibHandle, "CreateBuilder");
++    if (mCreateBuilder == nullptr) {
++        ALOGD("Failed to find symbol: CreateBuilder (%s)", dlerror());
++    }
++    mCreateInputSurface = (CodecBase::CreateInputSurfaceFunc)dlsym(
++            mLibHandle, "CreateInputSurface");
++    if (mCreateBuilder == nullptr) {
++        ALOGD("Failed to find symbol: CreateInputSurface (%s)", dlerror());
++    }
++}
++
++StagefrightPluginLoader::~StagefrightPluginLoader() {
++    if (mLibHandle != nullptr) {
++        ALOGV("Closing handle");
++        dlclose(mLibHandle);
++    }
++}
++
++CodecBase *StagefrightPluginLoader::createCodec() {
++    if (mLibHandle == nullptr || mCreateCodec == nullptr) {
++        ALOGD("Handle or CreateCodec symbol is null");
++        return nullptr;
++    }
++    return mCreateCodec();
++}
++
++MediaCodecListBuilderBase *StagefrightPluginLoader::createBuilder() {
++    if (mLibHandle == nullptr || mCreateBuilder == nullptr) {
++        ALOGD("Handle or CreateBuilder symbol is null");
++        return nullptr;
++    }
++    return mCreateBuilder();
++}
++
++PersistentSurface *StagefrightPluginLoader::createInputSurface() {
++    if (mLibHandle == nullptr || mCreateInputSurface == nullptr) {
++        ALOGD("Handle or CreateInputSurface symbol is null");
++        return nullptr;
++    }
++    return mCreateInputSurface();
++}
++
++//static
++const std::unique_ptr<StagefrightPluginLoader> &StagefrightPluginLoader::GetCCodecInstance() {
++    Mutex::Autolock _l(sMutex);
++    if (!sInstance) {
++        ALOGV("Loading library");
++        sInstance.reset(new StagefrightPluginLoader("libstagefright_ccodec.so"));
++    }
++    return sInstance;
++}
++
++}  // namespace android
+diff --git a/media/libstagefright/StagefrightPluginLoader.h b/media/libstagefright/StagefrightPluginLoader.h
+new file mode 100644
+index 0000000..999d30c
+--- /dev/null
++++ b/media/libstagefright/StagefrightPluginLoader.h
+@@ -0,0 +1,51 @@
++/*
++ * Copyright 2018, The Android Open Source Project
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#ifndef STAGEFRIGHT_PLUGIN_LOADER_H_
++
++#define STAGEFRIGHT_PLUGIN_LOADER_H_
++
++#include <media/stagefright/CodecBase.h>
++#include <media/stagefright/MediaCodecListWriter.h>
++#include <media/stagefright/PersistentSurface.h>
++#include <utils/Mutex.h>
++
++namespace android {
++
++class StagefrightPluginLoader {
++public:
++    static const std::unique_ptr<StagefrightPluginLoader> &GetCCodecInstance();
++    ~StagefrightPluginLoader();
++
++    CodecBase *createCodec();
++    MediaCodecListBuilderBase *createBuilder();
++    PersistentSurface *createInputSurface();
++
++private:
++    explicit StagefrightPluginLoader(const char *libPath);
++
++    static Mutex sMutex;
++    static std::unique_ptr<StagefrightPluginLoader> sInstance;
++
++    void *mLibHandle;
++    CodecBase::CreateCodecFunc mCreateCodec;
++    MediaCodecListBuilderBase::CreateBuilderFunc mCreateBuilder;
++    CodecBase::CreateInputSurfaceFunc mCreateInputSurface;
++};
++
++}  // namespace android
++
++#endif  // STAGEFRIGHT_PLUGIN_LOADER_H_
+diff --git a/media/libstagefright/SurfaceUtils.cpp b/media/libstagefright/SurfaceUtils.cpp
+index c284ef7..5e8cc3d 100644
+--- a/media/libstagefright/SurfaceUtils.cpp
++++ b/media/libstagefright/SurfaceUtils.cpp
+@@ -22,11 +22,11 @@
+ #include <media/hardware/VideoAPI.h>
+ #include <media/stagefright/SurfaceUtils.h>
+ #include <gui/Surface.h>
++#include <cutils/properties.h>
+ 
+ extern "C" int android_get_application_target_sdk_version();
+ 
+ namespace android {
+-
+ status_t setNativeWindowSizeFormatAndUsage(
+         ANativeWindow *nativeWindow /* nonnull */,
+         int width, int height, int format, int rotation, int usage, bool reconnect) {
+@@ -52,12 +52,23 @@ status_t setNativeWindowSizeFormatAndUsage(
+         ALOGE("native_window_set_buffers_dimensions failed: %s (%d)", strerror(-err), -err);
+         return err;
+     }
+-
+-    err = native_window_set_buffers_format(nativeWindow, format);
+-    if (err != NO_ERROR) {
+-        ALOGE("native_window_set_buffers_format failed: %s (%d)", strerror(-err), -err);
+-        return err;
+-    }
++    char eglHardware[PROPERTY_VALUE_MAX];
++    char enableSoftDecode[PROPERTY_VALUE_MAX];
++    if (property_get("ro.hardware.egl", eglHardware, "mesa") && strcmp(eglHardware, "va") == 0 &&
++        property_get("ro.hardware.omxsoftdecode", enableSoftDecode, "0") && strcmp(enableSoftDecode, "1") != 0) {
++        // 对于DC1000, 未配置ro.hardware.omxsoftdecode属性或者属性值为0时走va硬解
++        err = native_window_set_buffers_format(nativeWindow, HAL_PIXEL_FORMAT_YCBCR_420_888);
++        if (err != NO_ERROR) {
++            ALOGE("native_window_set_buffers_format failed: %s (%d)", strerror(-err), -err);
++            return err;
++        }
++   } else {
++        err = native_window_set_buffers_format(nativeWindow, format);
++        if (err != NO_ERROR) {
++            ALOGE("native_window_set_buffers_format failed: %s (%d)", strerror(-err), -err);
++            return err;
++        }
++   }
+ 
+     int transform = 0;
+     if ((rotation % 90) == 0) {
+diff --git a/media/libstagefright/colorconversion/SoftwareRenderer.cpp b/media/libstagefright/colorconversion/SoftwareRenderer.cpp
+index 4711315..9df361b 100644
+--- a/media/libstagefright/colorconversion/SoftwareRenderer.cpp
++++ b/media/libstagefright/colorconversion/SoftwareRenderer.cpp
+@@ -128,7 +128,7 @@ void SoftwareRenderer::resetFormatIfChanged(
+     size_t bufHeight = mCropHeight;
+ 
+     // hardware has YUV12 and RGBA8888 support, so convert known formats
+-    {
++    if(false) {
+         switch (mColorFormat) {
+             case OMX_COLOR_FormatYUV420Planar:
+             case OMX_COLOR_FormatYUV420SemiPlanar:
+diff --git a/media/libstagefright/omx/1.0/Omx.cpp b/media/libstagefright/omx/1.0/Omx.cpp
+index eef9ce3..dc5830e 100644
+--- a/media/libstagefright/omx/1.0/Omx.cpp
++++ b/media/libstagefright/omx/1.0/Omx.cpp
+@@ -41,10 +41,7 @@ namespace implementation {
+ constexpr size_t kMaxNodeInstances = (1 << 16);
+ 
+ Omx::Omx() :
+-    mMaster(new OMXMaster()),
+-    mParser() {
+-    (void)mParser.parseXmlFilesInSearchDirs();
+-    (void)mParser.parseXmlPath(mParser.defaultProfilingResultsXmlPath);
++    mMaster(new OMXMaster()) {
+ }
+ 
+ Omx::~Omx() {
+@@ -115,27 +112,6 @@ Return<void> Omx::allocateNode(
+         }
+         instance->setHandle(handle);
+ 
+-        // Find quirks from mParser
+-        const auto& codec = mParser.getCodecMap().find(name.c_str());
+-        if (codec == mParser.getCodecMap().cend()) {
+-            LOG(WARNING) << "Failed to obtain quirks for omx component "
+-                    "'" << name.c_str() << "' "
+-                    "from XML files";
+-        } else {
+-            uint32_t quirks = 0;
+-            for (const auto& quirk : codec->second.quirkSet) {
+-                if (quirk == "quirk::requires-allocate-on-input-ports") {
+-                    quirks |= OMXNodeInstance::
+-                            kRequiresAllocateBufferOnInputPorts;
+-                }
+-                if (quirk == "quirk::requires-allocate-on-output-ports") {
+-                    quirks |= OMXNodeInstance::
+-                            kRequiresAllocateBufferOnOutputPorts;
+-                }
+-            }
+-            instance->setQuirks(quirks);
+-        }
+-
+         mLiveNodes.add(observer.get(), instance);
+         mNode2Observer.add(instance.get(), observer.get());
+     }
+diff --git a/media/libstagefright/omx/OMXMaster.cpp b/media/libstagefright/omx/OMXMaster.cpp
+index 094b1f5..d8c2331 100644
+--- a/media/libstagefright/omx/OMXMaster.cpp
++++ b/media/libstagefright/omx/OMXMaster.cpp
+@@ -24,7 +24,7 @@
+ #include <media/stagefright/foundation/ADebug.h>
+ 
+ #include <vndksupport/linker.h>
+-
++#include <cutils/properties.h>
+ #include <dlfcn.h>
+ #include <fcntl.h>
+ 
+@@ -60,7 +60,15 @@ OMXMaster::~OMXMaster() {
+ }
+ 
+ void OMXMaster::addVendorPlugin() {
+-    addPlugin("libstagefrighthw.so");
++    char eglHardware[PROPERTY_VALUE_MAX];
++    char enableSoftDecode[PROPERTY_VALUE_MAX];
++    if (property_get("ro.hardware.egl", eglHardware, "mesa") && strcmp(eglHardware, "va") == 0 &&
++        property_get("ro.hardware.omxsoftdecode", enableSoftDecode, "0") && strcmp(enableSoftDecode, "1") != 0) {
++        // 对于DC1000, 未配置ro.hardware.omxsoftdecode属性或者属性值为0时走va硬解
++        addPlugin("libstagefrighthw_va.so");
++    } else {
++        addPlugin("libstagefrighthw.so");
++    }
+ }
+ 
+ void OMXMaster::addPlatformPlugin() {
+diff --git a/media/libstagefright/omx/include/media/stagefright/omx/1.0/Omx.h b/media/libstagefright/omx/include/media/stagefright/omx/1.0/Omx.h
+index 5a46b26..9a67fad 100644
+--- a/media/libstagefright/omx/include/media/stagefright/omx/1.0/Omx.h
++++ b/media/libstagefright/omx/include/media/stagefright/omx/1.0/Omx.h
+@@ -20,7 +20,7 @@
+ #include <hidl/MQDescriptor.h>
+ #include <hidl/Status.h>
+ 
+-#include <media/stagefright/xmlparser/MediaCodecsXmlParser.h>
++// #include <media/stagefright/xmlparser/MediaCodecsXmlParser.h>
+ #include <android/hardware/media/omx/1.0/IOmx.h>
+ #include <utils/KeyedVector.h>
+ #include <utils/Mutex.h>
+@@ -77,7 +77,6 @@ protected:
+     Mutex mLock;
+     KeyedVector<wp<IBase>, sp<OMXNodeInstance> > mLiveNodes;
+     KeyedVector<OMXNodeInstance*, wp<IBase> > mNode2Observer;
+-    MediaCodecsXmlParser mParser;
+ };
+ 
+ extern "C" IOmx* HIDL_FETCH_IOmx(const char* name);
+diff --git a/media/ndk/NdkImageReader.cpp b/media/ndk/NdkImageReader.cpp
+index c0ceb3d..09118df 100644
+--- a/media/ndk/NdkImageReader.cpp
++++ b/media/ndk/NdkImageReader.cpp
+@@ -464,7 +464,7 @@ AImageReader::acquireImageLocked(/*out*/AImage** image, /*out*/int* acquireFence
+                 __FUNCTION__, bufferUsage, readerUsage);
+ 
+         if (readerFmt != bufferFmt) {
+-            if (readerFmt == HAL_PIXEL_FORMAT_YCbCr_420_888 && isPossiblyYUV(bufferFmt)) {
++            if (readerFmt == HAL_PIXEL_FORMAT_YCbCr_420_888 && (isPossiblyYUV(bufferFmt) || bufferFmt == HAL_PIXEL_FORMAT_RGB_565 || bufferFmt == HAL_PIXEL_FORMAT_RGBA_8888)) {
+                 // Special casing for when producer switches to a format compatible with flexible
+                 // YUV.
+                 mHalFormat = bufferFmt;
+diff --git a/services/mediacodec/seccomp_policy/mediacodec-arm.policy b/services/mediacodec/seccomp_policy/mediacodec-arm.policy
+index b4a9ff6..90fe060 100644
+--- a/services/mediacodec/seccomp_policy/mediacodec-arm.policy
++++ b/services/mediacodec/seccomp_policy/mediacodec-arm.policy
+@@ -57,7 +57,16 @@ fstatat64: 1
+ ugetrlimit: 1
+ getdents64: 1
+ getrandom: 1
+-
++uname: 1
++mkdirat: 1
++sysinfo: 1
++renameat: 1
++flock: 1
++msync: 1
++pwrite64: 1
++sysinfo: 1
++stat64: 1
++sched_getaffinity: 1
+ @include /system/etc/seccomp_policy/crash_dump.arm.policy
+ 
+ @include /system/etc/seccomp_policy/code_coverage.arm.policy
+diff --git a/services/mediacodec/seccomp_policy/mediacodec-arm64.policy b/services/mediacodec/seccomp_policy/mediacodec-arm64.policy
+index b4a9ff6..90fe060 100644
+--- a/services/mediacodec/seccomp_policy/mediacodec-arm64.policy
++++ b/services/mediacodec/seccomp_policy/mediacodec-arm64.policy
+@@ -57,7 +57,16 @@ fstatat64: 1
+ ugetrlimit: 1
+ getdents64: 1
+ getrandom: 1
+-
++uname: 1
++mkdirat: 1
++sysinfo: 1
++renameat: 1
++flock: 1
++msync: 1
++pwrite64: 1
++sysinfo: 1
++stat64: 1
++sched_getaffinity: 1
+ @include /system/etc/seccomp_policy/crash_dump.arm.policy
+ 
+ @include /system/etc/seccomp_policy/code_coverage.arm.policy
+diff --git a/services/mediacodec/seccomp_policy/mediaswcodec-arm64.policy b/services/mediacodec/seccomp_policy/mediaswcodec-arm64.policy
+index 4c51a9c..ba58378 100644
+--- a/services/mediacodec/seccomp_policy/mediaswcodec-arm64.policy
++++ b/services/mediacodec/seccomp_policy/mediaswcodec-arm64.policy
+@@ -28,6 +28,11 @@ newfstatat: 1
+ fstatfs: 1
+ memfd_create: 1
+ ftruncate: 1
++uname: 1
++setsockopt: 1
++mkdirat: 1
++sched_setscheduler: 1
++sysinfo: 1
+ 
+ # mremap: Ensure |flags| are (MREMAP_MAYMOVE | MREMAP_FIXED) TODO: Once minijail
+ # parser support for '<' is in this needs to be modified to also prevent

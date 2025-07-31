@@ -1,0 +1,28 @@
+diff --git a/graphics/composer/2.1/utils/hwc2on1adapter/HWC2On1Adapter.cpp b/graphics/composer/2.1/utils/hwc2on1adapter/HWC2On1Adapter.cpp
+index 3702171..09386f5 100644
+--- a/graphics/composer/2.1/utils/hwc2on1adapter/HWC2On1Adapter.cpp
++++ b/graphics/composer/2.1/utils/hwc2on1adapter/HWC2On1Adapter.cpp
+@@ -2583,6 +2583,23 @@ void HWC2On1Adapter::hwc1Vsync(int hwc1DisplayId, int64_t timestamp) {
+ void HWC2On1Adapter::hwc1Hotplug(int hwc1DisplayId, int connected) {
+     ALOGV("Received hwc1Hotplug(%d, %d)", hwc1DisplayId, connected);
+ 
++    
++    if (hwc1DisplayId == HWC_DISPLAY_KBOX) {
++        if (mCallbacks.count(Callback::Hotplug) == 0) {
++            ALOGE("no hotplug callback registered");
++            return;
++        }
++
++        hwc2_display_t displayId = hwc1DisplayId;
++        const auto& callbackInfo = mCallbacks[Callback::Hotplug];
++
++        auto hotplug = reinterpret_cast<HWC2_PFN_HOTPLUG>(callbackInfo.pointer);
++        auto hwc2Connected = (connected == 0) ?
++                HWC2::Connection::Disconnected : HWC2::Connection::Connected;
++        hotplug(callbackInfo.data, displayId, static_cast<int32_t>(hwc2Connected));
++        return;
++    }
++
+     if (hwc1DisplayId != HWC_DISPLAY_EXTERNAL) {
+         ALOGE("hwc1Hotplug: Received hotplug for non-external display");
+         return;

@@ -1,0 +1,4545 @@
+diff --git a/camera-kbox/Android.bp b/camera-kbox/Android.bp
+new file mode 100644
+index 0000000..87d819d
+--- /dev/null
++++ b/camera-kbox/Android.bp
+@@ -0,0 +1,70 @@
++
++cc_library_shared {
++    name: "camera.kbox",
++    srcs: [
++        "camera_hal_interface.cpp",
++        "camera_device.cpp",
++        "base_camera.cpp",
++        "camera_factory.cpp",
++        "camera.cpp",
++        "callback_notifier.cpp",
++        "metadata.cpp",
++        "preview_window.cpp",
++        "converters.cpp",
++        "worker_thread.cpp",
++        "jpeg_stub/compressor.cpp",
++        "jpeg_stub/jpeg_stub.cpp",
++        "jpeg_compressor.cpp",
++        "thumbnail.cpp",
++        "exif.cpp",
++    ],
++    shared_libs: [
++        "libbinder",
++        "libexif",
++        "liblog",
++        "libutils",
++        "libcutils",
++        "libEGL",
++        "libGLESv1_CM",
++        "libGLESv2",
++        "libui",
++        "libdl",
++        "libjpeg",
++        "libcamera_metadata", 
++        "android.hardware.graphics.mapper@2.0",
++    ],
++    static_libs:[
++        "android.hardware.camera.common@1.0-helper",
++        "libyuv_static",
++    ],
++    header_libs:[
++        "libhardware_headers",
++    ],
++    export_include_dirs: ["."],
++    include_dirs: [
++        "system/core/include",
++        "system/media/camera/include",
++    ],
++    cppflags: [
++        "-O",
++        "-W",
++        "-Wall",
++        "-fPIC",
++        "-fstack-protector-all",
++        "-D_FORTIFY_SOURCE=2",
++        "-O2",
++        "-fexceptions",
++        "-DLOG_TAG=\"CAMERA_MOCK\"",
++    ],
++    ldflags: [
++        "-Wl,-z,relro",
++        "-Wl,-z,now",
++        "-Wl,-z,noexecstack",
++        "-s",
++    ],
++    sanitize: {
++        cfi: true,
++    },
++    vendor: true,
++    relative_install_path: "hw",
++}
+diff --git a/camera-kbox/alignment.h b/camera-kbox/alignment.h
+new file mode 100644
+index 0000000..af7f200
+--- /dev/null
++++ b/camera-kbox/alignment.h
+@@ -0,0 +1,16 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#ifndef CAMERA_MOCK_ALIGNMENT_H
++#define CAMERA_MOCK_ALIGNMENT_H
++
++namespace CameraMock {
++
++inline int Align(int value, int alignment)
++{
++    return (value + alignment - 1) & (~(alignment - 1));
++}
++
++}  // namespace CameraMock
++
++#endif  // CAMERA_MOCK_ALIGNMENT_H
+diff --git a/camera-kbox/base_camera.cpp b/camera-kbox/base_camera.cpp
+new file mode 100644
+index 0000000..faa2d55
+--- /dev/null
++++ b/camera-kbox/base_camera.cpp
+@@ -0,0 +1,28 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#include "base_camera.h"
++
++namespace CameraMock {
++BaseCamera::BaseCamera(int cameraId, uint32_t cameraVersion, struct hw_device_t *device, struct hw_module_t *module)
++    : m_cameraID(cameraId), m_cameraDeviceVersion(cameraVersion)
++{
++    device->tag = HARDWARE_DEVICE_TAG;
++    device->version = cameraVersion;
++    device->module = module;
++    device->close = nullptr;
++}
++
++android::status_t BaseCamera::GetCameraInfo(struct camera_info *info)
++{
++    info->device_version = m_cameraDeviceVersion;
++    // info->static_camera_characteristics仅在m_cameraDeviceVersion>=CAMERA_MODULE_API_VERSION_2_0时有效
++    info->static_camera_characteristics = nullptr;
++    return android::NO_ERROR;
++}
++
++int BaseCamera::GetCameraId() const
++{
++    return m_cameraID;
++}
++}  // namespace CameraMock
+\ No newline at end of file
+diff --git a/camera-kbox/base_camera.h b/camera-kbox/base_camera.h
+new file mode 100644
+index 0000000..274c305
+--- /dev/null
++++ b/camera-kbox/base_camera.h
+@@ -0,0 +1,35 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#ifndef CAMERA_MOCK_BASE_CAMERA_H
++#define CAMERA_MOCK_BASE_CAMERA_H
++
++#include <hardware/camera_common.h>
++#include <hardware/camera.h>
++#include <utils/Errors.h>
++
++namespace CameraMock {
++class BaseCamera {
++public:
++    BaseCamera(int cameraId, uint32_t cameraVersion, struct hw_device_t *device, struct hw_module_t *module);
++
++    virtual ~BaseCamera() = default;
++
++    virtual android::status_t Initialize() = 0;
++
++    virtual android::status_t ConnectCamera(hw_device_t **device) = 0;
++
++    virtual android::status_t CloseCamera() = 0;
++
++    virtual android::status_t GetCameraInfo(struct camera_info *info) = 0;
++
++    int GetCameraId() const;
++
++protected:
++    int m_cameraID;
++
++private:
++    int m_cameraDeviceVersion;
++};
++}  // namespace CameraMock
++#endif  // CAMERA_MOCK_BASE_CAMERA_H
+\ No newline at end of file
+diff --git a/camera-kbox/callback_notifier.cpp b/camera-kbox/callback_notifier.cpp
+new file mode 100644
+index 0000000..d1faf28
+--- /dev/null
++++ b/camera-kbox/callback_notifier.cpp
+@@ -0,0 +1,213 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#include "callback_notifier.h"
++#include <log/log.h>
++#include <media/hardware/MetadataBufferType.h>
++#include <cerrno>
++#include "jpeg_compressor.h"
++#include "exif.h"
++#include "thumbnail.h"
++
++
++namespace CameraMock {
++
++static const char *g_cameraMessages[] = {"CAMERA_MSG_ERROR",
++    "CAMERA_MSG_SHUTTER",
++    "CAMERA_MSG_FOCUS",
++    "CAMERA_MSG_ZOOM",
++    "CAMERA_MSG_PREVIEW_FRAME",
++    "CAMERA_MSG_VIDEO_FRAME",
++    "CAMERA_MSG_POSTVIEW_FRAME",
++    "CAMERA_MSG_RAW_IMAGE",
++    "CAMERA_MSG_COMPRESSED_IMAGE",
++    "CAMERA_MSG_RAW_IMAGE_NOTIFY",
++    "CAMERA_MSG_PREVIEW_METADATA"};
++
++static const int CAMERA_MESSAGES_NUM = sizeof(g_cameraMessages) / sizeof(char *);
++
++static int GetMessageStrings(uint32_t msg, const char **strings, int max)
++{
++    int index = 0;
++    int out = 0;
++    while (msg != 0 && out < max && index < CAMERA_MESSAGES_NUM) {
++        while ((msg & 0x1) == 0 && index < CAMERA_MESSAGES_NUM) {
++            msg >>= 1;
++            index++;
++        }
++        if ((msg & 0x1) != 0 && index < CAMERA_MESSAGES_NUM) {
++            strings[out] = g_cameraMessages[index];
++            out++;
++            msg >>= 1;
++            index++;
++        }
++    }
++
++    return out;
++}
++
++static void PrintMessages(uint32_t msg)
++{
++    const char *strs[CAMERA_MESSAGES_NUM];
++    const int translated = GetMessageStrings(msg, strs, CAMERA_MESSAGES_NUM);
++    for (int n = 0; n < translated; n++) {
++        ALOGV("    %s", strs[n]);
++    }
++}
++
++CallbackNotifier::CallbackNotifier()
++    : mNotifyCB(nullptr), mDataCB(nullptr), mDataCBTimestamp(nullptr), mGetMemoryCB(nullptr), mCBOpaque(nullptr),
++      mVideoRecEnabled(false), mLastFrameTimestamp(0), mFrameRefreshFreq(0), mMessageEnabler(0), mJpegQuality(90),
++      mTakingPicture(false)
++{}
++
++void CallbackNotifier::SetCallbacks(camera_notify_callback notify_cb, camera_data_callback data_cb,
++    camera_data_timestamp_callback data_cb_timestamp, camera_request_memory get_memory, void *user)
++{
++    Mutex::Autolock locker(&m_objectLock);
++    mNotifyCB = notify_cb;
++    mDataCB = data_cb;
++    mDataCBTimestamp = data_cb_timestamp;
++    mGetMemoryCB = get_memory;
++    mCBOpaque = user;
++}
++
++void CallbackNotifier::EnableMessage(uint msg_type)
++{
++    PrintMessages(msg_type);
++
++    Mutex::Autolock locker(&m_objectLock);
++    mMessageEnabler |= msg_type;
++    ALOGV("**** Currently enabled messages:");
++    PrintMessages(mMessageEnabler);
++}
++
++void CallbackNotifier::DisableMessage(uint msg_type)
++{
++    PrintMessages(msg_type);
++
++    Mutex::Autolock locker(&m_objectLock);
++    mMessageEnabler &= ~msg_type;
++    ALOGV("**** Currently disabled messages:");
++    PrintMessages(mMessageEnabler);
++}
++
++android::status_t CallbackNotifier::EnableVideoRecording(int fps)
++{
++    ALOGV("FPS = %d", fps);
++
++    Mutex::Autolock locker(&m_objectLock);
++    mVideoRecEnabled = true;
++    mLastFrameTimestamp = 0;
++    mFrameRefreshFreq = 1000000000LL / fps;
++
++    return android::NO_ERROR;
++}
++
++void CallbackNotifier::DisableVideoRecording()
++{
++    Mutex::Autolock locker(&m_objectLock);
++    mVideoRecEnabled = false;
++    mLastFrameTimestamp = 0;
++    mFrameRefreshFreq = 0;
++}
++
++void CallbackNotifier::ReleaseRecordingFrame(const void *opaque)
++{
++    android::List<camera_memory_t *>::iterator it = mCameraMemoryTs.begin();
++    for (; it != mCameraMemoryTs.end(); ++it) {
++        if ((*it)->data == opaque) {
++            (*it)->release(*it);
++            mCameraMemoryTs.erase(it);
++            break;
++        }
++    }
++}
++
++void CallbackNotifier::AutoFocusComplete()
++{
++    mNotifyCB(CAMERA_MSG_FOCUS, true, 0, mCBOpaque);
++}
++
++void CallbackNotifier::OnNextFrameAvailable(nsecs_t timestamp, CameraDevice *cameraDev)
++{
++    if (IsMessageEnabled(CAMERA_MSG_VIDEO_FRAME) && IsVideoRecordingEnabled() && IsNewVideoFrameTime(timestamp)) {
++        const size_t frameSize = cameraDev->GetVideoFrameBufferSize();
++        camera_memory_t *cam_buff = mGetMemoryCB(-1, frameSize, 1, mCBOpaque);
++        if (nullptr != cam_buff && nullptr != cam_buff->data) {
++            int64_t frame_timestamp = 0L;
++            cameraDev->GetCurrentFrame(cam_buff->data, V4L2_PIX_FMT_YUV420, &frame_timestamp);
++            mDataCBTimestamp(
++                frame_timestamp != 0L ? frame_timestamp : timestamp, CAMERA_MSG_VIDEO_FRAME, cam_buff, 0, mCBOpaque);
++            mCameraMemoryTs.push_back(cam_buff);
++        } else {
++            ALOGE("Memory failure in CAMERA_MSG_VIDEO_FRAME");
++        }
++    }
++
++    if (IsMessageEnabled(CAMERA_MSG_PREVIEW_FRAME)) {
++        camera_memory_t *cam_buff = mGetMemoryCB(-1, cameraDev->GetFrameBufferSize(), 1, mCBOpaque);
++        if (nullptr != cam_buff && nullptr != cam_buff->data) {
++            int64_t frame_timestamp = 0L;
++            cameraDev->GetCurrentFrame(cam_buff->data, cameraDev->GetOriginalPixelFormat(), &frame_timestamp);
++            mDataCB(CAMERA_MSG_PREVIEW_FRAME, cam_buff, 0, nullptr, mCBOpaque);
++            cam_buff->release(cam_buff);
++        } else {
++            ALOGE("Memory failure in CAMERA_MSG_PREVIEW_FRAME");
++        }
++    }
++
++    if (mTakingPicture) {
++        mTakingPicture = false;
++        if (IsMessageEnabled(CAMERA_MSG_SHUTTER)) {
++            mNotifyCB(CAMERA_MSG_SHUTTER, 0, 0, mCBOpaque);
++        }
++        if (IsMessageEnabled(CAMERA_MSG_RAW_IMAGE_NOTIFY)) {
++            mNotifyCB(CAMERA_MSG_RAW_IMAGE_NOTIFY, 0, 0, mCBOpaque);
++        }
++        if (IsMessageEnabled(CAMERA_MSG_COMPRESSED_IMAGE)) {
++            ExifData *exifData = CreateExifData(mCameraParameters);
++            CameraDevice::FrameLock lock(*cameraDev);
++            const void *frame = cameraDev->GetCurrentFrame();
++            int width = cameraDev->GetFrameWidth();
++            int height = cameraDev->GetFrameHeight();
++            int thumbWidth = mCameraParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH);
++            int thumbHeight = mCameraParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT);
++            if (thumbWidth > 0 && thumbHeight > 0) {
++                NV21JpegCompressor compressor;
++                android::status_t res = compressor.CompressRawImage(frame, width, height, mJpegQuality, nullptr);
++                if (res == android::NO_ERROR) {
++                    camera_memory_t *jpeg_buff = mGetMemoryCB(-1, compressor.GetCompressedSize(), 1, mCBOpaque);
++                    if (nullptr != jpeg_buff && nullptr != jpeg_buff->data) {
++                        compressor.GetCompressedImage(jpeg_buff->data);
++                        mDataCB(CAMERA_MSG_COMPRESSED_IMAGE, jpeg_buff, 0, nullptr, mCBOpaque);
++                        jpeg_buff->release(jpeg_buff);
++                    } else {
++                        ALOGE("Memory failure in CAMERA_MSG_VIDEO_FRAME");
++                    }
++                } else {
++                    ALOGE("Compression failure in CAMERA_MSG_VIDEO_FRAME");
++                }
++                FreeExifData(exifData);
++            }
++        }
++    }
++}
++
++void CallbackNotifier::OnCameraDeviceError(int err)
++{
++    if (IsMessageEnabled(CAMERA_MSG_ERROR) && mNotifyCB != nullptr) {
++        mNotifyCB(CAMERA_MSG_ERROR, err, 0, mCBOpaque);
++    }
++}
++
++bool CallbackNotifier::IsNewVideoFrameTime(nsecs_t timestamp)
++{
++    Mutex::Autolock locker(&m_objectLock);
++    if ((timestamp - mLastFrameTimestamp) >= mFrameRefreshFreq) {
++        mLastFrameTimestamp = timestamp;
++        return true;
++    }
++    return false;
++}
++}  // namespace CameraMock
+\ No newline at end of file
+diff --git a/camera-kbox/callback_notifier.h b/camera-kbox/callback_notifier.h
+new file mode 100644
+index 0000000..280a348
+--- /dev/null
++++ b/camera-kbox/callback_notifier.h
+@@ -0,0 +1,82 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++
++#ifndef CAMERA_MOCK_CALLBACK_NOTIFIER_H
++#define CAMERA_MOCK_CALLBACK_NOTIFIER_H
++
++#include <CameraParameters.h>
++#include <hardware/camera.h>
++#include <utils/List.h>
++#include <utils/Mutex.h>
++#include <linux/videodev2.h>
++#include "camera_device.h"
++
++using ::android::hardware::camera::common::V1_0::helper::CameraParameters;
++using ::android::hardware::camera::common::V1_0::helper::Size;
++using ::android::Mutex;
++
++namespace CameraMock {
++
++class CallbackNotifier {
++public:
++    CallbackNotifier();
++    ~CallbackNotifier() = default;
++
++    void SetCallbacks(camera_notify_callback notify_cb, camera_data_callback data_cb,
++        camera_data_timestamp_callback data_cb_timestamp, camera_request_memory get_memory, void *user);
++    void EnableMessage(uint msg_type);
++    void DisableMessage(uint msg_type);
++    android::status_t EnableVideoRecording(int fps);
++    void DisableVideoRecording();
++    void ReleaseRecordingFrame(const void *opaque);
++    void AutoFocusComplete();
++
++    void SetTakingPicture(bool taking)
++    {
++        mTakingPicture = taking;
++    }
++    void SetJpegQuality(int jpeg_quality)
++    {
++        mJpegQuality = jpeg_quality;
++    }
++    void SetCameraParameters(CameraParameters cameraParameters)
++    {
++        mCameraParameters = cameraParameters;
++    }
++
++    inline int IsMessageEnabled(uint msg_type)
++    {
++        return mMessageEnabler & msg_type;
++    }
++
++    inline bool IsVideoRecordingEnabled() const
++    {
++        return mVideoRecEnabled;
++    }
++
++    void OnNextFrameAvailable(nsecs_t timestamp, CameraDevice *camera_dev);
++    void OnCameraDeviceError(int err);
++    bool IsNewVideoFrameTime(nsecs_t timestamp);
++
++protected:
++    Mutex m_objectLock;
++    camera_notify_callback mNotifyCB;
++    camera_data_callback mDataCB;
++    camera_data_timestamp_callback mDataCBTimestamp;
++    camera_request_memory mGetMemoryCB;
++    void *mCBOpaque;
++
++    android::List<camera_memory_t *> mCameraMemoryTs;
++    nsecs_t mLastFrameTimestamp;
++    nsecs_t mFrameRefreshFreq;
++    uint32_t mMessageEnabler;
++    int mJpegQuality;
++    CameraParameters mCameraParameters;
++    bool mVideoRecEnabled;
++    bool mTakingPicture;
++};
++
++}  // namespace CameraMock
++
++#endif
+\ No newline at end of file
+diff --git a/camera-kbox/camera.cpp b/camera-kbox/camera.cpp
+new file mode 100644
+index 0000000..d5a7a08
+--- /dev/null
++++ b/camera-kbox/camera.cpp
+@@ -0,0 +1,769 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#include "camera.h"
++#include <log/log.h>
++#include <cstdio>
++#include <linux/videodev2.h>
++#include <cerrno>
++#include "camera_factory.h"
++#include "converters.h"
++
++namespace CameraMock {
++
++static bool GetFourCcFormatFromCameraParam(const char *fmtStr, uint32_t *fmtVal)
++{
++    if (strcmp(fmtStr, CameraParameters::PIXEL_FORMAT_YUV420P) == 0) {
++        *fmtVal = V4L2_PIX_FMT_YVU420;
++        return true;
++    } else if (strcmp(fmtStr, CameraParameters::PIXEL_FORMAT_RGBA8888) == 0) {
++        *fmtVal = V4L2_PIX_FMT_RGB32;
++        return true;
++    } else if (strcmp(fmtStr, CameraParameters::PIXEL_FORMAT_YUV420SP) == 0) {
++        *fmtVal = V4L2_PIX_FMT_NV21;
++        return true;
++    }
++    return false;
++}
++
++Camera::Camera(int cameraId, bool facingBack, struct hw_module_t *module, android::GraphicBufferMapper *gbm)
++    : BaseCamera(cameraId, HARDWARE_DEVICE_API_VERSION(1, 0), &common, module), m_facingBack(facingBack),
++      m_callbackNotifier(), m_previewWindow(gbm)
++{
++    m_cameraDevice = new CameraDevice(this);
++    common.close = Camera::close;
++    ops = &m_deviceOps;
++    priv = this;
++}
++Camera::~Camera()
++{
++    delete m_cameraDevice;
++}
++
++android::status_t Camera::Initialize()
++{
++    android::status_t res = m_cameraDevice->Initialize();
++    if (res != android::NO_ERROR) {
++        return res;
++    }
++    const char *facing = m_facingBack ? Camera::FACING_BACK : Camera::FACING_FRONT;
++
++    m_parameters.set(Camera::FACING_KEY, facing);
++    // m_parameters.set(Camera::ORIENTATION_KEY, m_cameraDevice->GetFakeCameraOrientation());
++    // m_parameters.set(CameraParameters::KEY_ROTATION, g_cameraFactory.GetFakeCameraOrientation());
++    char previewFormats[1024];
++    snprintf(previewFormats,
++        sizeof(previewFormats),
++        "%s,%s,%s",
++        CameraParameters::PIXEL_FORMAT_YUV420SP,
++        CameraParameters::PIXEL_FORMAT_YUV420P,
++        CameraParameters::PIXEL_FORMAT_RGBA8888);
++
++    m_parameters.set(CameraParameters::KEY_RECORDING_HINT, CameraParameters::FALSE);
++    m_parameters.set(CameraParameters::KEY_SUPPORTED_JPEG_THUMBNAIL_SIZES, "320x240,0x0");
++
++    m_parameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH, "320");
++    m_parameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT, "240");
++    m_parameters.set(CameraParameters::KEY_JPEG_QUALITY, "90");
++    m_parameters.set(CameraParameters::KEY_FOCAL_LENGTH, "4.90");
++    m_parameters.set(CameraParameters::KEY_HORIZONTAL_VIEW_ANGLE, "61.0");
++    m_parameters.set(CameraParameters::KEY_VERTICAL_VIEW_ANGLE, "45.8");
++    m_parameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, "90");
++
++    m_parameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS, previewFormats);
++    m_parameters.setPreviewFormat(CameraParameters::PIXEL_FORMAT_YUV420SP);
++
++    m_parameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES, "30,24,20,15,10,5");
++    m_parameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FPS_RANGE, "(30000,30000)");
++    m_parameters.set(CameraParameters::KEY_PREVIEW_FPS_RANGE, "30000,30000");
++    m_parameters.setPreviewFrameRate(30);
++
++    m_parameters.set(CameraParameters::KEY_VIDEO_FRAME_FORMAT, CameraParameters::PIXEL_FORMAT_YUV420P);
++    m_parameters.set(CameraParameters::KEY_SUPPORTED_PICTURE_FORMATS, CameraParameters::PIXEL_FORMAT_JPEG);
++    m_parameters.setPictureFormat(CameraParameters::PIXEL_FORMAT_JPEG);
++
++    m_parameters.set(CameraParameters::KEY_MAX_EXPOSURE_COMPENSATION, "6");
++    m_parameters.set(CameraParameters::KEY_MIN_EXPOSURE_COMPENSATION, "-6");
++    m_parameters.set(CameraParameters::KEY_EXPOSURE_COMPENSATION_STEP, "0.5");
++    m_parameters.set(CameraParameters::KEY_EXPOSURE_COMPENSATION, "0");
++
++    char supported_white_balance[1024];
++    snprintf(supported_white_balance,
++        sizeof(supported_white_balance),
++        "%s,%s,%s,%s",
++        CameraParameters::WHITE_BALANCE_AUTO,
++        CameraParameters::WHITE_BALANCE_INCANDESCENT,
++        CameraParameters::WHITE_BALANCE_DAYLIGHT,
++        CameraParameters::WHITE_BALANCE_TWILIGHT);
++    m_parameters.set(CameraParameters::KEY_SUPPORTED_WHITE_BALANCE, supported_white_balance);
++    m_parameters.set(CameraParameters::KEY_WHITE_BALANCE, CameraParameters::WHITE_BALANCE_AUTO);
++    GetCameraDevice()->InitializeWhiteBalanceModes(CameraParameters::WHITE_BALANCE_AUTO, 1.0f, 1.0f);
++    GetCameraDevice()->InitializeWhiteBalanceModes(CameraParameters::WHITE_BALANCE_INCANDESCENT, 1.38f, 0.60f);
++    GetCameraDevice()->InitializeWhiteBalanceModes(CameraParameters::WHITE_BALANCE_DAYLIGHT, 1.09f, 0.92f);
++    GetCameraDevice()->InitializeWhiteBalanceModes(CameraParameters::WHITE_BALANCE_TWILIGHT, 0.92f, 1.22f);
++    GetCameraDevice()->SetWhiteBalanceMode(CameraParameters::WHITE_BALANCE_AUTO);
++
++    m_parameters.set(CameraParameters::KEY_SUPPORTED_ANTIBANDING, CameraParameters::ANTIBANDING_AUTO);
++    m_parameters.set(CameraParameters::KEY_ANTIBANDING, CameraParameters::ANTIBANDING_AUTO);
++    m_parameters.set(CameraParameters::KEY_SUPPORTED_EFFECTS, CameraParameters::EFFECT_NONE);
++    m_parameters.set(CameraParameters::KEY_EFFECT, CameraParameters::EFFECT_NONE);
++
++    m_parameters.set(CameraParameters::KEY_FOCUS_DISTANCES, "Infinity,Infinity,Infinity");
++
++    m_parameters.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES, CameraParameters::FOCUS_MODE_FIXED);
++    m_parameters.set(CameraParameters::KEY_FOCUS_MODE, CameraParameters::FOCUS_MODE_FIXED);
++
++    m_parameters.set(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES, "1920x1080,1280x720,640x480,352x288,320x240");
++    m_parameters.set(
++        CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES, "1920x1080,1280x720,640x480,352x288,320x240,176x144");
++    m_parameters.set(CameraParameters::KEY_SUPPORTED_VIDEO_SIZES, "1920x1080,1280x720,640x480,352x288,320x240,176x144");
++    m_parameters.set(CameraParameters::KEY_PREFERRED_PREVIEW_SIZE_FOR_VIDEO, "1920x1080");
++
++    m_parameters.setPreviewSize(1920, 1080);
++    m_parameters.setPictureSize(1920, 1080);
++
++    return android::NO_ERROR;
++}
++
++void Camera::OnNextFrameAvailable(nsecs_t timestamp, CameraDevice *cameraDev)
++{
++    m_previewWindow.OnNextFrameAvailable(timestamp, cameraDev);
++    m_callbackNotifier.OnNextFrameAvailable(timestamp, cameraDev);
++}
++
++CameraDevice *Camera::GetCameraDevice()
++{
++    return m_cameraDevice;
++}
++
++void Camera::OnCameraDeviceError(int err)
++{
++    m_callbackNotifier.OnCameraDeviceError(err);
++}
++
++void Camera::SetTakingPicture(bool takingPicture)
++{
++    m_callbackNotifier.SetTakingPicture(takingPicture);
++}
++
++android::status_t Camera::ConnectCamera(hw_device_t **device)
++{
++    android::status_t res = EINVAL;
++    CameraDevice *const cameraDev = GetCameraDevice();
++    ALOGE_IF(cameraDev == nullptr, "No camera device instance.");
++
++    if (cameraDev != nullptr) {
++        res = GetCameraDevice()->ConnectDevice();
++        if (res == android::NO_ERROR) {
++            *device = &common;
++        }
++    }
++    return -res;
++}
++
++android::status_t Camera::GetCameraInfo(struct camera_info *info)
++{
++    return BaseCamera::GetCameraInfo(info);
++}
++
++void Camera::AutoFocusComplete()
++{
++    m_callbackNotifier.AutoFocusComplete();
++}
++
++android::status_t Camera::SetPreviewWindow(struct preview_stream_ops *window)
++{
++    return -m_previewWindow.SetPreviewWindow(window, m_parameters.getPreviewFrameRate());
++}
++void Camera::SetCallbacks(camera_notify_callback notify_cb, camera_data_callback data_cb,
++    camera_data_timestamp_callback data_cb_timestamp, camera_request_memory get_memory, void *user)
++{
++    m_callbackNotifier.SetCallbacks(notify_cb, data_cb, data_cb_timestamp, get_memory, user);
++}
++
++void Camera::EnableMsgType(int32_t msg_type)
++{
++    m_callbackNotifier.EnableMessage(msg_type);
++}
++
++void Camera::DisableMsgType(int32_t msg_type)
++{
++    m_callbackNotifier.DisableMessage(msg_type);
++}
++
++int Camera::IsMsgTypeEnabled(int32_t msg_type)
++{
++    return android::NO_ERROR;
++}
++
++android::status_t Camera::StartPreview()
++{
++    return -DoStartPreview();
++}
++
++void Camera::StopPreview()
++{
++    m_previewWindow.SetPreviewWindow(nullptr, 0);
++    DoStopPreview();
++}
++
++int Camera::IsPreviewEnabled()
++{
++    return m_previewWindow.IsPreviewEnabled();
++}
++
++android::status_t Camera::StoreMetaDataInBuffers(int enable)
++{
++    return android::NO_ERROR;
++}
++
++android::status_t Camera::StartRecording()
++{
++    return android::NO_ERROR;
++}
++
++void Camera::StopRecording()
++{}
++int Camera::IsRecordingEnabled()
++{
++    return android::NO_ERROR;
++}
++
++void Camera::ReleaseRecordingFrame(const void *opaque)
++{}
++
++android::status_t Camera::SetAutoFocus()
++{
++    if (!IsPreviewEnabled()) {
++        return EINVAL;
++    }
++    CameraDevice *const cameraDev = GetCameraDevice();
++    if (cameraDev && cameraDev->IsStarted()) {
++        return cameraDev->SetAutoFocus();
++    }
++    return EINVAL;
++}
++
++android::status_t Camera::CancelAutoFocus()
++{
++    CameraDevice *const cameraDev = GetCameraDevice();
++    if (cameraDev && cameraDev->IsStarted()) {
++        return cameraDev->CancelAutoFocus();
++    }
++    return EINVAL;
++}
++
++android::status_t Camera::TakePicture()
++{
++    int width, height;
++    uint32_t org_fmt;
++    m_parameters.getPictureSize(&width, &height);
++    const char *pixFmt = m_parameters.getPictureFormat();
++    if (!GetFourCcFormatFromCameraParam(pixFmt, &org_fmt)) {
++        if (strcmp(pixFmt, CameraParameters::PIXEL_FORMAT_JPEG) == 0) {
++            org_fmt = V4L2_PIX_FMT_NV21;
++        } else {
++            ALOGE("Unsupported pixel format %s", pixFmt);
++            return EINVAL;
++        }
++    }
++    int jpegQuality = m_parameters.getInt(CameraParameters::KEY_JPEG_QUALITY);
++    if (jpegQuality <= 0) {
++        jpegQuality = 90;
++    }
++    CameraDevice *const cameraDev = GetCameraDevice();
++    m_callbackNotifier.SetJpegQuality(jpegQuality);
++    m_callbackNotifier.SetCameraParameters(m_parameters);
++
++    ALOGD("Starting camera for picture: %.4s(%s)[%dx%d]",
++        reinterpret_cast<const char *>(&org_fmt),
++        pixFmt,
++        width,
++        height);
++    if (m_previewWindow.IsPreviewEnabled()) {
++        m_previewWindow.StopPreview();
++        if (!cameraDev->RequestRestart(width, height, org_fmt, true, true)) {
++            return android::UNKNOWN_ERROR;
++        }
++        return android::NO_ERROR;
++    } else {
++        ALOGE("Preview has not been enabled");
++        return EINVAL;
++    }
++}
++
++android::status_t Camera::CancelPicture()
++{
++    return android::NO_ERROR;
++}
++
++android::status_t Camera::SetParameters(const char *parms)
++{
++    return android::NO_ERROR;
++}
++
++static char g_noParam = '\0';
++char *Camera::GetParameters()
++{
++    int width = 0, height = 0;
++    m_parameters.getPictureSize(&width, &height);
++    if (height > 0) {
++        // 除法存在精度损失问题，改用乘法进行比较 (double)width / height) < 1.55
++        if (((double)width * 1.55) < height) {
++            m_parameters.set(CameraParameters::KEY_HORIZONTAL_VIEW_ANGLE, "61.0");
++        } else {
++            m_parameters.set(CameraParameters::KEY_HORIZONTAL_VIEW_ANGLE, "70.0");
++        }
++    }
++
++    android::String8 params(m_parameters.flatten());
++    char *retStr = reinterpret_cast<char *>(malloc(sizeof(char) * (params.length() + 1)));
++    memset(retStr, 0, params.length() + 1);
++    if (retStr != nullptr) {
++        strncpy(retStr, params.string(), params.length() + 1);
++        return retStr;
++    } else {
++        ALOGE("Unable to allocate string for %s", params.string());
++        return &g_noParam;
++    }
++}
++
++void Camera::PutParameters(char *params)
++{}
++
++android::status_t Camera::SendCommand(int32_t cmd, int32_t arg1, int32_t arg2)
++{
++
++    return android::NO_ERROR;
++}
++
++void Camera::ReleaseCamera()
++{
++    CloseCamera();
++}
++
++android::status_t Camera::DumpCamera(int fd)
++{
++
++    return android::NO_ERROR;
++}
++
++android::status_t Camera::CloseCamera()
++{
++    android::status_t res = android::NO_ERROR;
++
++    res = DoStopPreview();
++    if (res != android::NO_ERROR) {
++        return -res;
++    }
++
++    CameraDevice *const cameraDev = GetCameraDevice();
++    if (cameraDev != nullptr) {
++        if (cameraDev->IsStarted()) {
++            cameraDev->StopDeliveringFrames();
++            res = cameraDev->StopDevice();
++            if (res != android::NO_ERROR) {
++                return -res;
++            }
++        }
++        if (cameraDev->IsConnected()) {
++            res = cameraDev->DisconnectDevice();
++            if (res != android::NO_ERROR) {
++                return -res;
++            }
++        }
++    }
++
++    Initialize();
++
++    return android::NO_ERROR;
++}
++
++android::status_t Camera::GetConfiguredPixelFormat(uint32_t *pixelFormat) const
++{
++    
++    const char *pix_fmt = nullptr;
++    const char *recordingHint = m_parameters.get(CameraParameters::KEY_RECORDING_HINT);
++    bool recordingHintOn = recordingHint && strcmp(recordingHint, CameraParameters::TRUE) == 0;
++    bool recordingEnabled = m_callbackNotifier.IsVideoRecordingEnabled();
++    if (recordingHintOn || recordingEnabled) {
++        // We're recording a video, use the video pixel format
++        pix_fmt = m_parameters.get(CameraParameters::KEY_VIDEO_FRAME_FORMAT);
++    }
++    if (pix_fmt == nullptr) {
++        pix_fmt = m_parameters.getPreviewFormat();
++    }
++    if (pix_fmt == nullptr) {
++        ALOGE("Unable to obtain configured pixel format");
++        return EINVAL;
++    }
++    if (!GetFourCcFormatFromCameraParam(pix_fmt, pixelFormat)) {
++        ALOGE("Unsupported pixel format %s", pix_fmt);
++        return EINVAL;
++    }
++    return android::NO_ERROR;
++}
++
++android::status_t Camera::GetConfiguredFrameSize(int *outWidth, int *outHeight) const
++{
++    int width = -1, height = -1;
++    if (m_parameters.get(CameraParameters::KEY_VIDEO_SIZE) != nullptr) {
++        m_parameters.getVideoSize(&width, &height);
++    } else {
++        m_parameters.getPreviewSize(&width, &height);
++    }
++    if (width < 0 || height < 0) {
++        ALOGE("No frame size configured for camera");
++        return EINVAL;
++    }
++    *outWidth = width;
++    *outHeight = height;
++    return android::NO_ERROR;
++}
++
++android::status_t Camera::DoStartPreview()
++{
++    
++
++    CameraDevice *cameraDev = GetCameraDevice();
++    if (cameraDev->IsStarted()) {
++        cameraDev->StopDeliveringFrames();
++        cameraDev->StopDevice();
++    }
++
++    android::status_t res = m_previewWindow.StartPreview();
++    if (res != android::NO_ERROR) {
++        return res;
++    }
++
++    if (!cameraDev->IsConnected()) {
++        res = cameraDev->ConnectDevice();
++        if (res != android::NO_ERROR) {
++            m_previewWindow.StopPreview();
++            return res;
++        }
++    }
++
++    int width, height;
++    res = GetConfiguredFrameSize(&width, &height);
++    if (res != android::NO_ERROR) {
++        m_previewWindow.StopPreview();
++        return res;
++    }
++
++    uint32_t org_fmt = 0;
++    res = GetConfiguredPixelFormat(&org_fmt);
++    if (res != android::NO_ERROR) {
++        m_previewWindow.StopPreview();
++        return res;
++    }
++
++    cameraDev->SetPreviewFrameRate(m_parameters.getPreviewFrameRate());
++    ALOGD("Starting camera: %dx%d -> %.4s", width, height, reinterpret_cast<const char *>(&org_fmt));
++    res = cameraDev->StartDevice(width, height, org_fmt);
++    if (res != android::NO_ERROR) {
++        m_previewWindow.StopPreview();
++        ALOGE("DoStartPreview ERROR===>m_previewWindow.StopPreview()");
++        return res;
++    }
++
++    res = cameraDev->StartDeliveringFrames(false);
++    if (res != android::NO_ERROR) {
++        cameraDev->StopDevice();
++        m_previewWindow.StopPreview();
++    }
++
++    return res;
++}
++
++android::status_t Camera::DoStopPreview()
++{
++    
++
++    android::status_t res = android::NO_ERROR;
++    if (m_previewWindow.IsPreviewEnabled()) {
++        if (GetCameraDevice()->IsStarted()) {
++            GetCameraDevice()->StopDeliveringFrames();
++            res = GetCameraDevice()->StopDevice();
++        }
++
++        if (res == android::NO_ERROR) {
++            m_previewWindow.StopPreview();
++        }
++    }
++
++    return android::NO_ERROR;
++}
++
++int Camera::set_preview_window(struct camera_device *dev, struct preview_stream_ops *window)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return -EINVAL;
++    }
++    return camera->SetPreviewWindow(window);
++}
++
++void Camera::set_callbacks(struct camera_device *dev, camera_notify_callback notify_cb, camera_data_callback data_cb,
++    camera_data_timestamp_callback data_cb_timestamp, camera_request_memory get_memory, void *user)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return;
++    }
++    camera->SetCallbacks(notify_cb, data_cb, data_cb_timestamp, get_memory, user);
++}
++
++void Camera::enable_msg_type(struct camera_device *dev, int32_t msg_type)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return;
++    }
++    camera->EnableMsgType(msg_type);
++}
++
++void Camera::disable_msg_type(struct camera_device *dev, int32_t msg_type)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return;
++    }
++    camera->DisableMsgType(msg_type);
++}
++
++int Camera::msg_type_enabled(struct camera_device *dev, int32_t msg_type)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return -EINVAL;
++    }
++    return camera->IsMsgTypeEnabled(msg_type);
++}
++
++int Camera::start_preview(struct camera_device *dev)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return -EINVAL;
++    }
++    return camera->StartPreview();
++}
++
++void Camera::stop_preview(struct camera_device *dev)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return;
++    }
++    camera->StopPreview();
++}
++
++int Camera::preview_enabled(struct camera_device *dev)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return -EINVAL;
++    }
++    return camera->IsPreviewEnabled();
++}
++
++int Camera::store_meta_data_in_buffers(struct camera_device *dev, int enable)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return -EINVAL;
++    }
++    return camera->StoreMetaDataInBuffers(enable);
++}
++
++int Camera::start_recording(struct camera_device *dev)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return -EINVAL;
++    }
++    return camera->StartRecording();
++}
++
++void Camera::stop_recording(struct camera_device *dev)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return;
++    }
++    camera->StopRecording();
++}
++
++int Camera::recording_enabled(struct camera_device *dev)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return -EINVAL;
++    }
++    return camera->IsRecordingEnabled();
++}
++
++void Camera::release_recording_frame(struct camera_device *dev, const void *opaque)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return;
++    }
++    camera->ReleaseRecordingFrame(opaque);
++}
++
++int Camera::auto_focus(struct camera_device *dev)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return -EINVAL;
++    }
++    return camera->SetAutoFocus();
++}
++
++int Camera::cancel_auto_focus(struct camera_device *dev)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return -EINVAL;
++    }
++    return camera->CancelAutoFocus();
++}
++
++int Camera::take_picture(struct camera_device *dev)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return -EINVAL;
++    }
++    return camera->TakePicture();
++}
++
++int Camera::cancel_picture(struct camera_device *dev)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return -EINVAL;
++    }
++    return camera->CancelPicture();
++}
++
++int Camera::set_parameters(struct camera_device *dev, const char *parms)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return -EINVAL;
++    }
++    return camera->SetParameters(parms);
++}
++
++char *Camera::get_parameters(struct camera_device *dev)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return nullptr;
++    }
++    return camera->GetParameters();
++}
++
++void Camera::put_parameters(struct camera_device *dev, char *params)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return;
++    }
++    camera->PutParameters(params);
++}
++
++int Camera::send_command(struct camera_device *dev, int32_t cmd, int32_t arg1, int32_t arg2)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return -EINVAL;
++    }
++    return camera->SendCommand(cmd, arg1, arg2);
++}
++
++void Camera::release(struct camera_device *dev)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return;
++    }
++    camera->ReleaseCamera();
++}
++
++int Camera::dump(struct camera_device *dev, int fd)
++{
++    Camera *camera = reinterpret_cast<Camera *>(dev->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return -EINVAL;
++    }
++    return camera->DumpCamera(fd);
++}
++
++int Camera::close(struct hw_device_t *device)
++{
++    Camera *camera = reinterpret_cast<Camera *>(reinterpret_cast<struct camera_device *>(device)->priv);
++    if (camera == nullptr) {
++        ALOGE("Unexpected nullptr camera device");
++        return -EINVAL;
++    }
++    return camera->CloseCamera();
++}
++
++camera_device_ops_t Camera::m_deviceOps = {Camera::set_preview_window,
++    Camera::set_callbacks,
++    Camera::enable_msg_type,
++    Camera::disable_msg_type,
++    Camera::msg_type_enabled,
++    Camera::start_preview,
++    Camera::stop_preview,
++    Camera::preview_enabled,
++    Camera::store_meta_data_in_buffers,
++    Camera::start_recording,
++    Camera::stop_recording,
++    Camera::recording_enabled,
++    Camera::release_recording_frame,
++    Camera::auto_focus,
++    Camera::cancel_auto_focus,
++    Camera::take_picture,
++    Camera::cancel_picture,
++    Camera::set_parameters,
++    Camera::get_parameters,
++    Camera::put_parameters,
++    Camera::send_command,
++    Camera::release,
++    Camera::dump};
++
++const char Camera::FACING_KEY[] = "prop-facing";
++const char Camera::ORIENTATION_KEY[] = "prop-orientation";
++const char Camera::RECORDING_HINT_KEY[] = "recording-hint";
++
++const char Camera::FACING_BACK[] = "back";
++const char Camera::FACING_FRONT[] = "front";
++}  // namespace CameraMock
+\ No newline at end of file
+diff --git a/camera-kbox/camera.h b/camera-kbox/camera.h
+new file mode 100644
+index 0000000..b2fd377
+--- /dev/null
++++ b/camera-kbox/camera.h
+@@ -0,0 +1,171 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#ifndef CAMERA_MOCK_CAMERA_H
++#define CAMERA_MOCK_CAMERA_H
++
++#include <CameraParameters.h>
++#include <ui/GraphicBufferMapper.h>
++#include <hardware/camera.h>
++#include "base_camera.h"
++#include "preview_window.h"
++#include "callback_notifier.h"
++#include "camera_device.h"
++
++namespace CameraMock {
++
++class Camera : public camera_device, public BaseCamera {
++public:
++    Camera(int cameraId, bool facingBack, struct hw_module_t *module, android::GraphicBufferMapper *gbm);
++
++    virtual ~Camera();
++
++    virtual CameraDevice *GetCameraDevice();
++
++    virtual android::status_t Initialize();
++
++    virtual void OnNextFrameAvailable(nsecs_t timestamp, CameraDevice *cameraDev);
++
++    virtual void OnCameraDeviceError(int err);
++
++    void SetTakingPicture(bool takingPicture);
++
++    virtual android::status_t ConnectCamera(hw_device_t **device);
++
++    virtual android::status_t CloseCamera();
++
++    virtual android::status_t GetCameraInfo(struct camera_info *info);
++
++    void AutoFocusComplete();
++
++    static const char FACING_KEY[];
++    static const char ORIENTATION_KEY[];
++    static const char RECORDING_HINT_KEY[];
++
++    static const char FACING_BACK[];
++    static const char FACING_FRONT[];
++
++protected:
++    Mutex m_objectLock;
++
++    CameraParameters m_parameters;
++
++    PreviewWindow m_previewWindow;
++
++    CallbackNotifier m_callbackNotifier;
++
++    virtual android::status_t SetPreviewWindow(struct preview_stream_ops *window);
++
++    virtual void SetCallbacks(camera_notify_callback notify_cb, camera_data_callback data_cb,
++        camera_data_timestamp_callback data_cb_timestamp, camera_request_memory get_memory, void *user);
++
++    virtual void EnableMsgType(int32_t msg_type);
++
++    virtual void DisableMsgType(int32_t msg_type);
++
++    virtual int IsMsgTypeEnabled(int32_t msg_type);
++
++    virtual android::status_t StartPreview();
++
++    virtual void StopPreview();
++
++    virtual int IsPreviewEnabled();
++
++    virtual android::status_t StoreMetaDataInBuffers(int enable);
++
++    virtual android::status_t StartRecording();
++
++    virtual void StopRecording();
++
++    virtual int IsRecordingEnabled();
++
++    virtual void ReleaseRecordingFrame(const void *opaque);
++
++    virtual android::status_t SetAutoFocus();
++
++    virtual android::status_t CancelAutoFocus();
++
++    virtual android::status_t TakePicture();
++
++    virtual android::status_t CancelPicture();
++
++    virtual android::status_t SetParameters(const char *parms);
++
++    virtual char *GetParameters();
++
++    virtual void PutParameters(char *params);
++
++    virtual android::status_t SendCommand(int32_t cmd, int32_t arg1, int32_t arg2);
++
++    virtual void ReleaseCamera();
++
++    virtual android::status_t DumpCamera(int fd);
++
++    virtual android::status_t DoStartPreview();
++
++    virtual android::status_t DoStopPreview();
++
++private:
++    android::status_t GetConfiguredPixelFormat(uint32_t *pixelFormat) const;
++
++    android::status_t GetConfiguredFrameSize(int *width, int *height) const;
++
++    static int set_preview_window(struct camera_device *dev, struct preview_stream_ops *window);
++
++    static void set_callbacks(struct camera_device *dev, camera_notify_callback notify_cb, camera_data_callback data_cb,
++        camera_data_timestamp_callback data_cb_timestamp, camera_request_memory get_memory, void *user);
++
++    static void enable_msg_type(struct camera_device *dev, int32_t msg_type);
++
++    static void disable_msg_type(struct camera_device *dev, int32_t msg_type);
++
++    static int msg_type_enabled(struct camera_device *dev, int32_t msg_type);
++
++    static int start_preview(struct camera_device *dev);
++
++    static void stop_preview(struct camera_device *dev);
++
++    static int preview_enabled(struct camera_device *dev);
++
++    static int store_meta_data_in_buffers(struct camera_device *dev, int enable);
++
++    static int start_recording(struct camera_device *dev);
++
++    static void stop_recording(struct camera_device *dev);
++
++    static int recording_enabled(struct camera_device *dev);
++
++    static void release_recording_frame(struct camera_device *dev, const void *opaque);
++
++    static int auto_focus(struct camera_device *dev);
++
++    static int cancel_auto_focus(struct camera_device *dev);
++
++    static int take_picture(struct camera_device *dev);
++
++    static int cancel_picture(struct camera_device *dev);
++
++    static int set_parameters(struct camera_device *dev, const char *parms);
++
++    static char *get_parameters(struct camera_device *dev);
++
++    static void put_parameters(struct camera_device *dev, char *params);
++
++    static int send_command(struct camera_device *dev, int32_t cmd, int32_t arg1, int32_t arg2);
++
++    static void release(struct camera_device *dev);
++
++    static int dump(struct camera_device *dev, int fd);
++
++    static int close(struct hw_device_t *device);
++
++    static camera_device_ops_t m_deviceOps;
++
++    CameraDevice *m_cameraDevice;
++
++    bool m_facingBack;
++};
++
++}; /* namespace CameraMock */
++
++#endif  // CAMERA_MOCK_CAMERA_H
+diff --git a/camera-kbox/camera_device.cpp b/camera-kbox/camera_device.cpp
+new file mode 100644
+index 0000000..9eb3add
+--- /dev/null
++++ b/camera-kbox/camera_device.cpp
+@@ -0,0 +1,686 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#include "camera_device.h"
++#include <log/log.h>
++#include <sys/select.h>
++#include <cmath>
++#include <cutils/properties.h>
++#include <linux/videodev2.h>
++#include <cerrno>
++#include "camera.h"
++#include <stdexcept>
++#include "alignment.h"
++#include <cstdio>
++#include <algorithm>
++
++const std::string DEFAULT_YUV = "/data/test.yuv";
++constexpr char *KBOX_CAMERA_MOCK_YUV = "kbox.camera.mock.yuv";
++
++namespace CameraMock {
++
++CameraDevice::CameraDevice(Camera *cameraHal)
++    : m_objectLock(), m_cameraHAL(cameraHal), m_whiteBalanceScale(nullptr), m_supportedWhiteBalanceScale(),
++      m_state(ECDS_CONSTRUCTED), m_exposureCompensation(1.0f), m_greenYUV(kGreen8), m_triggerAutoFocus(false)
++{
++    ALOGD("CameraDevice constructor");
++}
++
++CameraDevice::~CameraDevice()
++{
++    ALOGD("CameraDevice destructor");
++}
++
++android::status_t CameraDevice::Initialize()
++{
++    if (IsInitialized()) {
++        ALOGW("Camera device is already initialized: m_state = %d", m_state);
++        return android::NO_ERROR;
++    }
++
++    m_state = ECDS_INITIALIZED;
++    return android::NO_ERROR;
++}
++
++android::status_t CameraDevice::ConnectDevice()
++{
++    Mutex::Autolock locker(&m_objectLock);
++    if (!IsInitialized()) {
++        ALOGE("Camera device is not initialized");
++        return EINVAL;
++    }
++    if (IsConnected()) {
++        ALOGW("Camera device is already connected");
++        return android::NO_ERROR;
++    }
++
++    m_state = ECDS_CONNECTED;
++    return android::NO_ERROR;
++}
++
++android::status_t CameraDevice::DisconnectDevice()
++{
++    Mutex::Autolock locker(&m_objectLock);
++    if (!IsConnected()) {
++        ALOGW("Camera device is already disconnected");
++        return android::NO_ERROR;
++    }
++    if (IsStarted()) {
++        ALOGE("Cannot disconnect from the started device");
++        return EINVAL;
++    }
++
++    m_state = ECDS_INITIALIZED;
++
++    return android::NO_ERROR;
++}
++
++android::status_t CameraDevice::StartDevice(int width, int height, uint32_t pixFmt)
++{
++    Mutex::Autolock locker(&m_objectLock);
++    if (!IsConnected()) {
++        ALOGE("Camera device is not connected");
++        return EINVAL;
++    }
++    if (IsStarted()) {
++        ALOGE("Camera device is already started");
++        return EINVAL;
++    }
++
++    const android::status_t res = CommonStartDevice(width, height, pixFmt);
++    if (res == android::NO_ERROR) {
++        switch (m_pixelFormat) {
++            case V4L2_PIX_FMT_YVU420:
++                m_frameVOffset = m_yStride * m_frameHeight;
++                m_frameUOffset = m_frameVOffset + m_uVStride * (m_frameHeight / 2);
++                m_uVStep = 1;
++                break;
++
++            case V4L2_PIX_FMT_YUV420:
++                m_frameUOffset = m_yStride * m_frameHeight;
++                m_frameVOffset = m_frameUOffset + m_uVStride * (m_frameHeight / 2);
++                m_uVStep = 1;
++                break;
++
++            case V4L2_PIX_FMT_NV21:
++                m_frameVOffset = m_yStride * m_frameHeight;
++                m_frameUOffset = m_frameVOffset + 1;
++                m_uVStep = 2;
++                break;
++
++            case V4L2_PIX_FMT_NV12:
++                m_frameUOffset = m_yStride * m_frameHeight;
++                m_frameVOffset = m_frameUOffset + 1;
++                m_uVStep = 2;
++                break;
++
++            default:
++                ALOGE("Unknown pixel format %.4s", reinterpret_cast<const char *>(&m_pixelFormat));
++                return EINVAL;
++        }
++        m_uVInRow = (width / 2) * m_uVStep;
++        m_state = ECDS_STARTED;
++    } else {
++        ALOGE("CommonStartDevice failed");
++    }
++    return res;
++}
++
++android::status_t CameraDevice::StopDevice()
++{
++    Mutex::Autolock locker(&m_objectLock);
++    if (!IsStarted()) {
++        ALOGW("Camera device is not started");
++        return android::NO_ERROR;
++    }
++
++    CameraDevice::CommonStopDevice();
++    m_state = ECDS_CONNECTED;
++    return android::NO_ERROR;
++}
++android::status_t CameraDevice::StartDeliveringFrames(bool oneBurst)
++{
++    if (!IsStarted()) {
++        ALOGE("Device is not started");
++        return EINVAL;
++    }
++    const android::status_t res = StartWorkerThread(oneBurst);
++    ALOGE_IF(res != android::NO_ERROR, "StartWorkerThread failed");
++    return res;
++}
++android::status_t CameraDevice::StopDeliveringFrames()
++{
++    if (!IsStarted()) {
++        ALOGW("Device is not started");
++        return android::NO_ERROR;
++    }
++
++    const android::status_t res = StopWorkerThread();
++    ALOGE_IF(res != android::NO_ERROR, "StopWorkerThread failed");
++    return res;
++}
++
++CameraDevice::FrameLock::FrameLock(CameraDevice &cameraDevice) : m_cameraDevice(cameraDevice)
++{
++    m_cameraDevice.LockCurrentFrame();
++}
++
++CameraDevice::FrameLock::~FrameLock()
++{
++    m_cameraDevice.UnlockCurrentFrame();
++}
++
++android::status_t CameraDevice::SetAutoFocus()
++{
++    m_triggerAutoFocus = true;
++    return android::NO_ERROR;
++}
++
++android::status_t CameraDevice::CancelAutoFocus()
++{
++    m_triggerAutoFocus = false;
++    return android::NO_ERROR;
++}
++
++bool CameraDevice::RequestRestart(int width, int height, uint32_t pixelFormat, bool takingPicture, bool oneBurst)
++{
++    if (m_cameraThread.get() == nullptr) {
++        ALOGE("No thread alive to perform the restart, is preview on?");
++        return false;
++    }
++    m_cameraThread->RequestRestart(width, height, pixelFormat, takingPicture, oneBurst);
++    return true;
++}
++
++android::status_t CameraDevice::GetCurrentFrameImpl(const uint8_t *source, uint8_t *dest, uint32_t pixelFormat) const
++{
++    if (pixelFormat == m_pixelFormat) {
++        memcpy(dest, source, m_frameBufferSize);
++        return android::NO_ERROR;
++    } else if (pixelFormat == V4L2_PIX_FMT_YUV420 && m_pixelFormat == V4L2_PIX_FMT_YVU420) {
++        const int ySize = m_yStride * m_frameHeight;
++        const int uvSize = m_uVStride * (m_frameHeight / 2);
++        if (m_yStride == m_frameWidth) {
++            memcpy(dest, source, ySize);
++        } else {
++            for (int y = 0; y < m_frameHeight; ++y) {
++                memcpy(dest + y * m_frameWidth, source + y * m_yStride, m_frameWidth);
++            }
++        }
++
++        if (m_uVStride == m_frameWidth / 2) {
++            memcpy(dest + ySize, source + ySize + uvSize, uvSize);
++            memcpy(dest + ySize + uvSize, source + ySize, uvSize);
++        } else {
++            uint8_t *uvDest = dest + m_frameWidth * m_frameHeight;
++            const uint8_t *uvSource = source + ySize + uvSize;
++
++            for (int i = 0; i < 2; ++i) {
++                for (int y = 0; y < m_frameHeight / 2; ++y) {
++                    memcpy(uvDest + y * (m_frameWidth / 2), uvSource + y * m_uVStride, m_frameWidth / 2);
++                }
++                uvDest += (m_frameHeight / 2) * (m_frameWidth / 2);
++                uvSource -= uvSize;
++            }
++        }
++        return android::NO_ERROR;
++    }
++    ALOGE("Invalid pixel format conversion [%.4s to %.4s] requested",
++        reinterpret_cast<const char *>(&m_pixelFormat),
++        reinterpret_cast<const char *>(&pixelFormat));
++    return EINVAL;
++}
++
++const void *CameraDevice::GetCurrentFrame()
++{
++    if (m_cameraThread.get()) {
++        return m_cameraThread->GetPrimaryBuffer();
++    }
++    return nullptr;
++}
++
++android::status_t CameraDevice::GetCurrentFrame(void *buffer, uint32_t pixelFormat, int64_t *timestamp)
++{
++    if (!IsStarted()) {
++        ALOGE("Device is not started");
++        return EINVAL;
++    }
++    if (buffer == nullptr) {
++        ALOGE("Invalid buffer provided");
++        return EINVAL;
++    }
++
++    FrameLock lock(*this);
++    const void *source = m_cameraThread->GetPrimaryBuffer();
++    if (source == nullptr) {
++        ALOGE("No framebuffer");
++        return EINVAL;
++    }
++
++    if (timestamp != nullptr) {
++        *timestamp = m_cameraThread->GetPrimaryTimestamp();
++    }
++
++    return GetCurrentFrameImpl(
++        reinterpret_cast<const uint8_t *>(source), reinterpret_cast<uint8_t *>(buffer), pixelFormat);
++}
++
++android::status_t CameraDevice::GetCurrentPreviewFrame(void *buffer, int64_t *timestamp)
++{
++    if (!IsStarted()) {
++        ALOGE("Device is not started");
++        return EINVAL;
++    }
++    if (buffer == nullptr) {
++        ALOGE("Invalid buffer provided");
++        return EINVAL;
++    }
++
++    FrameLock lock(*this);
++    const void *currentFrame = m_cameraThread->GetPrimaryBuffer();
++    if (currentFrame == nullptr) {
++        ALOGE("No framebuffer");
++        return EINVAL;
++    }
++
++    if (timestamp != nullptr) {
++        *timestamp = m_cameraThread->GetPrimaryTimestamp();
++    }
++
++    switch (m_pixelFormat) {
++        case V4L2_PIX_FMT_YVU420:
++
++        case V4L2_PIX_FMT_YUV420:
++            YU12ToRGB32(currentFrame, buffer, m_frameWidth, m_frameHeight);
++            return android::NO_ERROR;
++        case V4L2_PIX_FMT_NV21:
++            NV21ToRGB32(currentFrame, buffer, m_frameWidth, m_frameHeight);
++            return android::NO_ERROR;
++        case V4L2_PIX_FMT_NV12:
++            NV12ToRGB32(currentFrame, buffer, m_frameWidth, m_frameHeight);
++            return android::NO_ERROR;
++
++        default:
++            ALOGE("Unknown pixel format %.4s", reinterpret_cast<const char *>(&m_pixelFormat));
++            return EINVAL;
++    }
++}
++
++void CameraDevice::InitializeWhiteBalanceModes(const char *mode, const float rScale, const float bScale)
++{
++    float *value = new float[3];
++    value[0] = rScale;
++    value[1] = 1.0f;
++    value[2] = bScale;
++    m_supportedWhiteBalanceScale.add(android::String8(mode), value);
++}
++
++void CameraDevice::SetWhiteBalanceMode(const char *mode)
++{
++    m_whiteBalanceScale = m_supportedWhiteBalanceScale.valueFor(android::String8(mode));
++}
++
++android::status_t CameraDevice::SetPreviewFrameRate(int framesPerSecond)
++{
++    if (framesPerSecond <= 0) {
++        return EINVAL;
++    }
++    m_framesPerSecond = framesPerSecond;
++    return android::NO_ERROR;
++}
++
++android::status_t CameraDevice::CommonStartDevice(int width, int height, uint32_t pixFmt)
++{
++    if (width <= 0 || height <= 0) {
++        ALOGE("Invalid width or height");
++    }
++    switch (pixFmt) {
++        case V4L2_PIX_FMT_YVU420:
++        case V4L2_PIX_FMT_YUV420:
++            m_yStride = Align(width, 16);
++            m_uVStride = Align(m_yStride / 2, 16);
++            m_frameBufferSize = m_yStride * height + m_uVStride * height;
++            break;
++        case V4L2_PIX_FMT_NV21:
++        case V4L2_PIX_FMT_NV12:
++            m_yStride = width;
++            m_uVStride = m_yStride;
++            m_frameBufferSize = m_yStride * height + m_uVStride * (height / 2);
++            break;
++        default:
++            ALOGE("Unknown pixel format %.4s", reinterpret_cast<const char *>(&pixFmt));
++            return EINVAL;
++    }
++    m_frameWidth = width;
++    m_frameHeight = height;
++    m_pixelFormat = pixFmt;
++    m_totalPixels = width * height;
++
++    m_frameBuffers[0].resize(m_frameBufferSize);
++    m_frameBuffers[1].resize(m_frameBufferSize);
++    ALOGV("Allocated %zu bytes for %d pixels in %.4s[%dx%d] frame",
++        m_frameBufferSize,
++        m_totalPixels,
++        reinterpret_cast<const char *>(&m_pixelFormat),
++        m_frameWidth,
++        m_frameHeight);
++    return android::NO_ERROR;
++}
++
++void CameraDevice::CommonStopDevice()
++{
++    m_frameWidth = m_frameHeight = m_totalPixels = 0;
++    m_pixelFormat = 0;
++
++    m_frameBuffers[0].clear();
++    m_frameBuffers[1].clear();
++    m_frameBuffers[0].shrink_to_fit();
++    m_frameBuffers[1].shrink_to_fit();
++}
++
++android::status_t CameraDevice::StartWorkerThread(bool oneBurst)
++{
++    if (!IsInitialized()) {
++        ALOGE("Camera device is not initialized");
++        return EINVAL;
++    }
++
++    m_cameraThread = new CameraThread(this, staticProduceFrame, this);
++    if (m_cameraThread == nullptr) {
++        ALOGE("Unable to instantiate CameraThread object");
++        return ENOMEM;
++    }
++    android::status_t res = m_cameraThread->StartThread(oneBurst);
++    if (res != android::NO_ERROR) {
++        ALOGE("Unable to start CameraThread: %s", strerror(res));
++        return res;
++    }
++
++    return res;
++}
++
++android::status_t CameraDevice::StopWorkerThread()
++{
++    if (!IsInitialized()) {
++        ALOGE("Emulated camera device is not initialized");
++        return EINVAL;
++    }
++    android::status_t res = m_cameraThread->StopThread();
++    if (res != android::NO_ERROR) {
++        ALOGE("Unable to stop CameraThread");
++        return res;
++    }
++    res = m_cameraThread->JoinThread();
++    if (res != android::NO_ERROR) {
++        ALOGE("Unable to join CameraThread");
++        return res;
++    }
++
++    m_cameraThread.clear();
++    return res;
++}
++
++void CameraDevice::LockCurrentFrame()
++{
++    m_cameraThread->LockPrimaryBuffer();
++}
++
++void CameraDevice::UnlockCurrentFrame()
++{
++    m_cameraThread->UnlockPrimaryBuffer();
++}
++
++CameraDevice::CameraThread::CameraThread(CameraDevice *dev, ProduceFrameFunc producer, void *producerOpaque)
++    : WorkerThread("Camera_CameraThread", dev, dev->m_cameraHAL), m_producerFunc(producer),
++      m_producerOpaque(producerOpaque), m_restartWidth(0), m_restartHeight(0), m_restartPixelFormat(0),
++      m_restartOneBurst(false), m_restartTakingPicture(false), m_restartRequested(false)
++{}
++
++const void *CameraDevice::CameraThread::GetPrimaryBuffer() const
++{
++    if (m_frameProducer.get()) {
++        return m_frameProducer->GetPrimaryBuffer();
++    }
++    return nullptr;
++}
++
++int64_t CameraDevice::CameraThread::GetPrimaryTimestamp() const
++{
++    if (m_frameProducer.get()) {
++        return m_frameProducer->GetPrimaryTimestamp();
++    }
++    return 0L;
++}
++
++bool CameraDevice::CameraThread::WaitForFrameOrTimeout(nsecs_t timeout)
++{
++    return true;
++}
++
++bool CameraDevice::CameraThread::InWorkerThread()
++{
++    nsecs_t wakeAt = m_curFrameTimestamp + 1000000000 / m_cameraDevice->m_framesPerSecond;
++    nsecs_t now = systemTime(SYSTEM_TIME_MONOTONIC);
++    nsecs_t timeout = std::max<nsecs_t>(0, wakeAt - now);
++    if (!CheckRestartRequest()) {
++        return false;
++    }
++    m_cameraDevice->CheckAutoFocusTrigger();
++    m_curFrameTimestamp = systemTime(SYSTEM_TIME_MONOTONIC);
++    m_cameraHAL->OnNextFrameAvailable(m_curFrameTimestamp, m_cameraDevice);
++    return true;
++}
++
++android::status_t CameraDevice::CameraThread::OnThreadStart()
++{
++    void *primaryBuffer = m_cameraDevice->GetPrimaryBuffer();
++    m_frameProducer = new FrameProducer(m_cameraDevice, m_producerFunc, m_producerOpaque, primaryBuffer);
++    if (m_frameProducer.get() == nullptr) {
++        ALOGE("Could not instantiate FrameProducer object");
++        return ENOMEM;
++    }
++    return m_frameProducer->StartThread(m_oneBurst);
++}
++
++void CameraDevice::CameraThread::OnThreadExit()
++{
++    if (m_frameProducer.get()) {
++        if (m_frameProducer->StopThread() == android::NO_ERROR) {
++            m_frameProducer->JoinThread();
++            m_frameProducer.clear();
++        }
++    }
++}
++
++void CameraDevice::CameraThread::LockPrimaryBuffer()
++{
++    m_frameProducer->LockPrimaryBuffer();
++}
++void CameraDevice::CameraThread::UnlockPrimaryBuffer()
++{
++    m_frameProducer->UnlockPrimaryBuffer();
++}
++
++void CameraDevice::CameraThread::RequestRestart(
++    int width, int height, uint32_t pixelFormat, bool takingPicture, bool oneBurst)
++{
++    Mutex::Autolock lock(m_requestMutex);
++    m_restartWidth = width;
++    m_restartHeight = height;
++    m_restartPixelFormat = pixelFormat;
++    m_restartTakingPicture = takingPicture;
++    m_restartOneBurst = oneBurst;
++    m_restartRequested = true;
++}
++
++CameraDevice::CameraThread::FrameProducer::FrameProducer(
++    CameraDevice *dev, ProduceFrameFunc producer, void *opaque, void *primaryBuffer)
++    : WorkerThread("Camera_FrameProducer", dev, dev->m_cameraHAL), m_producer(producer), m_opaque(opaque),
++      m_primaryBuffer(primaryBuffer), m_primaryTimestamp(0L), m_lastFrame(0)
++{}
++
++const void *CameraDevice::CameraThread::FrameProducer::GetPrimaryBuffer() const
++{
++    return m_primaryBuffer;
++}
++
++int64_t CameraDevice::CameraThread::FrameProducer::GetPrimaryTimestamp() const
++{
++    return m_primaryTimestamp;
++}
++
++bool CameraDevice::CameraThread::FrameProducer::HasFrame() const
++{
++    return true;
++}
++
++bool CameraDevice::CameraThread::CheckRestartRequest()
++{
++    Mutex::Autolock lock(m_requestMutex);
++    if (m_restartRequested) {
++        m_restartRequested = false;
++        android::status_t res = m_frameProducer->StopThread();
++        if (res != android::NO_ERROR) {
++            ALOGE("Could not stop frame producer thread");
++            m_cameraHAL->OnCameraDeviceError(CAMERA_ERROR_SERVER_DIED);
++            return false;
++        }
++        res = m_frameProducer->JoinThread();
++        if (res != android::NO_ERROR) {
++            ALOGE("Could not join frame producer thread");
++            m_cameraHAL->OnCameraDeviceError(CAMERA_ERROR_SERVER_DIED);
++            return false;
++        }
++        m_frameProducer.clear();
++        res = m_cameraDevice->StopDevice();
++        if (res != android::NO_ERROR) {
++            ALOGE("Could not stop device");
++            m_cameraHAL->OnCameraDeviceError(CAMERA_ERROR_SERVER_DIED);
++            return false;
++        }
++        res = m_cameraDevice->StartDevice(m_restartWidth, m_restartHeight, m_restartPixelFormat);
++        if (res != android::NO_ERROR) {
++            ALOGE("Could not start device");
++            m_cameraHAL->OnCameraDeviceError(CAMERA_ERROR_SERVER_DIED);
++            return false;
++        }
++        if (m_restartTakingPicture) {
++            m_cameraHAL->SetTakingPicture(true);
++        }
++        m_oneBurst = m_restartOneBurst;
++        if (OnThreadStart() != android::NO_ERROR) {
++            m_cameraDevice->StopDevice();
++            m_cameraHAL->OnCameraDeviceError(CAMERA_ERROR_SERVER_DIED);
++            return false;
++        }
++    }
++    return true;
++}
++
++bool CameraDevice::CameraThread::FrameProducer::InWorkerThread()
++{
++    nsecs_t nextFrame = m_lastFrame + 1000000000 / m_cameraDevice->m_framesPerSecond;
++    nsecs_t now = systemTime(SYSTEM_TIME_MONOTONIC);
++    nsecs_t timeout = std::max<nsecs_t>(0, nextFrame - now);
++
++    {
++        Mutex::Autolock lock(m_runningMutex);
++        m_runningCondition.waitRelative(m_runningMutex, timeout);
++        if (!m_running) {
++            ALOGV("FrameProducer has been terminated");
++            return false;
++        }
++    }
++    m_lastFrame = systemTime(SYSTEM_TIME_MONOTONIC);
++    if (!m_producer(m_opaque, m_primaryBuffer, &m_primaryTimestamp)) {
++        ALOGE("FrameProducer could not produce frame, exiting thread");
++        m_cameraHAL->OnCameraDeviceError(CAMERA_ERROR_SERVER_DIED);
++        return false;
++    }
++    return true;
++}
++
++void CameraDevice::CameraThread::FrameProducer::LockPrimaryBuffer()
++{
++    m_bufferMutex.lock();
++}
++
++void CameraDevice::CameraThread::FrameProducer::UnlockPrimaryBuffer()
++{
++    m_bufferMutex.unlock();
++}
++
++bool CameraDevice::ProduceFrame(void *buffer, int64_t *timestamp)
++{
++    int width = 1080;
++    int height = 1920;
++    int ySize = width * height;
++    int uvSize = ySize / 4;
++    int fileSize = ySize + uvSize * 2;
++
++    char prop[PROPERTY_VALUE_MAX] = {0};
++    // 此处带默认值调用property_get接口，不存在失败场景。因此不判断错误码。
++    property_get(KBOX_CAMERA_MOCK_YUV, prop, DEFAULT_YUV.c_str());
++    FILE *fp = std::fopen(prop, "rb");
++    bool res = true;
++    if (fp == nullptr) {
++        ALOGE("Open file failed");
++        m_currentColor = &m_greenYUV;
++        DrawSolid(buffer, m_currentColor);
++    } else {
++        uint8_t *currentFrame = static_cast<uint8_t *>(buffer);
++        int count = fread(currentFrame, fileSize, 1, fp);
++        if (count == 0) {
++            res = false;
++        }
++        (void)fclose(fp);
++    }
++    if (timestamp != nullptr) {
++        *timestamp = 0L;
++    }
++    return true;
++}
++
++void CameraDevice::DrawSolid(void *buffer, YUVPixel *color)
++{
++    ALOGV("Draw green frame");
++    YUVPixel adjustedColor = *color;
++    ChangeWhiteBalance(adjustedColor.Y, adjustedColor.U, adjustedColor.V);
++    uint8_t *mCurrentFrame = static_cast<uint8_t *>(buffer);
++    memset(mCurrentFrame, ChangeExposure(adjustedColor.Y), m_frameHeight * m_yStride);
++
++    uint8_t *mFrameU = mCurrentFrame + m_frameUOffset;
++    uint8_t *mFrameV = mCurrentFrame + m_frameVOffset;
++    for (int y = 0; y < m_frameHeight / 2; ++y) {
++        uint8_t *u = mFrameU + y * m_uVStride;
++        uint8_t *v = mFrameV + y * m_uVStride;
++
++        for (int x = 0; x < m_frameWidth / 2; ++x, u += m_uVStep, v += m_uVStep) {
++            *u = color->U;
++            *v = color->V;
++        }
++    }
++}
++
++void CameraDevice::ChangeWhiteBalance(uint8_t &y, uint8_t &u, uint8_t &v) const
++{
++    float rScale = m_whiteBalanceScale[0];
++    float bScale = m_whiteBalanceScale[2];
++    int r = static_cast<float>(YUV2R(y, u, v)) / rScale;
++    int g = YUV2G(y, u, v);
++    int b = static_cast<float>(YUV2B(y, u, v)) / bScale;
++
++    y = RGB2Y(r, g, b);
++    u = RGB2U(r, g, b);
++    v = RGB2V(r, g, b);
++}
++
++void CameraDevice::CheckAutoFocusTrigger()
++{
++    bool expectedTrigger = true;
++    if (m_triggerAutoFocus.compare_exchange_strong(expectedTrigger, false)) {
++        m_cameraHAL->AutoFocusComplete();
++    }
++}
++
++}  // namespace CameraMock
+\ No newline at end of file
+diff --git a/camera-kbox/camera_device.h b/camera-kbox/camera_device.h
+new file mode 100644
+index 0000000..fdf83cf
+--- /dev/null
++++ b/camera-kbox/camera_device.h
+@@ -0,0 +1,224 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#ifndef CAMERA_MOCK_CAMERA_DEVICE_H
++#define CAMERA_MOCK_CAMERA_DEVICE_H
++
++#include <utils/KeyedVector.h>
++#include <utils/String8.h>
++#include <utils/Timers.h>
++#include <vector>
++#include "converters.h"
++#include "worker_thread.h"
++
++namespace CameraMock {
++
++class Camera;
++
++class CameraDevice {
++public:
++    explicit CameraDevice(Camera *cameraHal);
++
++    virtual ~CameraDevice();
++
++    virtual android::status_t ConnectDevice();
++
++    virtual android::status_t DisconnectDevice();
++
++    virtual android::status_t StartDevice(int width, int height, uint32_t pix_fmt);
++    virtual android::status_t StopDevice();
++
++    virtual android::status_t StopDeliveringFrames();
++    virtual android::status_t StartDeliveringFrames(bool oneBurst);
++    virtual android::status_t GetCurrentPreviewFrame(void *buffer, int64_t *timestamp);
++    virtual const void *GetCurrentFrame();
++
++    virtual android::status_t GetCurrentFrame(void *buffer, uint32_t pixelFormat, int64_t *timestamp);
++
++    android::status_t GetCurrentFrameImpl(const uint8_t *source, uint8_t *dest, uint32_t pixelFormat) const;
++    virtual android::status_t Initialize();
++
++    inline int GetFrameWidth() const
++    {
++        ALOGE_IF(!IsStarted(), "Device is not started");
++        return m_frameWidth;
++    }
++    inline int GetFrameHeight() const
++    {
++        ALOGE_IF(!IsStarted(), "Device is not started");
++        return m_frameHeight;
++    }
++
++    inline size_t GetFrameBufferSize() const
++    {
++        ALOGE_IF(!IsStarted(), "Device is not started");
++        return m_frameBufferSize;
++    }
++    inline size_t GetVideoFrameBufferSize() const
++    {
++        ALOGE_IF(!IsStarted(), "Device is not started");
++        return m_frameWidth * m_frameHeight * 3 / 2;  // YUV大小为frame大小的1.5倍
++    }
++    inline int GetPixelNum() const
++    {
++        ALOGE_IF(!IsStarted(), "Device is not started");
++        return m_totalPixels;
++    }
++
++    inline uint32_t GetOriginalPixelFormat() const
++    {
++        ALOGE_IF(!IsStarted(), "Device is not started");
++        return m_pixelFormat;
++    }
++
++    inline bool IsInitialized() const
++    {
++        return m_state != ECDS_CONSTRUCTED;
++    }
++    inline bool IsConnected() const
++    {
++        return m_state == ECDS_CONNECTED || m_state == ECDS_STARTED;
++    }
++    inline bool IsStarted() const
++    {
++        return m_state == ECDS_STARTED;
++    }
++
++    class FrameLock {
++    public:
++        FrameLock(CameraDevice &cameraDevice);
++        ~FrameLock();
++
++    private:
++        CameraDevice &m_cameraDevice;
++    };
++
++    /*
++     * 白平衡
++     */
++    virtual void InitializeWhiteBalanceModes(const char *mode, const float r_scale, const float b_scale);
++    virtual void SetWhiteBalanceMode(const char *mode);
++    android::status_t SetPreviewFrameRate(int framesPerSecond);
++    virtual android::status_t SetAutoFocus();
++    virtual android::status_t CancelAutoFocus();
++    bool RequestRestart(int width, int height, uint32_t pixelFormat, bool takingPicture, bool oneBurst);
++    virtual android::status_t CommonStartDevice(int width, int height, uint32_t pix_fmt);
++    virtual void CommonStopDevice();
++    inline uint8_t ChangeExposure(const uint8_t &inputY) const
++    {
++        return static_cast<uint8_t>(clamp(static_cast<float>(inputY) * m_exposureCompensation));
++    }
++    void CheckAutoFocusTrigger();
++    void ChangeWhiteBalance(uint8_t &y, uint8_t &u, uint8_t &v) const;
++    void DrawSolid(void *buffer, YUVPixel *color);
++    virtual android::status_t StartWorkerThread(bool oneBurst);
++    virtual android::status_t StopWorkerThread();
++    virtual bool ProduceFrame(void *buffer, int64_t *timestamp);
++
++    virtual void *GetPrimaryBuffer()
++    {
++        return m_frameBuffers[0].data();
++    }
++
++    class CameraThread : public WorkerThread {
++    public:
++        typedef bool (*ProduceFrameFunc)(void *opaque, void *destinationBuffer, int64_t *destinationTimestamp);
++        CameraThread(CameraDevice *cameraDevice, ProduceFrameFunc producer, void *producerOpaque);
++
++        const void *GetPrimaryBuffer() const;
++        int64_t GetPrimaryTimestamp() const;
++        void LockPrimaryBuffer();
++        void UnlockPrimaryBuffer();
++
++        void RequestRestart(int width, int height, uint32_t pixelFormat, bool takingPicture, bool oneBurst);
++
++    private:
++        bool CheckRestartRequest();
++        bool WaitForFrameOrTimeout(nsecs_t timeout);
++        bool InWorkerThread() override;
++        android::status_t OnThreadStart() override;
++        void OnThreadExit() override;
++
++        class FrameProducer : public WorkerThread {
++        public:
++            FrameProducer(CameraDevice *cameraDevice, ProduceFrameFunc producer, void *opaque, void *primaryBuffer);
++            /* Indicates if the producer has produced at least one frame. */
++            bool HasFrame() const;
++            const void *GetPrimaryBuffer() const;
++            int64_t GetPrimaryTimestamp() const;
++            void LockPrimaryBuffer();
++            void UnlockPrimaryBuffer();
++
++        protected:
++            bool InWorkerThread() override;
++
++            ProduceFrameFunc m_producer;
++            void *m_opaque;
++            void *m_primaryBuffer;
++            int64_t m_primaryTimestamp;
++            nsecs_t m_lastFrame;
++            mutable Mutex m_bufferMutex;
++        };
++
++        nsecs_t m_curFrameTimestamp;
++        android::sp<FrameProducer> m_frameProducer;
++        ProduceFrameFunc m_producerFunc;
++        void *m_producerOpaque;
++
++        Mutex m_requestMutex;
++        int m_restartWidth;
++        int m_restartHeight;
++        uint32_t m_restartPixelFormat;
++        bool m_restartOneBurst;
++        bool m_restartTakingPicture;
++        bool m_restartRequested;
++    };
++
++protected:
++    Mutex m_objectLock;
++    android::sp<CameraThread> m_cameraThread;
++    Camera *m_cameraHAL;
++    std::vector<uint8_t> m_frameBuffers[2];
++    size_t m_frameBufferSize;
++    uint32_t m_pixelFormat;
++    int m_frameWidth;
++    int m_frameHeight;
++    int m_framesPerSecond;
++    int m_yStride;
++    int m_uVStride;
++    int m_totalPixels;
++    float m_exposureCompensation;
++    /* 白平衡 */
++    float *m_whiteBalanceScale;
++    android::DefaultKeyedVector<android::String8, float *> m_supportedWhiteBalanceScale;
++    enum CameraDeviceState {
++        ECDS_CONSTRUCTED,
++        ECDS_INITIALIZED,
++        ECDS_CONNECTED,
++        ECDS_STARTED,
++    };
++    CameraDeviceState m_state;
++
++private:
++    void LockCurrentFrame();
++    void UnlockCurrentFrame();
++
++    static bool staticProduceFrame(void *opaque, void *buffer, int64_t *timestamp)
++    {
++        auto cameraDevice = static_cast<CameraDevice *>(opaque);
++        return cameraDevice->ProduceFrame(buffer, timestamp);
++    }
++
++    std::atomic<bool> m_triggerAutoFocus;
++
++    ptrdiff_t m_frameUOffset;
++    ptrdiff_t m_frameVOffset;
++    int m_uVStep;
++    int m_uVInRow;
++    YUVPixel m_greenYUV;
++    YUVPixel *m_currentColor;
++};
++
++};  // namespace CameraMock
++
++#endif /* CAMERA_MOCK_CAMERA_DEVICE_H */
+diff --git a/camera-kbox/camera_factory.cpp b/camera-kbox/camera_factory.cpp
+new file mode 100644
+index 0000000..350dc75
+--- /dev/null
++++ b/camera-kbox/camera_factory.cpp
+@@ -0,0 +1,138 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++
++#include "camera_factory.h"
++#include <vector>
++#include <log/log.h>
++#include <cerrno>
++#include "camera_hal_interface.h"
++#include "camera.h"
++CameraMock::CameraFactory g_cameraFactory;
++
++namespace CameraMock {
++CameraFactory::CameraFactory() noexcept
++    : m_constructedOK(false), m_gBM(&android::GraphicBufferMapper::get()), m_callbacks(nullptr)
++{
++    CreateCamera(true);
++    CreateCamera(false);
++    m_constructedOK = true;
++}
++
++CameraFactory::~CameraFactory()
++{
++    for (auto &c : m_cameras) {
++        c->CloseCamera();
++        c = nullptr;
++    }
++    m_cameras.clear();
++}
++
++void CameraFactory::CreateCamera(bool backCamera)
++{
++    auto camera = std::make_unique<Camera>(m_cameras.size(), backCamera, &HAL_MODULE_INFO_SYM.common, m_gBM);
++    if (camera == nullptr) {
++        ALOGE("Camera malloc fail");
++        return;
++    }
++    android::status_t res = camera->Initialize();
++    if (res == android::NO_ERROR) {
++        m_cameras.push_back(std::move(camera));
++    } else {
++        ALOGE("Unable to initialize %s camera %zu: %s (%d)",
++            backCamera ? "back" : "front",
++            m_cameras.size(),
++            strerror(-res),
++            res);
++    }
++}
++
++int CameraFactory::StaticDeviceOpen(const hw_module_t *module, const char *name, hw_device_t **device)
++{
++    return g_cameraFactory.DeviceOpen(atoi(name), device);
++}
++
++int CameraFactory::StaticGetNumberOfCameras(void)
++{
++    return g_cameraFactory.GetNumberOfCameras();
++}
++
++int CameraFactory::StaticGetCameraInfo(int cameraId, struct camera_info *info)
++{
++    return g_cameraFactory.GetCameraInfo(cameraId, info);
++}
++
++int CameraFactory::StaticSetCallbacks(const camera_module_callbacks_t *callbacks)
++{
++    return g_cameraFactory.SetCallbacks(callbacks);
++}
++
++void CameraFactory::StaticGetVendorTagOps(vendor_tag_ops_t *ops)
++{
++    return g_cameraFactory.GetVendorTagOps(ops);
++}
++
++int CameraFactory::StaticOpenLegacy(
++    const struct hw_module_t *module, const char *id, uint32_t halVersion, struct hw_device_t **device)
++{
++    return -ENOSYS;
++}
++
++int CameraFactory::DeviceOpen(int cameraId, hw_device_t **device)
++{
++    *device = nullptr;
++    if (!IsConstructedOK()) {
++        ALOGE("CameraFactory has failed to initialize");
++        return -EINVAL;
++    }
++    if (cameraId < 0 || cameraId >= GetNumberOfCameras()) {
++        ALOGE("Camera id %d is out of bounds (%d)", cameraId, GetNumberOfCameras());
++        return -ENODEV;
++    }
++    return m_cameras[cameraId]->ConnectCamera(device);
++}
++
++int CameraFactory::GetNumberOfCameras() const
++{
++    return m_cameras.size();
++}
++
++int CameraFactory::GetCameraInfo(int cameraId, struct camera_info *info)
++{
++    if (!IsConstructedOK()) {
++        ALOGE("CameraFactory has failed to initialize");
++        return -EINVAL;
++    }
++
++    if (cameraId < 0 || cameraId >= GetNumberOfCameras()) {
++        ALOGE("Camera id %d is out of bounds (%d)", cameraId, GetNumberOfCameras());
++        return -ENODEV;
++    }
++    return m_cameras[cameraId]->GetCameraInfo(info);
++}
++
++int CameraFactory::SetCallbacks(const camera_module_callbacks_t *callbacks)
++{
++    ALOGD("callbacks = %p", callbacks);
++    m_callbacks = callbacks;
++    return android::OK;
++}
++
++void CameraFactory::GetVendorTagOps(vendor_tag_ops_t *ops)
++{
++    ALOGD("ops = %p", ops);
++}
++
++struct hw_module_methods_t CameraFactory::m_cameraModuleMethods = {.open = CameraFactory::StaticDeviceOpen};
++
++bool CameraFactory::IsConstructedOK() const
++{
++    return m_constructedOK;
++}
++
++int CameraFactory::GetFakeCameraOrientation()
++{
++    int degree = property_get_int32(KBOX_CAMERA_ORIENTATION, 0);
++    return degree;
++}
++}  // namespace CameraMock
+diff --git a/camera-kbox/camera_factory.h b/camera-kbox/camera_factory.h
+new file mode 100644
+index 0000000..c0d5339
+--- /dev/null
++++ b/camera-kbox/camera_factory.h
+@@ -0,0 +1,65 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#ifndef CAMERA_MOCK_CAMERA_FACTORY_H
++#define CAMERA_MOCK_CAMERA_FACTORY_H
++
++#include <cutils/properties.h>
++#include <hardware/camera_common.h>
++#include "camera.h"
++#include "ui/GraphicBufferMapper.h"
++
++#define HARDWARE_HAL_API_VERSION HARDWARE_MAKE_API_VERSION(1, 0)
++
++constexpr char *KBOX_CAMERA_ORIENTATION = "kbox.camera.orientation";
++
++namespace CameraMock {
++class CameraFactory {
++public:
++    CameraFactory() noexcept;
++
++    ~CameraFactory();
++
++    static int StaticDeviceOpen(const hw_module_t *module, const char *name, hw_device_t **device);
++
++    static int StaticGetNumberOfCameras(void);
++
++    static int StaticGetCameraInfo(int cameraId, struct camera_info *info);
++
++    static int StaticSetCallbacks(const camera_module_callbacks_t *callbacks);
++
++    static void StaticGetVendorTagOps(vendor_tag_ops_t *ops);
++
++    static int StaticOpenLegacy(
++        const struct hw_module_t *module, const char *id, uint32_t halVersion, struct hw_device_t **device);
++
++    int DeviceOpen(int cameraId, hw_device_t **device);
++
++    int GetNumberOfCameras() const;
++
++    int GetCameraInfo(int cameraId, struct camera_info *info);
++
++    int SetCallbacks(const camera_module_callbacks_t *callbacks);
++
++    void GetVendorTagOps(vendor_tag_ops_t *ops);
++
++    void CreateCamera(bool backCamera);
++
++    static struct hw_module_methods_t m_cameraModuleMethods;
++
++    bool IsConstructedOK() const;
++
++    int GetFakeCameraOrientation();
++
++private:
++    bool m_constructedOK;
++
++    android::GraphicBufferMapper *m_gBM;
++
++    const camera_module_callbacks_t *m_callbacks;
++
++    std::vector<std::unique_ptr<BaseCamera>> m_cameras;
++};
++};  // namespace CameraMock
++
++#endif  // CAMERA_MOCK_CAMERA_FACTORY_H
+\ No newline at end of file
+diff --git a/camera-kbox/camera_hal_interface.cpp b/camera-kbox/camera_hal_interface.cpp
+new file mode 100644
+index 0000000..c38bc2d
+--- /dev/null
++++ b/camera-kbox/camera_hal_interface.cpp
+@@ -0,0 +1,25 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#include "camera_hal_interface.h"
++#include "camera_factory.h"
++
++camera_module_t HAL_MODULE_INFO_SYM = {.common =
++                                           {
++                                               .tag = HARDWARE_MODULE_TAG,
++                                               .version_major = 1,
++                                               .version_minor = 0,
++                                               .id = CAMERA_HARDWARE_MODULE_ID,
++                                               .name = "Huawei Camera Module",
++                                               .author = "Huawei Technologies Co.",
++                                               .module_api_version = CAMERA_MODULE_API_VERSION_1_0,
++                                               .hal_api_version = HARDWARE_HAL_API_VERSION,
++                                               .methods = &CameraMock::CameraFactory::m_cameraModuleMethods,
++                                               .dso = nullptr,
++                                               .reserved = {0},
++                                           },
++    .get_number_of_cameras = CameraMock::CameraFactory::StaticGetNumberOfCameras,
++    .get_camera_info = CameraMock::CameraFactory::StaticGetCameraInfo,
++    .set_callbacks = CameraMock::CameraFactory::StaticSetCallbacks,
++    .get_vendor_tag_ops = CameraMock::CameraFactory::StaticGetVendorTagOps,
++    .open_legacy = CameraMock::CameraFactory::StaticOpenLegacy};
+\ No newline at end of file
+diff --git a/camera-kbox/camera_hal_interface.h b/camera-kbox/camera_hal_interface.h
+new file mode 100644
+index 0000000..5f38b21
+--- /dev/null
++++ b/camera-kbox/camera_hal_interface.h
+@@ -0,0 +1,11 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#ifndef CAMERA_HAL_INTERFACE_H
++#define CAMERA_HAL_INTERFACE_H
++
++#include <hardware/camera_common.h>
++
++extern camera_module_t HAL_MODULE_INFO_SYM;
++
++#endif
+\ No newline at end of file
+diff --git a/camera-kbox/converters.cpp b/camera-kbox/converters.cpp
+new file mode 100644
+index 0000000..8992020
+--- /dev/null
++++ b/camera-kbox/converters.cpp
+@@ -0,0 +1,130 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#include "converters.h"
++#include <log/log.h>
++#include "alignment.h"
++
++namespace CameraMock {
++
++static void _YUV420SToRGB565(const uint8_t *Y, const uint8_t *U, const uint8_t *V, int dUV, uint16_t *rgb, int width,
++    int height, int y_stride, int uv_stride)
++{
++    const uint8_t *Y_pos = Y;
++    const uint8_t *U_pos = U;
++    const uint8_t *V_pos = V;
++
++    for (int y = 0; y < height; y++) {
++        Y = Y_pos + y_stride * y;
++        U = U_pos + uv_stride * (y / 2);
++        V = V_pos + uv_stride * (y / 2);
++        for (int x = 0; x < width; x += 2, U += dUV, V += dUV) {
++            const uint8_t nU = *U;
++            const uint8_t nV = *V;
++            *rgb = YUVToRGB565(*Y, nU, nV);
++            Y++;
++            rgb++;
++            *rgb = YUVToRGB565(*Y, nU, nV);
++            Y++;
++            rgb++;
++        }
++    }
++}
++
++static void _YUV420SToRGB32(const uint8_t *Y, const uint8_t *U, const uint8_t *V, int dUV, uint32_t *rgb, int width,
++    int height, int y_stride, int uv_stride)
++{
++    const uint8_t *Y_pos = Y;
++    const uint8_t *U_pos = U;
++    const uint8_t *V_pos = V;
++
++    for (int y = 0; y < height; y++) {
++        Y = Y_pos + y_stride * y;
++        U = U_pos + uv_stride * (y / 2);
++        V = V_pos + uv_stride * (y / 2);
++        for (int x = 0; x < width; x += 2, U += dUV, V += dUV) {
++            const uint8_t nU = *U;
++            const uint8_t nV = *V;
++            *rgb = YUVToRGB32(*Y, nU, nV);
++            Y++;
++            rgb++;
++            *rgb = YUVToRGB32(*Y, nU, nV);
++            Y++;
++            rgb++;
++        }
++    }
++}
++
++void YV12ToRGB565(const void *yv12, void *rgb, int width, int height)
++{
++    const int y_stride = Align(width, 16);
++    const int uv_stride = Align(y_stride / 2, 16);
++    const uint8_t *Y = reinterpret_cast<const uint8_t *>(yv12);
++    const uint8_t *U = Y + y_stride * height;
++    const uint8_t *V = U + uv_stride * (height / 2);
++    _YUV420SToRGB565(Y, U, V, 1, reinterpret_cast<uint16_t *>(rgb), width, height, y_stride, uv_stride);
++}
++
++void YV12ToRGB32(const void *yv12, void *rgb, int width, int height)
++{
++    const int y_stride = Align(width, 16);
++    const int uv_stride = Align(y_stride / 2, 16);
++    const uint8_t *Y = reinterpret_cast<const uint8_t *>(yv12);
++    const uint8_t *V = Y + y_stride * height;
++    const uint8_t *U = V + uv_stride * (height / 2);
++    _YUV420SToRGB32(Y, U, V, 1, reinterpret_cast<uint32_t *>(rgb), width, height, y_stride, uv_stride);
++}
++
++void YU12ToRGB32(const void *yu12, void *rgb, int width, int height)
++{
++    const int y_stride = Align(width, 16);
++    const int uv_stride = Align(y_stride / 2, 16);
++    const uint8_t *Y = reinterpret_cast<const uint8_t *>(yu12);
++    const uint8_t *U = Y + y_stride * height;
++    const uint8_t *V = U + uv_stride * (height / 2);
++    _YUV420SToRGB32(Y, U, V, 1, reinterpret_cast<uint32_t *>(rgb), width, height, y_stride, uv_stride);
++}
++
++static void _NVXXToRGB565(const uint8_t *Y, const uint8_t *U, const uint8_t *V, uint16_t *rgb, int width, int height)
++{
++    int y_stride = width;
++    int uv_stride = width;
++    _YUV420SToRGB565(Y, U, V, 2, rgb, width, height, y_stride, uv_stride);
++}
++
++static void _NVXXToRGB32(const uint8_t *Y, const uint8_t *U, const uint8_t *V, uint32_t *rgb, int width, int height)
++{
++    int y_stride = width;
++    int uv_stride = width;
++    _YUV420SToRGB32(Y, U, V, 2, rgb, width, height, y_stride, uv_stride);
++}
++
++void NV12ToRGB565(const void *nv12, void *rgb, int width, int height)
++{
++    const int pix_total = width * height;
++    const uint8_t *y = reinterpret_cast<const uint8_t *>(nv12);
++    _NVXXToRGB565(y, y + pix_total, y + pix_total + 1, reinterpret_cast<uint16_t *>(rgb), width, height);
++}
++
++void NV12ToRGB32(const void *nv12, void *rgb, int width, int height)
++{
++    const int pix_total = width * height;
++    const uint8_t *y = reinterpret_cast<const uint8_t *>(nv12);
++    _NVXXToRGB32(y, y + pix_total, y + pix_total + 1, reinterpret_cast<uint32_t *>(rgb), width, height);
++}
++
++void NV21ToRGB565(const void *nv21, void *rgb, int width, int height)
++{
++    const int pix_total = width * height;
++    const uint8_t *y = reinterpret_cast<const uint8_t *>(nv21);
++    _NVXXToRGB565(y, y + pix_total + 1, y + pix_total, reinterpret_cast<uint16_t *>(rgb), width, height);
++}
++
++void NV21ToRGB32(const void *nv21, void *rgb, int width, int height)
++{
++    const int pix_total = width * height;
++    const uint8_t *y = reinterpret_cast<const uint8_t *>(nv21);
++    _NVXXToRGB32(y, y + pix_total + 1, y + pix_total, reinterpret_cast<uint32_t *>(rgb), width, height);
++}
++
++}; /* namespace CameraMock */
+diff --git a/camera-kbox/converters.h b/camera-kbox/converters.h
+new file mode 100644
+index 0000000..aa7e7bb
+--- /dev/null
++++ b/camera-kbox/converters.h
+@@ -0,0 +1,185 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#ifndef CAMERA_MOCK_CONVERTERS_H
++#define CAMERA_MOCK_CONVERTERS_H
++
++#include <endian.h>
++
++#ifndef __BYTE_ORDER
++#error "could not determine byte order"
++#endif
++
++namespace CameraMock {
++
++#if __BYTE_ORDER == __LITTLE_ENDIAN
++static const uint16_t kRed5 = 0x001f;
++static const uint16_t kGreen6 = 0x07e0;
++static const uint16_t kBlue5 = 0xf800;
++#else
++static const uint16_t kRed5 = 0xf800;
++static const uint16_t kGreen6 = 0x07e0;
++static const uint16_t kBlue5 = 0x001f;
++#endif
++static const uint32_t kBlack16 = 0x0000;
++static const uint32_t kWhite16 = kRed5 | kGreen6 | kBlue5;
++
++#if __BYTE_ORDER == __LITTLE_ENDIAN
++static const uint32_t kRed8 = 0x000000ff;
++static const uint32_t kGreen8 = 0x0000ff00;
++static const uint32_t kBlue8 = 0x00ff0000;
++#else
++static const uint32_t kRed8 = 0x00ff0000;
++static const uint32_t kGreen8 = 0x0000ff00;
++static const uint32_t kBlue8 = 0x000000ff;
++#endif
++static const uint32_t kBlack32 = 0x00000000;
++static const uint32_t kWhite32 = kRed8 | kGreen8 | kBlue8;
++
++#if __BYTE_ORDER == __LITTLE_ENDIAN
++#define R16(rgb) static_cast<uint8_t>((rgb)&kRed5)
++#define G16(rgb) static_cast<uint8_t>(((rgb)&kGreen6) >> 5)
++#define B16(rgb) static_cast<uint8_t>(((rgb)&kBlue5) >> 11)
++#define R16_32(rgb) static_cast<uint8_t>((((rgb)&kRed5) << 3) | (((rgb)&kRed5) >> 2))
++#define G16_32(rgb) static_cast<uint8_t>((((rgb)&kGreen6) >> 3) | (((rgb)&kGreen6) >> 9))
++#define B16_32(rgb) static_cast<uint8_t>((((rgb)&kBlue5) >> 8) | (((rgb)&kBlue5) >> 14))
++
++#define R32(rgb) static_cast<uint8_t>((rgb)&kRed8)
++#define G32(rgb) static_cast<uint8_t>((((rgb)&kGreen8) >> 8) & 0xff)
++#define B32(rgb) static_cast<uint8_t>((((rgb)&kBlue8) >> 16) & 0xff)
++
++#define RGB565(r, g, b) static_cast<uint16_t>((((static_cast<uint16_t>(b) << 6) | (g)) << 5) | (r))
++#define RGB32(r, g, b) static_cast<uint32_t>((((static_cast<uint32_t>(b) << 8) | (g)) << 8) | (r))
++#else
++#define R16(rgb) static_cast<uint8_t>(((rgb)&kRed5) >> 11)
++#define G16(rgb) static_cast<uint8_t>(((rgb)&kGreen6) >> 5)
++#define B16(rgb) static_cast<uint8_t>((rgb)&kBlue5)
++#define R16_32(rgb) static_cast<uint8_t>((((rgb)&kRed5) >> 8) | (((rgb)&kRed5) >> 14))
++#define G16_32(rgb) static_cast<uint8_t>((((rgb)&kGreen6) >> 3) | (((rgb)&kGreen6) >> 9))
++#define B16_32(rgb) static_cast<uint8_t>((((rgb)&kBlue5) << 3) | (((rgb)&kBlue5) >> 2))
++#define R32(rgb) static_cast<uint8_t>(((rgb)&kRed8) >> 16)
++#define G32(rgb) static_cast<uint8_t>(((rgb)&kGreen8) >> 8)
++#define B32(rgb) static_cast<uint8_t>((rgb)&kBlue8)
++#define RGB565(r, g, b) static_cast<uint16_t>((((static_cast<uint16_t>(r) << 6) | g) << 5) | b)
++#define RGB32(r, g, b) static_cast<uint32_t>((((static_cast<uint32_t>(r) << 8) | g) << 8) | b)
++#endif
++typedef union RGB32_t {
++    uint32_t color;
++    struct {
++#if __BYTE_ORDER == __LITTLE_ENDIAN
++        uint8_t r;
++        uint8_t g;
++        uint8_t b;
++        uint8_t a;
++#else
++        uint8_t a;
++        uint8_t b;
++        uint8_t g;
++        uint8_t r;
++#endif
++    };
++} RGB32_t;
++static __inline__ int clamp(int x)
++{
++    if (x > 255)
++        return 255;
++    if (x < 0)
++        return 0;
++    return x;
++}
++#define RGB2Y(r, g, b) (uint8_t)(((66 * (r) + 129 * (g) + 25 * (b) + 128) >> 8) + 16)
++#define RGB2U(r, g, b) (uint8_t)(((-38 * (r)-74 * (g) + 112 * (b) + 128) >> 8) + 128)
++#define RGB2V(r, g, b) (uint8_t)(((112 * (r)-94 * (g)-18 * (b) + 128) >> 8) + 128)
++
++static __inline__ void R8G8B8ToYUV(uint8_t r, uint8_t g, uint8_t b, uint8_t *y, uint8_t *u, uint8_t *v)
++{
++    *y = RGB2Y((int)r, (int)g, (int)b);
++    *u = RGB2U((int)r, (int)g, (int)b);
++    *v = RGB2V((int)r, (int)g, (int)b);
++}
++
++static __inline__ void RGB565ToYUV(uint16_t rgb, uint8_t *y, uint8_t *u, uint8_t *v)
++{
++    R8G8B8ToYUV(R16_32(rgb), G16_32(rgb), B16_32(rgb), y, u, v);
++}
++
++static __inline__ void RGB32ToYUV(uint32_t rgb, uint8_t *y, uint8_t *u, uint8_t *v)
++{
++    RGB32_t rgb_c;
++    rgb_c.color = rgb;
++    R8G8B8ToYUV(rgb_c.r, rgb_c.g, rgb_c.b, y, u, v);
++}
++#define YUV2RO(C, D, E) clamp((298 * (C) + 409 * (E) + 128) >> 8)
++#define YUV2GO(C, D, E) clamp((298 * (C)-100 * (D)-208 * (E) + 128) >> 8)
++#define YUV2BO(C, D, E) clamp((298 * (C) + 516 * (D) + 128) >> 8)
++
++#define YUV2R(y, u, v) clamp((298 * ((y)-16) + 409 * ((v)-128) + 128) >> 8)
++#define YUV2G(y, u, v) clamp((298 * ((y)-16) - 100 * ((u)-128) - 208 * ((v)-128) + 128) >> 8)
++#define YUV2B(y, u, v) clamp((298 * ((y)-16) + 516 * ((u)-128) + 128) >> 8)
++
++static __inline__ uint16_t YUVToRGB565(int y, int u, int v)
++{
++    y -= 16;
++    u -= 128;
++    v -= 128;
++    const uint16_t r = (YUV2RO(y, u, v) >> 3) & 0x1f;
++    const uint16_t g = (YUV2GO(y, u, v) >> 2) & 0x3f;
++    const uint16_t b = (YUV2BO(y, u, v) >> 3) & 0x1f;
++    return RGB565(r, g, b);
++}
++
++static __inline__ uint32_t YUVToRGB32(int y, int u, int v)
++{
++    y -= 16;
++    u -= 128;
++    v -= 128;
++    RGB32_t rgb;
++    rgb.r = YUV2RO(y, u, v) & 0xff;
++    rgb.g = YUV2GO(y, u, v) & 0xff;
++    rgb.b = YUV2BO(y, u, v) & 0xff;
++    return rgb.color;
++}
++
++struct YUVPixel {
++    uint8_t Y;
++    uint8_t U;
++    uint8_t V;
++
++    inline YUVPixel() : Y(0), U(0), V(0)
++    {}
++
++    inline explicit YUVPixel(uint16_t rgb565)
++    {
++        RGB565ToYUV(rgb565, &Y, &U, &V);
++    }
++
++    inline explicit YUVPixel(uint32_t rgb32)
++    {
++        RGB32ToYUV(rgb32, &Y, &U, &V);
++    }
++
++    inline void get(uint8_t *pY, uint8_t *pU, uint8_t *pV) const
++    {
++        *pY = Y;
++        *pU = U;
++        *pV = V;
++    }
++};
++
++void YV12ToRGB565(const void *yv12, void *rgb, int width, int height);
++
++void YV12ToRGB32(const void *yv12, void *rgb, int width, int height);
++
++void YU12ToRGB32(const void *yu12, void *rgb, int width, int height);
++
++void NV12ToRGB565(const void *nv12, void *rgb, int width, int height);
++
++void NV12ToRGB32(const void *nv12, void *rgb, int width, int height);
++
++void NV21ToRGB565(const void *nv21, void *rgb, int width, int height);
++
++void NV21ToRGB32(const void *nv21, void *rgb, int width, int height);
++
++}; // namespace CameraMock
++
++#endif  // CAMERA_MOCK_CONVERTERS_H
+diff --git a/camera-kbox/exif.cpp b/camera-kbox/exif.cpp
+new file mode 100644
+index 0000000..572f73f
+--- /dev/null
++++ b/camera-kbox/exif.cpp
+@@ -0,0 +1,384 @@
++#include "exif.h"
++#include <log/log.h>
++#include <cutils/properties.h>
++#include <cinttypes>
++#include <cmath>
++#include <cstdint>
++#include <libexif/exif-data.h>
++#include <libexif/exif-entry.h>
++#include <libexif/exif-ifd.h>
++#include <libexif/exif-tag.h>
++#include <string>
++#include <vector>
++
++#if defined(__LP64__)
++#include <ctime>
++using Timestamp = time_t;
++#define TIMESTAMP_TO_TM(timestamp, tm) gmtime_r(timestamp, tm)
++#else
++#include <time64.h>
++using Timestamp = time64_t;
++#define TIMESTAMP_TO_TM(timestamp, tm) gmtime64_r(timestamp, tm)
++#endif
++
++namespace CameraMock {
++
++static const unsigned char kAsciiPrefix[] = {
++    0x41, 0x53, 0x43, 0x49, 0x49, 0x00, 0x00, 0x00  // "ASCII\0\0\0"
++};
++
++static void RemoveExistingEntry(ExifData *exifData, ExifIfd ifd, int tag)
++{
++    ExifEntry *entry = exif_content_get_entry(exifData->ifd[ifd], static_cast<ExifTag>(tag));
++    if (entry) {
++        exif_content_remove_entry(exifData->ifd[ifd], entry);
++    }
++}
++
++static ExifEntry *AllocateEntry(int tag, ExifFormat format, unsigned int numComponents)
++{
++    ExifMem *mem = exif_mem_new_default();
++    ExifEntry *entry = exif_entry_new_mem(mem);
++
++    unsigned int size = numComponents * exif_format_get_size(format);
++    entry->data = reinterpret_cast<unsigned char *>(exif_mem_alloc(mem, size));
++    entry->size = size;
++    entry->tag = static_cast<ExifTag>(tag);
++    entry->components = numComponents;
++    entry->format = format;
++
++    exif_mem_unref(mem);
++    return entry;
++}
++
++template <size_t N>
++static bool CreateEntry(ExifData *exifData, ExifIfd ifd, int tag, const float (&values)[N], float denominator = 1000.0)
++{
++    RemoveExistingEntry(exifData, ifd, tag);
++    ExifByteOrder byteOrder = exif_data_get_byte_order(exifData);
++    ExifEntry *entry = AllocateEntry(tag, EXIF_FORMAT_RATIONAL, N);
++    exif_content_add_entry(exifData->ifd[ifd], entry);
++    unsigned int rationalSize = exif_format_get_size(EXIF_FORMAT_RATIONAL);
++    for (size_t i = 0; i < N; ++i) {
++        ExifRational rational = {static_cast<uint32_t>(values[i] * denominator), static_cast<uint32_t>(denominator)};
++
++        exif_set_rational(&entry->data[i * rationalSize], byteOrder, rational);
++    }
++
++    exif_entry_unref(entry);
++    return true;
++}
++
++static bool CreateEntry(ExifData *exifData, ExifIfd ifd, int tag, const float value, float denominator = 1000.0)
++{
++    float values[1] = {value};
++    return CreateEntry(exifData, ifd, tag, values, denominator);
++}
++
++static bool CreateEntry(ExifData *exifData, ExifIfd ifd, int tag, const unsigned char *data, size_t size,
++    ExifFormat format = EXIF_FORMAT_UNDEFINED)
++{
++    RemoveExistingEntry(exifData, ifd, tag);
++    ExifEntry *entry = AllocateEntry(tag, format, size);
++    memcpy(entry->data, data, size);
++    exif_content_add_entry(exifData->ifd[ifd], entry);
++    // Unref entry after changing owner to the ExifData struct
++    exif_entry_unref(entry);
++    return true;
++}
++
++static bool CreateEntry(ExifData *exifData, ExifIfd ifd, int tag, const char *value)
++{
++    unsigned int length = strlen(value) + 1;
++    const unsigned char *data = reinterpret_cast<const unsigned char *>(value);
++    return CreateEntry(exifData, ifd, tag, data, length, EXIF_FORMAT_ASCII);
++}
++
++static bool CreateEntry(ExifData *exifData, ExifIfd ifd, int tag)
++{
++    RemoveExistingEntry(exifData, ifd, tag);
++    ExifEntry *entry = exif_entry_new();
++    exif_content_add_entry(exifData->ifd[ifd], entry);
++    exif_entry_initialize(entry, static_cast<ExifTag>(tag));
++    exif_entry_unref(entry);
++    return true;
++}
++
++static bool CreateEntry(ExifData *exifData, ExifIfd ifd, int tag, int value)
++{
++    RemoveExistingEntry(exifData, ifd, tag);
++    ExifByteOrder byteOrder = exif_data_get_byte_order(exifData);
++    ExifEntry *entry = AllocateEntry(tag, EXIF_FORMAT_LONG, 1);
++    exif_content_add_entry(exifData->ifd[ifd], entry);
++    exif_set_long(entry->data, byteOrder, value);
++
++    exif_entry_unref(entry);
++    return true;
++}
++
++static bool CreateEntry(ExifData *exifData, ExifIfd ifd, int tag, uint16_t value)
++{
++    RemoveExistingEntry(exifData, ifd, tag);
++    ExifByteOrder byteOrder = exif_data_get_byte_order(exifData);
++    ExifEntry *entry = AllocateEntry(tag, EXIF_FORMAT_SHORT, 1);
++    exif_content_add_entry(exifData->ifd[ifd], entry);
++    exif_set_short(entry->data, byteOrder, value);
++
++    exif_entry_unref(entry);
++    return true;
++}
++
++static bool GetCameraParam(const CameraParameters &parameters, const char *parameterKey, const char **outValue)
++{
++    const char *value = parameters.get(parameterKey);
++    if (value) {
++        *outValue = value;
++        return true;
++    }
++    return false;
++}
++
++static bool GetCameraParam(const CameraParameters &parameters, const char *parameterKey, float *outValue)
++{
++    const char *value = parameters.get(parameterKey);
++    if (value) {
++        *outValue = parameters.getFloat(parameterKey);
++        return true;
++    }
++    return false;
++}
++
++static bool GetCameraParam(const CameraParameters &parameters, const char *parameterKey, int64_t *outValue)
++{
++    const char *value = parameters.get(parameterKey);
++    if (value) {
++        char dummy = 0;
++        if (sscanf(value, "%" SCNd64 "%c", outValue, &dummy) == 1) {
++            return true;
++        }
++    }
++    return false;
++}
++
++static void ConvertGpsCoordinate(float degrees, float (*result)[3])
++{
++    float absDegrees = fabs(degrees);
++    (*result)[0] = floor(absDegrees);
++
++    float minutes = (absDegrees - (*result)[0]) * 60.0f;
++    (*result)[1] = floor(minutes);
++
++    float seconds = (minutes - (*result)[1]) * 60.0f;
++    (*result)[2] = seconds;
++}
++
++static bool ConvertTimestampToTimeAndDate(int64_t timestamp, float (*timeValues)[3], std::string *date)
++{
++    Timestamp time = timestamp;
++    struct tm utcTime;
++    if (TIMESTAMP_TO_TM(&time, &utcTime) == nullptr) {
++        ALOGE("Could not decompose timestamp into components");
++        return false;
++    }
++    (*timeValues)[0] = utcTime.tm_hour;
++    (*timeValues)[1] = utcTime.tm_min;
++    (*timeValues)[2] = utcTime.tm_sec;
++
++    char buffer[64] = {};
++    if (strftime(buffer, sizeof(buffer), "%Y:%m:%d", &utcTime) == 0) {
++        ALOGE("Could not construct date string from timestamp");
++        return false;
++    }
++    *date = buffer;
++    return true;
++}
++
++static void ConvertToMetadata(const CameraParameters &src, CameraMetadata &dst)
++{
++    int64_t longValue;
++    float floatValue, floatGps[3];
++    const char *stringValue;
++
++    if (GetCameraParam(src, CameraParameters::KEY_ROTATION, &longValue)) {
++        int32_t degrees = (int32_t)longValue;
++        dst.update(ANDROID_JPEG_ORIENTATION, &degrees, 1);
++    }
++    if (GetCameraParam(src, CameraParameters::KEY_FOCAL_LENGTH, &floatValue)) {
++        dst.update(ANDROID_LENS_FOCAL_LENGTH, &floatValue, 1);
++    }
++    if (GetCameraParam(src, CameraParameters::KEY_GPS_LATITUDE, &floatGps[0]) &&
++        GetCameraParam(src, CameraParameters::KEY_GPS_LONGITUDE, &floatGps[1]) &&
++        GetCameraParam(src, CameraParameters::KEY_GPS_ALTITUDE, &floatGps[2])) {
++        double gps[3];
++        gps[0] = (double)floatGps[0];
++        gps[1] = (double)floatGps[1];
++        gps[2] = (double)floatGps[2];
++        dst.update(ANDROID_JPEG_GPS_COORDINATES, gps, 3);
++    }
++    if (GetCameraParam(src, CameraParameters::KEY_GPS_TIMESTAMP, &longValue)) {
++        dst.update(ANDROID_JPEG_GPS_TIMESTAMP, &longValue, 1);
++    }
++    if (GetCameraParam(src, CameraParameters::KEY_GPS_PROCESSING_METHOD, &stringValue)) {
++        dst.update(ANDROID_JPEG_GPS_PROCESSING_METHOD, (unsigned char *)stringValue, strlen(stringValue));
++    }
++}
++
++static ExifData *CreateExifDataCommon(const CameraMetadata &params, int width, int height)
++{
++    ExifData *exifData = exif_data_new();
++
++    exif_data_set_option(exifData, EXIF_DATA_OPTION_FOLLOW_SPECIFICATION);
++    exif_data_set_data_type(exifData, EXIF_DATA_TYPE_COMPRESSED);
++    exif_data_set_byte_order(exifData, EXIF_BYTE_ORDER_INTEL);
++
++    exif_data_fix(exifData);
++
++    float triplet[3];
++    const char *stringValue;
++    int32_t degrees;
++    float focalLength;
++
++    CreateEntry(exifData, EXIF_IFD_0, EXIF_TAG_DATE_TIME);
++
++    std::vector<char> prop(PROPERTY_VALUE_MAX);
++    property_get("ro.product.manufacturer", &prop[0], "");
++    CreateEntry(exifData, EXIF_IFD_0, EXIF_TAG_MAKE, &prop[0]);
++    property_get("ro.product.model", &prop[0], "");
++    CreateEntry(exifData, EXIF_IFD_0, EXIF_TAG_MODEL, &prop[0]);
++
++    if (width > 0 && height > 0) {
++        CreateEntry(exifData, EXIF_IFD_EXIF, EXIF_TAG_PIXEL_X_DIMENSION, width);
++        CreateEntry(exifData, EXIF_IFD_EXIF, EXIF_TAG_PIXEL_Y_DIMENSION, height);
++    }
++
++    camera_metadata_ro_entry_t entry;
++    entry = params.find(ANDROID_LENS_FOCAL_LENGTH);
++    focalLength = (entry.count > 0) ? entry.data.f[0] : 5.0f;
++    CreateEntry(exifData, EXIF_IFD_EXIF, EXIF_TAG_FOCAL_LENGTH, focalLength);
++    entry = params.find(ANDROID_JPEG_ORIENTATION);
++    degrees = (entry.count > 0) ? entry.data.i32[0] : 0;
++    ALOGV("degrees %d focalLength %f", degrees, focalLength);
++    enum {
++        EXIF_ROTATE_CAMERA_CW0 = 1,
++        EXIF_ROTATE_CAMERA_CW90 = 6,
++        EXIF_ROTATE_CAMERA_CW180 = 3,
++        EXIF_ROTATE_CAMERA_CW270 = 8,
++    };
++    uint16_t exifOrien = 1;
++    switch (degrees) {
++        case 0:
++            exifOrien = EXIF_ROTATE_CAMERA_CW0;
++            break;
++        case 90:
++            exifOrien = EXIF_ROTATE_CAMERA_CW90;
++            break;
++        case 180:
++            exifOrien = EXIF_ROTATE_CAMERA_CW180;
++            break;
++        case 270:
++            exifOrien = EXIF_ROTATE_CAMERA_CW270;
++            break;
++    }
++    CreateEntry(exifData, EXIF_IFD_0, EXIF_TAG_ORIENTATION, exifOrien);
++
++    entry = params.find(ANDROID_JPEG_GPS_COORDINATES);
++    if (entry.count > 0) {
++        ALOGV("Latitude %f Longitude %f Altitude %f", entry.data.d[0], entry.data.d[1], entry.data.d[2]);
++        ConvertGpsCoordinate(entry.data.d[0], &triplet);
++        CreateEntry(exifData, EXIF_IFD_GPS, EXIF_TAG_GPS_LATITUDE, triplet);
++
++        const char *ref = entry.data.d[0] < 0.0f ? "S" : "N";
++        CreateEntry(exifData, EXIF_IFD_GPS, EXIF_TAG_GPS_LATITUDE_REF, ref);
++
++        ConvertGpsCoordinate(entry.data.d[1], &triplet);
++        CreateEntry(exifData, EXIF_IFD_GPS, EXIF_TAG_GPS_LONGITUDE, triplet);
++
++        ref = entry.data.d[1] < 0.0f ? "W" : "E";
++        CreateEntry(exifData, EXIF_IFD_GPS, EXIF_TAG_GPS_LONGITUDE_REF, ref);
++
++        CreateEntry(exifData, EXIF_IFD_GPS, EXIF_TAG_GPS_ALTITUDE, static_cast<float>(fabs(entry.data.d[2])));
++        int ref1;
++        ref1 = entry.data.d[2] < 0.0f ? 1 : 0;
++        CreateEntry(exifData, EXIF_IFD_GPS, EXIF_TAG_GPS_ALTITUDE_REF, ref1);
++    }
++
++    int64_t timestamp = 0;
++    entry = params.find(ANDROID_JPEG_GPS_TIMESTAMP);
++    if (entry.count > 0) {
++        timestamp = entry.data.i64[0];
++        std::string date;
++        if (ConvertTimestampToTimeAndDate(timestamp, &triplet, &date)) {
++            CreateEntry(exifData, EXIF_IFD_GPS, EXIF_TAG_GPS_TIME_STAMP, triplet, 1.0f);
++            CreateEntry(exifData, EXIF_IFD_GPS, EXIF_TAG_GPS_DATE_STAMP, date.c_str());
++        }
++    }
++
++    entry = params.find(ANDROID_JPEG_GPS_PROCESSING_METHOD);
++    if (entry.count > 0) {
++        stringValue = (const char *)entry.data.u8;
++        ALOGV("ANDROID_JPEG_GPS_PROCESSING_METHOD(len=%d) %s", entry.count, stringValue);
++        std::vector<unsigned char> data;
++        // Because this is a tag with an undefined format it has to be prefixed
++        // with the encoding type. Insert an ASCII prefix first, then the
++        // actual string. Undefined tags do not have to be null terminated.
++        data.insert(data.end(), std::begin(kAsciiPrefix), std::end(kAsciiPrefix));
++        data.insert(data.end(), stringValue, stringValue + entry.count);
++        CreateEntry(exifData, EXIF_IFD_GPS, EXIF_TAG_GPS_PROCESSING_METHOD, &data[0], data.size());
++    }
++    return exifData;
++}
++
++// 曝光时间 1 us - 0.3 sec
++const int64_t kExposureTimeRange[2] = {1000L, 300000000L};
++// ISO
++const int32_t kSensitivityRange[2] = {100, 1600};
++ExifData *CreateExifData(const CameraMetadata &params, int width, int height)
++{
++    ExifData *exifData = CreateExifDataCommon(params, width, height);
++    // Exposure Time
++    camera_metadata_ro_entry entry;
++    entry = params.find(ANDROID_SENSOR_EXPOSURE_TIME);
++    // 1 us - 0.3 sec
++
++    int64_t exposureTimesNs = (entry.count > 0) ? entry.data.i64[0] : kExposureTimeRange[0];
++    CreateEntry(exifData, EXIF_IFD_EXIF, EXIF_TAG_EXPOSURE_TIME, exposureTimesNs / 1000000000.0f, 1000000000);
++    entry = params.find(ANDROID_LENS_APERTURE);
++    float aperture = (entry.count > 0) ? entry.data.f[0] : 2.8;
++    CreateEntry(exifData, EXIF_IFD_EXIF, EXIF_TAG_FNUMBER, aperture);
++    entry = params.find(ANDROID_FLASH_MODE);
++    uint16_t flash = (entry.count > 0) ? entry.data.i32[0] : 0;
++    CreateEntry(exifData, EXIF_IFD_EXIF, EXIF_TAG_FLASH, flash);
++    entry = params.find(ANDROID_CONTROL_AWB_MODE);
++    uint16_t awb = 1;
++    if (entry.count > 0 && entry.data.i32[0] == ANDROID_CONTROL_AWB_MODE_AUTO) {
++        awb = 0;
++    }
++    CreateEntry(exifData, EXIF_IFD_EXIF, EXIF_TAG_WHITE_BALANCE, awb);
++    entry = params.find(ANDROID_SENSOR_SENSITIVITY);
++
++    int isoSpeedRating = (entry.count > 0) ? entry.data.i32[0] : kSensitivityRange[0];
++    CreateEntry(exifData, EXIF_IFD_EXIF, EXIF_TAG_ISO_SPEED_RATINGS, (uint16_t)isoSpeedRating);
++    CreateEntry(exifData, EXIF_IFD_EXIF, EXIF_TAG_DATE_TIME_DIGITIZED);
++    CreateEntry(exifData, EXIF_IFD_EXIF, EXIF_TAG_SUB_SEC_TIME, "0");
++    CreateEntry(exifData, EXIF_IFD_EXIF, EXIF_TAG_SUB_SEC_TIME_ORIGINAL, "0");
++    CreateEntry(exifData, EXIF_IFD_EXIF, EXIF_TAG_SUB_SEC_TIME_DIGITIZED, "0");
++
++    return exifData;
++}
++
++ExifData *CreateExifData(const CameraParameters &params)
++{
++    int width = -1, height = -1;
++    CameraMetadata cameraMetadata;
++    ConvertToMetadata(params, cameraMetadata);
++    params.getPictureSize(&width, &height);
++    ExifData *exifData = CreateExifDataCommon(cameraMetadata, width, height);
++    return exifData;
++}
++
++void FreeExifData(ExifData *exifData)
++{
++    exif_data_free(exifData);
++}
++
++}  // namespace CameraMock
+diff --git a/camera-kbox/exif.h b/camera-kbox/exif.h
+new file mode 100644
+index 0000000..2bae0d1
+--- /dev/null
++++ b/camera-kbox/exif.h
+@@ -0,0 +1,27 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#ifndef CAMERA_MOCK_CAMERA_EXIF_H
++#define CAMERA_MOCK_CAMERA_EXIF_H
++
++struct _ExifData;
++typedef struct _ExifData ExifData;
++#undef TRUE
++#undef FALSE
++#include <CameraParameters.h>
++#include <CameraMetadata.h>
++using ::android::hardware::camera::common::V1_0::helper::CameraParameters;
++using ::android::hardware::camera::common::V1_0::helper::Size;
++
++using ::android::hardware::camera::common::V1_0::helper::CameraMetadata;
++
++namespace CameraMock {
++
++ExifData *CreateExifData(const CameraParameters &parameters);
++ExifData *CreateExifData(const CameraMetadata &params, int width, int height);
++
++void FreeExifData(ExifData *exifData);
++
++}  // namespace CameraMock
++
++#endif  // CAMERA_MOCK_CAMERA_EXIF_H
+diff --git a/camera-kbox/jpeg_compressor.cpp b/camera-kbox/jpeg_compressor.cpp
+new file mode 100644
+index 0000000..1fa7e64
+--- /dev/null
++++ b/camera-kbox/jpeg_compressor.cpp
+@@ -0,0 +1,36 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#include "jpeg_compressor.h"
++#include <log/log.h>
++#include <cassert>
++#include "jpeg_stub/jpeg_stub.h"
++
++namespace CameraMock {
++
++NV21JpegCompressor::NV21JpegCompressor()
++{
++    JpegStubInit(&mStub);
++}
++
++NV21JpegCompressor::~NV21JpegCompressor()
++{
++    JpegStubCleanup(&mStub);
++}
++
++android::status_t NV21JpegCompressor::CompressRawImage(const void *image, int width, int height, int quality, ExifData *exifData)
++{
++    return JpegStubCompress(&mStub, image, width, height, quality, exifData);
++}
++
++size_t NV21JpegCompressor::GetCompressedSize()
++{
++    return JpegStubGetCompressedSize(&mStub);
++}
++
++void NV21JpegCompressor::GetCompressedImage(void *buff)
++{
++    JpegStubGetCompressedImage(&mStub, buff);
++}
++
++}; /* namespace CameraMock */
+diff --git a/camera-kbox/jpeg_compressor.h b/camera-kbox/jpeg_compressor.h
+new file mode 100644
+index 0000000..0621fdc
+--- /dev/null
++++ b/camera-kbox/jpeg_compressor.h
+@@ -0,0 +1,33 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++
++#ifndef CAMERA_MOCK_JPEG_COMPRESSOR_H
++#define CAMERA_MOCK_JPEG_COMPRESSOR_H
++
++#include <utils/threads.h>
++#include "jpeg_stub/jpeg_stub.h"
++
++using ::android::status_t;
++
++namespace CameraMock {
++
++class NV21JpegCompressor {
++public:
++    NV21JpegCompressor();
++    ~NV21JpegCompressor();
++
++public:
++    android::status_t CompressRawImage(const void *image, int width, int height, int quality, ExifData *exifData);
++
++    size_t GetCompressedSize();
++
++    void GetCompressedImage(void *buff);
++
++private:
++    JpegStub mStub;
++};
++
++};  // namespace CameraMock
++
++#endif  // CAMERA_MOCK_JPEG_COMPRESSOR_H
+diff --git a/camera-kbox/jpeg_stub/compressor.cpp b/camera-kbox/jpeg_stub/compressor.cpp
+new file mode 100644
+index 0000000..f04c1c1
+--- /dev/null
++++ b/camera-kbox/jpeg_stub/compressor.cpp
+@@ -0,0 +1,157 @@
++#include "compressor.h"
++#include <log/log.h>
++#include <libexif/exif-data.h>
++
++Compressor::Compressor()
++{}
++
++bool Compressor::Compress(const unsigned char *data, int width, int height, int quality, ExifData *exifData)
++{
++    if (!ConfigureCompressor(width, height, quality)) {
++        return false;
++    }
++    return CompressData(data, exifData);
++}
++
++const std::vector<uint8_t> &Compressor::GetCompressedData() const
++{
++    return mDestManager.mBuffer;
++}
++
++bool Compressor::ConfigureCompressor(int width, int height, int quality)
++{
++    mCompressInfo.err = jpeg_std_error(&mErrorManager);
++    if (setjmp(mErrorManager.mJumpBuffer)) {
++        return false;
++    }
++
++    jpeg_create_compress(&mCompressInfo);
++
++    mCompressInfo.image_width = width;
++    mCompressInfo.image_height = height;
++    mCompressInfo.input_components = 3;
++    mCompressInfo.in_color_space = JCS_YCbCr;
++    jpeg_set_defaults(&mCompressInfo);
++
++    jpeg_set_quality(&mCompressInfo, quality, TRUE);
++    jpeg_set_colorspace(&mCompressInfo, JCS_YCbCr);
++    mCompressInfo.raw_data_in = TRUE;
++    mCompressInfo.dct_method = JDCT_IFAST;
++    mCompressInfo.comp_info[0].h_samp_factor = 2;
++    mCompressInfo.comp_info[0].v_samp_factor = 2;
++    mCompressInfo.comp_info[1].h_samp_factor = 1;
++    mCompressInfo.comp_info[1].v_samp_factor = 1;
++    mCompressInfo.comp_info[2].h_samp_factor = 1;
++    mCompressInfo.comp_info[2].v_samp_factor = 1;
++
++    mCompressInfo.dest = &mDestManager;
++
++    return true;
++}
++
++bool Compressor::CompressData(const unsigned char *data, ExifData *exifData)
++{
++    const uint8_t *y[16];
++    const uint8_t *cb[8];
++    const uint8_t *cr[8];
++    const uint8_t **planes[3] = {y, cb, cr};
++
++    int i;
++    int width = mCompressInfo.image_width;
++    int height = mCompressInfo.image_height;
++    const uint8_t *yPlanar = data;
++    const uint8_t *uPlanar = yPlanar + width * height;
++    const uint8_t *vPlanar = uPlanar + width * height / 4;
++
++    if (setjmp(mErrorManager.mJumpBuffer)) {
++        return false;
++    }
++
++    jpeg_start_compress(&mCompressInfo, TRUE);
++
++    AttachExifData(exifData);
++    while (mCompressInfo.next_scanline < mCompressInfo.image_height) {
++        for (i = 0; i < 16; i++) {
++            y[i] = yPlanar + (mCompressInfo.next_scanline + i) * width;
++            if ((i & 1) == 0) {
++                cb[i / 2] = uPlanar + (mCompressInfo.next_scanline + i) * width / 4;
++                cr[i / 2] = vPlanar + (mCompressInfo.next_scanline + i) * width / 4;
++            }
++        }
++        jpeg_write_raw_data(&mCompressInfo, const_cast<JSAMPIMAGE>(planes), 16);
++    }
++
++    jpeg_finish_compress(&mCompressInfo);
++    jpeg_destroy_compress(&mCompressInfo);
++
++    return true;
++}
++
++bool Compressor::AttachExifData(ExifData *exifData)
++{
++    if (exifData == nullptr) {
++        return true;
++    }
++
++    unsigned char *rawData = nullptr;
++    unsigned int size = 0;
++    exif_data_save_data(exifData, &rawData, &size);
++    if (rawData == nullptr) {
++        ALOGE("Failed to create EXIF data block");
++        return false;
++    }
++
++    jpeg_write_marker(&mCompressInfo, JPEG_APP0 + 1, rawData, size);
++    free(rawData);
++    return true;
++}
++
++Compressor::ErrorManager::ErrorManager()
++{
++    error_exit = &OnJpegError;
++}
++
++void Compressor::ErrorManager::OnJpegError(j_common_ptr cinfo)
++{
++    ErrorManager *errorManager = reinterpret_cast<ErrorManager *>(cinfo->err);
++
++    char errorMessage[JMSG_LENGTH_MAX];
++    (*errorManager->format_message)(cinfo, errorMessage);
++    errorMessage[sizeof(errorMessage) - 1] = '\0';
++    ALOGE("JPEG compression error: %s", errorMessage);
++    jpeg_destroy(cinfo);
++
++    longjmp(errorManager->mJumpBuffer, 1);
++}
++
++Compressor::DestinationManager::DestinationManager()
++{
++    init_destination = &InitDestination;
++    empty_output_buffer = &EmptyOutputBuffer;
++    term_destination = &TermDestination;
++}
++
++void Compressor::DestinationManager::InitDestination(j_compress_ptr cinfo)
++{
++    auto manager = reinterpret_cast<DestinationManager *>(cinfo->dest);
++
++    manager->mBuffer.resize(16 * 1024);
++    manager->next_output_byte = &manager->mBuffer[0];
++    manager->free_in_buffer = manager->mBuffer.size();
++}
++
++boolean Compressor::DestinationManager::EmptyOutputBuffer(j_compress_ptr cinfo)
++{
++    auto manager = reinterpret_cast<DestinationManager *>(cinfo->dest);
++    size_t oldSize = manager->mBuffer.size();
++    manager->mBuffer.resize(oldSize * 2);
++    manager->next_output_byte = &manager->mBuffer[oldSize];
++    manager->free_in_buffer = manager->mBuffer.size() - oldSize;
++    return manager->free_in_buffer != 0;
++}
++
++void Compressor::DestinationManager::TermDestination(j_compress_ptr cinfo)
++{
++    auto manager = reinterpret_cast<DestinationManager *>(cinfo->dest);
++    manager->mBuffer.resize(manager->mBuffer.size() - manager->free_in_buffer);
++}
+diff --git a/camera-kbox/jpeg_stub/compressor.h b/camera-kbox/jpeg_stub/compressor.h
+new file mode 100644
+index 0000000..95d5f92
+--- /dev/null
++++ b/camera-kbox/jpeg_stub/compressor.h
+@@ -0,0 +1,54 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#ifndef CAMERA_MOCK_JPEG_STUB_COMPRESSOR_H
++#define CAMERA_MOCK_JPEG_STUB_COMPRESSOR_H
++
++#include <setjmp.h>
++#include <stdlib.h>
++extern "C" {
++#include <jpeglib.h>
++#include <jerror.h>
++}
++
++#include <vector>
++
++struct _ExifData;
++typedef _ExifData ExifData;
++
++class Compressor {
++public:
++    Compressor();
++
++    bool Compress(const unsigned char *data, int width, int height, int quality, ExifData *exifData);
++
++    const std::vector<unsigned char> &GetCompressedData() const;
++
++private:
++    struct DestinationManager : jpeg_destination_mgr {
++        DestinationManager();
++
++        static void InitDestination(j_compress_ptr cinfo);
++        static boolean EmptyOutputBuffer(j_compress_ptr cinfo);
++        static void TermDestination(j_compress_ptr cinfo);
++
++        std::vector<unsigned char> mBuffer;
++    };
++    struct ErrorManager : jpeg_error_mgr {
++        ErrorManager();
++
++        static void OnJpegError(j_common_ptr cinfo);
++
++        jmp_buf mJumpBuffer;
++    };
++
++    jpeg_compress_struct mCompressInfo;
++    DestinationManager mDestManager;
++    ErrorManager mErrorManager;
++
++    bool ConfigureCompressor(int width, int height, int quality);
++    bool CompressData(const unsigned char *data, ExifData *exifData);
++    bool AttachExifData(ExifData *exifData);
++};
++
++#endif  // CAMERA_MOCK_JPEG_STUB_COMPRESSOR_H
+diff --git a/camera-kbox/jpeg_stub/jpeg_stub.cpp b/camera-kbox/jpeg_stub/jpeg_stub.cpp
+new file mode 100644
+index 0000000..126fd10
+--- /dev/null
++++ b/camera-kbox/jpeg_stub/jpeg_stub.cpp
+@@ -0,0 +1,52 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#include "jpeg_stub.h"
++#include <errno.h>
++#include <log/log.h>
++#include <stdlib.h>
++
++#include "compressor.h"
++
++extern "C" void JpegStubInit(JpegStub *stub)
++{
++    stub->mCompressor = static_cast<void *>(new Compressor());
++}
++
++extern "C" void JpegStubCleanup(JpegStub *stub)
++{
++    delete reinterpret_cast<Compressor *>(stub->mCompressor);
++    stub->mCompressor = nullptr;
++}
++
++extern "C" int JpegStubCompress(
++    JpegStub *stub, const void *buffer, int width, int height, int quality, ExifData *exifData)
++{
++    Compressor *compressor = reinterpret_cast<Compressor *>(stub->mCompressor);
++
++    if (compressor->Compress(reinterpret_cast<const unsigned char *>(buffer), width, height, quality, exifData)) {
++        ALOGV("Compressed JPEG: %d[%dx%d] -> %zu bytes",
++            (width * height * 12) / 8,
++            width,
++            height,
++            compressor->GetCompressedData().size());
++        return 0;
++    }
++    ALOGE("JPEG compression failed");
++    return errno ? errno : EINVAL;
++}
++
++extern "C" void JpegStubGetCompressedImage(JpegStub *stub, void *buff)
++{
++    Compressor *compressor = reinterpret_cast<Compressor *>(stub->mCompressor);
++
++    const std::vector<unsigned char> &data = compressor->GetCompressedData();
++    memcpy(buff, &data[0], data.size());
++}
++
++extern "C" size_t JpegStubGetCompressedSize(JpegStub *stub)
++{
++    Compressor *compressor = reinterpret_cast<Compressor *>(stub->mCompressor);
++
++    return compressor->GetCompressedData().size();
++}
+diff --git a/camera-kbox/jpeg_stub/jpeg_stub.h b/camera-kbox/jpeg_stub/jpeg_stub.h
+new file mode 100644
+index 0000000..0cc4a65
+--- /dev/null
++++ b/camera-kbox/jpeg_stub/jpeg_stub.h
+@@ -0,0 +1,24 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++
++#ifndef CAMERA_MOCK_JPEGSTUB_H
++#define CAMERA_MOCK_JPEGSTUB_H
++
++#include <stddef.h>
++
++struct _ExifData;
++typedef _ExifData ExifData;
++
++extern "C" {
++struct JpegStub {
++    void *mCompressor;
++};
++
++void JpegStubInit(JpegStub *stub);
++void JpegStubCleanup(JpegStub *stub);
++int JpegStubCompress(JpegStub *stub, const void *image, int width, int height, int quality, ExifData *exifData);
++void JpegStubGetCompressedImage(JpegStub *stub, void *buff);
++size_t JpegStubGetCompressedSize(JpegStub *stub);
++};
++#endif  // CAMERA_MOCK_JPEGSTUB_H
+diff --git a/camera-kbox/metadata.cpp b/camera-kbox/metadata.cpp
+new file mode 100644
+index 0000000..ac1a2f9
+--- /dev/null
++++ b/camera-kbox/metadata.cpp
+@@ -0,0 +1,132 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#include "metadata.h"
++#include <cerrno>
++#include <log/log.h>
++#include <utils/Trace.h>
++
++namespace CameraMock {
++
++Metadata::Metadata() : mData(nullptr)
++{}
++
++Metadata::~Metadata()
++{
++    Replace(nullptr);
++}
++
++void Metadata::Replace(camera_metadata_t *m)
++{
++    if (m == mData) {
++        ALOGE("Replacing metadata with itself?!");
++        return;
++    }
++    if (mData) {
++        free_camera_metadata(mData);
++    }
++    mData = m;
++}
++
++int Metadata::AddInt32(uint32_t tag, int count, const int32_t *data)
++{
++    if (!Validate(tag, TYPE_INT32, count)) {
++        return -EINVAL;
++    }
++    return Add(tag, count, data);
++}
++
++int Metadata::AddFloat(uint32_t tag, int count, const float *data)
++{
++    if (!Validate(tag, TYPE_FLOAT, count)) {
++        return -EINVAL;
++    }
++    return Add(tag, count, data);
++}
++
++int Metadata::AddInt64(uint32_t tag, int count, const int64_t *data)
++{
++    if (!Validate(tag, TYPE_INT64, count)) {
++        return -EINVAL;
++    }
++    return Add(tag, count, data);
++}
++
++int Metadata::AddRational(uint32_t tag, int count, const camera_metadata_rational_t *data)
++{
++    if (!Validate(tag, TYPE_RATIONAL, count)) {
++        return -EINVAL;
++    }
++    return Add(tag, count, data);
++}
++
++bool Metadata::Validate(uint32_t tag, int tagType, int count)
++{
++    if (get_camera_metadata_tag_type(tag) < 0) {
++        ALOGE("Invalid metadata entry tag: %d", tag);
++        return false;
++    }
++    if (tagType < 0 || tagType >= NUM_TYPES) {
++        ALOGE("Invalid metadata entry tag type: %d", tagType);
++        return false;
++    }
++    if (tagType != get_camera_metadata_tag_type(tag)) {
++        ALOGE("Tag %d called with incorrect type: %s(%d)", tag, camera_metadata_type_names[tagType], tagType);
++        return false;
++    }
++    if (count < 1) {
++        ALOGE("Invalid metadata entry count: %d", count);
++        return false;
++    }
++    return true;
++}
++
++int Metadata::Add(uint32_t tag, int count, const void *tagData)
++{
++    int res;
++    size_t entry_capacity = 0;
++    size_t data_capacity = 0;
++    camera_metadata_t *tmp;
++    int tagType = get_camera_metadata_tag_type(tag);
++    size_t size = calculate_camera_metadata_entry_data_size(tagType, count);
++
++    if (nullptr == mData) {
++        entry_capacity = 1;
++        data_capacity = size;
++    } else {
++        entry_capacity = get_camera_metadata_entry_count(mData) + 1;
++        data_capacity = get_camera_metadata_data_count(mData) + size;
++    }
++
++    if (mData && !add_camera_metadata_entry(mData, tag, tagData, count)) {
++        return 0;
++    }
++    // 空间倍增，最大限度减少将来重新分配的次数
++    tmp = allocate_camera_metadata(entry_capacity >> 1, data_capacity >> 1);
++    if (tmp == nullptr) {
++        ALOGE("Failed to allocate new metadata with %zu entries, %zu data", entry_capacity, data_capacity);
++        return -ENOMEM;
++    }
++    if (nullptr != mData) {
++        res = append_camera_metadata(tmp, mData);
++        if (res) {
++            ALOGE("Failed to append old metadata %p to new %p", mData, tmp);
++            return res;
++        }
++    }
++    res = add_camera_metadata_entry(tmp, tag, tagData, count);
++    if (res) {
++        ALOGE("Failed to add new entry (%d, %p, %d) to metadata %p", tag, tagData, count, tmp);
++        return res;
++    }
++    Replace(tmp);
++
++    return 0;
++}
++
++camera_metadata_t *Metadata::Get()
++{
++    return mData;
++}
++
++}  // namespace CameraMock
+diff --git a/camera-kbox/metadata.h b/camera-kbox/metadata.h
+new file mode 100644
+index 0000000..6f6cbc2
+--- /dev/null
++++ b/camera-kbox/metadata.h
+@@ -0,0 +1,30 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#ifndef CAMERA_MOCK_METADATA_H
++#define CAMERA_MOCK_METADATA_H
++
++#include <stdint.h>
++#include <hardware/camera.h>
++#include <system/camera_metadata.h>
++
++namespace CameraMock {
++class Metadata {
++public:
++    Metadata();
++    ~Metadata();
++    int AddInt32(uint32_t tag, int count, const int32_t *data);
++    int AddFloat(uint32_t tag, int count, const float *data);
++    int AddInt64(uint32_t tag, int count, const int64_t *data);
++    int AddRational(uint32_t tag, int count, const camera_metadata_rational_t *data);
++
++    camera_metadata_t *Get();
++
++private:
++    camera_metadata_t *mData;
++    void Replace(camera_metadata_t *m);
++    bool Validate(uint32_t tag, int tagType, int count);
++    int Add(uint32_t tag, int count, const void *tagData);
++};
++}  // namespace CameraMock
++#endif
+diff --git a/camera-kbox/preview_window.cpp b/camera-kbox/preview_window.cpp
+new file mode 100644
+index 0000000..f6da200
+--- /dev/null
++++ b/camera-kbox/preview_window.cpp
+@@ -0,0 +1,121 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#include "preview_window.h"
++#include <log/log.h>
++#include "camera_device.h"
++#include <ui/GraphicBuffer.h>
++#include <cerrno>
++
++namespace CameraMock {
++
++PreviewWindow::PreviewWindow(android::GraphicBufferMapper *gbm)
++    : m_previewWindow(nullptr), mGBM(gbm), mPreviewFrameWidth(0), mPreviewFrameHeight(0), mPreviewEnabled(false)
++{}
++
++PreviewWindow::~PreviewWindow()
++{}
++
++android::status_t PreviewWindow::SetPreviewWindow(struct preview_stream_ops *window, int previewFps)
++{
++    ALOGV("current: %p -> new: %p", m_previewWindow, window);
++
++    android::status_t res = android::NO_ERROR;
++    Mutex::Autolock locker(&m_objectLock);
++
++    mPreviewFrameWidth = mPreviewFrameHeight = 0;
++
++    if (window != nullptr) {
++        res = window->set_usage(window, GRALLOC_USAGE_SW_WRITE_OFTEN);
++        if (res != android::NO_ERROR) {
++            window = nullptr;
++            res = -res;
++            ALOGE("Error setting preview window usage %d -> %s", res, strerror(res));
++        }
++    }
++    m_previewWindow = window;
++    return res;
++}
++
++android::status_t PreviewWindow::StartPreview()
++{
++    Mutex::Autolock locker(&m_objectLock);
++    mPreviewEnabled = true;
++
++    return android::NO_ERROR;
++}
++
++void PreviewWindow::StopPreview()
++{
++    Mutex::Autolock locker(&m_objectLock);
++    mPreviewEnabled = false;
++}
++
++void PreviewWindow::OnNextFrameAvailable(nsecs_t timestamp, CameraDevice *cameraDev)
++{
++    int res;
++    Mutex::Autolock locker(&m_objectLock);
++    if (!IsPreviewEnabled() || m_previewWindow == nullptr) {
++        return;
++    }
++
++    if (AdjustPreviewDimensions(cameraDev)) {
++        ALOGV(
++            "Adjusting preview windows %p geometry to %dx%d", m_previewWindow, mPreviewFrameWidth, mPreviewFrameHeight);
++        res = m_previewWindow->set_buffers_geometry(
++            m_previewWindow, mPreviewFrameWidth, mPreviewFrameHeight, HAL_PIXEL_FORMAT_RGBA_8888);
++        if (res != android::NO_ERROR) {
++            ALOGE("Error in set_buffers_geometry %d -> %s", -res, strerror(-res));
++            return;
++        }
++    }
++
++    buffer_handle_t *buffer = nullptr;
++    int stride = 0;
++    res = m_previewWindow->dequeue_buffer(m_previewWindow, &buffer, &stride);
++    if (res != android::NO_ERROR || buffer == nullptr) {
++        ALOGE("Unable to dequeue preview window buffer: %d -> %s", -res, strerror(-res));
++        return;
++    }
++    res = m_previewWindow->lock_buffer(m_previewWindow, buffer);
++    if (res != android::NO_ERROR) {
++        ALOGE("Unable to lock preview window buffer: %d -> %s", -res, strerror(-res));
++        m_previewWindow->cancel_buffer(m_previewWindow, buffer);
++        return;
++    }
++
++    void *img = nullptr;
++
++    android::status_t status = mGBM->lock(*buffer,
++        android::GraphicBuffer::USAGE_SW_WRITE_OFTEN,
++        android::Rect(0, 0, mPreviewFrameWidth, mPreviewFrameHeight),
++        &img);
++    if (status != android::OK) {
++        ALOGE("Gralloc.lock failure: %d -> %s", res, strerror(res));
++        m_previewWindow->cancel_buffer(m_previewWindow, buffer);
++        return;
++    }
++    int64_t frame_timestamp = 0L;
++    res = cameraDev->GetCurrentPreviewFrame(img, &frame_timestamp);
++    if (res == android::NO_ERROR) {
++        m_previewWindow->set_timestamp(m_previewWindow, frame_timestamp != 0L ? frame_timestamp : timestamp);
++        m_previewWindow->enqueue_buffer(m_previewWindow, buffer);
++    } else {
++        ALOGE("Unable to obtain preview frame: %d", res);
++        m_previewWindow->cancel_buffer(m_previewWindow, buffer);
++    }
++    mGBM->unlock(*buffer);
++}
++
++bool PreviewWindow::AdjustPreviewDimensions(CameraDevice *cameraDev)
++{
++    if (mPreviewFrameWidth == cameraDev->GetFrameWidth() && mPreviewFrameHeight == cameraDev->GetFrameHeight()) {
++        return false;
++    }
++
++    mPreviewFrameWidth = cameraDev->GetFrameWidth();
++    mPreviewFrameHeight = cameraDev->GetFrameHeight();
++
++    return true;
++}
++}  // namespace CameraMock
+\ No newline at end of file
+diff --git a/camera-kbox/preview_window.h b/camera-kbox/preview_window.h
+new file mode 100644
+index 0000000..294ca49
+--- /dev/null
++++ b/camera-kbox/preview_window.h
+@@ -0,0 +1,48 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#ifndef CAMERA_MOCK_PREVIEW_WINDOW_H
++#define CAMERA_MOCK_PREVIEW_WINDOW_H
++
++#include <ui/GraphicBufferMapper.h>
++#include <hardware/camera.h>
++
++using ::android::Mutex;
++
++namespace CameraMock {
++
++class CameraDevice;
++
++class PreviewWindow {
++public:
++    PreviewWindow(android::GraphicBufferMapper *gbm);
++    ~PreviewWindow();
++    android::status_t SetPreviewWindow(struct preview_stream_ops *window, int preview_fps);
++
++    android::status_t StartPreview();
++
++    void StopPreview();
++
++    inline bool IsPreviewEnabled()
++    {
++        return mPreviewEnabled;
++    }
++
++    void OnNextFrameAvailable(nsecs_t timestamp, CameraDevice *cameraDev);
++
++protected:
++    bool AdjustPreviewDimensions(CameraDevice *camera_dev);
++
++    Mutex m_objectLock;
++
++    preview_stream_ops *m_previewWindow;
++
++    android::GraphicBufferMapper *mGBM;
++
++    int mPreviewFrameWidth;
++    int mPreviewFrameHeight;
++    bool mPreviewEnabled;
++};
++}  // namespace CameraMock
++
++#endif  // CAMERA_MOCK_PREVIEW_WINDOW_H
+diff --git a/camera-kbox/thumbnail.cpp b/camera-kbox/thumbnail.cpp
+new file mode 100644
+index 0000000..b257a7e
+--- /dev/null
++++ b/camera-kbox/thumbnail.cpp
+@@ -0,0 +1,85 @@
++#include "thumbnail.h"
++#include <log/log.h>
++#include <libexif/exif-data.h>
++#include <libyuv.h>
++#include <cerrno>
++#include "jpeg_compressor.h"
++#include <vector>
++
++namespace CameraMock {
++
++static bool CreateRawThumbnail(const unsigned char *sourceImage, int sourceWidth, int sourceHeight, int thumbnailWidth,
++    int thumbnailHeight, std::vector<unsigned char> *thumbnail)
++{
++    const unsigned char *ySourcePlane = sourceImage;
++    const unsigned char *uSourcePlane = sourceImage + sourceWidth * sourceHeight;
++    const unsigned char *vSourcePlane = uSourcePlane + sourceWidth * sourceHeight / 4;
++
++    thumbnail->resize((thumbnailWidth * thumbnailHeight * 12) / 8);
++    const size_t destUVPlaneSize = (thumbnailWidth * thumbnailHeight) / 4;
++    std::vector<unsigned char> destPlanes(destUVPlaneSize * 2);
++    unsigned char *yDestPlane = &(*thumbnail)[0];
++    unsigned char *uDestPlane = yDestPlane + thumbnailWidth * thumbnailHeight;
++    unsigned char *vDestPlane = uDestPlane + thumbnailWidth * thumbnailHeight / 4;
++    int result = libyuv::I420Scale(ySourcePlane,
++        sourceWidth,
++        uSourcePlane,
++        sourceWidth / 2,
++        vSourcePlane,
++        sourceWidth / 2,
++        sourceWidth,
++        sourceHeight,
++        yDestPlane,
++        thumbnailWidth,
++        uDestPlane,
++        thumbnailWidth / 2,
++        vDestPlane,
++        thumbnailWidth / 2,
++        thumbnailWidth,
++        thumbnailHeight,
++        libyuv::kFilterBilinear);
++    if (result != 0) {
++        ALOGE("Unable to create thumbnail, downscaling failed with error: %d", result);
++        return false;
++    }
++
++    return true;
++}
++
++bool CreateThumbnail(const unsigned char *sourceImage, int sourceWidth, int sourceHeight, int thumbWidth,
++    int thumbHeight, int quality, ExifData *exifData)
++{
++    if (thumbWidth <= 0 || thumbHeight <= 0 || sourceWidth <= 0 || sourceHeight <= 0) {
++        ALOGE("Invalid thumbnail width=%d or height=%d or source width=%d or source height=%d, must be > 0",
++            thumbWidth,
++            thumbHeight,
++            sourceWidth,
++            sourceWidth);
++        return false;
++    }
++
++    std::vector<unsigned char> rawThumbnail;
++    if (!CreateRawThumbnail(sourceImage, sourceWidth, sourceHeight, thumbWidth, thumbHeight, &rawThumbnail)) {
++        return false;
++    }
++
++    NV21JpegCompressor compressor;
++    android::status_t result =
++        compressor.CompressRawImage(&rawThumbnail[0], thumbWidth, thumbHeight, quality, nullptr /* EXIF */);
++    if (result != android::NO_ERROR) {
++        ALOGE("Unable to compress thumbnail, status=%d", result);
++        return false;
++    }
++
++    exifData->size = compressor.GetCompressedSize();
++    exifData->data = reinterpret_cast<unsigned char *>(malloc(exifData->size));
++    if (exifData->data == nullptr) {
++        ALOGE("Unable to allocate %u bytes of memory for thumbnail", exifData->size);
++        exifData->size = 0;
++        return false;
++    }
++    compressor.GetCompressedImage(exifData->data);
++    return true;
++}
++
++}  // namespace CameraMock
+diff --git a/camera-kbox/thumbnail.h b/camera-kbox/thumbnail.h
+new file mode 100644
+index 0000000..0ccfced
+--- /dev/null
++++ b/camera-kbox/thumbnail.h
+@@ -0,0 +1,18 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++
++#ifndef CAMERA_MOCK_THUMBNAIL_H
++#define CAMERA_MOCK_THUMBNAIL_H
++
++struct _ExifData;
++typedef struct _ExifData ExifData;
++
++namespace CameraMock {
++
++bool CreateThumbnail(const unsigned char *sourceImage, int sourceWidth, int sourceHeight, int thumbnailWidth,
++    int thumbnailHeight, int quality, ExifData *exifData);
++
++}  // namespace CameraMock
++
++#endif  // CAMERA_MOCK_THUMBNAIL_H
+diff --git a/camera-kbox/worker_thread.cpp b/camera-kbox/worker_thread.cpp
+new file mode 100644
+index 0000000..dc12ebf
+--- /dev/null
++++ b/camera-kbox/worker_thread.cpp
+@@ -0,0 +1,78 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#include "worker_thread.h"
++#include <log/log.h>
++#include <cerrno>
++#include <algorithm>
++
++namespace CameraMock {
++
++WorkerThread::WorkerThread(const char *threadName, CameraDevice *cameraDevice, Camera *cameraHAL)
++    : android::Thread(true), m_cameraDevice(cameraDevice), m_cameraHAL(cameraHAL), m_running(false), m_threadName(threadName)
++{}
++
++android::status_t WorkerThread::StartThread(bool oneBurst)
++{
++    ALOGV("Starting worker thread, oneBurst=%s", oneBurst ? "true" : "false");
++    m_oneBurst = oneBurst;
++    {
++        Mutex::Autolock lock(m_runningMutex);
++        m_running = true;
++    }
++    return run(m_threadName, ANDROID_PRIORITY_URGENT_DISPLAY, 0);
++}
++
++android::status_t WorkerThread::StopThread()
++{
++    ALOGV("%s: Stopping worker thread...");
++
++    Mutex::Autolock lock(m_runningMutex);
++    m_running = false;
++    m_runningCondition.signal();
++    return android::NO_ERROR;
++}
++
++android::status_t WorkerThread::WakeThread()
++{
++    ALOGV("%s: Waking emulated camera device's worker thread...");
++
++    m_runningCondition.signal();
++    return android::NO_ERROR;
++}
++
++android::status_t WorkerThread::JoinThread()
++{
++    return join();
++}
++
++android::status_t WorkerThread::readyToRun()
++{
++    android::status_t res = OnThreadStart();
++    if (res != android::NO_ERROR) {
++        return res;
++    }
++    return android::NO_ERROR;
++}
++
++bool WorkerThread::threadLoop()
++{
++    if (InWorkerThread() && !m_oneBurst) {
++        Mutex::Autolock lock(m_runningMutex);
++        if (m_running) {
++            return true;
++        }
++    }
++    OnThreadExit();
++    ALOGD("Exiting thread, m_oneBurst=%s", m_oneBurst ? "true" : "false");
++    return false;
++}
++
++android::status_t WorkerThread::OnThreadStart()
++{
++    return android::NO_ERROR;
++}
++
++void WorkerThread::OnThreadExit()
++{}
++}  // namespace CameraMock
+diff --git a/camera-kbox/worker_thread.h b/camera-kbox/worker_thread.h
+new file mode 100644
+index 0000000..0564db8
+--- /dev/null
++++ b/camera-kbox/worker_thread.h
+@@ -0,0 +1,48 @@
++/*
++ * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
++ */
++#ifndef CAMERA_MOCK_WORKER_THREAD_H
++#define CAMERA_MOCK_WORKER_THREAD_H
++#include <utils/Thread.h>
++
++using ::android::Mutex;
++
++namespace CameraMock {
++
++class Camera;
++class CameraDevice;
++class WorkerThread : public android::Thread {
++public:
++    WorkerThread(const char *threadName, CameraDevice *cameraDev, Camera *cameraHAL);
++    virtual ~WorkerThread() = default;
++
++    android::status_t StartThread(bool oneBurst);
++
++    android::status_t StopThread();
++
++    android::status_t WakeThread();
++
++    android::status_t JoinThread();
++
++protected:
++    virtual bool InWorkerThread() = 0;
++
++    virtual android::status_t OnThreadStart();
++    virtual void OnThreadExit();
++
++    CameraDevice *m_cameraDevice;
++    Camera *m_cameraHAL;
++    bool m_oneBurst;
++    android::Condition m_runningCondition;
++    Mutex m_runningMutex;
++    bool m_running;
++
++private:
++    android::status_t readyToRun() final;
++
++    bool threadLoop() final;
++
++    const char *m_threadName;
++};
++}  // namespace CameraMock
++#endif  // CAMERA_MOCK_WORKER_THREAD_H
+\ No newline at end of file
+diff --git a/data/etc/handheld_core_hardware.xml b/data/etc/handheld_core_hardware.xml
+index 3fe79ab..0b5f075 100644
+--- a/data/etc/handheld_core_hardware.xml
++++ b/data/etc/handheld_core_hardware.xml
+@@ -67,7 +67,6 @@
+     <feature name="android.software.home_screen" />
+     <feature name="android.software.input_methods" />
+     <feature name="android.software.midi" />
+-    <feature name="android.software.print" />
+     <feature name="android.software.cant_save_state" />
+     <feature name="android.software.secure_lock_screen" />
+     <feature name="android.software.companion_device_setup" />
+diff --git a/manifest.xml b/manifest.xml
+index 8d8d572..2dc7ad6 100644
+--- a/manifest.xml
++++ b/manifest.xml
+@@ -31,11 +31,20 @@
+         </interface>
+         <fqname>@1.2::ICryptoFactory/clearkey</fqname>
+         <fqname>@1.2::IDrmFactory/clearkey</fqname>
++    </hal>
++	<hal format="hidl">
++        <name>android.hardware.audio</name>
++        <transport>hwbinder</transport>
++        <version>4.0</version>
++        <interface>
++            <name>IDevicesFactory</name>
++            <instance>default</instance>
++        </interface>
+     </hal>
+     <hal format="hidl">
+         <name>android.hardware.audio.effect</name>
+         <transport>hwbinder</transport>
+-        <version>6.0</version>
++        <version>4.0</version>
+         <interface>
+             <name>IEffectsFactory</name>
+             <instance>default</instance>
+@@ -62,7 +71,7 @@
+     <hal format="hidl">
+         <name>android.hardware.graphics.allocator</name>
+         <transport>hwbinder</transport>
+-        <version>3.0</version>
++        <version>2.0</version>
+         <interface>
+             <name>IAllocator</name>
+             <instance>default</instance>
+@@ -71,7 +80,7 @@
+     <hal format="hidl">
+         <name>android.hardware.graphics.mapper</name>
+         <transport arch="32+64">passthrough</transport>
+-        <version>3.0</version>
++        <version>2.1</version>
+         <interface>
+             <name>IMapper</name>
+             <instance>default</instance>
+@@ -107,6 +116,34 @@
+             <name>IRadio</name>
+             <instance>slot1</instance>
+         </interface>
++    </hal>
++	<hal format="hidl">
++        <name>android.hardware.sensors</name>
++        <transport>hwbinder</transport>
++        <version>1.0</version>
++        <interface>
++            <name>ISensors</name>
++            <instance>default</instance>
++        </interface>
++    </hal>
++	<hal format="hidl">
++        <name>android.hardware.gnss</name>
++        <transport>hwbinder</transport>
++        <version>1.0</version>
++        <interface>
++            <name>IGnss</name>
++            <instance>default</instance>
++        </interface>
++    </hal>
++    <hal format="hidl">
++        <name>android.hardware.camera.provider</name>
++        <version>2.4</version>
++        <interface>
++            <name>ICameraProvider</name>
++            <instance>legacy/0</instance>
++        </interface>
++        <transport>hwbinder</transport>
++        <fqname>@2.4::ICameraProvider/legacy/0</fqname>
+     </hal>
+     <kernel target-level="5"/>
+ </manifest>
+diff --git a/vendor.mk b/vendor.mk
+index 4a58872..ec3cc4f 100644
+--- a/vendor.mk
++++ b/vendor.mk
+@@ -39,17 +39,9 @@ PRODUCT_PACKAGES += \
+     libandroidemu \
+     libOpenglCodecCommon \
+     libOpenglSystemCommon \
+-    libgoldfish-ril \
+-    libgoldfish-rild \
+-    libril-goldfish-fork \
+     qemu-props \
+     stagefright \
+     fingerprint.ranchu \
+-    android.hardware.graphics.composer@2.3-impl \
+-    android.hardware.graphics.composer@2.3-service \
+-    android.hardware.graphics.allocator@3.0-service \
+-    android.hardware.graphics.mapper@3.0-impl-ranchu \
+-    hwcomposer.ranchu \
+     toybox_vendor \
+     android.hardware.wifi@1.0-service \
+     android.hardware.biometrics.fingerprint@2.1-service \
+@@ -100,10 +92,12 @@ PRODUCT_PACKAGES += \
+     DisplayCutoutEmulationEmu01Overlay \
+     NavigationBarMode2ButtonOverlay \
+ 
++EMULATOR_VENDOR_NO_GNSS := true
+ ifneq ($(EMULATOR_VENDOR_NO_GNSS),true)
+ PRODUCT_PACKAGES += android.hardware.gnss@2.0-service.ranchu
+ endif
+ 
++EMULATOR_VENDOR_NO_SENSORS := true
+ ifneq ($(EMULATOR_VENDOR_NO_SENSORS),true)
+ PRODUCT_PACKAGES += \
+     android.hardware.sensors@2.1-service.multihal \
+@@ -137,6 +131,7 @@ PRODUCT_PACKAGES += \
+ # Prevent logcat from getting canceled early on in boot
+ PRODUCT_PROPERTY_OVERRIDES += ro.logd.size=1M \
+ 
++EMULATOR_VENDOR_NO_CAMERA := true
+ ifneq ($(EMULATOR_VENDOR_NO_CAMERA),true)
+ PRODUCT_PACKAGES += \
+     camera.device@1.0-impl \
+@@ -150,11 +145,13 @@ PRODUCT_PACKAGES += \
+ DEVICE_MANIFEST_FILE += device/generic/goldfish/manifest.camera.xml
+ endif
+ 
++EMULATOR_VENDOR_NO_SOUND := true
+ ifneq ($(EMULATOR_VENDOR_NO_SOUND),true)
+ PRODUCT_PACKAGES += \
+     android.hardware.audio.service.ranchu \
+     android.hardware.soundtrigger@2.2-impl.ranchu \
+-    android.hardware.audio.effect@6.0-impl \
++    android.hardware.audio.effect@6.0-impl
++endif
+ 
+ PRODUCT_COPY_FILES += \
+     device/generic/goldfish/audio/policy/audio_policy_configuration.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_policy_configuration.xml \
+@@ -164,8 +161,6 @@ PRODUCT_COPY_FILES += \
+     frameworks/av/services/audiopolicy/config/default_volume_tables.xml:$(TARGET_COPY_OUT_VENDOR)/etc/default_volume_tables.xml \
+     frameworks/av/media/libeffects/data/audio_effects.xml:$(TARGET_COPY_OUT_VENDOR)/etc/audio_effects.xml \
+ 
+-endif
+-
+ PRODUCT_PACKAGES += \
+     android.hardware.gatekeeper@1.0-service.software
+ 
+@@ -250,7 +245,7 @@ PRODUCT_COPY_FILES += \
+     device/generic/goldfish/init.ranchu-net.sh:$(TARGET_COPY_OUT_VENDOR)/bin/init.ranchu-net.sh \
+     device/generic/goldfish/wifi/init.wifi.sh:$(TARGET_COPY_OUT_VENDOR)/bin/init.wifi.sh \
+     device/generic/goldfish/init.ranchu.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/hw/init.ranchu.rc \
+-    device/generic/goldfish/fstab.ranchu:$(TARGET_COPY_OUT_VENDOR)/etc/fstab.ranchu \
++    device/generic/goldfish/fstab.goldfish:$(TARGET_COPY_OUT_VENDOR)/etc/fstab.kbox \
+     device/generic/goldfish/ueventd.ranchu.rc:$(TARGET_COPY_OUT_VENDOR)/ueventd.rc \
+     device/generic/goldfish/input/goldfish_rotary.idc:$(TARGET_COPY_OUT_VENDOR)/usr/idc/goldfish_rotary.idc \
+     device/generic/goldfish/input/qwerty2.idc:$(TARGET_COPY_OUT_VENDOR)/usr/idc/qwerty2.idc \

@@ -1,0 +1,518 @@
+diff --git a/cmds/installd/InstalldNativeService.cpp b/cmds/installd/InstalldNativeService.cpp
+index 01eb3fe..e923532 100644
+--- a/cmds/installd/InstalldNativeService.cpp
++++ b/cmds/installd/InstalldNativeService.cpp
+@@ -360,6 +360,8 @@ fail:
+ done:
+     free(before);
+     free(after);
++// END
++
+     return res;
+ }
+ 
+diff --git a/cmds/servicemanager/servicemanager.rc b/cmds/servicemanager/servicemanager.rc
+index 152ac28..a08a471 100644
+--- a/cmds/servicemanager/servicemanager.rc
++++ b/cmds/servicemanager/servicemanager.rc
+@@ -1,6 +1,6 @@
+ service servicemanager /system/bin/servicemanager
+     class core animation
+-    user system
++    user root
+     group system readproc
+     critical
+     onrestart restart healthd
+diff --git a/cmds/servicemanager/vndservicemanager.rc b/cmds/servicemanager/vndservicemanager.rc
+index 3fa4d7d..b2a757f 100644
+--- a/cmds/servicemanager/vndservicemanager.rc
++++ b/cmds/servicemanager/vndservicemanager.rc
+@@ -1,6 +1,6 @@
+ service vndservicemanager /vendor/bin/vndservicemanager /dev/vndbinder
+     class core
+-    user system
++    user root
+     group system readproc
+     writepid /dev/cpuset/system-background/tasks
+     shutdown critical
+diff --git a/libs/binder/Binder.cpp b/libs/binder/Binder.cpp
+index 6ca3b16..10a0973 100644
+--- a/libs/binder/Binder.cpp
++++ b/libs/binder/Binder.cpp
+@@ -261,6 +261,7 @@ bool BBinder::isRequestingSid()
+ 
+ void BBinder::setRequestingSid(bool requestingSid)
+ {
++    requestingSid = false; // fix binder
+     Extras* e = mExtras.load(std::memory_order_acquire);
+ 
+     if (!e) {
+diff --git a/libs/binder/IPCThreadState.cpp b/libs/binder/IPCThreadState.cpp
+index 847b73a..ed02fca 100644
+--- a/libs/binder/IPCThreadState.cpp
++++ b/libs/binder/IPCThreadState.cpp
+@@ -1238,7 +1238,7 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
+                 if (error < NO_ERROR) reply.setError(error);
+                 sendReply(reply, 0);
+             } else {
+-                if (error != OK || reply.dataSize() != 0) {
++                if (error != OK) {
+                     alog << "oneway function results will be dropped but finished with status "
+                          << statusToString(error)
+                          << " and parcel size " << reply.dataSize() << endl;
+diff --git a/libs/binder/ProcessState.cpp b/libs/binder/ProcessState.cpp
+index 4b773e8..af75288 100644
+--- a/libs/binder/ProcessState.cpp
++++ b/libs/binder/ProcessState.cpp
+@@ -138,11 +138,14 @@ bool ProcessState::becomeContextManager(context_check_func checkFunc, void* user
+     mBinderContextCheckFunc = checkFunc;
+     mBinderContextUserData = userData;
+ 
++#if 0 // fix binder
+     flat_binder_object obj {
+         .flags = FLAT_BINDER_FLAG_TXN_SECURITY_CTX,
+     };
+ 
+     int result = ioctl(mDriverFD, BINDER_SET_CONTEXT_MGR_EXT, &obj);
++#endif
++    int result = 1;
+ 
+     // fallback to original method
+     if (result != 0) {
+diff --git a/libs/dumputils/dump_utils.cpp b/libs/dumputils/dump_utils.cpp
+index fd557b7..31fd439 100644
+--- a/libs/dumputils/dump_utils.cpp
++++ b/libs/dumputils/dump_utils.cpp
+@@ -34,7 +34,7 @@ static const char* native_processes_to_dump[] = {
+         "/system/bin/mediametrics", // media.metrics
+         "/system/bin/mediaserver",
+         "/system/bin/netd",
+-        "/system/bin/sdcard",
++        // "/system/bin/sdcard",
+         "/apex/com.android.os.statsd/bin/statsd",
+         "/system/bin/surfaceflinger",
+         "/system/bin/vehicle_network_service",
+diff --git a/libs/gui/Surface.cpp b/libs/gui/Surface.cpp
+index e1a17db..d2d86b4 100644
+--- a/libs/gui/Surface.cpp
++++ b/libs/gui/Surface.cpp
+@@ -32,6 +32,7 @@
+ #include <utils/Log.h>
+ #include <utils/Trace.h>
+ #include <utils/NativeHandle.h>
++#include <cutils/properties.h>
+ 
+ #include <ui/DisplayStatInfo.h>
+ #include <ui/Fence.h>
+@@ -2126,12 +2127,24 @@ status_t Surface::lock(
+         if (inOutDirtyBounds) {
+             *inOutDirtyBounds = newDirtyRegion.getBounds();
+         }
++        // hwmock if property ro.sys.vmi.cloudphone is set ,then set inUsage
++        static uint32_t inUsage = GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN;
++        static bool needReadProp = true;
++        if (needReadProp) {
++            char value[PROPERTY_VALUE_MAX] = {0};
++            property_get("ro.sys.vmi.cloudphone", value, "unknow");
++            if (strcmp(value, "instruction") == 0) {
++                inUsage ^= GRALLOC_USAGE_SW_READ_OFTEN;
++            }
++            needReadProp = false;
++            ALOGV("running mode is %s", value);
++        }
+ 
+         void* vaddr;
+-        status_t res = backBuffer->lockAsync(
+-                GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN,
+-                newDirtyRegion.bounds(), &vaddr, fenceFd);
+-
++        // status_t res = backBuffer->lockAsync(
++        //         GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN,
++        //         newDirtyRegion.bounds(), &vaddr, fenceFd);
++        status_t res = backBuffer->lockAsync(inUsage, newDirtyRegion.bounds(), &vaddr, fenceFd);
+         ALOGW_IF(res, "failed locking buffer (handle = %p)",
+                 backBuffer->handle);
+ 
+diff --git a/opengl/libs/EGL/egl_layers.cpp b/opengl/libs/EGL/egl_layers.cpp
+index ea86c9a..755b9df 100644
+--- a/opengl/libs/EGL/egl_layers.cpp
++++ b/opengl/libs/EGL/egl_layers.cpp
+@@ -327,18 +327,40 @@ void LayerLoader::InitLayers(egl_connection_t* cnx) {
+     initialized_ = true;
+ }
+ 
++static void get_proc_name(char* applicationName, int fReadSize)
++{
++    pid_t pid = getpid();
++    char path[256] = { 0 };
++    sprintf(path, "/proc/%d/cmdline", pid);
++    FILE* cmdline = fopen(path, "r");
++
++    if(cmdline) {
++        fread(applicationName, fReadSize, 1, cmdline);
++        fclose(cmdline);
++    }
++}
++
+ void LayerLoader::LoadLayers() {
+     std::string debug_layers = GetDebugLayers();
+ 
+     // If no layers are specified, we're done
+     if (debug_layers.empty()) return;
+ 
+-    // Only enable the system search path for non-user builds
+-    std::string system_path;
+-    if (android::GraphicsEnv::getInstance().isDebuggable()) {
+-        system_path = kSystemLayerLibraryDir;
++    // Fixed an issue where the shader cache storage path is incorrect
++    // Get current process name
++    const uint32_t app_name_max_len = 256;
++    char application_name[app_name_max_len] = { 0 };
++    get_proc_name(application_name, app_name_max_len);
++    // If the process is "zygote64" or "zygote", don't load debug layers
++    if (strcmp(application_name, "zygote64") == 0 ||
++        strcmp(application_name, "zygote") == 0) {
++        return;
+     }
+ 
++    // enable the system search path for both non-user and user builds
++    std::string system_path;
++    system_path = kSystemLayerLibraryDir;
++
+     ALOGI("Debug layer list: %s", debug_layers.c_str());
+     std::vector<std::string> layers = android::base::Split(debug_layers, ":");
+ 
+diff --git a/opengl/libs/GLES_CM/gl.cpp b/opengl/libs/GLES_CM/gl.cpp
+index bacd4b4..7913e7c 100644
+--- a/opengl/libs/GLES_CM/gl.cpp
++++ b/opengl/libs/GLES_CM/gl.cpp
+@@ -347,6 +347,11 @@ extern "C" {
+ extern "C" const GLubyte * __glGetString(GLenum name);
+ 
+ const GLubyte * glGetString(GLenum name) {
++    // 使用gles1.0版本的glGetstring的应用无法进入中间层mock，因此调用gles2.0的glGetString
++    if (name == GL_VENDOR || name == GL_RENDERER || name == GL_VERSION || name == GL_EXTENSIONS) {
++        egl_connection_t* const cnx = egl_get_connection();
++        return cnx->platform.glGetString(name);
++    }
+     const GLubyte * ret = egl_get_string_for_current_context(name);
+     if (ret == NULL) {
+         gl_hooks_t::gl_t const * const _c = &getGlThreadSpecific()->gl;
+diff --git a/services/inputflinger/dispatcher/InputDispatcher.cpp b/services/inputflinger/dispatcher/InputDispatcher.cpp
+index fe016af..b4be275 100644
+--- a/services/inputflinger/dispatcher/InputDispatcher.cpp
++++ b/services/inputflinger/dispatcher/InputDispatcher.cpp
+@@ -3336,12 +3336,19 @@ int32_t InputDispatcher::injectInputEvent(const InputEvent* event, int32_t injec
+             int32_t action = motionEvent->getAction();
+             size_t pointerCount = motionEvent->getPointerCount();
+             const PointerProperties* pointerProperties = motionEvent->getPointerProperties();
++            PointerProperties newPointerProperties[MAX_POINTERS];
+             int32_t actionButton = motionEvent->getActionButton();
+             int32_t displayId = motionEvent->getDisplayId();
+             if (!validateMotionEvent(action, actionButton, pointerCount, pointerProperties)) {
+                 return INPUT_EVENT_INJECTION_FAILED;
+             }
+ 
++            for (size_t i = 0; i < pointerCount; i++) {
++                newPointerProperties[i].id = pointerProperties[i].id;
++                // 0: MotionEvent.TOOL_TYPE_UNKNOWN; 1: MotionEvent.TOOL_TYPE_FINGER
++                newPointerProperties[i].toolType = 1;
++            }
++
+             if (!(policyFlags & POLICY_FLAG_FILTERED)) {
+                 nsecs_t eventTime = motionEvent->getEventTime();
+                 android::base::Timer t;
+@@ -3365,7 +3372,7 @@ int32_t InputDispatcher::injectInputEvent(const InputEvent* event, int32_t injec
+                                     motionEvent->getRawXCursorPosition(),
+                                     motionEvent->getRawYCursorPosition(),
+                                     motionEvent->getDownTime(), uint32_t(pointerCount),
+-                                    pointerProperties, samplePointerCoords,
++                                    newPointerProperties, samplePointerCoords,
+                                     motionEvent->getXOffset(), motionEvent->getYOffset());
+             injectedEntries.push(injectedEntry);
+             for (size_t i = motionEvent->getHistorySize(); i > 0; i--) {
+@@ -3383,7 +3390,7 @@ int32_t InputDispatcher::injectInputEvent(const InputEvent* event, int32_t injec
+                                         motionEvent->getRawXCursorPosition(),
+                                         motionEvent->getRawYCursorPosition(),
+                                         motionEvent->getDownTime(), uint32_t(pointerCount),
+-                                        pointerProperties, samplePointerCoords,
++                                        newPointerProperties, samplePointerCoords,
+                                         motionEvent->getXOffset(), motionEvent->getYOffset());
+                 injectedEntries.push(nextInjectedEntry);
+             }
+diff --git a/services/surfaceflinger/CompositionEngine/include/compositionengine/Output.h b/services/surfaceflinger/CompositionEngine/include/compositionengine/Output.h
+index baf5258..2b6c47c 100644
+--- a/services/surfaceflinger/CompositionEngine/include/compositionengine/Output.h
++++ b/services/surfaceflinger/CompositionEngine/include/compositionengine/Output.h
+@@ -184,6 +184,7 @@ public:
+ 
+     // Sets a debug name for the output
+     virtual void setName(const std::string&) = 0;
++    virtual void setSingleLayerCount(int) = 0;
+ 
+     // Gets the current render color mode for the output
+     virtual DisplayColorProfile* getDisplayColorProfile() const = 0;
+diff --git a/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h b/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h
+index 6f25e63..ef9684c 100644
+--- a/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h
++++ b/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h
+@@ -51,6 +51,7 @@ public:
+ 
+     const std::string& getName() const override;
+     void setName(const std::string&) override;
++    void setSingleLayerCount(int) override;
+ 
+     compositionengine::DisplayColorProfile* getDisplayColorProfile() const override;
+     void setDisplayColorProfile(std::unique_ptr<compositionengine::DisplayColorProfile>) override;
+@@ -130,6 +131,7 @@ private:
+     ReleasedLayers mReleasedLayers;
+     OutputLayer* mLayerRequestingBackgroundBlur = nullptr;
+     std::unique_ptr<ClientCompositionRequestCache> mClientCompositionRequestCache;
++    int32_t mSingleLayerCount = 0;
+ };
+ 
+ // This template factory function standardizes the implementation details of the
+diff --git a/services/surfaceflinger/CompositionEngine/src/Output.cpp b/services/surfaceflinger/CompositionEngine/src/Output.cpp
+index 90ac781..74123ea 100644
+--- a/services/surfaceflinger/CompositionEngine/src/Output.cpp
++++ b/services/surfaceflinger/CompositionEngine/src/Output.cpp
+@@ -41,6 +41,7 @@
+ #include <ui/DebugUtils.h>
+ #include <ui/HdrCapabilities.h>
+ #include <utils/Trace.h>
++#include <cutils/properties.h>
+ 
+ #include "TracedOrdinal.h"
+ 
+@@ -95,6 +96,10 @@ void Output::setName(const std::string& name) {
+     mName = name;
+ }
+ 
++void Output::setSingleLayerCount(int value) {
++    mSingleLayerCount = value;
++}
++
+ void Output::setCompositionEnabled(bool enabled) {
+     auto& outputState = editState();
+     if (outputState.isEnabled == enabled) {
+@@ -922,8 +927,21 @@ std::optional<base::unique_fd> Output::composeSurfaces(
+                    });
+ 
+     const nsecs_t renderEngineStart = systemTime();
++    char tempChar[PROPERTY_VALUE_MAX];
++    int bypassCompositionSwitch = property_get("ro.hardware.compositionBypass", tempChar, "0") > 0 ? std::atoi(tempChar) : 0;
++    int offset = property_get("ro.hardware.compositionBypass.offset", tempChar, "0") > 0 ? std::atoi(tempChar) : 0;
++    size_t layerCount = clientCompositionLayerPointers.size();
++    if ((bypassCompositionSwitch == 1) && (layerCount == 1)) { // 开关打开，且仅有一个图层
++        mSingleLayerCount++;
++        if (mSingleLayerCount > offset) {
++            return readyFence;
++        }
++    } else {
++        mSingleLayerCount = 0;
++    }
++
+     status_t status =
+-            renderEngine.drawLayers(clientCompositionDisplay, clientCompositionLayerPointers,
++        renderEngine.drawLayers(clientCompositionDisplay, clientCompositionLayerPointers,
+                                     buf->getNativeBuffer(), /*useFramebufferCache=*/true,
+                                     std::move(fd), &readyFence);
+ 
+diff --git a/services/surfaceflinger/DisplayDevice.cpp b/services/surfaceflinger/DisplayDevice.cpp
+index 730f297..6300723 100644
+--- a/services/surfaceflinger/DisplayDevice.cpp
++++ b/services/surfaceflinger/DisplayDevice.cpp
+@@ -116,6 +116,10 @@ void DisplayDevice::setDisplayName(const std::string& displayName) {
+     }
+ }
+ 
++void DisplayDevice::setSingleLayerCount(int value) {
++    mCompositionDisplay->setSingleLayerCount(value);
++}
++
+ uint32_t DisplayDevice::getPageFlipCount() const {
+     return mCompositionDisplay->getRenderSurface()->getPageFlipCount();
+ }
+diff --git a/services/surfaceflinger/DisplayDevice.h b/services/surfaceflinger/DisplayDevice.h
+index cb467ea..2d6d02b 100644
+--- a/services/surfaceflinger/DisplayDevice.h
++++ b/services/surfaceflinger/DisplayDevice.h
+@@ -134,6 +134,7 @@ public:
+     const Rect& bounds() const { return getBounds(); }
+ 
+     void setDisplayName(const std::string& displayName);
++    void setSingleLayerCount(int value);
+     const std::string& getDisplayName() const { return mDisplayName; }
+ 
+     /* ------------------------------------------------------------------------
+diff --git a/services/surfaceflinger/Scheduler/DispSync.cpp b/services/surfaceflinger/Scheduler/DispSync.cpp
+index ff91bf7..db12328 100644
+--- a/services/surfaceflinger/Scheduler/DispSync.cpp
++++ b/services/surfaceflinger/Scheduler/DispSync.cpp
+@@ -656,6 +656,14 @@ status_t DispSync::changePhaseOffset(Callback* callback, nsecs_t phase) {
+ void DispSync::setPeriod(nsecs_t period) {
+     Mutex::Autolock lock(mMutex);
+ 
++    {
++        /* kbox directly modifies mPeriod */
++        mPeriod = period;
++        mPhase = 0;
++        mReferenceTime = 0;
++        mThread->updateModel(mPeriod, mPhase, mReferenceTime);
++    }
++
+     const bool pendingPeriodShouldChange =
+             period != mIntendedPeriod || (period == mIntendedPeriod && mPendingPeriod != 0);
+ 
+diff --git a/services/surfaceflinger/Scheduler/Scheduler.cpp b/services/surfaceflinger/Scheduler/Scheduler.cpp
+index 5c0ba01..a4aa927 100644
+--- a/services/surfaceflinger/Scheduler/Scheduler.cpp
++++ b/services/surfaceflinger/Scheduler/Scheduler.cpp
+@@ -334,6 +334,12 @@ void Scheduler::disableHardwareVsync(bool makeUnavailable) {
+     }
+ }
+ 
++void Scheduler::dynamicFpsAdjust(nsecs_t period) {
++    ALOGI("dynamicFpsAdjust period %" PRId64, period);
++    downVsyncPeriod.store(period);
++    resyncToHardwareVsync(true, period);
++}
++
+ void Scheduler::resyncToHardwareVsync(bool makeAvailable, nsecs_t period) {
+     {
+         std::lock_guard<std::mutex> lock(mHWVsyncLock);
+@@ -360,7 +366,11 @@ void Scheduler::resync() {
+     const nsecs_t last = mLastResyncTime.exchange(now);
+ 
+     if (now - last > kIgnoreDelay) {
+-        resyncToHardwareVsync(false, mRefreshRateConfigs.getCurrentRefreshRate().getVsyncPeriod());
++        nsecs_t vsyncPeriod = downVsyncPeriod.load();
++        if (vsyncPeriod == 0) { 
++            vsyncPeriod = mRefreshRateConfigs.getCurrentRefreshRate().getVsyncPeriod();
++        }
++        resyncToHardwareVsync(false, vsyncPeriod);
+     }
+ }
+ 
+diff --git a/services/surfaceflinger/Scheduler/Scheduler.h b/services/surfaceflinger/Scheduler/Scheduler.h
+index 730ea8f..19f002a 100644
+--- a/services/surfaceflinger/Scheduler/Scheduler.h
++++ b/services/surfaceflinger/Scheduler/Scheduler.h
+@@ -120,6 +120,7 @@ public:
+     // no-op.
+     // The period is the vsync period from the current display configuration.
+     void resyncToHardwareVsync(bool makeAvailable, nsecs_t period);
++    void dynamicFpsAdjust(nsecs_t period);
+     void resync();
+ 
+     // Passes a vsync sample to DispSync. periodFlushed will be true if
+@@ -223,6 +224,7 @@ private:
+     bool mHWVsyncAvailable GUARDED_BY(mHWVsyncLock) = false;
+ 
+     std::atomic<nsecs_t> mLastResyncTime = 0;
++    std::atomic<nsecs_t> downVsyncPeriod = 0;
+ 
+     // Whether to use idle timer callbacks that support the kernel timer.
+     const bool mSupportKernelTimer;
+diff --git a/services/surfaceflinger/SurfaceFlinger.cpp b/services/surfaceflinger/SurfaceFlinger.cpp
+index 79f99cc..0316109 100644
+--- a/services/surfaceflinger/SurfaceFlinger.cpp
++++ b/services/surfaceflinger/SurfaceFlinger.cpp
+@@ -1630,11 +1630,42 @@ void SurfaceFlinger::changeRefreshRateLocked(const RefreshRate& refreshRate,
+     setDesiredActiveConfig({refreshRate.getConfigId(), event});
+ }
+ 
++#define VSYNC_PERIOD_VALUE_BASE 1000000000
++#define MAX_FPS 300
++#define DEFAULT_FPS 30
++static nsecs_t getPeriodFromProp(std::string prop)
++{
++    char tmpFps[PROPERTY_VALUE_MAX] = {0};
++    property_get(prop.c_str(), tmpFps, "30");
++    std::stringstream stream;
++    stream << tmpFps;
++    int fps;
++    stream >> fps;
++
++    if (fps <= 0 || fps > MAX_FPS) {
++        fps = DEFAULT_FPS;
++    }
++    return VSYNC_PERIOD_VALUE_BASE / fps; // 1000*1000*1000/30
++}
++
+ void SurfaceFlinger::onHotplugReceived(int32_t sequenceId, hal::HWDisplayId hwcDisplayId,
+                                        hal::Connection connection) {
+-    ALOGV("%s(%d, %" PRIu64 ", %s)", __FUNCTION__, sequenceId, hwcDisplayId,
++    ALOGI("onHotplugReceived: %s(%d, %" PRIu64 ", %s)", __FUNCTION__, sequenceId, hwcDisplayId,
+           connection == hal::Connection::CONNECTED ? "connected" : "disconnected");
+ 
++    if (hwcDisplayId == HWC_DISPLAY_KBOX) {
++        nsecs_t period = getPeriodFromProp("ro.hardware.fps");
++        if (connection == hal::Connection::CONNECTED) {
++            mScheduler->dynamicFpsAdjust(period);
++        } else if (connection == hal::Connection::DISCONNECTED) {
++            nsecs_t downPeriod = getPeriodFromProp("ro.hardware.downfps");
++            downPeriod = (downPeriod > period) ? downPeriod : period; // 约束下降后的周期一定大于原始周期
++            mScheduler->dynamicFpsAdjust(downPeriod);
++            mScheduler->disableHardwareVsync(true);
++        }
++        return;
++    }
++
+     // Ignore events that do not have the right sequenceId.
+     if (sequenceId != getBE().mComposerSequenceId) {
+         return;
+@@ -1676,6 +1707,9 @@ void SurfaceFlinger::onRefreshReceived(int sequenceId, hal::HWDisplayId /*hwcDis
+     if (sequenceId != getBE().mComposerSequenceId) {
+         return;
+     }
++    for (const auto& [token, display] : mDisplays) {
++        display->setSingleLayerCount(0);
++    }
+     repaintEverythingForHWC();
+ }
+ 
+@@ -2697,12 +2731,6 @@ void SurfaceFlinger::processDisplayChanged(const wp<IBinder>& displayToken,
+         if (currentState.layerStack != drawingState.layerStack) {
+             display->setLayerStack(currentState.layerStack);
+         }
+-        if ((currentState.orientation != drawingState.orientation) ||
+-            (currentState.viewport != drawingState.viewport) ||
+-            (currentState.frame != drawingState.frame)) {
+-            display->setProjection(currentState.orientation, currentState.viewport,
+-                                   currentState.frame);
+-        }
+         if (currentState.width != drawingState.width ||
+             currentState.height != drawingState.height) {
+             display->setDisplaySize(currentState.width, currentState.height);
+@@ -2715,6 +2743,13 @@ void SurfaceFlinger::processDisplayChanged(const wp<IBinder>& displayToken,
+                 mRefreshRateOverlay->setViewport(display->getSize());
+             }
+         }
++
++        if ((currentState.orientation != drawingState.orientation) ||
++            (currentState.viewport != drawingState.viewport) ||
++            (currentState.frame != drawingState.frame)) {
++            display->setProjection(currentState.orientation, currentState.viewport,
++                                   currentState.frame);
++        }
+     }
+ }
+ 
+diff --git a/vulkan/libvulkan/driver.cpp b/vulkan/libvulkan/driver.cpp
+index f840561..83e01f5 100644
+--- a/vulkan/libvulkan/driver.cpp
++++ b/vulkan/libvulkan/driver.cpp
+@@ -245,6 +245,12 @@ bool Hal::Open() {
+     if (result == -ENOENT) {
+         result = LoadBuiltinDriver(&module);
+     }
++
++    if (result == -ENOENT) {
++        // ENOENT here means sphal is not enabled for vulkan driver, open hal module directly to walkaround
++        result = hw_get_module(HWVULKAN_HARDWARE_MODULE_ID, reinterpret_cast<const hw_module_t**>(&module));
++    }
++
+     if (result != 0) {
+         android::GraphicsEnv::getInstance().setDriverLoaded(
+             android::GpuStatsInfo::Api::API_VK, false, systemTime() - openTime);

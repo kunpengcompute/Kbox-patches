@@ -1,0 +1,2608 @@
+diff --git a/android/Android.mk b/android/Android.mk
+index 430b01a26b6..819d4cc83a9 100644
+--- a/android/Android.mk
++++ b/android/Android.mk
+@@ -27,6 +27,7 @@ LOCAL_PATH := $(call my-dir)
+ MESA3D_TOP := $(dir $(LOCAL_PATH))
+ 
+ LIBDRM_VERSION = $(shell cat external/libdrm/meson.build | grep -o "\<version\>\s*:\s*'\w*\.\w*\.\w*'" | grep -o "\w*\.\w*\.\w*" | head -1)
++LIBVA_VERSION = $(shell cat external/libva/meson.build | grep -o "\<version\>\s*:\s*'\w*\.\w*\.\w*'" | grep -o "\w*\.\w*\.\w*" | head -1)
+ 
+ MESA_VK_LIB_SUFFIX_amd := radeon
+ MESA_VK_LIB_SUFFIX_intel := intel
+@@ -38,10 +39,10 @@ MESA_VK_LIB_SUFFIX_swrast := lvp
+ 
+ include $(CLEAR_VARS)
+ 
+-LOCAL_SHARED_LIBRARIES := libc libdl libdrm libm liblog libcutils libz libc++ libnativewindow libsync libhardware
++LOCAL_SHARED_LIBRARIES := libc libdl libdrm libm liblog libcutils libz libc++ libnativewindow libsync libhardware libva
+ LOCAL_STATIC_LIBRARIES := libexpat libarect libelf
+ LOCAL_HEADER_LIBRARIES := libnativebase_headers hwvulkan_headers libbacktrace_headers
+-MESON_GEN_PKGCONFIGS := backtrace cutils expat hardware libdrm:$(LIBDRM_VERSION) nativewindow sync zlib:1.2.11 libelf
++MESON_GEN_PKGCONFIGS := backtrace cutils expat hardware libdrm:$(LIBDRM_VERSION) nativewindow sync zlib:1.2.11 libelf libva:$(LIBVA_VERSION)
+ LOCAL_CFLAGS += $(BOARD_MESA3D_CFLAGS)
+ 
+ ifneq ($(filter swrast,$(BOARD_MESA3D_GALLIUM_DRIVERS) $(BOARD_MESA3D_VULKAN_DRIVERS)),)
+@@ -84,8 +85,8 @@ MESON_GEN_PKGCONFIGS += DirectX-Headers
+ endif
+ 
+ ifneq ($(MESON_GEN_LLVM_STUB),)
+-MESON_LLVM_VERSION := 12.0.0
+-LOCAL_SHARED_LIBRARIES += libLLVM12
++MESON_LLVM_VERSION := 13.0.1
++LOCAL_SHARED_LIBRARIES += libLLVM70
+ endif
+ 
+ ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 30; echo $$?), 0)
+@@ -138,6 +139,7 @@ LOCAL_SHARED_LIBRARIES := $(__MY_SHARED_LIBRARIES)
+ # Module 'libgallium_dri', produces '/vendor/lib{64}/dri/libgallium_dri.so'
+ # This module also trigger DRI symlinks creation process
+ $(eval $(call mesa3d-lib,libgallium_dri,.so.0,dri,MESA3D_GALLIUM_DRI_BIN))
++$(eval $(call mesa3d-lib,radeonsi_drv_video,.so.0,dri,MESA3D_RADEONSI_DRI_VIDEO_BIN))
+ # Module 'libglapi', produces '/vendor/lib{64}/libglapi.so'
+ $(eval $(call mesa3d-lib,libglapi,.so.0,,MESA3D_LIBGLAPI_BIN))
+ 
+diff --git a/android/mesa3d_cross.mk b/android/mesa3d_cross.mk
+index b3cc09496a0..b18bb6f0c2d 100644
+--- a/android/mesa3d_cross.mk
++++ b/android/mesa3d_cross.mk
+@@ -68,6 +68,7 @@ MESON_GEN_FILES_TARGET                   := $(MESON_GEN_DIR)/.timestamp
+ 
+ MESA3D_GALLIUM_DRI_DIR                   := $(MESON_OUT_DIR)/install/usr/local/lib/dri
+ $(M_TARGET_PREFIX)MESA3D_GALLIUM_DRI_BIN := $(MESON_OUT_DIR)/install/usr/local/lib/libgallium_dri.so
++$(M_TARGET_PREFIX)MESA3D_RADEONSI_DRI_VIDEO_BIN := $(MESON_OUT_DIR)/install/usr/local/lib/dri/radeonsi_drv_video.so
+ $(M_TARGET_PREFIX)MESA3D_LIBEGL_BIN      := $(MESON_OUT_DIR)/install/usr/local/lib/libEGL.so.1.0.0
+ $(M_TARGET_PREFIX)MESA3D_LIBGLESV1_BIN   := $(MESON_OUT_DIR)/install/usr/local/lib/libGLESv1_CM.so.1.1.0
+ $(M_TARGET_PREFIX)MESA3D_LIBGLESV2_BIN   := $(MESON_OUT_DIR)/install/usr/local/lib/libGLESv2.so.2.0.0
+@@ -82,7 +83,7 @@ MESA3D_GLES_BINS := \
+     $($(M_TARGET_PREFIX)MESA3D_LIBGLAPI_BIN)  \
+ 
+ MESON_GEN_NINJA := \
+-	cd $(MESON_OUT_DIR) && PATH=/usr/bin:/usr/local/bin:$$PATH meson ./build     \
++	cd $(MESON_OUT_DIR) && PATH=/usr/bin:/usr/local/bin:$$PATH meson.py ./build     \
+ 	--cross-file $(AOSP_ABSOLUTE_PATH)/$(MESON_GEN_DIR)/aosp_cross               \
+ 	--buildtype=release                                                          \
+ 	-Ddri-search-path=/vendor/$(MESA3D_LIB_DIR)/dri                              \
+@@ -94,6 +95,10 @@ MESON_GEN_NINJA := \
+ 	-Dgbm=enabled                                                                \
+ 	-Degl=enabled                                                                \
+ 	-Dcpp_rtti=false                                                             \
++	-Dgallium-va=enabled                                                         \
++	-Dandroid-stub=true                                                          \
++	-Degl-native-platform=android
++
+ 
+ MESON_BUILD := PATH=/usr/bin:/bin:/sbin:$$PATH ninja -C $(MESON_OUT_DIR)/build
+ 
+@@ -292,9 +297,13 @@ $($(M_TARGET_PREFIX)TARGET_OUT_VENDOR_SHARED_LIBRARIES)/dri/.symlinks.timestamp:
+ $($(M_TARGET_PREFIX)TARGET_OUT_VENDOR_SHARED_LIBRARIES)/dri/.symlinks.timestamp: $(MESON_OUT_DIR)/install/.install.timestamp
+ 	# Create Symlinks
+ 	mkdir -p $(dir $@)
+-	ls -1 $(MESA3D_GALLIUM_DRI_DIR)/ | PATH=/usr/bin:$$PATH xargs -I{} ln -s -f libgallium_dri.so $(dir $@)/{}
++	ln -s -f libgallium_dri.so $(dir $@)/radeonsi_dri.so
+ 	touch $@
+ 
+ $($(M_TARGET_PREFIX)MESA3D_GALLIUM_DRI_BIN): $(TARGET_OUT_VENDOR)/$(MESA3D_LIB_DIR)/dri/.symlinks.timestamp
+ 	echo "Build $@"
+ 	touch $@
++
++$($(M_TARGET_PREFIX)MESA3D_RADEONSI_DRI_VIDEO_BIN): $(TARGET_OUT_VENDOR)/$(MESA3D_LIB_DIR)/dri/.symlinks.timestamp
++	echo "Build $@"
++	touch $@
+diff --git a/include/GL/internal/dri_interface.h b/include/GL/internal/dri_interface.h
+index 6099b2a296f..e9ff6171a6d 100644
+--- a/include/GL/internal/dri_interface.h
++++ b/include/GL/internal/dri_interface.h
+@@ -1378,6 +1378,12 @@ struct __DRIimageExtensionRec {
+ 			       unsigned int use,
+ 			       void *loaderPrivate);
+ 
++    __DRIimage *(*createImagenative)(__DRIscreen *screen,
++			       int width, int height, int format,
++			       unsigned int use,
++			       void *loaderPrivate,
++			       unsigned long **texture);
++
+    unsigned char (*queryImage)(__DRIimage *image, int attrib, int *value);
+ 
+    /**
+@@ -1506,6 +1512,10 @@ struct __DRIimageExtensionRec {
+                      int x0, int y0, int width, int height,
+                      unsigned int flags, int *stride, void **data);
+ 
++   void *(*mapImage_native)(__DRIcontext *context, __DRIimage *image,
++                            int x0, int y0, int width, int height,
++                            unsigned int flags, int *stride, void **data);
++
+    /**
+     * Unmap a previously mapped __DRIimage
+     *
+diff --git a/meson.build b/meson.build
+index 70a0d576b9e..e479c3bf873 100644
+--- a/meson.build
++++ b/meson.build
+@@ -27,7 +27,7 @@ project(
+   ).stdout(),
+   license : 'MIT',
+   meson_version : '>= 0.53',
+-  default_options : ['buildtype=debugoptimized', 'b_ndebug=if-release', 'c_std=c11', 'cpp_std=c++14']
++  default_options : ['buildtype=release', 'b_ndebug=if-release', 'c_std=c11', 'cpp_std=c++14']
+ )
+ 
+ # In recent versions, meson can inject some extra arguments to get richer
+@@ -842,7 +842,7 @@ endif
+ 
+ va_drivers_path = get_option('va-libs-path')
+ if va_drivers_path == ''
+-  va_drivers_path = join_paths(get_option('libdir'), 'dri')
++  va_drivers_path = join_paths(get_option('prefix'), get_option('libdir'), 'dri')
+ endif
+ 
+ _xa = get_option('gallium-xa')
+@@ -1153,7 +1153,6 @@ if cc.get_id() == 'msvc'
+ else
+   _trial_c = [
+     '-Werror=implicit-function-declaration',
+-    '-Werror=missing-prototypes',
+     '-Werror=return-type',
+     '-Werror=empty-body',
+     '-Werror=incompatible-pointer-types',
+@@ -1188,7 +1187,7 @@ else
+ 
+   # MinGW chokes on format specifiers and I can't get it all working
+   if not (cc.get_id() == 'gcc' and host_machine.system() == 'windows')
+-    _trial_c += ['-Werror=format', '-Wformat-security']
++    _trial_c += ['-Wformat-security']
+     _trial_cpp += ['-Werror=format', '-Wformat-security']
+   endif
+ 
+@@ -1216,7 +1215,7 @@ else
+   # Check for C and C++ arguments for MSVC compatibility. These are only used
+   # in parts of the mesa code base that need to compile with MSVC, mainly
+   # common code
+-  _trial_msvc = ['-Werror=pointer-arith', '-Werror=gnu-empty-initializer']
++  _trial_msvc = ['-Werror=gnu-empty-initializer']
+   c_msvc_compat_args += cc.get_supported_arguments(_trial_msvc)
+   cpp_msvc_compat_args += cpp.get_supported_arguments(_trial_msvc)
+ endif
+diff --git a/src/amd/compiler/aco_instruction_selection.cpp b/src/amd/compiler/aco_instruction_selection.cpp
+index 8ae710e1cf4..77960147c1e 100644
+--- a/src/amd/compiler/aco_instruction_selection.cpp
++++ b/src/amd/compiler/aco_instruction_selection.cpp
+@@ -9094,13 +9094,9 @@ prepare_cube_coords(isel_context* ctx, std::vector<Temp>& coords, Temp* ddx, Tem
+    aco_opcode madmk =
+       ctx->program->chip_class >= GFX10_3 ? aco_opcode::v_fmamk_f32 : aco_opcode::v_madmk_f32;
+ 
+-   if (is_array) {
+-      coords[3] = bld.vop1(aco_opcode::v_rndne_f32, bld.def(v1), coords[3]);
+-
+-      /* see comment in ac_prepare_cube_coords() */
+-      if (ctx->options->chip_class <= GFX8)
+-         coords[3] = bld.vop2(aco_opcode::v_max_f32, bld.def(v1), Operand::zero(), coords[3]);
+-   }
++   /* see comment in ac_prepare_cube_coords() */
++   if (is_array && ctx->options->chip_class <= GFX8)
++      coords[3] = bld.vop2(aco_opcode::v_max_f32, bld.def(v1), Operand::zero(), coords[3]);
+ 
+    ma = bld.vop3(aco_opcode::v_cubema_f32, bld.def(v1), coords[0], coords[1], coords[2]);
+ 
+@@ -9348,18 +9344,6 @@ visit_tex(isel_context* ctx, nir_tex_instr* instr)
+       has_derivs = true;
+    }
+ 
+-   if (instr->coord_components > 1 && instr->sampler_dim == GLSL_SAMPLER_DIM_1D &&
+-       instr->is_array && instr->op != nir_texop_txf)
+-      coords[1] = bld.vop1(aco_opcode::v_rndne_f32, bld.def(v1), coords[1]);
+-
+-   if (instr->coord_components > 2 &&
+-       (instr->sampler_dim == GLSL_SAMPLER_DIM_2D || instr->sampler_dim == GLSL_SAMPLER_DIM_MS ||
+-        instr->sampler_dim == GLSL_SAMPLER_DIM_SUBPASS ||
+-        instr->sampler_dim == GLSL_SAMPLER_DIM_SUBPASS_MS) &&
+-       instr->is_array && instr->op != nir_texop_txf && instr->op != nir_texop_fragment_fetch_amd &&
+-       instr->op != nir_texop_fragment_mask_fetch_amd)
+-      coords[2] = bld.vop1(aco_opcode::v_rndne_f32, bld.def(v1), coords[2]);
+-
+    if (ctx->options->chip_class == GFX9 && instr->sampler_dim == GLSL_SAMPLER_DIM_1D &&
+        instr->op != nir_texop_lod && instr->coord_components) {
+       assert(coords.size() > 0 && coords.size() < 3);
+diff --git a/src/amd/llvm/ac_llvm_util.c b/src/amd/llvm/ac_llvm_util.c
+index 9f215d8e0aa..99c1de9df05 100644
+--- a/src/amd/llvm/ac_llvm_util.c
++++ b/src/amd/llvm/ac_llvm_util.c
+@@ -40,6 +40,8 @@
+ #include <stdio.h>
+ #include <string.h>
+ 
++extern void LLVMInitializeAMDGPUDisassembler();
++
+ static void ac_init_llvm_target(void)
+ {
+    LLVMInitializeAMDGPUTargetInfo();
+diff --git a/src/amd/vulkan/meson.build b/src/amd/vulkan/meson.build
+index 523782f281f..8e5c908dbbf 100644
+--- a/src/amd/vulkan/meson.build
++++ b/src/amd/vulkan/meson.build
+@@ -31,6 +31,9 @@ radv_entrypoints = custom_target(
+ )
+ 
+ libradv_files = files(
++  '../../mesa/main/texcompress_etc.h',
++  '../../mesa/main/texcompress_etc.c',
++  '../../mesa/main/formats.c',
+   'layers/radv_metro_exodus.c',
+   'layers/radv_sqtt_layer.c',
+   'winsys/null/radv_null_bo.c',
+diff --git a/src/amd/vulkan/radv_acceleration_structure.c b/src/amd/vulkan/radv_acceleration_structure.c
+index 6ac06ccf284..ca8cb343dcc 100644
+--- a/src/amd/vulkan/radv_acceleration_structure.c
++++ b/src/amd/vulkan/radv_acceleration_structure.c
+@@ -1769,7 +1769,6 @@ radv_device_init_accel_struct_build_state(struct radv_device *device)
+    return VK_SUCCESS;
+ 
+ fail:
+-   radv_device_finish_accel_struct_build_state(device);
+    ralloc_free(copy_cs);
+    ralloc_free(internal_cs);
+    ralloc_free(leaf_cs);
+diff --git a/src/amd/vulkan/radv_device.c b/src/amd/vulkan/radv_device.c
+index 9f96242bd9b..449ec3037a6 100644
+--- a/src/amd/vulkan/radv_device.c
++++ b/src/amd/vulkan/radv_device.c
+@@ -493,7 +493,7 @@ radv_physical_device_get_supported_extensions(const struct radv_physical_device
+       .EXT_index_type_uint8 = device->rad_info.chip_class >= GFX8,
+       .EXT_inline_uniform_block = true,
+       .EXT_line_rasterization = true,
+-      .EXT_memory_budget = true,
++      .EXT_memory_budget = false,
+       .EXT_memory_priority = true,
+       .EXT_multi_draw = true,
+       .EXT_pci_bus_info = true,
+@@ -5388,6 +5388,12 @@ radv_CreateBuffer(VkDevice _device, const VkBufferCreateInfo *pCreateInfo,
+    buffer->usage = pCreateInfo->usage;
+    buffer->flags = pCreateInfo->flags;
+ 
++   buffer->unpack_buffer_for_ct = NULL;
++	buffer->unpack_mem_for_ct = NULL;
++
++	buffer->compressed_buffer_for_BC = NULL;
++	buffer->compressed_mem_for_BC = NULL;
++
+    if (pCreateInfo->flags & VK_BUFFER_CREATE_SPARSE_BINDING_BIT) {
+       enum radeon_bo_flag flags = RADEON_FLAG_VIRTUAL;
+       if (pCreateInfo->flags & VK_BUFFER_CREATE_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT)
+@@ -5422,6 +5428,26 @@ radv_DestroyBuffer(VkDevice _device, VkBuffer _buffer, const VkAllocationCallbac
+    if (!buffer)
+       return;
+ 
++   if (buffer->unpack_mem_for_ct) {
++		radv_free_memory(device, NULL, buffer->unpack_mem_for_ct);
++      buffer->unpack_mem_for_ct = NULL;
++	}
++
++	if (buffer->unpack_buffer_for_ct) {
++		radv_destroy_buffer(device, NULL, buffer->unpack_buffer_for_ct);
++      buffer->unpack_buffer_for_ct = NULL;
++	}
++
++	if (buffer->compressed_mem_for_BC) {
++		radv_free_memory(device, NULL, buffer->compressed_mem_for_BC);
++      buffer->compressed_mem_for_BC = NULL;
++	}
++
++	if (buffer->compressed_buffer_for_BC) {
++		radv_destroy_buffer(device, NULL, buffer->compressed_buffer_for_BC);
++      buffer->compressed_buffer_for_BC = NULL;
++	}
++
+    radv_destroy_buffer(device, pAllocator, buffer);
+ }
+ 
+diff --git a/src/amd/vulkan/radv_formats.c b/src/amd/vulkan/radv_formats.c
+index f8220d5f73b..475bd9a17d9 100644
+--- a/src/amd/vulkan/radv_formats.c
++++ b/src/amd/vulkan/radv_formats.c
+@@ -1022,6 +1022,7 @@ radv_translate_dbformat(VkFormat format)
+       return V_028040_Z_16;
+    case VK_FORMAT_D32_SFLOAT:
+    case VK_FORMAT_D32_SFLOAT_S8_UINT:
++   case VK_FORMAT_D24_UNORM_S8_UINT:   // 纹理D24_S8_UINT转换为D32_SLOAT_S8_UINT处理，否则深度缓冲区创建失败会导致空指针
+       return V_028040_Z_32_FLOAT;
+    default:
+       return V_028040_Z_INVALID;
+diff --git a/src/amd/vulkan/radv_image.c b/src/amd/vulkan/radv_image.c
+index a8cac871be2..ae19fc1987c 100644
+--- a/src/amd/vulkan/radv_image.c
++++ b/src/amd/vulkan/radv_image.c
+@@ -35,6 +35,7 @@
+ #include "sid.h"
+ #include "vk_format.h"
+ #include "vk_util.h"
++#include <cutils/properties.h>
+ 
+ #include "gfx10_format_table.h"
+ 
+@@ -233,6 +234,9 @@ radv_use_dcc_for_image_early(struct radv_device *device, struct radv_image *imag
+                              const VkImageCreateInfo *pCreateInfo, VkFormat format,
+                              bool *sign_reinterpret)
+ {
++   if (pCreateInfo->mipLevels > 10)
++      return false;
++
+    /* DCC (Delta Color Compression) is only available for GFX8+. */
+    if (device->physical_device->rad_info.chip_class < GFX8)
+       return false;
+@@ -1777,6 +1781,107 @@ radv_select_modifier(const struct radv_device *dev, VkFormat format,
+    unreachable("App specified an invalid modifier");
+ }
+ 
++static char isEnableSoftEncode[PROPERTY_VALUE_MAX];
++static bool
++radv_need_soft_decode(VkFormat format) {
++   if (property_get("sys.vmi.vk.texturecompress", isEnableSoftEncode, "0") && strcmp(isEnableSoftEncode, "1") != 0) {
++      return false;
++   }
++	switch (format) {
++	case VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK:
++	case VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK:
++	case VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK:
++	case VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK:
++	case VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK:
++	case VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK:
++		return true;
++	default:
++		return false;
++	}
++}
++
++VkFormat
++radv_translate_etc(VkFormat format)
++{
++	switch (format) {
++	case VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK:
++	case VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK:
++   case VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK:
++		return VK_FORMAT_R8G8B8A8_UNORM;
++	case VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK:
++	case VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK:
++	case VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK:
++		return  VK_FORMAT_R8G8B8A8_SRGB;
++	default:
++		return format;
++	}
++}
++
++bool
++radv_need_soft_encode(const VkImageCreateInfo *pCreateInfo) {
++   if (property_get("sys.vmi.vk.texturecompress", isEnableSoftEncode, "0") && strcmp(isEnableSoftEncode, "1") != 0) {
++      return false;
++   }
++   // 过滤掉对稀疏纹理的压缩，对该部分纹理进行压缩时可能造成GPU reset。 
++   if (pCreateInfo->flags & (VK_IMAGE_CREATE_SPARSE_BINDING_BIT | VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT |
++      VK_IMAGE_CREATE_SPARSE_ALIASED_BIT)) {
++      return false;
++   }
++	// 首先检查图像的用途，防止压缩 swapchain 的 images；并只对 VK_IMAGE_TYPE_2D 类型纹理进行压缩
++	if (!(pCreateInfo->usage & VK_IMAGE_USAGE_SAMPLED_BIT) || pCreateInfo->imageType != VK_IMAGE_TYPE_2D) {
++		return false;
++	}
++
++	// 对指定格式纹理进行压缩
++	switch (pCreateInfo->format) {
++	case VK_FORMAT_R8G8B8A8_SRGB:
++	case VK_FORMAT_R8G8B8A8_UNORM:
++   {
++      const VkImageAspectFlags aspects = vk_format_aspects(pCreateInfo->format);
++      if (aspects & VK_IMAGE_ASPECT_COLOR_BIT) {
++         // 如果是颜色附件，不让他压缩成BC格式，否则会出现找不到管线进行clear操作
++         return false;
++      }
++   }
++	case VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK:
++	case VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK:
++	case VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK:
++	case VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK:
++	case VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK:
++	case VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK:
++		break;
++	default:
++		return false;
++	}
++
++	// 检查图像大小
++	if (pCreateInfo->extent.width >= 256 && pCreateInfo->extent.height >= 256) {
++	    return true;
++	}
++	return false;
++}
++
++VkFormat
++radv_translate_rgb2BC(VkFormat format)
++{
++	switch (format) {
++	case VK_FORMAT_R8G8B8_SRGB:
++	case VK_FORMAT_R8G8B8A8_SRGB:
++	case VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK:
++	case VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK:
++	case VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK:
++		return VK_FORMAT_BC7_SRGB_BLOCK;
++	case VK_FORMAT_R8G8B8_UNORM:
++	case VK_FORMAT_R8G8B8A8_UNORM:
++	case VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK:
++	case VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK:
++	case VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK:
++		return VK_FORMAT_BC7_UNORM_BLOCK;
++	default:
++		return format;
++	}
++}
++
+ VkResult
+ radv_image_create(VkDevice _device, const struct radv_image_create_info *create_info,
+                   const VkAllocationCallbacks *alloc, VkImage *pImage)
+@@ -1790,10 +1895,21 @@ radv_image_create(VkDevice _device, const struct radv_image_create_info *create_
+       vk_find_struct_const(pCreateInfo->pNext, IMAGE_DRM_FORMAT_MODIFIER_LIST_CREATE_INFO_EXT);
+    const struct VkImageDrmFormatModifierExplicitCreateInfoEXT *explicit_mod =
+       vk_find_struct_const(pCreateInfo->pNext, IMAGE_DRM_FORMAT_MODIFIER_EXPLICIT_CREATE_INFO_EXT);
++   const VkExternalMemoryImageCreateInfo *external_info =
++      vk_find_struct_const(pCreateInfo->pNext, EXTERNAL_MEMORY_IMAGE_CREATE_INFO);
+    assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO);
+ 
+    unsigned plane_count = radv_get_internal_plane_count(device->physical_device, format);
+ 
++   bool needSoftEncode = !external_info && radv_need_soft_encode(pCreateInfo);
++   bool needSoftDecode = needSoftEncode && radv_need_soft_decode(format);
++   VkFormat softDecodeFormat = radv_translate_etc(format);
++   VkFormat softEncodeFormat = radv_translate_rgb2BC(format);
++   // plane_count 影响纹理数据拷贝的过程，需要根据最终格式进行判断
++   if (needSoftEncode) {
++      plane_count = vk_format_get_plane_count(softEncodeFormat);
++   }
++
+    const size_t image_struct_size = sizeof(*image) + sizeof(struct radv_image_plane) * plane_count;
+ 
+    radv_assert(pCreateInfo->mipLevels > 0);
+@@ -1820,12 +1936,26 @@ radv_image_create(VkDevice _device, const struct radv_image_create_info *create_
+    image->info.levels = pCreateInfo->mipLevels;
+    image->info.num_channels = vk_format_get_nr_components(format);
+ 
++   image->isNeedSoftDecode = needSoftDecode;
++   image->isNeedSoftEncode = needSoftEncode;
+    image->vk_format = format;
++   image->srcFormat = format;
++   image->unpackETCFormat = format;
+    image->tiling = pCreateInfo->tiling;
+    image->usage = pCreateInfo->usage;
+    image->flags = pCreateInfo->flags;
+    image->plane_count = vk_format_get_plane_count(format);
+ 
++   //满足要求的 ETC2 纹理使用软解
++   if (needSoftDecode) {
++      image->unpackETCFormat = softDecodeFormat;
++      image->vk_format = softDecodeFormat;
++   }
++   // 软解的ETC2、原始RGB/A纹理使用软编
++   if (needSoftEncode) {
++      image->vk_format = softEncodeFormat;
++   }
++
+    image->exclusive = pCreateInfo->sharingMode == VK_SHARING_MODE_EXCLUSIVE;
+    if (pCreateInfo->sharingMode == VK_SHARING_MODE_CONCURRENT) {
+       for (uint32_t i = 0; i < pCreateInfo->queueFamilyIndexCount; ++i)
+@@ -1837,9 +1967,6 @@ radv_image_create(VkDevice _device, const struct radv_image_create_info *create_
+                                                                pCreateInfo->pQueueFamilyIndices[i]);
+    }
+ 
+-   const VkExternalMemoryImageCreateInfo *external_info =
+-      vk_find_struct_const(pCreateInfo->pNext, EXTERNAL_MEMORY_IMAGE_CREATE_INFO);
+-
+    image->shareable = external_info;
+    if (!vk_format_is_depth_or_stencil(format) && !image->shareable &&
+        !(image->flags & VK_IMAGE_CREATE_SPARSE_ALIASED_BIT) &&
+@@ -2027,6 +2154,10 @@ radv_image_view_init(struct radv_image_view *iview, struct radv_device *device,
+    uint32_t plane_count = 1;
+    float min_lod = 0.0f;
+ 
++   if(pCreateInfo->format == VK_FORMAT_D24_UNORM_S8_UINT) {
++      ((VkImageViewCreateInfo*)(pCreateInfo))->format = VK_FORMAT_D32_SFLOAT_S8_UINT;
++   }
++
+    const struct VkImageViewMinLodCreateInfoEXT *min_lod_info =
+       vk_find_struct_const(pCreateInfo->pNext, IMAGE_VIEW_MIN_LOD_CREATE_INFO_EXT);
+ 
+@@ -2080,6 +2211,10 @@ radv_image_view_init(struct radv_image_view *iview, struct radv_device *device,
+       plane_count = vk_format_get_plane_count(iview->vk_format);
+    }
+ 
++   if (image->isNeedSoftDecode) {
++      iview->vk_format = radv_translate_etc(iview->vk_format);
++   }
++
+    if (device->physical_device->emulate_etc2 &&
+        vk_format_description(image->vk_format)->layout == UTIL_FORMAT_LAYOUT_ETC) {
+       const struct util_format_description *desc = vk_format_description(iview->vk_format);
+@@ -2320,6 +2455,10 @@ VKAPI_ATTR VkResult VKAPI_CALL
+ radv_CreateImage(VkDevice device, const VkImageCreateInfo *pCreateInfo,
+                  const VkAllocationCallbacks *pAllocator, VkImage *pImage)
+ {
++   if(pCreateInfo->format == VK_FORMAT_D24_UNORM_S8_UINT) {
++      ((VkImageCreateInfo*)(pCreateInfo))->format = VK_FORMAT_D32_SFLOAT_S8_UINT;
++   }
++
+ #ifdef ANDROID
+    const VkNativeBufferANDROID *gralloc_info =
+       vk_find_struct_const(pCreateInfo->pNext, NATIVE_BUFFER_ANDROID);
+@@ -2444,10 +2583,24 @@ radv_CreateImageView(VkDevice _device, const VkImageViewCreateInfo *pCreateInfo,
+    if (view == NULL)
+       return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
+ 
+-   radv_image_view_init(view, device, pCreateInfo, NULL);
++   // 纹理为 RGB 纹理时，需要修改 view 的 format
++   VkImageViewCreateInfo *pCreateInfoTemp;
++   pCreateInfoTemp =
++      vk_alloc2(&device->vk.alloc, pAllocator, sizeof(*pCreateInfo), 8, VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
++   if (pCreateInfoTemp == NULL)
++      return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
++
++   memcpy(pCreateInfoTemp, pCreateInfo, sizeof(VkImageViewCreateInfo));
++   RADV_FROM_HANDLE(radv_image, image, pCreateInfoTemp->image);
++   if (image->isNeedSoftEncode) {
++		pCreateInfoTemp->format = image->vk_format;
++	}
++
++   radv_image_view_init(view, device, pCreateInfoTemp, NULL);
+ 
+    *pView = radv_image_view_to_handle(view);
+ 
++   vk_free2(&device->vk.alloc, pAllocator, pCreateInfoTemp);
+    return VK_SUCCESS;
+ }
+ 
+diff --git a/src/amd/vulkan/radv_meta.c b/src/amd/vulkan/radv_meta.c
+index 7211e80789a..82eb45748dc 100644
+--- a/src/amd/vulkan/radv_meta.c
++++ b/src/amd/vulkan/radv_meta.c
+@@ -600,34 +600,36 @@ radv_device_init_meta(struct radv_device *device)
+    return VK_SUCCESS;
+ 
+ fail_etc_decode:
+-   radv_device_finish_meta_fmask_copy_state(device);
++   radv_device_finish_meta_etc_decode_state(device);
+ fail_fmask_copy:
+-   radv_device_finish_accel_struct_build_state(device);
++   radv_device_finish_meta_fmask_copy_state(device);
+ fail_accel_struct_build:
+-   radv_device_finish_meta_fmask_expand_state(device);
++   radv_device_finish_accel_struct_build_state(device);
+ fail_fmask_expand:
+-   radv_device_finish_meta_resolve_fragment_state(device);
++   radv_device_finish_meta_fmask_expand_state(device);
+ fail_resolve_fragment:
+-   radv_device_finish_meta_resolve_compute_state(device);
++   radv_device_finish_meta_resolve_fragment_state(device);
+ fail_resolve_compute:
+-   radv_device_finish_meta_fast_clear_flush_state(device);
++   radv_device_finish_meta_resolve_compute_state(device);
+ fail_fast_clear:
+-   radv_device_finish_meta_query_state(device);
++   radv_device_finish_meta_fast_clear_flush_state(device);
+ fail_query:
+-   radv_device_finish_meta_buffer_state(device);
++   radv_device_finish_meta_query_state(device);
+ fail_buffer:
+-   radv_device_finish_meta_depth_decomp_state(device);
++   radv_device_finish_meta_buffer_state(device);
+ fail_depth_decomp:
+-   radv_device_finish_meta_bufimage_state(device);
++   radv_device_finish_meta_depth_decomp_state(device);
+ fail_bufimage:
+-   radv_device_finish_meta_blit2d_state(device);
++   radv_device_finish_meta_bufimage_state(device);
+ fail_blit2d:
+-   radv_device_finish_meta_blit_state(device);
++   radv_device_finish_meta_blit2d_state(device);
+ fail_blit:
+-   radv_device_finish_meta_resolve_state(device);
++   radv_device_finish_meta_blit_state(device);
+ fail_resolve:
+-   radv_device_finish_meta_clear_state(device);
++   radv_device_finish_meta_resolve_state(device);
+ fail_clear:
++   radv_device_finish_meta_clear_state(device);
++
+    mtx_destroy(&device->meta_state.mtx);
+    radv_pipeline_cache_finish(&device->meta_state.cache);
+    return result;
+diff --git a/src/amd/vulkan/radv_meta_blit.c b/src/amd/vulkan/radv_meta_blit.c
+index cff75ab7f2a..9d54121b2c4 100644
+--- a/src/amd/vulkan/radv_meta_blit.c
++++ b/src/amd/vulkan/radv_meta_blit.c
+@@ -23,6 +23,7 @@
+ 
+ #include "nir/nir_builder.h"
+ #include "radv_meta.h"
++#include "log/log.h"
+ 
+ struct blit_region {
+    VkOffset3D src_offset;
+@@ -272,6 +273,10 @@ meta_emit_blit(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_image,
+       unsigned dst_layout = radv_meta_dst_layout_from_layout(dest_image_layout);
+       VkImageLayout layout = radv_meta_dst_layout_to_layout(dst_layout);
+       fs_key = radv_format_meta_fs_key(device, dest_image->vk_format);
++      if (fs_key >= NUM_META_FS_KEYS) {
++         ALOGE("Invalid fs key. if sys.vmi.vk.texturecompress is enabled, disable it and restart app.");
++         return;
++      }
+       format = radv_fs_key_format_exemplars[fs_key];
+ 
+       color_att.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+@@ -936,7 +941,7 @@ radv_device_init_meta_blit_state(struct radv_device *device, bool on_demand)
+       radv_CreateDescriptorSetLayout(radv_device_to_handle(device), &ds_layout_info,
+                                      &device->meta_state.alloc, &device->meta_state.blit.ds_layout);
+    if (result != VK_SUCCESS)
+-      goto fail;
++      return result;
+ 
+    const VkPushConstantRange push_constant_range = {VK_SHADER_STAGE_VERTEX_BIT, 0, 20};
+ 
+@@ -951,20 +956,15 @@ radv_device_init_meta_blit_state(struct radv_device *device, bool on_demand)
+                                       &device->meta_state.alloc,
+                                       &device->meta_state.blit.pipeline_layout);
+    if (result != VK_SUCCESS)
+-      goto fail;
++      return result;
+ 
+    result = radv_device_init_meta_blit_color(device, on_demand);
+    if (result != VK_SUCCESS)
+-      goto fail;
++      return result;
+ 
+    result = radv_device_init_meta_blit_depth(device, on_demand);
+    if (result != VK_SUCCESS)
+-      goto fail;
+-
+-   result = radv_device_init_meta_blit_stencil(device, on_demand);
++      return result;
+ 
+-fail:
+-   if (result != VK_SUCCESS)
+-      radv_device_finish_meta_blit_state(device);
+-   return result;
++   return radv_device_init_meta_blit_stencil(device, on_demand);
+ }
+diff --git a/src/amd/vulkan/radv_meta_blit2d.c b/src/amd/vulkan/radv_meta_blit2d.c
+index 9ce05169925..7966e2fa0eb 100644
+--- a/src/amd/vulkan/radv_meta_blit2d.c
++++ b/src/amd/vulkan/radv_meta_blit2d.c
+@@ -1133,7 +1133,7 @@ radv_device_init_meta_blit2d_state(struct radv_device *device, bool on_demand)
+ 
+          result = meta_blit2d_create_pipe_layout(device, src, log2_samples);
+          if (result != VK_SUCCESS)
+-            goto fail;
++            return result;
+ 
+          if (on_demand)
+             continue;
+@@ -1142,22 +1142,18 @@ radv_device_init_meta_blit2d_state(struct radv_device *device, bool on_demand)
+             result = blit2d_init_color_pipeline(device, src, radv_fs_key_format_exemplars[j],
+                                                 log2_samples);
+             if (result != VK_SUCCESS)
+-               goto fail;
++               return result;
+          }
+ 
+          result = blit2d_init_depth_only_pipeline(device, src, log2_samples);
+          if (result != VK_SUCCESS)
+-            goto fail;
++            return result;
+ 
+          result = blit2d_init_stencil_only_pipeline(device, src, log2_samples);
+          if (result != VK_SUCCESS)
+-            goto fail;
++            return result;
+       }
+    }
+ 
+    return VK_SUCCESS;
+-
+-fail:
+-   radv_device_finish_meta_blit2d_state(device);
+-   return result;
+ }
+diff --git a/src/amd/vulkan/radv_meta_buffer.c b/src/amd/vulkan/radv_meta_buffer.c
+index abd75a7d859..22d0363049c 100644
+--- a/src/amd/vulkan/radv_meta_buffer.c
++++ b/src/amd/vulkan/radv_meta_buffer.c
+@@ -167,7 +167,6 @@ radv_device_init_meta_buffer_state(struct radv_device *device)
+    ralloc_free(copy_cs);
+    return VK_SUCCESS;
+ fail:
+-   radv_device_finish_meta_buffer_state(device);
+    ralloc_free(fill_cs);
+    ralloc_free(copy_cs);
+    return result;
+diff --git a/src/amd/vulkan/radv_meta_bufimage.c b/src/amd/vulkan/radv_meta_bufimage.c
+index 22bdd478ac5..bf2d7fcee33 100644
+--- a/src/amd/vulkan/radv_meta_bufimage.c
++++ b/src/amd/vulkan/radv_meta_bufimage.c
+@@ -1191,48 +1191,33 @@ radv_device_init_meta_bufimage_state(struct radv_device *device)
+ 
+    result = radv_device_init_meta_itob_state(device);
+    if (result != VK_SUCCESS)
+-      goto fail_itob;
++      return result;
+ 
+    result = radv_device_init_meta_btoi_state(device);
+    if (result != VK_SUCCESS)
+-      goto fail_btoi;
++      return result;
+ 
+    result = radv_device_init_meta_btoi_r32g32b32_state(device);
+    if (result != VK_SUCCESS)
+-      goto fail_btoi_r32g32b32;
++      return result;
+ 
+    result = radv_device_init_meta_itoi_state(device);
+    if (result != VK_SUCCESS)
+-      goto fail_itoi;
++      return result;
+ 
+    result = radv_device_init_meta_itoi_r32g32b32_state(device);
+    if (result != VK_SUCCESS)
+-      goto fail_itoi_r32g32b32;
++      return result;
+ 
+    result = radv_device_init_meta_cleari_state(device);
+    if (result != VK_SUCCESS)
+-      goto fail_cleari;
++      return result;
+ 
+    result = radv_device_init_meta_cleari_r32g32b32_state(device);
+    if (result != VK_SUCCESS)
+-      goto fail_cleari_r32g32b32;
++      return result;
+ 
+    return VK_SUCCESS;
+-fail_cleari_r32g32b32:
+-   radv_device_finish_meta_cleari_r32g32b32_state(device);
+-fail_cleari:
+-   radv_device_finish_meta_cleari_state(device);
+-fail_itoi_r32g32b32:
+-   radv_device_finish_meta_itoi_r32g32b32_state(device);
+-fail_itoi:
+-   radv_device_finish_meta_itoi_state(device);
+-fail_btoi_r32g32b32:
+-   radv_device_finish_meta_btoi_r32g32b32_state(device);
+-fail_btoi:
+-   radv_device_finish_meta_btoi_state(device);
+-fail_itob:
+-   radv_device_finish_meta_itob_state(device);
+-   return result;
+ }
+ 
+ static void
+diff --git a/src/amd/vulkan/radv_meta_clear.c b/src/amd/vulkan/radv_meta_clear.c
+index 8720ed30a95..8262dc3f401 100644
+--- a/src/amd/vulkan/radv_meta_clear.c
++++ b/src/amd/vulkan/radv_meta_clear.c
+@@ -28,6 +28,7 @@
+ 
+ #include "util/format_rgb9e5.h"
+ #include "vk_format.h"
++#include "log/log.h"
+ 
+ enum { DEPTH_CLEAR_SLOW, DEPTH_CLEAR_FAST };
+ 
+@@ -338,6 +339,11 @@ emit_color_clear(struct radv_cmd_buffer *cmd_buffer, const VkClearAttachment *cl
+ 
+    samples_log2 = ffs(samples) - 1;
+    fs_key = radv_format_meta_fs_key(device, format);
++   // fs_key 最大值为 NUM_META_FS_KEYS - 1，数组索引越界时需要报告异常并返回。
++   if (fs_key >= NUM_META_FS_KEYS) {
++      ALOGE("Invalid fs key. if sys.vmi.vk.texturecompress is enabled, disable it and restart app.");
++      return;
++   }
+    assert(fs_key != -1);
+ 
+    if (device->meta_state.color_clear[samples_log2][clear_att->colorAttachment]
+@@ -989,8 +995,6 @@ init_meta_clear_htile_mask_state(struct radv_device *device)
+                                         radv_pipeline_cache_to_handle(&state->cache), 1,
+                                         &pipeline_info, NULL, &state->clear_htile_mask_pipeline);
+ 
+-   ralloc_free(cs);
+-   return result;
+ fail:
+    ralloc_free(cs);
+    return result;
+@@ -1143,7 +1147,7 @@ radv_device_init_meta_clear_state(struct radv_device *device, bool on_demand)
+                                    &device->meta_state.alloc,
+                                    &device->meta_state.clear_color_p_layout);
+    if (res != VK_SUCCESS)
+-      goto fail;
++      return res;
+ 
+    VkPipelineLayoutCreateInfo pl_depth_create_info = {
+       .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+@@ -1156,7 +1160,7 @@ radv_device_init_meta_clear_state(struct radv_device *device, bool on_demand)
+                                    &device->meta_state.alloc,
+                                    &device->meta_state.clear_depth_p_layout);
+    if (res != VK_SUCCESS)
+-      goto fail;
++      return res;
+ 
+    VkPipelineLayoutCreateInfo pl_depth_unrestricted_create_info = {
+       .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+@@ -1169,15 +1173,15 @@ radv_device_init_meta_clear_state(struct radv_device *device, bool on_demand)
+                                    &pl_depth_unrestricted_create_info, &device->meta_state.alloc,
+                                    &device->meta_state.clear_depth_unrestricted_p_layout);
+    if (res != VK_SUCCESS)
+-      goto fail;
++      return res;
+ 
+    res = init_meta_clear_htile_mask_state(device);
+    if (res != VK_SUCCESS)
+-      goto fail;
++      return res;
+ 
+    res = init_meta_clear_dcc_comp_to_single_state(device);
+    if (res != VK_SUCCESS)
+-      goto fail;
++      return res;
+ 
+    if (on_demand)
+       return VK_SUCCESS;
+@@ -1194,7 +1198,7 @@ radv_device_init_meta_clear_state(struct radv_device *device, bool on_demand)
+          res = create_color_pipeline(device, samples, 0, format,
+                                      &state->color_clear[i][0].color_pipelines[fs_key]);
+          if (res != VK_SUCCESS)
+-            goto fail;
++            return res;
+       }
+    }
+    for (uint32_t i = 0; i < ARRAY_SIZE(state->ds_clear); ++i) {
+@@ -1204,42 +1208,38 @@ radv_device_init_meta_clear_state(struct radv_device *device, bool on_demand)
+          res = create_depthstencil_pipeline(device, VK_IMAGE_ASPECT_DEPTH_BIT, samples, j, false,
+                                             &state->ds_clear[i].depth_only_pipeline[j]);
+          if (res != VK_SUCCESS)
+-            goto fail;
++            return res;
+ 
+          res = create_depthstencil_pipeline(device, VK_IMAGE_ASPECT_STENCIL_BIT, samples, j, false,
+                                             &state->ds_clear[i].stencil_only_pipeline[j]);
+          if (res != VK_SUCCESS)
+-            goto fail;
++            return res;
+ 
+          res = create_depthstencil_pipeline(
+             device, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, samples, j, false,
+             &state->ds_clear[i].depthstencil_pipeline[j]);
+          if (res != VK_SUCCESS)
+-            goto fail;
++            return res;
+ 
+          res = create_depthstencil_pipeline(device, VK_IMAGE_ASPECT_DEPTH_BIT, samples, j, true,
+                                             &state->ds_clear[i].depth_only_unrestricted_pipeline[j]);
+          if (res != VK_SUCCESS)
+-            goto fail;
++            return res;
+ 
+          res =
+             create_depthstencil_pipeline(device, VK_IMAGE_ASPECT_STENCIL_BIT, samples, j, true,
+                                          &state->ds_clear[i].stencil_only_unrestricted_pipeline[j]);
+          if (res != VK_SUCCESS)
+-            goto fail;
++            return res;
+ 
+          res = create_depthstencil_pipeline(
+             device, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, samples, j, true,
+             &state->ds_clear[i].depthstencil_unrestricted_pipeline[j]);
+          if (res != VK_SUCCESS)
+-            goto fail;
++            return res;
+       }
+    }
+    return VK_SUCCESS;
+-
+-fail:
+-   radv_device_finish_meta_clear_state(device);
+-   return res;
+ }
+ 
+ static uint32_t
+diff --git a/src/amd/vulkan/radv_meta_copy.c b/src/amd/vulkan/radv_meta_copy.c
+index fb672e3e2c3..25368e64a04 100644
+--- a/src/amd/vulkan/radv_meta_copy.c
++++ b/src/amd/vulkan/radv_meta_copy.c
+@@ -23,6 +23,9 @@
+ 
+ #include "radv_meta.h"
+ #include "vk_format.h"
++#include "main/formats.h"
++#include "main/texcompress_etc.h"
++#include "main/texcompress_bptc_tmp.h"
+ 
+ static VkExtent3D
+ meta_image_block_size(const struct radv_image *image)
+@@ -122,11 +125,162 @@ radv_image_is_renderable(struct radv_device *device, struct radv_image *image)
+    return true;
+ }
+ 
++// 函数返回 image 所占的字节数
++static size_t
++radv_get_texel_count(const VkBufferImageCopy2* pRegions, struct radv_image* image)
++{
++	if (image == NULL) {
++		return 0;
++	}
++
++   const VkExtent3D bufferExtent = {
++      .width  = pRegions->bufferRowLength ? pRegions->bufferRowLength : pRegions->imageExtent.width,
++      .height = pRegions->bufferImageHeight ? pRegions->bufferImageHeight : pRegions->imageExtent.height,
++   };
++   const VkExtent3D buf_extent_el = meta_region_extent_el(image, image->type, &bufferExtent);
++   size_t w = buf_extent_el.width;
++   size_t h = buf_extent_el.height;
++
++	int bs = vk_format_get_blocksize(image->vk_format);
++
++	return w * h * bs;
++}
++
++static mesa_format
++radv_translate_etc_to_mesa_format(VkFormat format)
++{
++	switch (format) {
++	case VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK:
++		return MESA_FORMAT_ETC2_RGB8;
++	case VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK:
++		return MESA_FORMAT_ETC2_SRGB8;
++	case VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK:
++		return MESA_FORMAT_ETC2_RGB8_PUNCHTHROUGH_ALPHA1;
++	case VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK:
++		return MESA_FORMAT_ETC2_SRGB8_PUNCHTHROUGH_ALPHA1;
++	case VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK:
++		return MESA_FORMAT_ETC2_RGBA8_EAC;
++	case VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK:
++		return MESA_FORMAT_ETC2_SRGB8_ALPHA8_EAC;
++	default:
++		return MESA_FORMAT_ETC2_RGB8;
++	}
++}
++
++static mesa_format
++radv_translate_vkformat_to_mesa_format(VkFormat format)
++{
++	switch (format) {
++    case VK_FORMAT_R8G8B8_UNORM:
++		return MESA_FORMAT_RGB_UNORM8;
++	case VK_FORMAT_R8G8B8A8_UNORM:
++		return MESA_FORMAT_R8G8B8A8_UNORM;
++	case VK_FORMAT_R8G8B8_SRGB:
++		return MESA_FORMAT_BGR_SRGB8;
++	case VK_FORMAT_R8G8B8A8_SRGB:
++		return MESA_FORMAT_R8G8B8A8_SRGB;
++	case VK_FORMAT_BC7_UNORM_BLOCK:
++		return MESA_FORMAT_BPTC_RGBA_UNORM;
++	case VK_FORMAT_BC7_SRGB_BLOCK:
++		return MESA_FORMAT_BPTC_SRGB_ALPHA_UNORM;
++	default:
++		return MESA_FORMAT_RGB_UNORM8;
++	}
++}
++
++static void
++prepare_bufferMemory(struct radv_device* device, struct radv_buffer *buffer,
++                     struct radv_image *image, const VkBufferImageCopy2 *region,
++                     void** pDstData, VkBuffer* dstBuffer, VkDeviceMemory* memory_h, bool isDecodeBuffer) {
++      int dstBufferSize = radv_get_texel_count(region, image);
++
++      if (isDecodeBuffer && image->isNeedSoftEncode) {
++         VkFormat tempFormat = image->vk_format;
++         image->vk_format = image->unpackETCFormat;
++         dstBufferSize = radv_get_texel_count(region, image);
++         image->vk_format = tempFormat;
++      }
++      if(VK_SUCCESS != radv_CreateBuffer(radv_device_to_handle(device), &(VkBufferCreateInfo) {
++				.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
++				.flags = buffer->flags,
++				.size = dstBufferSize,
++				.usage = buffer->usage,
++				.sharingMode = VK_SHARING_MODE_EXCLUSIVE
++            }, NULL, dstBuffer)) {
++			return;
++		}
++
++      RADV_FROM_HANDLE(radv_buffer, _dstbuffer, *dstBuffer);
++      if (isDecodeBuffer) {
++         buffer->unpack_buffer_for_ct = _dstbuffer;
++      } else {
++         buffer->compressed_buffer_for_BC = _dstbuffer;
++      }
++
++		VkMemoryRequirements2 memoryRequirements2 = {
++            .sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2,
++         };
++		radv_GetBufferMemoryRequirements2(radv_device_to_handle(device),
++         &(VkBufferMemoryRequirementsInfo2) {
++            .buffer = *dstBuffer,
++         }, &memoryRequirements2);
++		int memory_type_index = -1;
++		for (int i = 0; i < device->physical_device->memory_properties.memoryTypeCount; ++i) {
++			bool is_local = !!(device->physical_device->memory_properties.memoryTypes[i].propertyFlags & (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT));
++			if (is_local) {
++				memory_type_index = i;
++				break;
++			}
++		}
++
++      // 分配设备内存，返回设备内存地址 memory_h
++		if(VK_SUCCESS != radv_AllocateMemory(radv_device_to_handle(device),
++			&(VkMemoryAllocateInfo) {
++				.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
++				.pNext = NULL,
++				.allocationSize = memoryRequirements2.memoryRequirements.size,
++				.memoryTypeIndex = memory_type_index,
++		  }, NULL, memory_h)) {
++			return;
++		}
++
++      RADV_FROM_HANDLE(radv_device_memory, _mem, *memory_h);
++      if (isDecodeBuffer) {
++         buffer->unpack_mem_for_ct = _mem;
++      } else {
++         buffer->compressed_mem_for_BC = _mem;
++      }
++
++      // 将 buffer 绑定到设备内存
++		if(VK_SUCCESS != radv_BindBufferMemory2(radv_device_to_handle(device), 1,
++         &(VkBindBufferMemoryInfo) {
++            .sType = VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO,
++            .buffer = *dstBuffer,
++            .memory = *memory_h,
++            .memoryOffset = 0,
++         })) {
++			return;
++		}
++		// 将设备内存 memory_h 映射到 pDstData
++		radv_MapMemory(radv_device_to_handle(device), *memory_h, 0, dstBufferSize, 0, pDstData);
++}
++
+ static void
+ copy_buffer_to_image(struct radv_cmd_buffer *cmd_buffer, struct radv_buffer *buffer,
+                      struct radv_image *image, VkImageLayout layout,
+                      const VkBufferImageCopy2 *region)
+ {
++   struct radv_device* device = cmd_buffer->device;
++	VkBuffer dstBuffer;
++	struct radv_buffer* radvDstBuffer = buffer;
++	VkDeviceMemory memory_h;
++	void* pDstData = NULL;
++	void* pSrcData = NULL;
++
++   VkBuffer dstBCnBuffer;
++	VkDeviceMemory memory_h_BCn;
++	void* pDstBCnData = NULL;
++
+    struct radv_meta_saved_state saved_state;
+    bool old_predicating;
+    bool cs;
+@@ -149,6 +303,19 @@ copy_buffer_to_image(struct radv_cmd_buffer *cmd_buffer, struct radv_buffer *buf
+    old_predicating = cmd_buffer->state.predicating;
+    cmd_buffer->state.predicating = false;
+ 
++   pSrcData = device->ws->buffer_map(buffer->bo) + buffer->offset;
++   // 申请软解 buffer 内存
++   if (image->isNeedSoftDecode) {
++      prepare_bufferMemory(device, buffer, image, region, &pDstData, &dstBuffer, &memory_h, true);
++   }
++   // 申请软编 buffer 内存
++   if (image->isNeedSoftEncode) {
++      prepare_bufferMemory(device, buffer, image, region, &pDstBCnData, &dstBCnBuffer, &memory_h_BCn, false);
++   }
++
++   void* realDstData = pDstData;
++	void* realDstBcData = pDstBCnData;
++
+    /**
+     * From the Vulkan 1.0.6 spec: 18.3 Copying Data Between Images
+     *    extent is the size in texels of the source image to copy in width,
+@@ -197,11 +364,51 @@ copy_buffer_to_image(struct radv_cmd_buffer *cmd_buffer, struct radv_buffer *buf
+       img_bsurf.format = vk_format_for_size(vk_format_get_blocksize(img_bsurf.format));
+    }
+ 
++   uint32_t offset = region->bufferOffset;
++   mesa_format unpackETCFormat;
++   if (image->isNeedSoftDecode) {
++      // translate vkFormat to MESA format
++      unpackETCFormat = radv_translate_vkformat_to_mesa_format(image->unpackETCFormat);
++      mesa_format srcFormat = radv_translate_etc_to_mesa_format(image->srcFormat);
++      bool bgra = false;
++		void * realSrcData = pSrcData;
++      realSrcData += region->bufferOffset;
++      unsigned dst_stride = _mesa_format_row_stride(unpackETCFormat, region->imageExtent.width);
++      unsigned src_stride =_mesa_format_row_stride(srcFormat, bufferExtent.width);
++      _mesa_unpack_etc2_format(realDstData, dst_stride, realSrcData, src_stride, bufferExtent.width, bufferExtent.height, srcFormat, bgra);
++      if (image->isNeedSoftEncode) {
++         RADV_FROM_HANDLE(radv_buffer, _tmp, dstBuffer);
++			radvDstBuffer = _tmp;
++			offset = realDstData - pDstData;
++      }
++   }
++   if (image->isNeedSoftEncode) {
++      mesa_format srcFormat;
++      void * realSrcData;
++      if (image->isNeedSoftDecode) {
++         srcFormat = unpackETCFormat;
++			realSrcData = realDstData;
++      } else {
++         srcFormat = radv_translate_vkformat_to_mesa_format(image->srcFormat);
++         realSrcData = pSrcData;
++         realSrcData += region->bufferOffset;
++      }
++      mesa_format dstFormat = radv_translate_vkformat_to_mesa_format(image->vk_format);
++      unsigned dst_stride = _mesa_format_row_stride(dstFormat, region->imageExtent.width);
++      unsigned src_stride = _mesa_format_row_stride(srcFormat, bufferExtent.width);
++
++	   compress_rgba_unorm(bufferExtent.width, bufferExtent.height, realSrcData, src_stride, realDstBcData, dst_stride);
++
++      RADV_FROM_HANDLE(radv_buffer, _tmp, dstBCnBuffer);
++		radvDstBuffer = _tmp;
++		offset = realDstBcData - pDstBCnData;
++   }
++
+    struct radv_meta_blit2d_buffer buf_bsurf = {
+       .bs = img_bsurf.bs,
+       .format = img_bsurf.format,
+-      .buffer = buffer,
+-      .offset = region->bufferOffset,
++      .buffer = radvDstBuffer,
++      .offset = offset,
+       .pitch = buf_extent_el.width,
+    };
+ 
+@@ -230,12 +437,33 @@ copy_buffer_to_image(struct radv_cmd_buffer *cmd_buffer, struct radv_buffer *buf
+        * re-binding it to different backing memory.
+        */
+       buf_bsurf.offset += buf_extent_el.width * buf_extent_el.height * buf_bsurf.bs;
++      if (image->isNeedSoftDecode) {
++         realDstData += buf_extent_el.width * buf_extent_el.height * buf_bsurf.bs;
++      }
++      if (image->isNeedSoftEncode) {
++         realDstBcData += buf_extent_el.width * buf_extent_el.height * buf_bsurf.bs;
++      }
+       img_bsurf.layer++;
+       if (image->type == VK_IMAGE_TYPE_3D)
+          slice_3d++;
+       else
+          slice_array++;
+    }
++   pSrcData = NULL;
++   if (image->isNeedSoftDecode || image->isNeedSoftEncode) {
++      device->ws->buffer_unmap(buffer->bo);
++   }
++   if (image->isNeedSoftDecode) {
++      radv_UnmapMemory(radv_device_to_handle(device), memory_h);
++   }
++   if (image->isNeedSoftEncode) {
++      radv_UnmapMemory(radv_device_to_handle(device), memory_h_BCn);
++      // 压缩纹理的原始纹理由ETC2纹理解压而来因此需要释放掉内存
++      if (buffer->unpack_mem_for_ct) {
++         radv_free_memory(device, NULL, buffer->unpack_mem_for_ct);
++         buffer->unpack_mem_for_ct = NULL;
++      }
++   }
+ 
+    /* Restore conditional rendering. */
+    cmd_buffer->state.predicating = old_predicating;
+diff --git a/src/amd/vulkan/radv_meta_decompress.c b/src/amd/vulkan/radv_meta_decompress.c
+index 0df3d9476a7..e4697d104ac 100644
+--- a/src/amd/vulkan/radv_meta_decompress.c
++++ b/src/amd/vulkan/radv_meta_decompress.c
+@@ -335,7 +335,7 @@ radv_device_init_meta_depth_decomp_state(struct radv_device *device, bool on_dem
+ 
+       res = create_pipeline_layout(device, &state->depth_decomp[i].p_layout);
+       if (res != VK_SUCCESS)
+-         goto fail;
++         return res;
+ 
+       if (on_demand)
+          continue;
+@@ -343,23 +343,15 @@ radv_device_init_meta_depth_decomp_state(struct radv_device *device, bool on_dem
+       res = create_pipeline(device, samples, state->depth_decomp[i].p_layout, DEPTH_DECOMPRESS,
+                             &state->depth_decomp[i].decompress_pipeline);
+       if (res != VK_SUCCESS)
+-         goto fail;
++         return res;
+ 
+       res = create_pipeline(device, samples, state->depth_decomp[i].p_layout, DEPTH_RESUMMARIZE,
+                             &state->depth_decomp[i].resummarize_pipeline);
+       if (res != VK_SUCCESS)
+-         goto fail;
++         return res;
+    }
+ 
+-   res = create_expand_depth_stencil_compute(device);
+-   if (res != VK_SUCCESS)
+-      goto fail;
+-
+-   return VK_SUCCESS;
+-
+-fail:
+-   radv_device_finish_meta_depth_decomp_state(device);
+-   return res;
++   return create_expand_depth_stencil_compute(device);
+ }
+ 
+ static VkPipeline *
+diff --git a/src/amd/vulkan/radv_meta_etc_decode.c b/src/amd/vulkan/radv_meta_etc_decode.c
+index c32113a8be9..d5d002c63a0 100644
+--- a/src/amd/vulkan/radv_meta_etc_decode.c
++++ b/src/amd/vulkan/radv_meta_etc_decode.c
+@@ -655,19 +655,12 @@ radv_device_init_meta_etc_decode_state(struct radv_device *device, bool on_deman
+ 
+    res = create_layout(device);
+    if (res != VK_SUCCESS)
+-      goto fail;
++      return res;
+ 
+    if (on_demand)
+       return VK_SUCCESS;
+ 
+-   res = create_decode_pipeline(device, &state->etc_decode.pipeline);
+-   if (res != VK_SUCCESS)
+-      goto fail;
+-
+-   return VK_SUCCESS;
+-fail:
+-   radv_device_finish_meta_etc_decode_state(device);
+-   return res;
++   return create_decode_pipeline(device, &state->etc_decode.pipeline);
+ }
+ 
+ void
+diff --git a/src/amd/vulkan/radv_meta_fast_clear.c b/src/amd/vulkan/radv_meta_fast_clear.c
+index dfb8c492c9e..1ec305a0821 100644
+--- a/src/amd/vulkan/radv_meta_fast_clear.c
++++ b/src/amd/vulkan/radv_meta_fast_clear.c
+@@ -379,8 +379,6 @@ create_pipeline(struct radv_device *device, VkShaderModule vs_module_h, VkPipeli
+    if (result != VK_SUCCESS)
+       goto cleanup;
+ 
+-   goto cleanup;
+-
+ cleanup:
+    ralloc_free(fs_module);
+    return result;
+@@ -425,26 +423,21 @@ radv_device_init_meta_fast_clear_flush_state_internal(struct radv_device *device
+    if (!vs_module) {
+       /* XXX: Need more accurate error */
+       res = VK_ERROR_OUT_OF_HOST_MEMORY;
+-      goto fail;
++      goto cleanup;
+    }
+ 
+    res = create_pipeline_layout(device, &device->meta_state.fast_clear_flush.p_layout);
+    if (res != VK_SUCCESS)
+-      goto fail;
++      goto cleanup;
+ 
+    VkShaderModule vs_module_h = vk_shader_module_handle_from_nir(vs_module);
+    res = create_pipeline(device, vs_module_h, device->meta_state.fast_clear_flush.p_layout);
+    if (res != VK_SUCCESS)
+-      goto fail;
++      goto cleanup;
+ 
+    res = create_dcc_compress_compute(device);
+    if (res != VK_SUCCESS)
+-      goto fail;
+-
+-   goto cleanup;
+-
+-fail:
+-   radv_device_finish_meta_fast_clear_flush_state(device);
++      goto cleanup;
+ 
+ cleanup:
+    ralloc_free(vs_module);
+diff --git a/src/amd/vulkan/radv_meta_fmask_copy.c b/src/amd/vulkan/radv_meta_fmask_copy.c
+index b9aa156e88a..fc1debaf748 100644
+--- a/src/amd/vulkan/radv_meta_fmask_copy.c
++++ b/src/amd/vulkan/radv_meta_fmask_copy.c
+@@ -194,7 +194,7 @@ radv_device_init_meta_fmask_copy_state(struct radv_device *device)
+                                            &device->meta_state.alloc,
+                                            &device->meta_state.fmask_copy.ds_layout);
+    if (result != VK_SUCCESS)
+-      goto fail;
++      return result;
+ 
+    VkPipelineLayoutCreateInfo pl_create_info = {
+       .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+@@ -208,19 +208,16 @@ radv_device_init_meta_fmask_copy_state(struct radv_device *device)
+       radv_CreatePipelineLayout(radv_device_to_handle(device), &pl_create_info,
+                                 &device->meta_state.alloc, &device->meta_state.fmask_copy.p_layout);
+    if (result != VK_SUCCESS)
+-      goto fail;
++      return result;
+ 
+    for (uint32_t i = 0; i < MAX_SAMPLES_LOG2; i++) {
+       uint32_t samples = 1 << i;
+       result = create_fmask_copy_pipeline(device, samples, &device->meta_state.fmask_copy.pipeline[i]);
+       if (result != VK_SUCCESS)
+-         goto fail;
++         return result;
+    }
+ 
+    return VK_SUCCESS;
+-fail:
+-   radv_device_finish_meta_fmask_copy_state(device);
+-   return result;
+ }
+ 
+ static void
+diff --git a/src/amd/vulkan/radv_meta_fmask_expand.c b/src/amd/vulkan/radv_meta_fmask_expand.c
+index d62d7bb0538..9aa9b2e143c 100644
+--- a/src/amd/vulkan/radv_meta_fmask_expand.c
++++ b/src/amd/vulkan/radv_meta_fmask_expand.c
+@@ -238,7 +238,7 @@ radv_device_init_meta_fmask_expand_state(struct radv_device *device)
+    result = radv_CreateDescriptorSetLayout(radv_device_to_handle(device), &ds_create_info,
+                                            &state->alloc, &state->fmask_expand.ds_layout);
+    if (result != VK_SUCCESS)
+-      goto fail;
++      return result;
+ 
+    VkPipelineLayoutCreateInfo color_create_info = {
+       .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+@@ -251,17 +251,14 @@ radv_device_init_meta_fmask_expand_state(struct radv_device *device)
+    result = radv_CreatePipelineLayout(radv_device_to_handle(device), &color_create_info,
+                                       &state->alloc, &state->fmask_expand.p_layout);
+    if (result != VK_SUCCESS)
+-      goto fail;
++      return result;
+ 
+    for (uint32_t i = 0; i < MAX_SAMPLES_LOG2; i++) {
+       uint32_t samples = 1 << i;
+       result = create_fmask_expand_pipeline(device, samples, &state->fmask_expand.pipeline[i]);
+       if (result != VK_SUCCESS)
+-         goto fail;
++         return result;
+    }
+ 
+    return VK_SUCCESS;
+-fail:
+-   radv_device_finish_meta_fmask_expand_state(device);
+-   return result;
+ }
+diff --git a/src/amd/vulkan/radv_meta_resolve.c b/src/amd/vulkan/radv_meta_resolve.c
+index 27f777e6f0c..fd4125bcc74 100644
+--- a/src/amd/vulkan/radv_meta_resolve.c
++++ b/src/amd/vulkan/radv_meta_resolve.c
+@@ -210,7 +210,7 @@ radv_device_init_meta_resolve_state(struct radv_device *device, bool on_demand)
+    if (!vs_module) {
+       /* XXX: Need more accurate error */
+       res = VK_ERROR_OUT_OF_HOST_MEMORY;
+-      goto fail;
++      goto cleanup;
+    }
+ 
+    for (uint32_t i = 0; i < NUM_META_FS_KEYS; ++i) {
+@@ -220,14 +220,9 @@ radv_device_init_meta_resolve_state(struct radv_device *device, bool on_demand)
+       VkShaderModule vs_module_h = vk_shader_module_handle_from_nir(vs_module);
+       res = create_pipeline(device, vs_module_h, format, &state->resolve.pipeline[fs_key]);
+       if (res != VK_SUCCESS)
+-         goto fail;
++         goto cleanup;
+    }
+ 
+-   goto cleanup;
+-
+-fail:
+-   radv_device_finish_meta_resolve_state(device);
+-
+ cleanup:
+    ralloc_free(vs_module);
+ 
+diff --git a/src/amd/vulkan/radv_meta_resolve_cs.c b/src/amd/vulkan/radv_meta_resolve_cs.c
+index 95d82833ad1..7839eef9d06 100644
+--- a/src/amd/vulkan/radv_meta_resolve_cs.c
++++ b/src/amd/vulkan/radv_meta_resolve_cs.c
+@@ -373,7 +373,7 @@ radv_device_init_meta_resolve_compute_state(struct radv_device *device, bool on_
+ 
+    res = create_layout(device);
+    if (res != VK_SUCCESS)
+-      goto fail;
++      return res;
+ 
+    if (on_demand)
+       return VK_SUCCESS;
+@@ -384,65 +384,58 @@ radv_device_init_meta_resolve_compute_state(struct radv_device *device, bool on_
+       res = create_resolve_pipeline(device, samples, false, false,
+                                     &state->resolve_compute.rc[i].pipeline);
+       if (res != VK_SUCCESS)
+-         goto fail;
++         return res;
+ 
+       res = create_resolve_pipeline(device, samples, true, false,
+                                     &state->resolve_compute.rc[i].i_pipeline);
+       if (res != VK_SUCCESS)
+-         goto fail;
++         return res;
+ 
+       res = create_resolve_pipeline(device, samples, false, true,
+                                     &state->resolve_compute.rc[i].srgb_pipeline);
+       if (res != VK_SUCCESS)
+-         goto fail;
++         return res;
+ 
+       res = create_depth_stencil_resolve_pipeline(
+          device, samples, DEPTH_RESOLVE, VK_RESOLVE_MODE_AVERAGE_BIT,
+          &state->resolve_compute.depth[i].average_pipeline);
+       if (res != VK_SUCCESS)
+-         goto fail;
++         return res;
+ 
+       res = create_depth_stencil_resolve_pipeline(device, samples, DEPTH_RESOLVE,
+                                                   VK_RESOLVE_MODE_MAX_BIT,
+                                                   &state->resolve_compute.depth[i].max_pipeline);
+       if (res != VK_SUCCESS)
+-         goto fail;
++         return res;
+ 
+       res = create_depth_stencil_resolve_pipeline(device, samples, DEPTH_RESOLVE,
+                                                   VK_RESOLVE_MODE_MIN_BIT,
+                                                   &state->resolve_compute.depth[i].min_pipeline);
+       if (res != VK_SUCCESS)
+-         goto fail;
++         return res;
+ 
+       res = create_depth_stencil_resolve_pipeline(device, samples, STENCIL_RESOLVE,
+                                                   VK_RESOLVE_MODE_MAX_BIT,
+                                                   &state->resolve_compute.stencil[i].max_pipeline);
+       if (res != VK_SUCCESS)
+-         goto fail;
++         return res;
+ 
+       res = create_depth_stencil_resolve_pipeline(device, samples, STENCIL_RESOLVE,
+                                                   VK_RESOLVE_MODE_MIN_BIT,
+                                                   &state->resolve_compute.stencil[i].min_pipeline);
+       if (res != VK_SUCCESS)
+-         goto fail;
++         return res;
+    }
+ 
+    res = create_depth_stencil_resolve_pipeline(device, 0, DEPTH_RESOLVE,
+                                                VK_RESOLVE_MODE_SAMPLE_ZERO_BIT,
+                                                &state->resolve_compute.depth_zero_pipeline);
+    if (res != VK_SUCCESS)
+-      goto fail;
+-
+-   res = create_depth_stencil_resolve_pipeline(device, 0, STENCIL_RESOLVE,
+-                                               VK_RESOLVE_MODE_SAMPLE_ZERO_BIT,
+-                                               &state->resolve_compute.stencil_zero_pipeline);
+-   if (res != VK_SUCCESS)
+-      goto fail;
++      return res;
+ 
+-   return VK_SUCCESS;
+-fail:
+-   radv_device_finish_meta_resolve_compute_state(device);
+-   return res;
++   return create_depth_stencil_resolve_pipeline(device, 0, STENCIL_RESOLVE,
++                                                VK_RESOLVE_MODE_SAMPLE_ZERO_BIT,
++                                                &state->resolve_compute.stencil_zero_pipeline);
+ }
+ 
+ void
+diff --git a/src/amd/vulkan/radv_meta_resolve_fs.c b/src/amd/vulkan/radv_meta_resolve_fs.c
+index 4525700ad41..71d3d2e187f 100644
+--- a/src/amd/vulkan/radv_meta_resolve_fs.c
++++ b/src/amd/vulkan/radv_meta_resolve_fs.c
+@@ -538,7 +538,7 @@ radv_device_init_meta_resolve_fragment_state(struct radv_device *device, bool on
+ 
+    res = create_layout(device);
+    if (res != VK_SUCCESS)
+-      goto fail;
++      return res;
+ 
+    if (on_demand)
+       return VK_SUCCESS;
+@@ -547,49 +547,42 @@ radv_device_init_meta_resolve_fragment_state(struct radv_device *device, bool on
+       for (unsigned j = 0; j < NUM_META_FS_KEYS; ++j) {
+          res = create_resolve_pipeline(device, i, radv_fs_key_format_exemplars[j]);
+          if (res != VK_SUCCESS)
+-            goto fail;
++            return res;
+       }
+ 
+       res = create_depth_stencil_resolve_pipeline(device, i, DEPTH_RESOLVE,
+                                                   VK_RESOLVE_MODE_AVERAGE_BIT);
+       if (res != VK_SUCCESS)
+-         goto fail;
++         return res;
+ 
+       res = create_depth_stencil_resolve_pipeline(device, i, DEPTH_RESOLVE,
+                                                   VK_RESOLVE_MODE_MIN_BIT);
+       if (res != VK_SUCCESS)
+-         goto fail;
++         return res;
+ 
+       res = create_depth_stencil_resolve_pipeline(device, i, DEPTH_RESOLVE,
+                                                   VK_RESOLVE_MODE_MAX_BIT);
+       if (res != VK_SUCCESS)
+-         goto fail;
++         return res;
+ 
+       res = create_depth_stencil_resolve_pipeline(device, i, STENCIL_RESOLVE,
+                                                   VK_RESOLVE_MODE_MIN_BIT);
+       if (res != VK_SUCCESS)
+-         goto fail;
++         return res;
+ 
+       res = create_depth_stencil_resolve_pipeline(device, i, STENCIL_RESOLVE,
+                                                   VK_RESOLVE_MODE_MAX_BIT);
+       if (res != VK_SUCCESS)
+-         goto fail;
++         return res;
+    }
+ 
+    res = create_depth_stencil_resolve_pipeline(device, 0, DEPTH_RESOLVE,
+                                                VK_RESOLVE_MODE_SAMPLE_ZERO_BIT);
+    if (res != VK_SUCCESS)
+-      goto fail;
+-
+-   res = create_depth_stencil_resolve_pipeline(device, 0, STENCIL_RESOLVE,
+-                                               VK_RESOLVE_MODE_SAMPLE_ZERO_BIT);
+-   if (res != VK_SUCCESS)
+-      goto fail;
++      return res;
+ 
+-   return VK_SUCCESS;
+-fail:
+-   radv_device_finish_meta_resolve_fragment_state(device);
+-   return res;
++   return create_depth_stencil_resolve_pipeline(device, 0, STENCIL_RESOLVE,
++                                                VK_RESOLVE_MODE_SAMPLE_ZERO_BIT);
+ }
+ 
+ void
+diff --git a/src/amd/vulkan/radv_private.h b/src/amd/vulkan/radv_private.h
+index a5485b0a737..950ded15f58 100644
+--- a/src/amd/vulkan/radv_private.h
++++ b/src/amd/vulkan/radv_private.h
+@@ -1019,6 +1019,13 @@ struct radv_buffer {
+    /* Set when bound */
+    struct radeon_winsys_bo *bo;
+    VkDeviceSize offset;
++
++  // 存储解压的buffer
++  struct radv_buffer* unpack_buffer_for_ct;
++  struct radv_device_memory* unpack_mem_for_ct;
++  // 存储软压缩的buffer
++  struct radv_buffer* compressed_buffer_for_BC;
++  struct radv_device_memory* compressed_mem_for_BC;
+ };
+ 
+ void radv_buffer_init(struct radv_buffer *buffer, struct radv_device *device,
+@@ -2077,6 +2084,11 @@ struct radv_image {
+    bool dcc_sign_reinterpret;
+    bool support_comp_to_single;
+ 
++   bool isNeedSoftEncode;// 是否需要使用 软编
++   bool isNeedSoftDecode;// 是否需要使用 软解
++	VkFormat srcFormat; //用于保存纹理的原始格式
++	VkFormat unpackETCFormat;//用于保存ETC纹理解压后的格式
++
+    /* Set when bound */
+    struct radeon_winsys_bo *bo;
+    VkDeviceSize offset;
+diff --git a/src/amd/vulkan/radv_query.c b/src/amd/vulkan/radv_query.c
+index 9db3d4ba2be..32f6bda8d3b 100644
+--- a/src/amd/vulkan/radv_query.c
++++ b/src/amd/vulkan/radv_query.c
+@@ -720,8 +720,6 @@ radv_device_init_meta_query_state_internal(struct radv_device *device)
+       &timestamp_pipeline_info, NULL, &device->meta_state.query.timestamp_query_pipeline);
+ 
+ fail:
+-   if (result != VK_SUCCESS)
+-      radv_device_finish_meta_query_state(device);
+    ralloc_free(occlusion_cs);
+    ralloc_free(pipeline_statistics_cs);
+    ralloc_free(tfb_cs);
+diff --git a/src/amd/vulkan/radv_shader.c b/src/amd/vulkan/radv_shader.c
+index b8c7c63fb9d..fd81ad495fc 100644
+--- a/src/amd/vulkan/radv_shader.c
++++ b/src/amd/vulkan/radv_shader.c
+@@ -798,6 +798,7 @@ radv_shader_compile_to_nir(struct radv_device *device, const struct radv_pipelin
+       .lower_txs_cube_array = true,
+       .lower_to_fragment_fetch_amd = true,
+       .lower_lod_zero_width = true,
++      .lower_array_layer_round_even = true,
+    };
+ 
+    nir_lower_tex(nir, &tex_options);
+diff --git a/src/compiler/glsl/builtin_variables.cpp b/src/compiler/glsl/builtin_variables.cpp
+index 7afb013b8e3..46e708c51f6 100644
+--- a/src/compiler/glsl/builtin_variables.cpp
++++ b/src/compiler/glsl/builtin_variables.cpp
+@@ -743,13 +743,11 @@ builtin_variable_generator::generate_constants()
+    if (!state->es_shader) {
+       add_const("gl_MaxFragmentUniformComponents",
+                 state->Const.MaxFragmentUniformComponents);
+-      add_const("gl_MaxVertexUniformComponents",
+-                state->Const.MaxVertexUniformComponents);
++      add_const("gl_MaxVertexUniformComponents", 1024); // 修复原神角色加载异常问题，修改内建变量值
+    }
+ 
+    if (state->is_version(410, 100)) {
+-      add_const("gl_MaxVertexUniformVectors",
+-                state->Const.MaxVertexUniformComponents / 4);
++      add_const("gl_MaxVertexUniformVectors", 256); // 修复原神角色加载异常问题，修改内建变量值
+       add_const("gl_MaxFragmentUniformVectors",
+                 state->Const.MaxFragmentUniformComponents / 4);
+ 
+diff --git a/src/compiler/nir/nir.h b/src/compiler/nir/nir.h
+index b1a2315426f..01dba98a19d 100644
+--- a/src/compiler/nir/nir.h
++++ b/src/compiler/nir/nir.h
+@@ -5020,6 +5020,11 @@ typedef struct nir_lower_tex_options {
+     */
+    bool lower_lod_zero_width;
+ 
++   /* If true, round the layer component of the coordinates source to the nearest
++    * integer for all array ops.
++    */
++   bool lower_array_layer_round_even;
++
+    /**
+     * Payload data to be sent to callback / filter functions.
+     */
+diff --git a/src/compiler/nir/nir_lower_tex.c b/src/compiler/nir/nir_lower_tex.c
+index 0fe60b683b5..8ce16efcd81 100644
+--- a/src/compiler/nir/nir_lower_tex.c
++++ b/src/compiler/nir/nir_lower_tex.c
+@@ -1061,6 +1061,27 @@ lower_tex_packing(nir_builder *b, nir_tex_instr *tex,
+                                   color->parent_instr);
+ }
+ 
++static bool
++lower_array_layer_round_even(nir_builder *b, nir_tex_instr *tex)
++{
++   int coord_index = nir_tex_instr_src_index(tex, nir_tex_src_coord);
++   if (coord_index < 0 || nir_tex_instr_src_type(tex, coord_index) != nir_type_float)
++      return false;
++
++   assert(tex->src[coord_index].src.is_ssa);
++   nir_ssa_def *coord = tex->src[coord_index].src.ssa;
++
++   b->cursor = nir_before_instr(&tex->instr);
++
++   unsigned layer = tex->coord_components - 1;
++   nir_ssa_def *rounded_layer = nir_fround_even(b, nir_channel(b, coord, layer));
++   nir_ssa_def *new_coord = nir_vector_insert_imm(b, coord, rounded_layer, layer);
++
++   nir_instr_rewrite_src_ssa(&tex->instr, &tex->src[coord_index].src, new_coord);
++
++   return true;
++}
++
+ static bool
+ sampler_index_lt(nir_tex_instr *tex, unsigned max)
+ {
+@@ -1450,6 +1471,11 @@ nir_lower_tex_block(nir_block *block, nir_builder *b,
+          progress = true;
+       }
+ 
++      if (options->lower_array_layer_round_even && tex->is_array &&
++          tex->op != nir_texop_lod) {
++         progress |= lower_array_layer_round_even(b, tex);
++      }
++
+       if (tex->op == nir_texop_txd &&
+           (options->lower_txd ||
+            (options->lower_txd_shadow && tex->is_shadow) ||
+diff --git a/src/gallium/auxiliary/vl/vl_video_buffer.c b/src/gallium/auxiliary/vl/vl_video_buffer.c
+index a8815c4ba77..042176acced 100644
+--- a/src/gallium/auxiliary/vl/vl_video_buffer.c
++++ b/src/gallium/auxiliary/vl/vl_video_buffer.c
+@@ -205,6 +205,12 @@ vl_video_buffer_destroy(struct pipe_video_buffer *buffer)
+       pipe_sampler_view_reference(&buf->sampler_view_planes[i], NULL);
+       pipe_sampler_view_reference(&buf->sampler_view_components[i], NULL);
+       pipe_resource_reference(&buf->resources[i], NULL);
++
++      if (buf->resourceflag == 0) {
++         pipe_resource_reference(&buf->resources[i], NULL);
++      } else {
++         buf->resources[i] = NULL;
++      }
+    }
+ 
+    for (i = 0; i < VL_MAX_SURFACES; ++i)
+@@ -461,6 +467,7 @@ vl_video_buffer_create_ex2(struct pipe_context *pipe,
+          buffer->num_planes++;
+    }
+ 
++   buffer->resourceflag = 0;
+    return &buffer->base;
+ }
+ 
+@@ -510,3 +517,10 @@ vl_video_buffer_create_as_resource(struct pipe_context *pipe,
+    vidtemplate.height = templ.height0 * array_size;
+    return vl_video_buffer_create_ex2(pipe, &vidtemplate, resources);
+ }
++
++void
++vl_video_setresourceflag(struct pipe_video_buffer *buffer)
++{
++   struct vl_video_buffer *newbuffer = (struct vl_video_buffer *)buffer;
++   newbuffer->resourceflag = 1;
++}
+\ No newline at end of file
+diff --git a/src/gallium/auxiliary/vl/vl_video_buffer.h b/src/gallium/auxiliary/vl/vl_video_buffer.h
+index f777ddb0fa3..840ecb8fd22 100644
+--- a/src/gallium/auxiliary/vl/vl_video_buffer.h
++++ b/src/gallium/auxiliary/vl/vl_video_buffer.h
+@@ -46,6 +46,7 @@ struct vl_video_buffer
+    struct pipe_sampler_view *sampler_view_planes[VL_NUM_COMPONENTS];
+    struct pipe_sampler_view *sampler_view_components[VL_NUM_COMPONENTS];
+    struct pipe_surface      *surfaces[VL_MAX_SURFACES];
++   unsigned int             resourceflag;
+ };
+ 
+ static inline void
+@@ -66,6 +67,9 @@ vl_video_buffer_adjust_size(unsigned *width, unsigned *height, unsigned plane,
+    }
+ }
+ 
++void
++vl_video_setresourceflag(struct pipe_video_buffer *buffer);
++
+ /**
+  * get subformats for each plane
+  */
+diff --git a/src/gallium/drivers/radeon/radeon_vce_52.c b/src/gallium/drivers/radeon/radeon_vce_52.c
+index 5dc6f733a38..03b02e8ba98 100644
+--- a/src/gallium/drivers/radeon/radeon_vce_52.c
++++ b/src/gallium/drivers/radeon/radeon_vce_52.c
+@@ -103,6 +103,7 @@ static void get_pic_control_param(struct rvce_encoder *enc, struct pipe_h264_enc
+    enc->enc_pic.pc.enc_b_pic_pattern = MAX2(enc->base.max_references, 1) - 1;
+    enc->enc_pic.pc.enc_number_of_reference_frames = MIN2(enc->base.max_references, 1);
+    enc->enc_pic.pc.enc_max_num_ref_frames = enc->base.max_references + 1;
++   enc->enc_pic.pc.enc_pic_order_cnt_type = pic->pic_order_cnt_type;
+    enc->enc_pic.pc.enc_num_default_active_ref_l0 = 0x00000001;
+    enc->enc_pic.pc.enc_num_default_active_ref_l1 = 0x00000001;
+    enc->enc_pic.pc.enc_cabac_enable = pic->pic_ctrl.enc_cabac_enable;
+diff --git a/src/gallium/drivers/radeonsi/si_descriptors.c b/src/gallium/drivers/radeonsi/si_descriptors.c
+index 3fad21ca9ca..21ee7f3cfa6 100644
+--- a/src/gallium/drivers/radeonsi/si_descriptors.c
++++ b/src/gallium/drivers/radeonsi/si_descriptors.c
+@@ -935,7 +935,7 @@ void si_update_ps_colorbuf0_slot(struct si_context *sctx)
+    struct pipe_surface *surf = NULL;
+ 
+    /* si_texture_disable_dcc can get us here again. */
+-   if (sctx->in_update_ps_colorbuf0_slot) {
++   if (sctx->in_update_ps_colorbuf0_slot || sctx->blitter_running) {
+       assert(!sctx->ps_uses_fbfetch || sctx->framebuffer.state.cbufs[0]);
+       return;
+    }
+diff --git a/src/gallium/drivers/radeonsi/si_get.c b/src/gallium/drivers/radeonsi/si_get.c
+index 1cab67ef9cb..77865743a91 100644
+--- a/src/gallium/drivers/radeonsi/si_get.c
++++ b/src/gallium/drivers/radeonsi/si_get.c
+@@ -573,7 +573,7 @@ static int si_get_video_param(struct pipe_screen *screen, enum pipe_video_profil
+                sscreen->info.enc_caps.codec_info[codec - 1].valid)
+             return sscreen->info.enc_caps.codec_info[codec - 1].max_height;
+          else
+-            return (sscreen->info.family < CHIP_TONGA) ? 1152 : 2304;
++            return (sscreen->info.family < CHIP_TONGA) ? 1152 : 4096;
+       case PIPE_VIDEO_CAP_PREFERED_FORMAT:
+          if (profile == PIPE_VIDEO_PROFILE_HEVC_MAIN_10)
+             return PIPE_FORMAT_P010;
+diff --git a/src/gallium/frontends/dri/dri2.c b/src/gallium/frontends/dri/dri2.c
+index 63ac9d5c0ee..b53ec212be5 100644
+--- a/src/gallium/frontends/dri/dri2.c
++++ b/src/gallium/frontends/dri/dri2.c
+@@ -1195,6 +1195,20 @@ dri2_create_image(__DRIscreen *_screen,
+                                    loaderPrivate);
+ }
+ 
++static __DRIimage *
++dri2_create_image_native(__DRIscreen *_screen,
++                         int width, int height, int format,
++                         unsigned int use, void *loaderPrivate, unsigned long **texture)
++{
++   __DRIimage * img = dri2_create_image_common(_screen, width, height, format, use,
++                                               NULL /* modifiers */, 0 /* count */,
++                                               loaderPrivate);
++   if (img != NULL) {
++      *texture = (unsigned long *)img->texture;
++   }
++   return img;
++}
++
+ static __DRIimage *
+ dri2_create_image_with_modifiers(__DRIscreen *dri_screen,
+                                  int width, int height, int format,
+@@ -1821,6 +1835,17 @@ dri2_map_image(__DRIcontext *context, __DRIimage *image,
+    return map;
+ }
+ 
++static void *
++dri2_map_image_native(__DRIcontext *context, __DRIimage *image,
++                      int x0, int y0, int width, int height,
++                      unsigned int flags, int *stride, void **data)
++{
++   handle_in_fence(context, image);
++   struct pipe_resource *resource = image->texture;
++   pipe_reference_described(NULL, &resource->reference, (debug_reference_descriptor)debug_describe_resource);
++   return resource;
++}
++
+ static void
+ dri2_unmap_image(__DRIcontext *context, __DRIimage *image, void *data)
+ {
+@@ -1846,6 +1871,7 @@ static const __DRIimageExtension dri2ImageExtensionTempl = {
+     .createImageFromRenderbuffer  = dri2_create_image_from_renderbuffer,
+     .destroyImage                 = dri2_destroy_image,
+     .createImage                  = dri2_create_image,
++    .createImagenative            = dri2_create_image_native,
+     .queryImage                   = dri2_query_image,
+     .dupImage                     = dri2_dup_image,
+     .validateUsage                = dri2_validate_usage,
+@@ -1858,6 +1884,7 @@ static const __DRIimageExtension dri2ImageExtensionTempl = {
+     .blitImage                    = dri2_blit_image,
+     .getCapabilities              = dri2_get_capabilities,
+     .mapImage                     = dri2_map_image,
++    .mapImage_native              = dri2_map_image_native,
+     .unmapImage                   = dri2_unmap_image,
+     .createImageWithModifiers     = NULL,
+     .createImageFromDmaBufs2      = NULL,
+diff --git a/src/gallium/frontends/va/image.c b/src/gallium/frontends/va/image.c
+index 3d71679e01d..2fcad876892 100644
+--- a/src/gallium/frontends/va/image.c
++++ b/src/gallium/frontends/va/image.c
+@@ -424,6 +424,45 @@ vlVaSetImagePalette(VADriverContextP ctx, VAImageID image, unsigned char *palett
+    return VA_STATUS_ERROR_UNIMPLEMENTED;
+ }
+ 
++static inline void u_copy_nv12_to_yv12_simd(void *const *destination_data,
++                                            uint32_t const *destination_pitches,
++                                            int src_plane, int src_field,
++                                            int src_stride, int num_fields,
++                                            uint8_t const *src,
++                                            int width, int height)
++{
++   int x, y;
++   unsigned u_stride = destination_pitches[2] * num_fields;
++   unsigned v_stride = destination_pitches[1] * num_fields;
++   uint8_t *u_dst = (uint8_t *)destination_data[2] + destination_pitches[2] * src_field;
++   uint8_t *v_dst = (uint8_t *)destination_data[1] + destination_pitches[1] * src_field;
++#if defined(__aarch64__)
++   int clc_width = width / 16 * 16;
++   nv12_to_yv12_arm64(src, src_stride, u_dst, u_stride, v_dst, v_stride, clc_width, height);
++   if (clc_width < width) {
++      for (y = 0; y < height; y++) {
++         for (x = clc_width; x < width; x++) {
++            u_dst[x] = src[2 * x];
++            v_dst[x] = src[2 * x + 1];
++         }
++         u_dst += u_stride;
++         v_dst += v_stride;
++         src += src_stride;
++      }
++   }
++#else
++   for (y = 0; y < height; y++) {
++      for (x = 0; x < width; x++) {
++         u_dst[x] = src[2 * x];
++         v_dst[x] = src[2 * x + 1];
++      }
++      u_dst += u_stride;
++      v_dst += v_stride;
++      src += src_stride;
++   }
++#endif
++}
++
+ VAStatus
+ vlVaGetImage(VADriverContextP ctx, VASurfaceID surface, int x, int y,
+              unsigned int width, unsigned int height, VAImageID image)
+@@ -550,7 +589,7 @@ vlVaGetImage(VADriverContextP ctx, VASurfaceID surface, int x, int y,
+          }
+ 
+          if (i == 1 && convert) {
+-            u_copy_nv12_to_yv12(data, pitches, i, j,
++            u_copy_nv12_to_yv12_simd(data, pitches, i, j,
+                transfer->stride, views[i]->texture->array_size,
+                map, box.width, box.height);
+          } else {
+diff --git a/src/gallium/frontends/va/meson.build b/src/gallium/frontends/va/meson.build
+index 69dee07a938..79c65ae8334 100644
+--- a/src/gallium/frontends/va/meson.build
++++ b/src/gallium/frontends/va/meson.build
+@@ -26,7 +26,7 @@ libva_st = static_library(
+     'buffer.c', 'config.c', 'context.c', 'display.c', 'image.c', 'picture.c',
+     'picture_mpeg12.c', 'picture_mpeg4.c', 'picture_h264.c', 'picture_hevc.c',
+     'picture_vc1.c', 'picture_mjpeg.c', 'picture_vp9.c','picture_av1.c','postproc.c',
+-    'subpicture.c', 'surface.c', 'picture_h264_enc.c', 'picture_hevc_enc.c',
++    'subpicture.c', 'surface.c', 'picture_h264_enc.c', 'picture_hevc_enc.c', 'nv12_to_yv12.S'
+   ),
+   c_args : [
+     '-DVA_DRIVER_INIT_FUNC=__vaDriverInit_@0@_@1@'.format(
+diff --git a/src/gallium/frontends/va/nv12_to_yv12.S b/src/gallium/frontends/va/nv12_to_yv12.S
+new file mode 100644
+index 00000000000..66cd31f6a31
+--- /dev/null
++++ b/src/gallium/frontends/va/nv12_to_yv12.S
+@@ -0,0 +1,29 @@
++.section .rodata
++.align 4
++.text
++ 
++#if defined(__aarch64__)
++ 
++.globl nv12_to_yv12_arm64
++nv12_to_yv12_arm64:
++  nv12toyv12Loop:
++    mov         x8, x0
++    mov         x9, x6
++    mov         x10, x2
++    mov         x11, x4
++      1:
++      ld2         {v0.16b,v1.16b}, [x8], #32
++      prfm        pldl1keep, [x8, 448]
++      subs        x9, x9, #16
++      st1         {v0.16b}, [x10], #16
++      st1         {v1.16b}, [x11], #16
++      b.gt        1b
++    add         x0, x0, x1
++    add         x2, x2, x3
++    add         x4, x4, x5
++  subs        x7, x7, #1
++  cmp         x7, #0
++  b.gt        nv12toyv12Loop
++  ret
++
++#endif
+\ No newline at end of file
+diff --git a/src/gallium/frontends/va/surface.c b/src/gallium/frontends/va/surface.c
+index d928c474c36..ec224b41f3d 100755
+--- a/src/gallium/frontends/va/surface.c
++++ b/src/gallium/frontends/va/surface.c
+@@ -656,6 +656,65 @@ fail:
+    return result;
+ }
+ 
++static VAStatus
++surface_from_external_memory_native(VADriverContextP ctx, vlVaSurface *surface,
++                                    VASurfaceAttribExternalBuffers *memory_attribute,
++                                    unsigned index, struct pipe_video_buffer *templat)
++{
++   vlVaDriver *drv;
++   struct pipe_screen *pscreen;
++   struct pipe_resource *resources[VL_NUM_COMPONENTS];
++   enum pipe_format resource_formats[VL_NUM_COMPONENTS];
++   VAStatus result;
++   int i;
++
++   pscreen = VL_VA_PSCREEN(ctx);
++   drv = VL_VA_DRIVER(ctx);
++
++   if (!memory_attribute || !memory_attribute->buffers ||
++       index > memory_attribute->num_buffers)
++      return VA_STATUS_ERROR_INVALID_PARAMETER;
++
++   if (surface->templat.width != memory_attribute->width ||
++       surface->templat.height != memory_attribute->height ||
++       memory_attribute->num_planes != 1)
++      return VA_STATUS_ERROR_INVALID_PARAMETER;
++
++   if (memory_attribute->num_planes > VL_NUM_COMPONENTS)
++      return VA_STATUS_ERROR_INVALID_PARAMETER;
++
++   vl_get_video_buffer_formats(pscreen, templat->buffer_format, resource_formats);
++
++   unsigned long nativebuffer = memory_attribute->buffers[index];
++   // Create a resource for each plane.
++   memset(resources, 0, sizeof resources);
++   resources[0] = (struct pipe_resource *)nativebuffer;
++   if (!resources[0]) {
++      result = VA_STATUS_ERROR_ALLOCATION_FAILED;
++      goto fail;
++   }
++
++   /* implicitly re-explain the pipeline format form RGBA to RGBX, because valid alpha value
++      lets "green" background([0,0,0] instead of [-127,-127,-127]) go through when transfering to YUV */
++   if (resource_formats[0] == PIPE_FORMAT_B8G8R8X8_UNORM &&
++      resources[0]->format == PIPE_FORMAT_R8G8B8A8_UNORM) {
++      resources[0]->format = PIPE_FORMAT_R8G8B8X8_UNORM;
++   }
++
++   surface->buffer = vl_video_buffer_create_ex2(drv->pipe, templat, resources);
++   if (!surface->buffer) {
++      result = VA_STATUS_ERROR_ALLOCATION_FAILED;
++      goto fail;
++   }
++   vl_video_setresourceflag(surface->buffer);
++   return VA_STATUS_SUCCESS;
++
++fail:
++   for (i = 0; i < VL_NUM_COMPONENTS; i++)
++      pipe_resource_reference(&resources[i], NULL);
++   return result;
++}
++
+ static VAStatus
+ surface_from_prime_2(VADriverContextP ctx, vlVaSurface *surface,
+                      VADRMPRIMESurfaceDescriptor *desc,
+@@ -883,6 +942,7 @@ vlVaCreateSurfaces2(VADriverContextP ctx, unsigned int format,
+          case VA_SURFACE_ATTRIB_MEM_TYPE_VA:
+          case VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME:
+          case VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2:
++         case VA_SURFACE_ATTRIB_MEM_TYPE_KERNEL_DRM:
+             memory_type = attrib_list[i].value.value.i;
+             break;
+          default:
+@@ -932,6 +992,7 @@ vlVaCreateSurfaces2(VADriverContextP ctx, unsigned int format,
+    case VA_SURFACE_ATTRIB_MEM_TYPE_VA:
+       break;
+    case VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME:
++   case VA_SURFACE_ATTRIB_MEM_TYPE_KERNEL_DRM:
+       if (!memory_attribute)
+          return VA_STATUS_ERROR_INVALID_PARAMETER;
+       if (modifiers)
+@@ -1014,6 +1075,12 @@ vlVaCreateSurfaces2(VADriverContextP ctx, unsigned int format,
+             goto free_surf;
+          break;
+ 
++      case VA_SURFACE_ATTRIB_MEM_TYPE_KERNEL_DRM:
++         vaStatus = surface_from_external_memory_native(ctx, surf, memory_attribute, i, &templat);
++         if (vaStatus != VA_STATUS_SUCCESS)
++            goto free_surf;
++         break;
++
+       case VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2:
+          vaStatus = surface_from_prime_2(ctx, surf, prime_desc, &templat);
+          if (vaStatus != VA_STATUS_SUCCESS)
+diff --git a/src/gallium/frontends/va/va_private.h b/src/gallium/frontends/va/va_private.h
+index 149cfa2d961..d8571bd41b4 100755
+--- a/src/gallium/frontends/va/va_private.h
++++ b/src/gallium/frontends/va/va_private.h
+@@ -477,4 +477,6 @@ VAStatus vlVaHandleVAEncSequenceParameterBufferTypeHEVC(vlVaDriver *drv, vlVaCon
+ VAStatus vlVaHandleVAEncMiscParameterTypeRateControlHEVC(vlVaContext *context, VAEncMiscParameterBuffer *buf);
+ VAStatus vlVaHandleVAEncMiscParameterTypeFrameRateHEVC(vlVaContext *context, VAEncMiscParameterBuffer *buf);
+ VAStatus vlVaHandleVAEncPackedHeaderDataBufferTypeHEVC(vlVaContext *context, vlVaBuffer *buf);
++void nv12_to_yv12_arm64(uint8_t const *src, int src_stride, uint8_t *u_dst, int u_stride, uint8_t *v_dst, int v_stride,
++    int clc_width, int height);
+ #endif //VA_PRIVATE_H
+diff --git a/src/gbm/backends/dri/gbm_dri.c b/src/gbm/backends/dri/gbm_dri.c
+index 644ea3c5639..b957453fa69 100644
+--- a/src/gbm/backends/dri/gbm_dri.c
++++ b/src/gbm/backends/dri/gbm_dri.c
+@@ -1265,6 +1265,113 @@ failed:
+    return NULL;
+ }
+ 
++static struct gbm_bo *
++gbm_dri_bo_create_native(struct gbm_device *gbm,
++                  uint32_t width, uint32_t height,
++                  uint32_t format, uint32_t usage,
++                  const uint64_t *modifiers,
++                  const unsigned int count,unsigned long **texture)
++{
++   struct gbm_dri_device *dri = gbm_dri_device(gbm);
++   struct gbm_dri_bo *bo;
++   int dri_format;
++   unsigned dri_use = 0;
++
++   /* Callers of this may specify a modifier, or a dri usage, but not both. The
++    * newer modifier interface deprecates the older usage flags.
++    */
++   assert(!(usage && count));
++
++   switch (format) {
++      case GBM_BO_FORMAT_XRGB8888:
++         format = GBM_FORMAT_XRGB8888;
++         break;
++      case GBM_BO_FORMAT_ARGB8888:
++         format = GBM_FORMAT_ARGB8888;
++         break;
++      default:
++         break;
++   }
++
++   if (usage & GBM_BO_USE_WRITE || dri->image == NULL)
++      return create_dumb(gbm, width, height, format, usage);
++
++   bo = calloc(1, sizeof *bo);
++   if (bo == NULL)
++      return NULL;
++
++   bo->base.gbm = gbm;
++   bo->base.v0.width = width;
++   bo->base.v0.height = height;
++   bo->base.v0.format = format;
++
++   dri_format = gbm_format_to_dri_format(format);
++   if (dri_format == 0) {
++      errno = EINVAL;
++      goto failed;
++   }
++
++   if (usage & GBM_BO_USE_SCANOUT)
++      dri_use |= __DRI_IMAGE_USE_SCANOUT;
++   if (usage & GBM_BO_USE_CURSOR)
++      dri_use |= __DRI_IMAGE_USE_CURSOR;
++   if (usage & GBM_BO_USE_LINEAR)
++      dri_use |= __DRI_IMAGE_USE_LINEAR;
++
++   /* Gallium drivers requires shared in order to get the handle/stride */
++   dri_use |= __DRI_IMAGE_USE_SHARE;
++
++   if (modifiers) {
++      if (!dri->image || dri->image->base.version < 14 ||
++          !dri->image->createImageWithModifiers) {
++          fprintf(stderr, "Modifiers specified, but DRI is too old\n");
++         errno = ENOSYS;
++         goto failed;
++      }
++
++      /* It's acceptable to create an image with INVALID modifier in the list,
++       * but it cannot be on the only modifier (since it will certainly fail
++       * later). While we could easily catch this after modifier creation, doing
++       * the check here is a convenient debug check likely pointing at whatever
++       * interface the client is using to build its modifier list.
++       */
++      if (count == 1 && modifiers[0] == DRM_FORMAT_MOD_INVALID) {
++         fprintf(stderr, "Only invalid modifier specified\n");
++         errno = EINVAL;
++         goto failed;
++      }
++
++      bo->image =
++         dri->image->createImageWithModifiers(dri->screen,
++                                              width, height,
++                                              dri_format,
++                                              modifiers, count,
++                                              bo);
++
++      if (bo->image) {
++         /* The client passed in a list of invalid modifiers */
++         assert(gbm_dri_bo_get_modifier(&bo->base) != DRM_FORMAT_MOD_INVALID);
++      }
++   } else {
++      bo->image = dri->image->createImagenative(dri->screen, width, height,
++                                                dri_format, dri_use, bo,texture);
++   }
++
++   if (bo->image == NULL)
++      goto failed;
++
++   dri->image->queryImage(bo->image, __DRI_IMAGE_ATTRIB_HANDLE,
++                          &bo->base.v0.handle.s32);
++   dri->image->queryImage(bo->image, __DRI_IMAGE_ATTRIB_STRIDE,
++                          (int *) &bo->base.v0.stride);
++
++   return &bo->base;
++
++failed:
++   free(bo);
++   return NULL;
++}
++
+ static void *
+ gbm_dri_bo_map(struct gbm_bo *_bo,
+               uint32_t x, uint32_t y,
+@@ -1299,6 +1406,40 @@ gbm_dri_bo_map(struct gbm_bo *_bo,
+                                map_data);
+ }
+ 
++static void *
++gbm_dri_bo_map_native(struct gbm_bo *_bo,
++               uint32_t x, uint32_t y,
++              uint32_t width, uint32_t height,
++               uint32_t flags, uint32_t *stride, void **map_data)
++{
++   struct gbm_dri_device *dri = gbm_dri_device(_bo->gbm);
++   struct gbm_dri_bo *bo = gbm_dri_bo(_bo);
++
++   /* If it's a dumb buffer, we already have a mapping */
++   if (bo->map) {
++      *map_data = (char *)bo->map + (bo->base.v0.stride * y) + (x * 4);
++      *stride = bo->base.v0.stride;
++      return *map_data;
++   }
++
++   if (!dri->image || dri->image->base.version < 12 || !dri->image->mapImage) {
++      errno = ENOSYS;
++      return NULL;
++   }
++
++   mtx_lock(&dri->mutex);
++   if (!dri->context)
++      dri->context = dri->dri2->createNewContext(dri->screen, NULL,
++                                                 NULL, NULL);
++   assert(dri->context);
++   mtx_unlock(&dri->mutex);
++
++   /* GBM flags and DRI flags are the same, so just pass them on */
++   return dri->image->mapImage_native(dri->context, bo->image, x, y,
++                                      width, height, flags, (int *)stride,
++                                      map_data);
++}
++
+ static void
+ gbm_dri_bo_unmap(struct gbm_bo *_bo, void *map_data)
+ {
+@@ -1440,8 +1581,10 @@ dri_device_create(int fd, uint32_t gbm_backend_version)
+    dri->base.v0.fd = fd;
+    dri->base.v0.backend_version = gbm_backend_version;
+    dri->base.v0.bo_create = gbm_dri_bo_create;
++   dri->base.v0.bo_create_native = gbm_dri_bo_create_native;
+    dri->base.v0.bo_import = gbm_dri_bo_import;
+    dri->base.v0.bo_map = gbm_dri_bo_map;
++   dri->base.v0.bo_map_native = gbm_dri_bo_map_native;
+    dri->base.v0.bo_unmap = gbm_dri_bo_unmap;
+    dri->base.v0.is_format_supported = gbm_dri_is_format_supported;
+    dri->base.v0.get_format_modifier_plane_count =
+diff --git a/src/gbm/main/gbm.c b/src/gbm/main/gbm.c
+index ab685b878e8..0555f9985a6 100644
+--- a/src/gbm/main/gbm.c
++++ b/src/gbm/main/gbm.c
+@@ -496,6 +496,20 @@ gbm_bo_create(struct gbm_device *gbm,
+    return gbm->v0.bo_create(gbm, width, height, format, flags, NULL, 0);
+ }
+ 
++GBM_EXPORT struct gbm_bo *
++gbm_bo_create_native(struct gbm_device *gbm,
++                     uint32_t width, uint32_t height,
++                     uint32_t format, uint32_t usage,
++                     unsigned long **texture)
++{
++   if (width == 0 || height == 0) {
++      errno = EINVAL;
++      return NULL;
++   }
++
++   return gbm->v0.bo_create_native(gbm, width, height, format, usage, NULL, 0,texture);
++}
++
+ GBM_EXPORT struct gbm_bo *
+ gbm_bo_create_with_modifiers(struct gbm_device *gbm,
+                              uint32_t width, uint32_t height,
+@@ -624,6 +638,20 @@ gbm_bo_map(struct gbm_bo *bo,
+                              flags, stride, map_data);
+ }
+ 
++GBM_EXPORT void *
++gbm_bo_map_native(struct gbm_bo *bo,
++                  uint32_t x, uint32_t y,
++                  uint32_t width, uint32_t height,
++                  uint32_t flags, uint32_t *stride, void **map_data)
++{
++   if (!bo || width == 0 || height == 0 || !stride || !map_data) {
++      errno = EINVAL;
++      return NULL;
++   }
++
++   return bo->gbm->v0.bo_map_native(bo, x, y, width, height, flags, stride, map_data);
++}
++
+ /**
+  * Unmap a previously mapped region of a gbm buffer object
+  *
+diff --git a/src/gbm/main/gbm.h b/src/gbm/main/gbm.h
+index ea3cc1bac55..ff61e76b177 100644
+--- a/src/gbm/main/gbm.h
++++ b/src/gbm/main/gbm.h
+@@ -279,6 +279,12 @@ gbm_bo_create(struct gbm_device *gbm,
+               uint32_t width, uint32_t height,
+               uint32_t format, uint32_t flags);
+ 
++struct gbm_bo *
++gbm_bo_create_native(struct gbm_device *gbm,
++                     uint32_t width, uint32_t height,
++                     uint32_t format, uint32_t flags,
++                     unsigned long **texture);
++
+ struct gbm_bo *
+ gbm_bo_create_with_modifiers(struct gbm_device *gbm,
+                              uint32_t width, uint32_t height,
+@@ -356,6 +362,11 @@ gbm_bo_map(struct gbm_bo *bo,
+            uint32_t x, uint32_t y, uint32_t width, uint32_t height,
+            uint32_t flags, uint32_t *stride, void **map_data);
+ 
++void *
++gbm_bo_map_native(struct gbm_bo *bo,
++                  uint32_t x, uint32_t y, uint32_t width, uint32_t height,
++                  uint32_t flags, uint32_t *stride, void **map_data);
++
+ void
+ gbm_bo_unmap(struct gbm_bo *bo, void *map_data);
+ 
+diff --git a/src/gbm/main/gbm_backend_abi.h b/src/gbm/main/gbm_backend_abi.h
+index 222ce3404cb..574a0c8487f 100644
+--- a/src/gbm/main/gbm_backend_abi.h
++++ b/src/gbm/main/gbm_backend_abi.h
+@@ -123,6 +123,13 @@ struct gbm_device_v0 {
+                                uint32_t usage,
+                                const uint64_t *modifiers,
+                                const unsigned int count);
++   struct gbm_bo *(*bo_create_native)(struct gbm_device *gbm,
++                                      uint32_t width, uint32_t height,
++                                      uint32_t format,
++                                      uint32_t usage,
++                                      const uint64_t *modifiers,
++                                      const unsigned int count,
++                                      unsigned long **texture);
+    struct gbm_bo *(*bo_import)(struct gbm_device *gbm, uint32_t type,
+                                void *buffer, uint32_t usage);
+    void *(*bo_map)(struct gbm_bo *bo,
+@@ -130,6 +137,11 @@ struct gbm_device_v0 {
+                                uint32_t width, uint32_t height,
+                                uint32_t flags, uint32_t *stride,
+                                void **map_data);
++   void *(*bo_map_native)(struct gbm_bo *bo,
++                          uint32_t x, uint32_t y,
++                          uint32_t width, uint32_t height,
++                          uint32_t flags, uint32_t *stride,
++                          void **map_data);
+    void (*bo_unmap)(struct gbm_bo *bo, void *map_data);
+    int (*bo_write)(struct gbm_bo *bo, const void *buf, size_t data);
+    int (*bo_get_fd)(struct gbm_bo *bo);
+diff --git a/src/mapi/glapi/gen/gl_API.xml b/src/mapi/glapi/gen/gl_API.xml
+index e2753db482b..fc053e6b5ee 100644
+--- a/src/mapi/glapi/gen/gl_API.xml
++++ b/src/mapi/glapi/gen/gl_API.xml
+@@ -2195,6 +2195,19 @@
+         <glx rop="110" large="true"/>
+     </function>
+ 
++    <function name="nativeTexImage2D" es1="1.0" es2="2.0" no_error="true">
++        <param name="target" type="GLenum"/>
++        <param name="level" type="GLint"/>
++        <param name="internalformat" type="GLint"/>
++        <param name="width" type="GLsizei"/>
++        <param name="height" type="GLsizei"/>
++        <param name="border" type="GLint"/>
++        <param name="format" type="GLenum"/>
++        <param name="type" type="GLenum"/>
++        <param name="handle" type="unsigned long *"/>
++        <param name="pixels" type="const GLvoid *" img_width="width" img_height="height" img_format="format" img_type="type" img_target="target" img_send_null="true" img_pad_dimensions="true"/>
++     </function>
++
+     <function name="TexEnvf" es1="1.0" deprecated="3.1" exec="dlist">
+         <param name="target" type="GLenum"/>
+         <param name="pname" type="GLenum"/>
+diff --git a/src/mapi/glapi/gen/static_data.py b/src/mapi/glapi/gen/static_data.py
+index c634304d925..4fe504032e3 100644
+--- a/src/mapi/glapi/gen/static_data.py
++++ b/src/mapi/glapi/gen/static_data.py
+@@ -1691,6 +1691,7 @@ offsets = {
+     "VertexAttribs4hvNV": 1655,
+     "TexPageCommitmentARB": 1656,
+     "TexturePageCommitmentEXT": 1657,
++    "nativeTexImage2D": 1658,
+ }
+ 
+ functions = [
+diff --git a/src/mesa/main/get.c b/src/mesa/main/get.c
+index 20258101e74..a9773456639 100644
+--- a/src/mesa/main/get.c
++++ b/src/mesa/main/get.c
+@@ -1136,7 +1136,7 @@ find_custom_value(struct gl_context *ctx, const struct value_desc *d, union valu
+          v->value_float = ctx->Color.AlphaRefUnclamped;
+       break;
+    case GL_MAX_VERTEX_UNIFORM_VECTORS:
+-      v->value_int = ctx->Const.Program[MESA_SHADER_VERTEX].MaxUniformComponents / 4;
++      v->value_int = 256; // 修复原神角色加载异常问题
+       break;
+ 
+    case GL_MAX_FRAGMENT_UNIFORM_VECTORS:
+@@ -1984,7 +1984,10 @@ _mesa_GetIntegerv(GLenum pname, GLint *params)
+    GLmatrix *m;
+    int shift, i;
+    void *p;
+-
++   if (pname == GL_MAX_VERTEX_UNIFORM_COMPONENTS) {
++      *params = 1024; // 修复原神角色渲染异常问题
++      return;
++   }
+    d = find_value("glGetIntegerv", pname, &p, &v);
+    switch (d->type) {
+    case TYPE_INVALID:
+diff --git a/src/mesa/main/getstring.c b/src/mesa/main/getstring.c
+index 0c1ae3dd702..713b1a0bdd7 100644
+--- a/src/mesa/main/getstring.c
++++ b/src/mesa/main/getstring.c
+@@ -39,6 +39,8 @@
+ #include "pipe/p_context.h"
+ #include "pipe/p_screen.h"
+ 
++#include <cutils/properties.h>
++
+ /**
+  * Return the string for a glGetString(GL_SHADING_LANGUAGE_VERSION) query.
+  */
+@@ -146,6 +148,12 @@ _mesa_GetString( GLenum name )
+          return (const GLubyte *) vendor;
+       }
+       case GL_RENDERER: {
++         // Read the GPU mock model from the environment variable
++         const char* rendererPropName = "ro.hardware.gpurenderer";
++         static char rendererProp[PROPERTY_VALUE_MAX];
++         if (property_get(rendererPropName, rendererProp, NULL) > 0) {
++            return (const GLubyte *) rendererProp;
++         }
+          const GLubyte *str = (const GLubyte *)screen->get_name(screen);
+          if (str)
+             return str;
+diff --git a/src/mesa/main/mtypes.h b/src/mesa/main/mtypes.h
+index cd2af9f7225..8c3b57b4baa 100644
+--- a/src/mesa/main/mtypes.h
++++ b/src/mesa/main/mtypes.h
+@@ -3219,6 +3219,7 @@ struct gl_attrib_node
+  */
+ struct gl_context
+ {
++   bool FlushSwitch;
+    /** State possibly shared with other contexts in the address space */
+    struct gl_shared_state *Shared;
+ 
+diff --git a/src/mesa/main/teximage.c b/src/mesa/main/teximage.c
+index 62e9d77dead..c72046bd20a 100644
+--- a/src/mesa/main/teximage.c
++++ b/src/mesa/main/teximage.c
+@@ -3177,6 +3177,25 @@ teximage(struct gl_context *ctx, GLboolean compressed, GLuint dims,
+    }
+ }
+ 
++static ALWAYS_INLINE unsigned long *
++nativeteximage(struct gl_context *ctx, GLboolean compressed, GLuint dims,
++               GLenum target, GLint level, GLint internalFormat,
++               GLsizei width, GLsizei height, GLsizei depth,
++               GLint border, GLenum format, GLenum type,
++               GLsizei imageSize, const GLvoid *pixels, bool no_error)
++{
++   struct gl_texture_image *texImage;
++   unsigned long *handle;
++   const struct gl_pixelstore_attrib *unpack = &ctx->Unpack;
++   struct gl_texture_object *texObj = _mesa_get_current_tex_object(ctx, target);
++   _mesa_lock_texture(ctx, texObj);
++   {
++      texImage = _mesa_get_tex_image(ctx, texObj, target, level);
++      handle = st_nativeTexImage(ctx, dims, texImage, format, type, pixels, unpack);
++   }
++   _mesa_unlock_texture(ctx, texObj);
++   return handle;
++}
+ 
+ /* This is a wrapper around teximage() so that we can force the KHR_no_error
+  * logic to be inlined without inlining the function into all the callers.
+@@ -3190,8 +3209,21 @@ teximage_err(struct gl_context *ctx, GLboolean compressed, GLuint dims,
+ {
+    teximage(ctx, compressed, dims, NULL, target, level, internalFormat, width, height,
+             depth, border, format, type, imageSize, pixels, false);
++   if (ctx->FlushSwitch) {
++      _mesa_Flush();
++   }
+ }
+ 
++static unsigned long *
++nativeteximage_err(struct gl_context *ctx, GLboolean compressed, GLuint dims,
++                   GLenum target, GLint level, GLint internalFormat,
++                   GLsizei width, GLsizei height, GLsizei depth,
++                   GLint border, GLenum format, GLenum type,
++                   GLsizei imageSize, const GLvoid *pixels)
++{
++   return nativeteximage(ctx, compressed, dims, target, level, internalFormat, width, height,
++                         depth, border, format, type, imageSize, pixels, false);
++}
+ 
+ static void
+ teximage_no_error(struct gl_context *ctx, GLboolean compressed, GLuint dims,
+@@ -3263,6 +3295,17 @@ _mesa_TexImage2D( GLenum target, GLint level, GLint internalFormat,
+                 border, format, type, 0, pixels);
+ }
+ 
++void GLAPIENTRY
++_mesa_nativeTexImage2D( GLenum target, GLint level, GLint internalFormat,
++                        GLsizei width, GLsizei height, GLint border,
++                        GLenum format, GLenum type, unsigned long *handle,
++                        const GLvoid *pixels  )
++{
++   GET_CURRENT_CONTEXT(ctx);
++   *handle = (unsigned long)(nativeteximage_err(ctx, GL_FALSE, 2, target, level, internalFormat, width, height, 1,
++                                                border, format, type, 0, pixels));
++}
++
+ void GLAPIENTRY
+ _mesa_TextureImage2DEXT(GLuint texture, GLenum target, GLint level,
+                       GLint internalFormat, GLsizei width, GLsizei height,
+@@ -3373,6 +3416,13 @@ _mesa_TexImage2D_no_error(GLenum target, GLint level, GLint internalFormat,
+                      height, 1, border, format, type, 0, pixels);
+ }
+ 
++void GLAPIENTRY
++_mesa_nativeTexImage2D_no_error(GLenum target, GLint level, GLint internalFormat,
++                                GLsizei width, GLsizei height, GLint border,
++                                GLenum format, GLenum type, unsigned long  *handle, const GLvoid *pixels)
++{
++   GET_CURRENT_CONTEXT(ctx);
++}
+ 
+ void GLAPIENTRY
+ _mesa_TexImage3D_no_error(GLenum target, GLint level, GLint internalFormat,
+@@ -3621,6 +3671,9 @@ texsubimage_err(struct gl_context *ctx, GLuint dims, GLenum target, GLint level,
+    texture_sub_image(ctx, dims, texObj, texImage, target, level,
+                      xoffset, yoffset, zoffset, width, height, depth,
+                      format, type, pixels);
++   if (ctx->FlushSwitch) {
++      _mesa_Flush();
++   }
+ }
+ 
+ 
+diff --git a/src/mesa/state_tracker/st_cb_texture.c b/src/mesa/state_tracker/st_cb_texture.c
+index d3b041616bb..f4609e73cf4 100644
+--- a/src/mesa/state_tracker/st_cb_texture.c
++++ b/src/mesa/state_tracker/st_cb_texture.c
+@@ -2205,6 +2205,19 @@ st_try_pbo_compressed_texsubimage(struct gl_context *ctx,
+    return success;
+ }
+ 
++unsigned long *
++st_nativeTexImage(struct gl_context * ctx, GLuint dims,
++                  struct gl_texture_image *texImage,
++                  GLenum format, GLenum type, const void *pixels,
++                  const struct gl_pixelstore_attrib *unpack)
++{
++   struct st_context *st = st_context(ctx);
++   struct pipe_screen *screen = st->pipe->screen;
++   struct gl_texture_object *texObj = texImage->TexObject;
++   struct pipe_resource *src = texObj->pt;
++   return (unsigned long *)src;
++}
++
+ void
+ st_CompressedTexSubImage(struct gl_context *ctx, GLuint dims,
+                          struct gl_texture_image *texImage,
+diff --git a/src/mesa/state_tracker/st_cb_texture.h b/src/mesa/state_tracker/st_cb_texture.h
+index 1d5d3a39e2e..bbb5061472f 100644
+--- a/src/mesa/state_tracker/st_cb_texture.h
++++ b/src/mesa/state_tracker/st_cb_texture.h
+@@ -77,6 +77,10 @@ void st_TexImage(struct gl_context * ctx, GLuint dims,
+                  struct gl_texture_image *texImage,
+                  GLenum format, GLenum type, const void *pixels,
+                  const struct gl_pixelstore_attrib *unpack);
++unsigned long * st_nativeTexImage(struct gl_context * ctx, GLuint dims,
++                                  struct gl_texture_image *texImage,
++                                  GLenum format, GLenum type, const void *pixels,
++                                  const struct gl_pixelstore_attrib *unpack);
+ void st_CompressedTexSubImage(struct gl_context *ctx, GLuint dims,
+                               struct gl_texture_image *texImage,
+                               GLint x, GLint y, GLint z,
+diff --git a/src/mesa/state_tracker/st_context.c b/src/mesa/state_tracker/st_context.c
+index 1e79efde7b7..0c6b630a2e4 100644
+--- a/src/mesa/state_tracker/st_context.c
++++ b/src/mesa/state_tracker/st_context.c
+@@ -874,6 +874,7 @@ st_create_context(gl_api api, struct pipe_context *pipe,
+       return NULL;
+    }
+ 
++   ctx->FlushSwitch = shareCtx;
+    st_debug_init();
+ 
+    if (pipe->screen->get_disk_shader_cache)
+diff --git a/src/vulkan/runtime/vk_render_pass.c b/src/vulkan/runtime/vk_render_pass.c
+index 6780baf75de..41dc050a69b 100644
+--- a/src/vulkan/runtime/vk_render_pass.c
++++ b/src/vulkan/runtime/vk_render_pass.c
+@@ -344,6 +344,10 @@ vk_render_pass_attachment_init(struct vk_render_pass_attachment *att,
+       .initial_stencil_layout = vk_att_desc_stencil_layout(desc, false),
+       .final_stencil_layout   = vk_att_desc_stencil_layout(desc, true),
+    };
++
++   if(desc->format == VK_FORMAT_D24_UNORM_S8_UINT) {
++      att->format = VK_FORMAT_D32_SFLOAT_S8_UINT;
++   }
+ }
+ 
+ static void

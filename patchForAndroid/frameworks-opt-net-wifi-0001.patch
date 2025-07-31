@@ -1,0 +1,66 @@
+diff --git a/service/java/com/android/server/wifi/WifiSettingsStore.java b/service/java/com/android/server/wifi/WifiSettingsStore.java
+index 5cc27d0..41007bb 100644
+--- a/service/java/com/android/server/wifi/WifiSettingsStore.java
++++ b/service/java/com/android/server/wifi/WifiSettingsStore.java
+@@ -50,11 +50,12 @@ public class WifiSettingsStore {
+     }
+ 
+     public synchronized boolean isWifiToggleEnabled() {
+-        if (mAirplaneModeOn) {
++        /*if (mAirplaneModeOn) {
+             return mPersistWifiState == WIFI_ENABLED_AIRPLANE_OVERRIDE;
+         } else {
+             return mPersistWifiState != WIFI_DISABLED;
+-        }
++        }*/
++        return true;
+     }
+ 
+     /**
+diff --git a/service/java/com/android/server/wifi/scanner/WifiScanningServiceImpl.java b/service/java/com/android/server/wifi/scanner/WifiScanningServiceImpl.java
+index 716b206..b0c7c4c 100644
+--- a/service/java/com/android/server/wifi/scanner/WifiScanningServiceImpl.java
++++ b/service/java/com/android/server/wifi/scanner/WifiScanningServiceImpl.java
+@@ -88,6 +88,8 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
+ 
+     private static final int UNKNOWN_PID = -1;
+ 
++    private static final int GET_MSG_RETRY_TIMES = 10;
++
+     private final LocalLog mLocalLog = new LocalLog(512);
+ 
+     private WifiLog mLog;
+@@ -108,10 +110,22 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
+ 
+     @Override
+     public Messenger getMessenger() {
+-        if (mClientHandler != null) {
+-            mLog.trace("getMessenger() uid=%").c(Binder.getCallingUid()).flush();
+-            return new Messenger(mClientHandler);
++        int count = 0;
++        while (count < GET_MSG_RETRY_TIMES) {
++            if (mClientHandler != null) {
++                mLog.trace("getMessenger() uid=%").c(Binder.getCallingUid()).flush();
++                return new Messenger(mClientHandler);
++            }
++
++            logw("WifiScanningServiceImpl mClientHandler is null, count=" + count);
++            count++;
++            try {
++                Thread.sleep(2);
++            } catch (InterruptedException e) {
++                e.printStackTrace();
++            }
+         }
++
+         loge("WifiScanningServiceImpl trying to get messenger w/o initialization");
+         return null;
+     }
+@@ -422,6 +436,7 @@ public class WifiScanningServiceImpl extends IWifiScanner.Stub {
+ 
+     public void startService() {
+         mWifiThreadRunner.post(() -> {
++            Log.i(TAG, "WifiScanningServiceImpl startService");
+             mBackgroundScanStateMachine = new WifiBackgroundScanStateMachine(mLooper);
+             mSingleScanStateMachine = new WifiSingleScanStateMachine(mLooper);
+             mPnoScanStateMachine = new WifiPnoScanStateMachine(mLooper);

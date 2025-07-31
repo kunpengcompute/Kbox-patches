@@ -1,0 +1,17 @@
+diff --git a/libminijail.c b/libminijail.c
+index 7a82ccc..9b3b9fa 100644
+--- a/libminijail.c
++++ b/libminijail.c
+@@ -2083,10 +2083,12 @@ static void set_seccomp_filter(const struct minijail *j)
+ 				pdie("seccomp(tsync) failed");
+ 			}
+ 		} else {
++			/*
+ 			if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER,
+ 				  j->filter_prog)) {
+ 				pdie("prctl(seccomp_filter) failed");
+ 			}
++			*/
+ 		}
+ 	}
+ }

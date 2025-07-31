@@ -1,0 +1,71 @@
+diff --git a/configure.ac b/configure.ac
+index e899082..7ac1a6b 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -26,7 +26,7 @@
+ # - increment micro for any other change (new flag, new codec definition, etc.)
+ # - reset micro version to zero when minor version is incremented
+ # - reset minor version to zero when major version is incremented
+-m4_define([va_api_major_version], [1])
++m4_define([va_api_major_version], [2])
+ m4_define([va_api_minor_version], [14])
+ m4_define([va_api_micro_version], [0])
+ 
+diff --git a/va/Android.mk b/va/Android.mk
+index 0066558..c4c09ea 100644
+--- a/va/Android.mk
++++ b/va/Android.mk
+@@ -55,13 +55,14 @@ LOCAL_CFLAGS := \
+ 	$(if $(filter user,$(TARGET_BUILD_VARIANT)),,-DENABLE_VA_MESSAGING) \
+ 	-DLOG_TAG=\"libva\"
+ 
++LOCAL_CFLAGS += -DSYSCONFDIR=\"/etc\"
+ LOCAL_C_INCLUDES := $(LOCAL_PATH)/..
+ 
++LOCAL_VENDOR_MODULE := false
+ LOCAL_MODULE_TAGS := optional
+ LOCAL_MODULE := libva
+ LOCAL_MODULE_CLASS := SHARED_LIBRARIES
+-LOCAL_PROPRIETARY_MODULE := true
+-
++#LOCAL_PROPRIETARY_MODULE := true
+ LOCAL_SHARED_LIBRARIES := libdl libdrm libcutils liblog
+ 
+ intermediates := $(call local-generated-sources-dir)
+@@ -97,8 +98,34 @@ LOCAL_C_INCLUDES += \
+ 
+ LOCAL_MODULE_TAGS := optional
+ LOCAL_MODULE := libva-android
+-LOCAL_PROPRIETARY_MODULE := true
++#LOCAL_PROPRIETARY_MODULE := true
+ 
+ LOCAL_SHARED_LIBRARIES := libva libdrm liblog
+ 
+ include $(BUILD_SHARED_LIBRARY)
++
++
++# For libva-drm
++# =====================================================
++ 
++include $(CLEAR_VARS)
++ 
++LOCAL_SRC_FILES := \
++        drm/va_drm.c \
++        drm/va_drm_auth.c \
++        drm/va_drm_utils.c
++ 
++LOCAL_CFLAGS += \
++        -DLOG_TAG=\"libva-drm\" \
++        $(IGNORED_WARNNING)
++ 
++LOCAL_C_INCLUDES += \
++        $(LOCAL_PATH)/drm/
++
++LOCAL_MODULE_TAGS := optional
++LOCAL_MODULE := libva-drm
++#LOCAL_PROPRIETARY_MODULE := true
++
++LOCAL_SHARED_LIBRARIES := libva libdrm liblog
++
++include $(BUILD_SHARED_LIBRARY)
+\ No newline at end of file

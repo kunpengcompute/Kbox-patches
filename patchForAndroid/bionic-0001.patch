@@ -1,0 +1,10 @@
+diff --git a/libc/SYSCALLS.TXT b/libc/SYSCALLS.TXT
+index 6142baf..0ee639d 100644
+--- a/libc/SYSCALLS.TXT
++++ b/libc/SYSCALLS.TXT
+@@ -357,3 +357,5 @@ int __gettimeofday:gettimeofday(struct timeval*, struct timezone*) all
+ 
+ # <sys/random.h>
+ ssize_t getrandom(void*, size_t, unsigned) all
++
++int kcmp(pid_t pid1, pid_t pid2, int type, unsigned long idx1, unsigned long idx2) all

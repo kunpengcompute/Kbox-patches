@@ -1,0 +1,13 @@
+diff --git a/ui/build/paths/config.go b/ui/build/paths/config.go
+index 5717401..7cad0a8 100644
+--- a/ui/build/paths/config.go
++++ b/ui/build/paths/config.go
+@@ -95,6 +95,8 @@ var Configuration = map[string]PathConfig{
+ 	"tr":      Allowed,
+ 	"unzip":   Allowed,
+ 	"zip":     Allowed,
++	"meson.py":     Allowed,
++	"ninja":     Allowed,
+ 
+ 	// Host toolchain is removed. In-tree toolchain should be used instead.
+ 	// GCC also can't find cc1 with this implementation.
