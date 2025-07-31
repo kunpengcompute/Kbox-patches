@@ -1,0 +1,6 @@
+# Create directories for ExaGear-generated log files
+on post-fs-data
+    mkdir /data/exagear 0755
+    mkdir /data/exagear/log 0777
+    mkdir /data/exagear/pretrans_log 0777
+    restorecon_recursive /data/exagear
