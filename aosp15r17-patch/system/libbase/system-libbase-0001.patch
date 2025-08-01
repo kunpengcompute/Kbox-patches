@@ -1,5 +1,5 @@
 diff --git a/include/android-base/macros.h b/include/android-base/macros.h
-
+index b9ee402..ef996c3 100644
 --- a/include/android-base/macros.h
 +++ b/include/android-base/macros.h
 @@ -21,6 +21,13 @@
@@ -15,5 +15,4 @@ diff --git a/include/android-base/macros.h b/include/android-base/macros.h
 +
  // bionic and glibc both have TEMP_FAILURE_RETRY, but eg Mac OS' libc doesn't.
  #ifndef TEMP_FAILURE_RETRY
- #define TEMP_FAILURE_RETRY(exp)	     \
-
+ #define TEMP_FAILURE_RETRY(exp)            \
