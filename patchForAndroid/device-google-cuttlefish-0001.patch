@@ -1,0 +1,581 @@
+diff --git a/Android.mk b/Android.mk
+index 94584cc..14880f1 100644
+--- a/Android.mk
++++ b/Android.mk
+@@ -22,3 +22,5 @@ include $(LOCAL_PATH)/host_package.mk
+ 
+ include $(call first-makefiles-under,$(LOCAL_PATH))
+ endif
++
++include device/google/cuttlefish/guest/hals/ril/Android.mk
+diff --git a/guest/hals/ril/Android.mk b/guest/hals/ril/Android.mk
+index 808d4ec..94fc5b5 100644
+--- a/guest/hals/ril/Android.mk
++++ b/guest/hals/ril/Android.mk
+@@ -23,11 +23,7 @@ LOCAL_SHARED_LIBRARIES := \
+   liblog \
+   libcutils \
+   libutils \
+-  ${CUTTLEFISH_LIBRIL_NAME} \
+-  libcuttlefish_fs \
+-  cuttlefish_net \
+   libbase \
+-  libcuttlefish_device_config \
+ 
+ LOCAL_C_INCLUDES := \
+     device/google/cuttlefish
+@@ -37,7 +33,7 @@ LOCAL_CFLAGS += \
+   -Werror \
+   $(VSOC_VERSION_CFLAGS)
+ 
+-LOCAL_MODULE:= libcuttlefish-ril
++LOCAL_MODULE:= libreference-ril.kbox
+ LOCAL_MODULE_TAGS := optional
+ LOCAL_VENDOR_MODULE := true
+ 
+@@ -48,4 +44,4 @@ endif
+ 
+ include $(BUILD_SHARED_LIBRARY)
+ 
+-include $(call first-makefiles-under,$(LOCAL_PATH))
++#include $(call first-makefiles-under,$(LOCAL_PATH))
+diff --git a/guest/hals/ril/cuttlefish_ril.cpp b/guest/hals/ril/cuttlefish_ril.cpp
+index 29fca7e..43499de 100644
+--- a/guest/hals/ril/cuttlefish_ril.cpp
++++ b/guest/hals/ril/cuttlefish_ril.cpp
+@@ -21,16 +21,20 @@
+ #include <string.h>
+ #include <sys/types.h>
+ #include <time.h>
++#include <utils/Log.h>
+ 
+ #include <map>
+ #include <set>
+ #include <string>
+ #include <vector>
++#include <chrono>
+ 
+-#include "common/libs/device_config/device_config.h"
+-#include "common/libs/net/netlink_client.h"
+-#include "common/libs/net/network_interface.h"
+-#include "common/libs/net/network_interface_manager.h"
++//#include "common/libs/device_config/device_config.h"
++//#include "common/libs/net/netlink_client.h"
++//#include "common/libs/net/network_interface.h"
++//#include "common/libs/net/network_interface_manager.h"
++
++using namespace std;
+ 
+ #define CUTTLEFISH_RIL_VERSION_STRING "Android Cuttlefish RIL 1.4"
+ 
+@@ -56,7 +60,7 @@ typedef enum {
+   RUIM_NETWORK_PERSONALIZATION = 11
+ } SIM_Status;
+ 
+-static std::unique_ptr<cvd::DeviceConfig> global_ril_config = nullptr;
++//static std::unique_ptr<cvd::DeviceConfig> global_ril_config = nullptr;
+ 
+ static const struct RIL_Env* gce_ril_env;
+ 
+@@ -107,7 +111,7 @@ static bool areUiccApplicationsEnabled = true;
+ // SetUpNetworkInterface configures IP and Broadcast addresses on a RIL
+ // controlled network interface.
+ // This call returns true, if operation was successful.
+-bool SetUpNetworkInterface(const char* ipaddr, int prefixlen,
++/*bool SetUpNetworkInterface(const char* ipaddr, int prefixlen,
+                            const char* bcaddr) {
+   auto factory = cvd::NetlinkClientFactory::Default();
+   std::unique_ptr<cvd::NetlinkClient> nl(factory->New(NETLINK_ROUTE));
+@@ -126,12 +130,12 @@ bool SetUpNetworkInterface(const char* ipaddr, int prefixlen,
+     return res;
+   }
+   return false;
+-}
++}*/
+ 
+ // TearDownNetworkInterface disables network interface.
+ // This call returns true, if operation was successful.
+ bool TearDownNetworkInterface() {
+-  auto nm(cvd::NetworkInterfaceManager::New(nullptr));
++  /*auto nm(cvd::NetworkInterfaceManager::New(nullptr));
+   auto ni(nm->Open("rmnet0", "eth1"));
+ 
+   if (ni) {
+@@ -139,7 +143,7 @@ bool TearDownNetworkInterface() {
+     bool res = nm->ApplyChanges(*ni);
+     if (!res) ALOGE("Could not disable rmnet0");
+     return res;
+-  }
++  }*/
+   return false;
+ }
+ 
+@@ -181,10 +185,10 @@ static int request_or_send_data_calllist(RIL_Token* t) {
+     }
+ 
+     responses[index].ifname = (char*)"rmnet0";
+-    responses[index].addresses =
+-      const_cast<char*>(global_ril_config->ril_address_and_prefix());
+-    responses[index].dnses = const_cast<char*>(global_ril_config->ril_dns());
+-    responses[index].gateways = const_cast<char*>(global_ril_config->ril_gateway());
++    //responses[index].addresses =
++    //  const_cast<char*>(global_ril_config->ril_address_and_prefix());
++    //responses[index].dnses = const_cast<char*>(global_ril_config->ril_dns());
++    //responses[index].gateways = const_cast<char*>(global_ril_config->ril_gateway());
+     responses[index].pcscf = (char*)"";
+     responses[index].mtu = 1440;
+   }
+@@ -304,11 +308,11 @@ static void request_setup_data_call(void* data, size_t datalen, RIL_Token t) {
+     if (details[7]) call.other_properties_ = details[7];
+   }
+ 
+-  if (gDataCalls.empty()) {
++  /*if (gDataCalls.empty()) {
+     SetUpNetworkInterface(global_ril_config->ril_ipaddr(),
+                           global_ril_config->ril_prefixlen(),
+                           global_ril_config->ril_broadcast());
+-  }
++  }*/
+ 
+   gDataCalls[gNextDataCallId] = call;
+   gNextDataCallId++;
+@@ -1151,17 +1155,172 @@ static bool isGSM() {
+   return false;
+ }
+ 
+-static const char gIdentityGsmImei[] = "12345678902468";  // Luhn cksum = 0.
++//static string gIdentityGsmImei = "";  // Luhn cksum = 0.
+ static const char gIdentityGsmImeiSv[] = "01";            // Arbitrary version.
+ static const char gIdentityCdmaEsn[] = "A0123456";        // 8 digits, ^[A-F].*
+ static const char gIdentityCdmaMeid[] =
+     "A0123456789012";  // 14 digits, ^[A-F].*
+ 
++#define MIN_IMEI_LENGTH 15
++#define MAX_IMEI_LENGTH 17
++#define MIN_NUMERICCPH_LENGTH 5
++#define MAX_NUMERICCPH_LENGTH 6
++#define MIN_ALPHACPH_LENGTH 1
++#define MAX_ALPHACPH_LENGTH 20
++#define IMSI_LENGTH 15
++#define SIM_SERIAL_LENGTH 20
++#define MAX_PHONENUM_LENGTH 20
++
++static inline bool isDigit(char c) {
++    return '0' <= c && c <= '9';
++}
++
++static inline bool isDigits(char* s) {
++    for (int i = 0; i < strlen(s); i++) {
++        if (!isDigit(s[i])) {
++            return false;
++        }
++    }
++    return true;
++}
++
++static inline bool isLetter(char c) {
++    return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');
++}
++
++static inline bool isLetterOrDigit(char c) {
++    return isLetter(c) || isDigit(c);
++}
++
++static inline bool isLetterOrDigits(char* s) {
++    for (int i = 0; i < strlen(s); i++) {
++        if (!isLetterOrDigit(s[i])) {
++            return false;
++        }
++    }
++    return true;
++}
++
++// The caller must ensure that the input parameters are in the range of [0, 0xf].
++static inline char Hex2Ascii(int c) {
++    if (c >= 0 && c <= 9) {
++        return '0' + c;
++    } else {
++        return 'a' + c - 10;
++    }
++}
++
++/* 
++    Internal function, the caller must ensure that: 1. The prefix length is smaller than the num length. 
++    2. The prefix length plus 17 is greater than the num length (17 is the length of time).
++*/
++static string get_sequence_by_time(string prefix, int num) {
++    auto now = chrono::time_point_cast<chrono::milliseconds>(chrono::system_clock::now());
++    time_t t = chrono::system_clock::to_time_t(now);
++    int milliSecond = now.time_since_epoch().count() % 1000;
++    auto localTm = localtime(&t);
++    char buff[32];
++    int len = strftime(buff, 32, "%Y%m%d%H%M%S", localTm);
++    sprintf(buff + len, "%03u", milliSecond);
++    int pos = strlen(buff) - (num - prefix.length());
++    return prefix + string(buff).substr(pos, strlen(buff) - pos);
++}
++
++static string get_imei_by_prop() {
++    char propBuf[PROPERTY_VALUE_MAX];
++    property_get("persist.sys.prop.writeimei", propBuf, NULL);
++
++    int length = strlen(propBuf);
++    if (length < MIN_IMEI_LENGTH || length > MAX_IMEI_LENGTH) {
++        ALOGE("get_imei_by_prop %s length error", propBuf);
++        string imei = get_sequence_by_time("86", MAX_IMEI_LENGTH);
++        property_set("persist.sys.prop.writeimei", imei.c_str());
++        return imei;
++    }
++
++    if (!isDigits(propBuf)) {
++        ALOGE("get_imei_by_prop %s Character error", propBuf);
++        string imei = get_sequence_by_time("86", MAX_IMEI_LENGTH);
++        property_set("persist.sys.prop.writeimei", imei.c_str());
++        return imei;
++    }
++
++    ALOGE("get_imei_by_prop %s ok", propBuf);
++    return string(propBuf);
++}
++
++static string get_operator_numericcph_prop() {
++    char propBuf[PROPERTY_VALUE_MAX] = {0};
++    property_get("persist.gsm.operator.numericcph", propBuf, NULL);
++
++    if (strlen(propBuf) < MIN_NUMERICCPH_LENGTH || strlen(propBuf) > MAX_NUMERICCPH_LENGTH) {
++        ALOGE("get_operator_numericcph_prop %s length error", propBuf);
++        string numericcph = "46000"; // China Mobile, 460 represents China
++        property_set("persist.gsm.operator.numericcph", numericcph.c_str());
++        return numericcph;
++    }
++
++    if (!isDigits(propBuf)) {
++        ALOGE("get_operator_numericcph_prop %s Character error", propBuf);
++        string numericcph = "46000";
++        property_set("persist.gsm.operator.numericcph", numericcph.c_str());
++        return numericcph;
++    }
++
++    ALOGE("get_operator_numericcph_prop %s ok", propBuf);
++    return string(propBuf);
++}
++
++static string get_operator_alphacph_prop() {
++    char propBuf[PROPERTY_VALUE_MAX] = {0};
++    property_get("persist.gsm.operator.alphacph", propBuf, NULL);
++
++    if (strlen(propBuf) < MIN_ALPHACPH_LENGTH || strlen(propBuf) > MAX_ALPHACPH_LENGTH) {
++        ALOGE("get_operator_alphacph_prop %s length error", propBuf);
++        string alphacph =  "CMCC";
++        property_set("persist.gsm.operator.alphacph", alphacph.c_str());
++        return alphacph;
++    }
++
++    if (!isLetterOrDigits(propBuf)) {
++        ALOGE("get_operator_alphacph_prop %s Character error", propBuf);
++        string alphacph =  "CMCC";
++        property_set("persist.gsm.operator.alphacph", alphacph.c_str());
++        return alphacph;
++    }
++
++    ALOGE("get_operator_alphacph_prop %s ok", propBuf);
++    return string(propBuf);
++}
++
++static string get_imsi_by_prop() {
++    char propBuf[PROPERTY_VALUE_MAX] = {0};
++    property_get("persist.sys.prop.writeimsi", propBuf, NULL);
++
++    if (strlen(propBuf) != IMSI_LENGTH) {
++        ALOGE("get_imsi_by_prop %s length error", propBuf);
++        string imsi = get_sequence_by_time("46011", IMSI_LENGTH); // // China Mobile, 460 represents China
++        property_set("persist.sys.prop.writeimsi", imsi.c_str());
++        return imsi;
++    }
++
++    if (!isDigits(propBuf)) {
++        ALOGE("get_imsi_by_prop %s Character error", propBuf);
++        string imsi = get_sequence_by_time("46011", IMSI_LENGTH);
++        property_set("persist.sys.prop.writeimsi", imsi.c_str());
++        return imsi;
++    }
++
++    ALOGE("get_imsi_by_prop %s ok", propBuf);
++    return string(propBuf);
++}
++
+ static void request_get_imei(RIL_Token t) {
+   ALOGV("Requesting IMEI");
++  string imei = get_imei_by_prop();
+   gce_ril_env->OnRequestComplete(t, RIL_E_SUCCESS,
+-                                 const_cast<char*>(gIdentityGsmImei),
+-                                 strlen(gIdentityGsmImei));
++                                 const_cast<char*>(imei.c_str()),
++                                 imei.length());
+ }
+ 
+ static void request_get_imei_sv(RIL_Token t) {
+@@ -1183,7 +1342,8 @@ static void request_device_identity(int /*request*/, void* /*data*/,
+   }
+ 
+   if (isGSM()) {
+-    response[0] = strdup(&gIdentityGsmImei[0]);
++    string imei = get_imei_by_prop();
++    response[0] = strdup(imei.c_str());
+     response[1] = strdup(&gIdentityGsmImeiSv[0]);
+   }
+ 
+@@ -1467,12 +1627,12 @@ static void init_virtual_network() {
+   gGSMNeighboringCells.resize(1);
+   gGSMNeighboringCells[0].cid = (char*)"0000";
+   gGSMNeighboringCells[0].rssi = 75;
+-  gNetworkOperators["311740"] =
+-      NetworkOperator("Android Virtual Operator", "Android", true);
+-  gNetworkOperators["310300"] =
+-      NetworkOperator("Alternative Operator", "Alternative", true);
+-  gNetworkOperators["310400"] =
+-      NetworkOperator("Hermetic Network Operator", "Hermetic", false);
++
++    string numericcph = get_operator_numericcph_prop();
++    string alphacph = get_operator_alphacph_prop();
++    gNetworkOperators[numericcph] =
++        NetworkOperator(alphacph, alphacph, true);
++    gCurrentNetworkOperator = numericcph;
+ }
+ 
+ static OperatorSelectionMethod gOperatorSelectionMethod = kOperatorDeregistered;
+@@ -1671,19 +1831,142 @@ struct SimFileResponse {
+ // TODO(ender): Double check & rewrite these.
+ std::map<SimFileCommand, SimFileResponse> gSimFileSystem;
+ 
++static string get_sim_operator_prop() {
++    char propBuf[PROPERTY_VALUE_MAX] = {0};
++    property_get("persist.gsm.sim.operator.alphacph", propBuf, NULL);
++
++    if (strlen(propBuf) < MIN_ALPHACPH_LENGTH || strlen(propBuf) > MAX_ALPHACPH_LENGTH) {
++        ALOGE("get_sim_operator_prop %s length error", propBuf);
++        string operatorName = "CMCC";
++        property_set("persist.gsm.sim.operator.alphacph", operatorName.c_str());
++        return operatorName;
++    }
++
++    if (!isLetterOrDigits(propBuf)) {
++        ALOGE("get_sim_operator_prop %s Character error", propBuf);
++        string operatorName = "CMCC";
++        property_set("persist.gsm.sim.operator.alphacph", operatorName.c_str());
++        return operatorName;
++    }
++
++    ALOGE("get_sim_operator_prop %s ok", propBuf);
++    return string(propBuf);
++}
++
++static void set_sim_operator_command() {
++    string operatorName = get_sim_operator_prop();
++
++    // in get_sim_operator_prop, ensure that the length of serial is less than or equal to 20.
++    char operatorBuf[41] = {0};
++    for (int i = 0; i < operatorName.length(); i++) {
++        operatorBuf[2 * i + 0]= Hex2Ascii((operatorName[i] / 16) & 0xf);
++        operatorBuf[2 * i + 1]= Hex2Ascii(operatorName[i] % 16);
++    }
++    gSimFileSystem[SimFileCommand(176, 28436, 0, 0, 20)] =
++        SimFileResponse(144, 0, strdup(operatorBuf));
++}
++
++static string get_sim_serial_prop() {
++    char propBuf[PROPERTY_VALUE_MAX] = {0};
++    property_get("persist.sys.prop.writesimserial", propBuf, NULL);
++
++    if (strlen(propBuf) != SIM_SERIAL_LENGTH) {
++        ALOGE("get_sim_serial_prop %s length error", propBuf);
++        string serial = get_sequence_by_time("898600", SIM_SERIAL_LENGTH); // 898600:China Mobile
++        property_set("persist.sys.prop.writesimserial", serial.c_str());
++        return serial;
++    }
++
++    if (!isDigits(propBuf)) {
++        ALOGE("get_sim_serial_prop %s Character error", propBuf);
++        string serial = get_sequence_by_time("898600", SIM_SERIAL_LENGTH);
++        property_set("persist.sys.prop.writesimserial", serial.c_str());
++        return serial;
++    }
++
++    ALOGE("get_sim_serial_prop %s ok", propBuf);
++    return string(propBuf);
++}
++
++static void set_sim_serial_command() {
++    string serial = get_sim_serial_prop();
++
++    // in get_sim_serial_prop, ensure that the length of serial is equal to 20.
++    char serialBuf[41] = {0};
++    for (int i = 0; i < serial.length() / 2; i++) {
++        char temp = serial[2 * i + 0];
++        serialBuf[2 * i + 0]= serial[2 * i + 1];
++        serialBuf[2 * i + 1]= temp;
++    }
++    gSimFileSystem[SimFileCommand(176, 12258, 0, 0, 10)] =
++        SimFileResponse(144, 0, strdup(serialBuf));
++}
++
++static string get_phone_num_prop() {
++    char propBuf[PROPERTY_VALUE_MAX] = {0};
++    property_get("persist.sys.prop.writephonenum", propBuf, NULL);
++
++    int number1Len = strlen(propBuf);
++    if (number1Len > MAX_PHONENUM_LENGTH) {
++        ALOGE("get_phone_num_prop %s length error", propBuf);
++        string phoneNum = "";
++        property_set("persist.sys.prop.writephonenum", phoneNum.c_str());
++        return phoneNum;
++    }
++
++    if (!isDigits(propBuf)) {
++        ALOGE("get_phone_num_prop %s Character error", propBuf);
++        string phoneNum = "";
++        property_set("persist.sys.prop.writephonenum", phoneNum.c_str());
++        return phoneNum;
++    }
++
++    ALOGE("get_phone_num_prop %s ok", propBuf);
++    return string(propBuf);
++}
++
++static void set_phone_num_command() {
++    string phoneNum = get_phone_num_prop();
++
++    char phoneNum1Resp[65] = {0};
++    for (int i = 0; i < 64; i++) {
++        phoneNum1Resp[i] = 'f';
++    }
++
++    // in get_phone_num_prop, ensure that the length of serial is less than or equal to 20.
++    int number1Len = phoneNum.length();
++    int dataLen = (number1Len + 3) / 2; // contains 0x91, In addition, the odd number needs to be padded with f.
++    phoneNum1Resp[36] = Hex2Ascii((dataLen / 16) & 0xf);
++    phoneNum1Resp[37] = Hex2Ascii(dataLen % 16);
++    phoneNum1Resp[38] = '9'; // 0x91 refers to TOA_International
++    phoneNum1Resp[39] = '1';
++    for (int i = 0; i < dataLen - 1; i++) {
++        if (i == dataLen - 2 && number1Len % 2 == 1) {
++            phoneNum1Resp[40 + 2 * i] = 'f';
++            phoneNum1Resp[40 + 2 * i + 1] = phoneNum[2 * i];
++        } else {
++            phoneNum1Resp[40 + 2 * i] = phoneNum[2 * i + 1];
++            phoneNum1Resp[40 + 2 * i + 1] = phoneNum[2 * i];
++        }
++    }
++
++    gSimFileSystem[SimFileCommand(178, 28480, 1, 4, 32)] = SimFileResponse(
++        144, 0, strdup(phoneNum1Resp));
++}
++
+ static void init_sim_file_system() {
+   gSimFileSystem[SimFileCommand(192, 28436, 0, 0, 15)] =
+-      SimFileResponse(144, 0, "000000146f1404001aa0aa01020000");
+-  gSimFileSystem[SimFileCommand(176, 28436, 0, 0, 20)] =
+-      SimFileResponse(144, 0, "416e64726f6964ffffffffffffffffffffffffff");
++      SimFileResponse(144, 0, "000000146f1404001aa0aa01020000"); // bit4: lenght
++  /*gSimFileSystem[SimFileCommand(176, 28436, 0, 0, 20)] =
++      SimFileResponse(144, 0, "434D4343ffffffffffffffffffffffffffffffff");*/
+   gSimFileSystem[SimFileCommand(192, 28433, 0, 0, 15)] =
+       SimFileResponse(144, 0, "000000016f11040011a0aa01020000");
+   gSimFileSystem[SimFileCommand(176, 28433, 0, 0, 1)] =
+       SimFileResponse(144, 0, "55");
+   gSimFileSystem[SimFileCommand(192, 12258, 0, 0, 15)] =
+       SimFileResponse(144, 0, "0000000a2fe204000fa0aa01020000");
+-  gSimFileSystem[SimFileCommand(176, 12258, 0, 0, 10)] =
+-      SimFileResponse(144, 0, "98101430121181157002");
++  /*gSimFileSystem[SimFileCommand(176, 12258, 0, 0, 10)] =
++      SimFileResponse(144, 0, "98101430121181157002");*/ // ICCID
+   gSimFileSystem[SimFileCommand(192, 28435, 0, 0, 15)] =
+       SimFileResponse(144, 0, "000000016f13040011a0aa01020000");
+   gSimFileSystem[SimFileCommand(176, 28435, 0, 0, 1)] =
+@@ -1703,7 +1986,7 @@ static void init_sim_file_system() {
+   gSimFileSystem[SimFileCommand(192, 28589, 0, 0, 15)] =
+       SimFileResponse(144, 0, "000000046fad04000aa0aa01020000");
+   gSimFileSystem[SimFileCommand(176, 28589, 0, 0, 4)] =
+-      SimFileResponse(144, 0, "00000003");
++      SimFileResponse(144, 0, "00000000"); // bit3：imsi mnc length 0-dynamic
+   gSimFileSystem[SimFileCommand(192, 28438, 0, 0, 15)] =
+       SimFileResponse(144, 0, "000000026f1604001aa0aa01020000");
+   gSimFileSystem[SimFileCommand(176, 28438, 0, 0, 2)] =
+@@ -1720,9 +2003,9 @@ static void init_sim_file_system() {
+       SimFileResponse(144, 0, "000000806f40040011a0aa01020120");
+   // Primary phone number encapsulated
+   // [51][55][21][43][65][f7] = 1 555 1234 567$
+-  gSimFileSystem[SimFileCommand(178, 28480, 1, 4, 32)] = SimFileResponse(
++  /*gSimFileSystem[SimFileCommand(178, 28480, 1, 4, 32)] = SimFileResponse(
+       144, 0,
+-      "ffffffffffffffffffffffffffffffffffff07915155214365f7ffffffffffff");
++      "ffffffffffffffffffffffffffffffffffff07915155214365f7ffffffffffff");*/
+   gSimFileSystem[SimFileCommand(192, 28615, 0, 0, 15)] =
+       SimFileResponse(144, 0, "000000406fc7040011a0aa01020120");
+   // Voice mail number encapsulated
+@@ -1730,7 +2013,7 @@ static void init_sim_file_system() {
+   // [51][55][67][45][23][f1] = 1 555 7654 321$
+   gSimFileSystem[SimFileCommand(178, 28615, 1, 4, 32)] = SimFileResponse(
+       144, 0,
+-      "566f6963656d61696cffffffffffffffffff07915155674523f1ffffffffffff");
++      "566f6963656d61696cffffffffffffffffff0091ffffffffffffffffffffffff");
+   gSimFileSystem[SimFileCommand(192, 12037, 0, 0, 15)] =
+       SimFileResponse(148, 4, NULL);
+   gSimFileSystem[SimFileCommand(192, 28437, 0, 0, 15)] =
+@@ -1753,6 +2036,10 @@ static void init_sim_file_system() {
+       SimFileResponse(148, 4, NULL);
+   gSimFileSystem[SimFileCommand(176, 28506, 0, 0, 4)] =
+       SimFileResponse(144, 0, "00000013");
++
++    set_sim_operator_command();
++    set_sim_serial_command();
++    set_phone_num_command();
+ }
+ 
+ static void request_SIM_IO(void* data, size_t /*datalen*/, RIL_Token t) {
+@@ -1854,7 +2141,7 @@ static void pollSIMState(void* /*param*/) {
+       // Transition directly to READY. Set default network operator.
+       if (gRadioPowerState == RADIO_STATE_ON) {
+         gSimStatus = SIM_READY;
+-        gCurrentNetworkOperator = "311740";
++        // gCurrentNetworkOperator = "311740";
+       }
+ 
+       gce_ril_env->RequestTimedCallback(pollSIMState, NULL, &TIMEVAL_SIMPOLL);
+@@ -2106,12 +2393,9 @@ static void request_facility_lock(void* data, size_t /*datalen*/, RIL_Token t) {
+ }
+ 
+ static void request_international_subscriber_id_number(RIL_Token t) {
+-  // TODO(ender): Reuse MCC and MNC.
+-  std::string subscriber_id = gCurrentNetworkOperator.c_str();
+-  subscriber_id += "123456789";
+-
++  string imsi = get_imsi_by_prop();
+   gce_ril_env->OnRequestComplete(t, RIL_E_SUCCESS,
+-                                 strdup(subscriber_id.c_str()), sizeof(char*));
++                                 strdup(imsi.c_str()), imsi.length());
+ }
+ 
+ static bool gScreenIsOn = true;
+@@ -2293,6 +2577,7 @@ static void gce_ril_on_request(int request, void* data, size_t datalen,
+       case RIL_REQUEST_OPERATOR:
+       case RIL_REQUEST_RADIO_POWER:
+       case RIL_REQUEST_QUERY_NETWORK_SELECTION_MODE:
++      case RIL_REQUEST_DEVICE_IDENTITY:
+         // Process all the above, even though the radio is off
+         break;
+       default:
+@@ -2589,11 +2874,11 @@ const RIL_RadioFunctions* RIL_Init(const struct RIL_Env* env, int /*argc*/,
+   time(&gce_ril_start_time);
+   gce_ril_env = env;
+ 
+-  global_ril_config = cvd::DeviceConfig::Get();
++  /*global_ril_config = cvd::DeviceConfig::Get();
+   if (!global_ril_config) {
+     ALOGE("Failed to open device configuration!!!");
+     return nullptr;
+-  }
++  }*/
+ 
+   TearDownNetworkInterface();
+ 

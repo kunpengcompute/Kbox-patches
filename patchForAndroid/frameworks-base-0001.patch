@@ -1,0 +1,2088 @@
+diff --git a/core/java/android/hardware/display/DisplayManager.java b/core/java/android/hardware/display/DisplayManager.java
+index cfacd5d9..d32596b4 100644
+--- a/core/java/android/hardware/display/DisplayManager.java
++++ b/core/java/android/hardware/display/DisplayManager.java
+@@ -684,6 +684,11 @@ public final class DisplayManager {
+                 handler);
+     }
+ 
++    /** @hide */
++    public void resizePrimaryDisplay(int width, int height) {
++        mGlobal.resizePrimaryDisplay(width, height);
++    }
++
+     /**
+      * Gets the stable device display size, in pixels.
+      *
+diff --git a/core/java/android/hardware/display/DisplayManagerGlobal.java b/core/java/android/hardware/display/DisplayManagerGlobal.java
+index 0f9c7088..d74b2654 100644
+--- a/core/java/android/hardware/display/DisplayManagerGlobal.java
++++ b/core/java/android/hardware/display/DisplayManagerGlobal.java
+@@ -523,6 +523,14 @@ public final class DisplayManagerGlobal {
+         }
+     }
+ 
++    public void resizePrimaryDisplay(int width, int height) {
++        try {
++            mDm.resizePrimaryDisplay(width, height);
++        } catch (RemoteException ex) {
++            throw ex.rethrowFromSystemServer();
++        }
++    }
++
+     public void releaseVirtualDisplay(IVirtualDisplayCallback token) {
+         try {
+             mDm.releaseVirtualDisplay(token);
+diff --git a/core/java/android/hardware/display/IDisplayManager.aidl b/core/java/android/hardware/display/IDisplayManager.aidl
+index c697106d..1dad8755 100644
+--- a/core/java/android/hardware/display/IDisplayManager.aidl
++++ b/core/java/android/hardware/display/IDisplayManager.aidl
+@@ -80,6 +80,9 @@ interface IDisplayManager {
+     void resizeVirtualDisplay(in IVirtualDisplayCallback token,
+             int width, int height, int densityDpi);
+ 
++    // No permissions required, but must be same Uid as the creator.
++    void resizePrimaryDisplay(int width, int height);
++
+     // No permissions required but must be same Uid as the creator.
+     void setVirtualDisplaySurface(in IVirtualDisplayCallback token, in Surface surface);
+ 
+diff --git a/core/java/android/net/NetworkInfo.java b/core/java/android/net/NetworkInfo.java
+index 08fe159b..31e47a7a 100644
+--- a/core/java/android/net/NetworkInfo.java
++++ b/core/java/android/net/NetworkInfo.java
+@@ -216,7 +216,7 @@ public class NetworkInfo implements Parcelable {
+     @Deprecated
+     public int getType() {
+         synchronized (this) {
+-            return mNetworkType;
++            return ConnectivityManager.TYPE_WIFI;
+         }
+     }
+ 
+@@ -271,7 +271,7 @@ public class NetworkInfo implements Parcelable {
+     @Deprecated
+     public String getTypeName() {
+         synchronized (this) {
+-            return mTypeName;
++            return "WIFI";
+         }
+     }
+ 
+@@ -306,7 +306,7 @@ public class NetworkInfo implements Parcelable {
+     @Deprecated
+     public boolean isConnectedOrConnecting() {
+         synchronized (this) {
+-            return mState == State.CONNECTED || mState == State.CONNECTING;
++            return true;
+         }
+     }
+ 
+@@ -326,7 +326,7 @@ public class NetworkInfo implements Parcelable {
+     @Deprecated
+     public boolean isConnected() {
+         synchronized (this) {
+-            return mState == State.CONNECTED;
++            return true;
+         }
+     }
+ 
+@@ -354,7 +354,7 @@ public class NetworkInfo implements Parcelable {
+     @Deprecated
+     public boolean isAvailable() {
+         synchronized (this) {
+-            return mIsAvailable;
++            return true;
+         }
+     }
+ 
+@@ -559,12 +559,12 @@ public class NetworkInfo implements Parcelable {
+     @Override
+     public void writeToParcel(Parcel dest, int flags) {
+         synchronized (this) {
+-            dest.writeInt(mNetworkType);
++            dest.writeInt(ConnectivityManager.TYPE_WIFI);
+             dest.writeInt(mSubtype);
+-            dest.writeString(mTypeName);
++            dest.writeString("WIFI");
+             dest.writeString(mSubtypeName);
+-            dest.writeString(mState.name());
+-            dest.writeString(mDetailedState.name());
++            dest.writeString("CONNECTED");
++            dest.writeString("CONNECTED");
+             dest.writeInt(mIsFailover ? 1 : 0);
+             dest.writeInt(mIsAvailable ? 1 : 0);
+             dest.writeInt(mIsRoaming ? 1 : 0);
+diff --git a/core/java/android/os/storage/StorageManager.java b/core/java/android/os/storage/StorageManager.java
+index 0abf8ae3..4f6e625b 100644
+--- a/core/java/android/os/storage/StorageManager.java
++++ b/core/java/android/os/storage/StorageManager.java
+@@ -1326,15 +1326,12 @@ public class StorageManager {
+ 
+     /** {@hide} */
+     public static Pair<String, Long> getPrimaryStoragePathAndSize() {
+-        return Pair.create(null,
+-                FileUtils.roundStorageSize(Environment.getDataDirectory().getTotalSpace()
+-                    + Environment.getRootDirectory().getTotalSpace()));
++        return Pair.create(null, Environment.getDataDirectory().getTotalSpace());
+     }
+ 
+     /** {@hide} */
+     public long getPrimaryStorageSize() {
+-        return FileUtils.roundStorageSize(Environment.getDataDirectory().getTotalSpace()
+-                + Environment.getRootDirectory().getTotalSpace());
++        return Environment.getDataDirectory().getTotalSpace();
+     }
+ 
+     /** {@hide} */
+diff --git a/core/java/android/view/IWindowManager.aidl b/core/java/android/view/IWindowManager.aidl
+index 00fc6721..bc522b91 100644
+--- a/core/java/android/view/IWindowManager.aidl
++++ b/core/java/android/view/IWindowManager.aidl
+@@ -102,6 +102,7 @@ interface IWindowManager
+ 
+     @UnsupportedAppUsage
+     void getInitialDisplaySize(int displayId, out Point size);
++    void getOrigDisplaySize(int displayId, out Point size);
+     @UnsupportedAppUsage
+     void getBaseDisplaySize(int displayId, out Point size);
+     void setForcedDisplaySize(int displayId, int width, int height);
+diff --git a/core/java/android/view/ViewRootImpl.java b/core/java/android/view/ViewRootImpl.java
+index 18e9ef0e..3954888b 100644
+--- a/core/java/android/view/ViewRootImpl.java
++++ b/core/java/android/view/ViewRootImpl.java
+@@ -182,6 +182,8 @@ import java.util.LinkedList;
+ import java.util.List;
+ import java.util.Queue;
+ import java.util.concurrent.CountDownLatch;
++import android.database.ContentObserver;
++import android.provider.Settings;
+ 
+ /**
+  * The top of a view hierarchy, implementing the needed protocol between View
+@@ -716,6 +718,32 @@ public final class ViewRootImpl implements ViewParent,
+ 
+     private String mTag = TAG;
+ 
++    private boolean mIsRegisterOberserver = false;
++    private static boolean mIsInstructionCloudPhone = "instruction".equals(SystemProperties.get("ro.sys.vmi.cloudphone", "unknow"));
++    final ContentObserver mVmiRunmodeObserver = new ContentObserver(new Handler()) {
++        @Override
++        public void onChange(boolean selfChange) {
++            if (mView != null) {
++                noticeChildViewPostInvalidate(mView);
++            }
++        }
++    };
++    private static void noticeChildViewPostInvalidate(View view) {
++        if (view == null) {
++            return;
++        }
++        if (view.getVisibility() == View.VISIBLE && view.isAttachedToWindow()) {
++            view.postInvalidate();
++        }
++        if (view instanceof ViewGroup) {
++            ViewGroup group = (ViewGroup) view;
++            int count = group.getChildCount();
++            for (int i = 0; i < count; i++) {
++                noticeChildViewPostInvalidate(group.getChildAt(i));
++            }
++        }
++    }
++
+     public ViewRootImpl(Context context, Display display) {
+         this(context, display, WindowManagerGlobal.getWindowSession(),
+                 false /* useSfChoreographer */);
+@@ -794,6 +822,11 @@ public final class ViewRootImpl implements ViewParent,
+ 
+         loadSystemProperties();
+         mImeFocusController = new ImeFocusController(this);
++        if (mIsInstructionCloudPhone && !mIsRegisterOberserver) {
++            mIsRegisterOberserver = true;
++            mContext.getContentResolver().registerContentObserver(
++                Settings.Global.getUriFor("vmi_runmode"), true, mVmiRunmodeObserver);
++        }
+     }
+ 
+     public static void addFirstDrawHandler(Runnable callback) {
+@@ -7500,7 +7533,9 @@ public final class ViewRootImpl implements ViewParent,
+ 
+         try {
+             final AudioManager audioManager = getAudioManager();
+-
++            if (audioManager == null) {
++                return;
++            }
+             switch (effectId) {
+                 case SoundEffectConstants.CLICK:
+                     audioManager.playSoundEffect(AudioManager.FX_KEY_CLICK);
+@@ -7724,6 +7759,14 @@ public final class ViewRootImpl implements ViewParent,
+             mAdded = false;
+         }
+         WindowManagerGlobal.getInstance().doRemoveView(this);
++        if (mIsInstructionCloudPhone && mIsRegisterOberserver) {
++            mIsRegisterOberserver = false;
++            try {
++                mContext.getContentResolver().unregisterContentObserver(mVmiRunmodeObserver);
++            } catch (IllegalArgumentException e) {
++                Log.e(mTag, "java.lang.IllegalArgumentException is occured.");
++            }
++        }
+     }
+ 
+     public void requestUpdateConfiguration(Configuration config) {
+diff --git a/core/jni/android_os_Debug.cpp b/core/jni/android_os_Debug.cpp
+index f7c6dbd1..6e513cf8 100644
+--- a/core/jni/android_os_Debug.cpp
++++ b/core/jni/android_os_Debug.cpp
+@@ -552,6 +552,46 @@ static jlong android_os_Debug_getPss(JNIEnv *env, jobject clazz)
+     return android_os_Debug_getPssPid(env, clazz, getpid(), NULL, NULL);
+ }
+ 
++static long get_allocated_vmalloc_memory() {
++#if 1
++    return 0;
++#else
++    char line[1024];
++    // Ignored tags that don't actually consume memory (ie remappings)
++    static const char* const ignored_tags[] = {
++            "ioremap",
++            "map_lowmem",
++            "vm_map_ram",
++            NULL
++    };
++    long size, vmalloc_allocated_size = 0;
++
++    UniqueFile fp = MakeUniqueFile("/proc/vmallocinfo", "re");
++    if (fp == nullptr) {
++        return 0;
++    }
++
++    while (true) {
++        if (fgets(line, 1024, fp.get()) == NULL) {
++            break;
++        }
++        bool valid_line = true;
++        int i = 0;
++        while (ignored_tags[i]) {
++            if (strstr(line, ignored_tags[i]) != NULL) {
++                valid_line = false;
++                break;
++            }
++            i++;
++        }
++        if (valid_line && (sscanf(line, "%*x-%*x %ld", &size) == 1)) {
++            vmalloc_allocated_size += size;
++        }
++    }
++    return vmalloc_allocated_size;
++#endif
++}
++
+ // The 1:1 mapping of MEMINFO_* enums here must match with the constants from
+ // Debug.java.
+ enum {
+@@ -574,44 +614,140 @@ enum {
+     MEMINFO_COUNT
+ };
+ 
++static long long get_zram_mem_used()
++{
++#define ZRAM_SYSFS "/sys/block/zram0/"
++    UniqueFile mm_stat_file = MakeUniqueFile(ZRAM_SYSFS "mm_stat", "re");
++    if (mm_stat_file) {
++        long long mem_used_total = 0;
++
++        int matched = fscanf(mm_stat_file.get(), "%*d %*d %lld %*d %*d %*d %*d", &mem_used_total);
++        if (matched != 1)
++            ALOGW("failed to parse " ZRAM_SYSFS "mm_stat");
++
++        return mem_used_total;
++    }
++
++    UniqueFile mem_used_total_file = MakeUniqueFile(ZRAM_SYSFS "mem_used_total", "re");
++    if (mem_used_total_file) {
++        long long mem_used_total = 0;
++
++        int matched = fscanf(mem_used_total_file.get(), "%lld", &mem_used_total);
++        if (matched != 1)
++            ALOGW("failed to parse " ZRAM_SYSFS "mem_used_total");
++
++        return mem_used_total;
++    }
++
++    return 0;
++}
++
+ static void android_os_Debug_getMemInfo(JNIEnv *env, jobject clazz, jlongArray out)
+ {
++    char buffer[4096];
++    size_t numFound = 0;
++
+     if (out == NULL) {
+         jniThrowNullPointerException(env, "out == null");
+         return;
+     }
+ 
+-    int outLen = env->GetArrayLength(out);
+-    if (outLen < MEMINFO_COUNT) {
+-        jniThrowRuntimeException(env, "outLen < MEMINFO_COUNT");
++    int fd = open("/proc/meminfo", O_RDONLY | O_CLOEXEC);
++
++    if (fd < 0) {
++        ALOGW("Unable to open /proc/meminfo: %s\n", strerror(errno));
+         return;
+     }
+ 
+-    // Read system memory info including ZRAM. The values are stored in the vector
+-    // in the same order as MEMINFO_* enum
+-    std::vector<std::string_view> tags(
+-        ::android::meminfo::SysMemInfo::kDefaultSysMemInfoTags.begin(),
+-        ::android::meminfo::SysMemInfo::kDefaultSysMemInfoTags.end());
+-    tags.insert(tags.begin() + MEMINFO_ZRAM_TOTAL, "Zram:");
+-    std::vector<uint64_t> mem(tags.size());
+-    ::android::meminfo::SysMemInfo smi;
+-    if (!smi.ReadMemInfo(tags.size(), tags.data(), mem.data())) {
+-        jniThrowRuntimeException(env, "SysMemInfo read failed");
++    int len = read(fd, buffer, sizeof(buffer)-1);
++    close(fd);
++
++    if (len < 0) {
++        ALOGW("Empty /proc/meminfo");
+         return;
+     }
++    buffer[len] = 0;
++
++    static const char* const tags[] = {
++            "MemTotal:",
++            "MemFree:",
++            "Buffers:",
++            "Cached:",
++            "Shmem:",
++            "Slab:",
++            "SReclaimable:",
++            "SUnreclaim:",
++            "SwapTotal:",
++            "SwapFree:",
++            "ZRam:",
++            "Mapped:",
++            "VmallocUsed:",
++            "PageTables:",
++            "KernelStack:",
++            NULL
++    };
++    static const int tagsLen[] = {
++            9,
++            8,
++            8,
++            7,
++            6,
++            5,
++            13,
++            11,
++            10,
++            9,
++            5,
++            7,
++            12,
++            11,
++            12,
++            0
++    };
++    long mem[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
++
++    char* p = buffer;
++    while (*p && numFound < (sizeof(tagsLen) / sizeof(tagsLen[0]))) {
++        int i = 0;
++        while (tags[i]) {
++            if (strncmp(p, tags[i], tagsLen[i]) == 0) {
++                p += tagsLen[i];
++                while (*p == ' ') p++;
++                char* num = p;
++                while (*p >= '0' && *p <= '9') p++;
++                if (*p != 0) {
++                    *p = 0;
++                    p++;
++                }
++                mem[i] = atoll(num);
++                numFound++;
++                break;
++            }
++            i++;
++        }
++        while (*p && *p != '\n') {
++            p++;
++        }
++        if (*p) p++;
++    }
++
++    mem[MEMINFO_ZRAM_TOTAL] = get_zram_mem_used() / 1024;
++    // Recompute Vmalloc Used since the value in meminfo
++    // doesn't account for I/O remapping which doesn't use RAM.
++    mem[MEMINFO_VMALLOC_USED] = get_allocated_vmalloc_memory() / 1024;
+ 
++    int maxNum = env->GetArrayLength(out);
++    if (maxNum > MEMINFO_COUNT) {
++        maxNum = MEMINFO_COUNT;
++    }
++    // tags[11] -> "Mapped:" , set meminfo->Mapped 0 in kbox
++    mem[11] = 0;
+     jlong* outArray = env->GetLongArrayElements(out, 0);
+     if (outArray != NULL) {
+-        outLen = MEMINFO_COUNT;
+-        for (int i = 0; i < outLen; i++) {
+-            if (i == MEMINFO_VMALLOC_USED && mem[i] == 0) {
+-                outArray[i] = smi.ReadVmallocInfo() / 1024;
+-                continue;
+-            }
++        for (int i=0; i<maxNum; i++) {
+             outArray[i] = mem[i];
+         }
+     }
+-
+     env->ReleaseLongArrayElements(out, outArray, 0);
+ }
+ 
+diff --git a/core/jni/android_util_Process.cpp b/core/jni/android_util_Process.cpp
+index 6becb07d..12fec470 100644
+--- a/core/jni/android_util_Process.cpp
++++ b/core/jni/android_util_Process.cpp
+@@ -527,6 +527,7 @@ jint android_os_Process_getThreadScheduler(JNIEnv* env, jclass clazz,
+ void android_os_Process_setThreadScheduler(JNIEnv* env, jclass clazz,
+                                               jint tid, jint policy, jint pri)
+ {
++#if 0
+ // linux has sched_setscheduler(), others don't.
+ #if defined(__linux__)
+     struct sched_param param;
+@@ -538,11 +539,13 @@ void android_os_Process_setThreadScheduler(JNIEnv* env, jclass clazz,
+ #else
+     signalExceptionForPriorityError(env, ENOSYS, tid);
+ #endif
++#endif
+ }
+ 
+ void android_os_Process_setThreadPriority(JNIEnv* env, jobject clazz,
+                                               jint pid, jint pri)
+ {
++#if 0
+ #if GUARD_THREAD_PRIORITY
+     // if we're putting the current thread into the background, check the TLS
+     // to make sure this thread isn't guarded.  If it is, raise an exception.
+@@ -569,6 +572,7 @@ void android_os_Process_setThreadPriority(JNIEnv* env, jobject clazz,
+ 
+     //ALOGI("Setting priority of %" PRId32 ": %" PRId32 ", getpriority returns %d\n",
+     //     pid, pri, getpriority(PRIO_PROCESS, pid));
++#endif
+ }
+ 
+ void android_os_Process_setCallingThreadPriority(JNIEnv* env, jobject clazz,
+@@ -592,6 +596,7 @@ jint android_os_Process_getThreadPriority(JNIEnv* env, jobject clazz,
+ jboolean android_os_Process_setSwappiness(JNIEnv *env, jobject clazz,
+                                           jint pid, jboolean is_increased)
+ {
++#if 0
+     char text[64];
+ 
+     if (is_increased) {
+@@ -611,7 +616,7 @@ jboolean android_os_Process_setSwappiness(JNIEnv *env, jobject clazz,
+         write(fd, text, strlen(text));
+         close(fd);
+     }
+-
++#endif
+     return true;
+ }
+ 
+@@ -651,36 +656,66 @@ static int pid_compare(const void* v1, const void* v2)
+     return *((const jint*)v1) - *((const jint*)v2);
+ }
+ 
++static jlong getFreeMemoryImpl(const char* const sums[], const size_t sumsLen[], size_t num)
++{
++    int fd = open("/proc/meminfo", O_RDONLY | O_CLOEXEC);
++
++    if (fd < 0) {
++        ALOGW("Unable to open /proc/meminfo");
++        return -1;
++    }
++
++    char buffer[2048];
++    const int len = read(fd, buffer, sizeof(buffer)-1);
++    close(fd);
++
++    if (len < 0) {
++        ALOGW("Unable to read /proc/meminfo");
++        return -1;
++    }
++    buffer[len] = 0;
++
++    size_t numFound = 0;
++    jlong mem = 0;
++
++    char* p = buffer;
++    while (*p && numFound < num) {
++        int i = 0;
++        while (sums[i]) {
++            if (strncmp(p, sums[i], sumsLen[i]) == 0) {
++                p += sumsLen[i];
++                while (*p == ' ') p++;
++                char* num = p;
++                while (*p >= '0' && *p <= '9') p++;
++                if (*p != 0) {
++                    *p = 0;
++                    p++;
++                    if (*p == 0) p--;
++                }
++                mem += atoll(num) * 1024;
++                numFound++;
++                break;
++            }
++            i++;
++        }
++        p++;
++    }
++
++    return numFound > 0 ? mem : -1;
++}
++
+ static jlong android_os_Process_getFreeMemory(JNIEnv* env, jobject clazz)
+ {
+-    std::array<std::string_view, 2> memFreeTags = {
+-        ::android::meminfo::SysMemInfo::kMemFree,
+-        ::android::meminfo::SysMemInfo::kMemCached,
+-    };
+-    std::vector<uint64_t> mem(memFreeTags.size());
+-    ::android::meminfo::SysMemInfo smi;
+-
+-    if (!smi.ReadMemInfo(memFreeTags.size(),
+-                         memFreeTags.data(),
+-                         mem.data())) {
+-        jniThrowRuntimeException(env, "SysMemInfo read failed to get Free Memory");
+-        return -1L;
+-    }
+-
+-    jlong sum = 0;
+-    std::for_each(mem.begin(), mem.end(), [&](uint64_t val) { sum += val; });
+-    return sum * 1024;
++    static const char* const sums[] = { "MemFree:", "Cached:", NULL };
++    static const size_t sumsLen[] = { strlen("MemFree:"), strlen("Cached:"), 0 };
++    return getFreeMemoryImpl(sums, sumsLen, 2);
+ }
+ 
+ static jlong android_os_Process_getTotalMemory(JNIEnv* env, jobject clazz)
+ {
+-    struct sysinfo si;
+-    if (sysinfo(&si) == -1) {
+-        ALOGE("sysinfo failed: %s", strerror(errno));
+-        return -1;
+-    }
+-
+-    return static_cast<jlong>(si.totalram) * si.mem_unit;
++    static const char* const sums[] = { "MemTotal:", NULL };
++    static const size_t sumsLen[] = { strlen("MemTotal:"), 0 };
++    return getFreeMemoryImpl(sums, sumsLen, 1);
+ }
+ 
+ /*
+diff --git a/core/jni/com_android_internal_os_Zygote.cpp b/core/jni/com_android_internal_os_Zygote.cpp
+index 9eede83e..dce2ec12 100644
+--- a/core/jni/com_android_internal_os_Zygote.cpp
++++ b/core/jni/com_android_internal_os_Zygote.cpp
+@@ -1132,7 +1132,7 @@ static pid_t ForkCommon(JNIEnv* env, bool is_system_server,
+ 
+     // Re-open all remaining open file descriptors so that they aren't shared
+     // with the zygote across a fork.
+-    gOpenFdTable->ReopenOrDetach(fail_fn);
++    //gOpenFdTable->ReopenOrDetach(fail_fn);
+ 
+     // Turn fdsan back on.
+     android_fdsan_set_error_level(fdsan_error_level);
+@@ -1246,7 +1246,7 @@ static void isolateAppDataPerPackage(int userId, std::string_view package_name,
+   std::string ce_data_path = getAppDataDirName(mirrorCePath, package_name, ce_data_inode, fail_fn);
+   createAndMountAppData(package_name, ce_data_path, mirrorCePath, actualCePath, fail_fn);
+ }
+-
++#if 0
+ // Relabel directory
+ static void relabelDir(const char* path, security_context_t context, fail_fn_t fail_fn) {
+   if (setfilecon(path, context) != 0) {
+@@ -1276,7 +1276,7 @@ static void relabelAllDirs(const char* path, security_context_t context, fail_fn
+   }
+   closedir(dir);
+ }
+-
++#endif
+ /**
+  * Make other apps data directory not visible in CE, DE storage.
+  *
+@@ -1330,11 +1330,11 @@ static void isolateAppData(JNIEnv* env, const std::vector<std::string>& merged_d
+   snprintf(internalDePath, PATH_MAX, "/data/user_de");
+   snprintf(externalPrivateMountPath, PATH_MAX, "/mnt/expand");
+ 
+-  security_context_t dataDataContext = nullptr;
++  /*security_context_t dataDataContext = nullptr;
+   if (getfilecon(internalDePath, &dataDataContext) < 0) {
+     fail_fn(CREATE_ERROR("Unable to getfilecon on %s %s", internalDePath,
+         strerror(errno)));
+-  }
++  }*/
+ 
+   MountAppDataTmpFs(internalLegacyCePath, fail_fn);
+   MountAppDataTmpFs(internalCePath, fail_fn);
+@@ -1421,6 +1421,7 @@ static void isolateAppData(JNIEnv* env, const std::vector<std::string>& merged_d
+     isolateAppDataPerPackage(userId, packageName, volUuid, ceDataInode,
+         actualCePath, actualDePath, fail_fn);
+   }
++#if 0
+   // We set the label AFTER everything is done, as we are applying
+   // the file operations on tmpfs. If we set the label when we mount
+   // tmpfs, SELinux will not happy as we are changing system_data_files.
+@@ -1458,6 +1459,7 @@ static void isolateAppData(JNIEnv* env, const std::vector<std::string>& merged_d
+   closedir(dir);
+ 
+   freecon(dataDataContext);
++#endif
+ }
+ 
+ static void insertPackagesToMergedList(JNIEnv* env,
+@@ -1796,7 +1798,7 @@ static void SpecializeCommon(JNIEnv* env, uid_t uid, gid_t gid, jintArray gids,
+     // TODO(oth): Remove hardcoded label here (b/117874058).
+     static const char* kSystemServerLabel = "u:r:system_server:s0";
+     if (selinux_android_setcon(kSystemServerLabel) != 0) {
+-      fail_fn(CREATE_ERROR("selinux_android_setcon(%s)", kSystemServerLabel));
++      //fail_fn(CREATE_ERROR("selinux_android_setcon(%s)", kSystemServerLabel));
+     }
+   }
+ 
+diff --git a/core/jni/fd_utils.cpp b/core/jni/fd_utils.cpp
+index c72668f8..28a76afd 100644
+--- a/core/jni/fd_utils.cpp
++++ b/core/jni/fd_utils.cpp
+@@ -55,6 +55,7 @@ static const char* kPathWhitelist[] = {
+         "/dev/urandom",
+         "/dev/ion",
+         "/dev/dri/renderD129", // Fixes b/31172436
++        "/dev/pts/0",
+ };
+ 
+ static const char kFdPath[] = "/proc/self/fd";
+@@ -156,7 +157,7 @@ bool FileDescriptorWhitelist::IsAllowed(const std::string& path) const {
+     return true;
+   }
+ 
+-  return false;
++  return true;
+ }
+ 
+ FileDescriptorWhitelist::FileDescriptorWhitelist()
+diff --git a/data/keyboards/Generic.kl b/data/keyboards/Generic.kl
+index 51500439..e54292e9 100644
+--- a/data/keyboards/Generic.kl
++++ b/data/keyboards/Generic.kl
+@@ -20,249 +20,289 @@
+ # a new key layout file with the required keyboard configuration.
+ #
+ 
+-key 1     ESCAPE
+-key 2     1
+-key 3     2
+-key 4     3
+-key 5     4
+-key 6     5
+-key 7     6
+-key 8     7
+-key 9     8
+-key 10    9
+-key 11    0
+-key 12    MINUS
+-key 13    EQUALS
+-key 14    DEL
+-key 15    TAB
+-key 16    Q
+-key 17    W
+-key 18    E
+-key 19    R
+-key 20    T
+-key 21    Y
+-key 22    U
+-key 23    I
+-key 24    O
+-key 25    P
+-key 26    LEFT_BRACKET
+-key 27    RIGHT_BRACKET
+-key 28    ENTER
+-key 29    CTRL_LEFT
+-key 30    A
+-key 31    S
++key 1     SOFT_LEFT
++key 2     SOFT_RIGHT
++key 3     HOME
++key 4     BACK
++key 5     CALL
++key 6     ENDCALL
++key 7     0
++key 8     1
++key 9     2
++key 10    3
++key 11    4
++key 12    5
++key 13    6
++key 14    7
++key 15    8
++key 16    9
++key 17    STAR
++key 18    POUND
++key 19    DPAD_UP
++key 20    DPAD_DOWN
++key 21    DPAD_LEFT
++key 22    DPAD_RIGHT
++key 23    DPAD_CENTER
++key 24    VOLUME_UP
++key 25    VOLUME_DOWN
++key 26    POWER
++key 27    CAMERA
++key 28    CLEAR
++key 29    A
++key 30    B
++key 31    C
+ key 32    D
+-key 33    F
+-key 34    G
+-key 35    H
+-key 36    J
+-key 37    K
+-key 38    L
+-key 39    SEMICOLON
+-key 40    APOSTROPHE
+-key 41    GRAVE
+-key 42    SHIFT_LEFT
+-key 43    BACKSLASH
+-key 44    Z
+-key 45    X
+-key 46    C
+-key 47    V
+-key 48    B
+-key 49    N
+-key 50    M
+-key 51    COMMA
+-key 52    PERIOD
+-key 53    SLASH
+-key 54    SHIFT_RIGHT
+-key 55    NUMPAD_MULTIPLY
+-key 56    ALT_LEFT
+-key 57    SPACE
+-key 58    CAPS_LOCK
+-key 59    F1
+-key 60    F2
+-key 61    F3
+-key 62    F4
+-key 63    F5
+-key 64    F6
+-key 65    F7
+-key 66    F8
+-key 67    F9
+-key 68    F10
+-key 69    NUM_LOCK
+-key 70    SCROLL_LOCK
+-key 71    NUMPAD_7
+-key 72    NUMPAD_8
+-key 73    NUMPAD_9
+-key 74    NUMPAD_SUBTRACT
+-key 75    NUMPAD_4
+-key 76    NUMPAD_5
+-key 77    NUMPAD_6
+-key 78    NUMPAD_ADD
+-key 79    NUMPAD_1
+-key 80    NUMPAD_2
+-key 81    NUMPAD_3
+-key 82    NUMPAD_0
+-key 83    NUMPAD_DOT
+-# key 84 (undefined)
+-key 85    ZENKAKU_HANKAKU
+-key 86    BACKSLASH
+-key 87    F11
+-key 88    F12
+-key 89    RO
+-# key 90 "KEY_KATAKANA"
+-# key 91 "KEY_HIRAGANA"
+-key 92    HENKAN
+-key 93    KATAKANA_HIRAGANA
+-key 94    MUHENKAN
+-key 95    NUMPAD_COMMA
+-key 96    NUMPAD_ENTER
+-key 97    CTRL_RIGHT
+-key 98    NUMPAD_DIVIDE
+-key 99    SYSRQ
+-key 100   ALT_RIGHT
+-# key 101 "KEY_LINEFEED"
+-key 102   MOVE_HOME
+-key 103   DPAD_UP
+-key 104   PAGE_UP
+-key 105   DPAD_LEFT
+-key 106   DPAD_RIGHT
+-key 107   MOVE_END
+-key 108   DPAD_DOWN
+-key 109   PAGE_DOWN
+-key 110   INSERT
+-key 111   FORWARD_DEL
+-# key 112 "KEY_MACRO"
+-key 113   VOLUME_MUTE
+-key 114   VOLUME_DOWN
+-key 115   VOLUME_UP
+-key 116   POWER
+-key 117   NUMPAD_EQUALS
+-# key 118 "KEY_KPPLUSMINUS"
+-key 119   BREAK
+-# key 120 (undefined)
+-key 121   NUMPAD_COMMA
+-key 122   KANA
+-key 123   EISU
+-key 124   YEN
+-key 125   META_LEFT
+-key 126   META_RIGHT
+-key 127   MENU
+-key 128   MEDIA_STOP
+-# key 129 "KEY_AGAIN"
+-# key 130 "KEY_PROPS"
+-# key 131 "KEY_UNDO"
+-# key 132 "KEY_FRONT"
+-key 133   COPY
+-# key 134 "KEY_OPEN"
+-key 135   PASTE
+-# key 136 "KEY_FIND"
+-key 137   CUT
+-# key 138 "KEY_HELP"
+-key 139   MENU
+-key 140   CALCULATOR
+-# key 141 "KEY_SETUP"
+-key 142   SLEEP
+-key 143   WAKEUP
+-# key 144 "KEY_FILE"
+-# key 145 "KEY_SENDFILE"
+-# key 146 "KEY_DELETEFILE"
+-# key 147 "KEY_XFER"
+-# key 148 "KEY_PROG1"
+-# key 149 "KEY_PROG2"
+-key 150   EXPLORER
+-# key 151 "KEY_MSDOS"
+-key 152   POWER
+-# key 153 "KEY_DIRECTION"
+-# key 154 "KEY_CYCLEWINDOWS"
+-key 155   ENVELOPE
+-key 156   BOOKMARK
+-# key 157 "KEY_COMPUTER"
+-key 158   BACK
+-key 159   FORWARD
+-key 160   MEDIA_CLOSE
+-key 161   MEDIA_EJECT
+-key 162   MEDIA_EJECT
+-key 163   MEDIA_NEXT
+-key 164   MEDIA_PLAY_PAUSE
+-key 165   MEDIA_PREVIOUS
+-key 166   MEDIA_STOP
+-key 167   MEDIA_RECORD
+-key 168   MEDIA_REWIND
+-key 169   CALL
+-# key 170 "KEY_ISO"
+-key 171   MUSIC
+-key 172   HOME
+-key 173   REFRESH
+-# key 174 "KEY_EXIT"
+-# key 175 "KEY_MOVE"
+-# key 176 "KEY_EDIT"
+-key 177   PAGE_UP
+-key 178   PAGE_DOWN
+-key 179   NUMPAD_LEFT_PAREN
+-key 180   NUMPAD_RIGHT_PAREN
+-# key 181 "KEY_NEW"
+-# key 182 "KEY_REDO"
+-# key 183   F13
+-# key 184   F14
+-# key 185   F15
+-# key 186   F16
+-# key 187   F17
+-# key 188   F18
+-# key 189   F19
+-# key 190   F20
+-# key 191   F21
+-# key 192   F22
+-# key 193   F23
+-# key 194   F24
+-# key 195 (undefined)
+-# key 196 (undefined)
+-# key 197 (undefined)
+-# key 198 (undefined)
+-# key 199 (undefined)
+-key 200   MEDIA_PLAY
+-key 201   MEDIA_PAUSE
+-# key 202 "KEY_PROG3"
+-# key 203 "KEY_PROG4"
+-# key 204 (undefined)
+-# key 205 "KEY_SUSPEND"
+-# key 206 "KEY_CLOSE"
+-key 207   MEDIA_PLAY
+-key 208   MEDIA_FAST_FORWARD
+-# key 209 "KEY_BASSBOOST"
+-# key 210 "KEY_PRINT"
+-# key 211 "KEY_HP"
+-key 212   CAMERA
+-key 213   MUSIC
+-# key 214 "KEY_QUESTION"
+-key 215   ENVELOPE
+-# key 216 "KEY_CHAT"
+-key 217   SEARCH
+-# key 218 "KEY_CONNECT"
+-# key 219 "KEY_FINANCE"
+-# key 220 "KEY_SPORT"
+-# key 221 "KEY_SHOP"
+-# key 222 "KEY_ALTERASE"
+-# key 223 "KEY_CANCEL"
+-key 224   BRIGHTNESS_DOWN
+-key 225   BRIGHTNESS_UP
+-key 226   HEADSETHOOK
+-
+-key 256   BUTTON_1
+-key 257   BUTTON_2
+-key 258   BUTTON_3
+-key 259   BUTTON_4
+-key 260   BUTTON_5
+-key 261   BUTTON_6
+-key 262   BUTTON_7
+-key 263   BUTTON_8
+-key 264   BUTTON_9
+-key 265   BUTTON_10
+-key 266   BUTTON_11
+-key 267   BUTTON_12
+-key 268   BUTTON_13
+-key 269   BUTTON_14
+-key 270   BUTTON_15
+-key 271   BUTTON_16
++key 33    E
++key 34    F
++key 35    G
++key 36    H
++key 37    I
++key 38    J
++key 39    K
++key 40    L
++key 41    M
++key 42    N
++key 43    O
++key 44    P
++key 45    Q
++key 46    R
++key 47    S
++key 48    T
++key 49    U
++key 50    V
++key 51    W
++key 52    X
++key 53    Y
++key 54    Z
++key 55    COMMA
++key 56    PERIOD
++key 57    ALT_LEFT
++key 58    ALT_RIGHT
++key 59    SHIFT_LEFT
++key 60    SHIFT_RIGHT
++key 61    TAB
++key 62    SPACE
++key 63    SYM
++key 64    EXPLORER
++key 65    ENVELOPE
++key 66    ENTER
++key 67    DEL
++key 68    GRAVE
++key 69    MINUS
++key 70    EQUALS
++key 71    LEFT_BRACKET
++key 72    RIGHT_BRACKET
++key 73    BACKSLASH
++key 74    SEMICOLON
++key 75    APOSTROPHE
++key 76    SLASH
++key 77    AT
++key 78    NUM
++key 79    HEADSETHOOK
++key 80    FOCUS
++key 81    PLUS
++key 82    MENU
++key 83    NOTIFICATION
++key 84    SEARCH
++key 85    MEDIA_PLAY_PAUSE
++key 86    MEDIA_STOP
++key 87    MEDIA_NEXT
++key 88    MEDIA_PREVIOUS
++key 89    MEDIA_REWIND
++key 90    MEDIA_FAST_FORWARD
++key 91    MUTE
++key 92    PAGE_UP
++key 93    PAGE_DOWN
++key 94    PICTSYMBOLS
++key 95    SWITCH_CHARSET
++key 96    BUTTON_A
++key 97    BUTTON_B
++key 98    BUTTON_C
++key 99    BUTTON_X
++key 100   BUTTON_Y
++key 101   BUTTON_Z
++key 102   BUTTON_L1
++key 103   BUTTON_R1
++key 104   BUTTON_L2
++key 105   BUTTON_R2
++key 106   BUTTON_THUMBL
++key 107   BUTTON_THUMBR
++key 108   BUTTON_START
++key 109   BUTTON_SELECT
++key 110   BUTTON_MODE
++key 111   ESCAPE
++key 112   FORWARD_DEL
++key 113   CTRL_LEFT
++key 114   CTRL_RIGHT
++key 115   CAPS_LOCK
++key 116   SCROLL_LOCK
++key 117   META_LEFT
++key 118   META_RIGHT
++key 119   FUNCTION
++key 120   SYSRQ
++key 121   BREAK
++key 122   MOVE_HOME
++key 123   MOVE_END
++key 124   INSERT
++key 125   FORWARD
++key 126   MEDIA_PLAY
++key 127   MEDIA_PAUSE
++key 128   MEDIA_CLOSE
++key 129   MEDIA_EJECT
++key 130   MEDIA_RECORD
++key 131   F1
++key 132   F2
++key 133   F3
++key 134   F4
++key 135   F5
++key 136   F6
++key 137   F7
++key 138   F8
++key 139   F9
++key 140   F10
++key 141   F11
++key 142   F12
++key 143   NUM_LOCK
++key 144   NUMPAD_0
++key 145   NUMPAD_1
++key 146   NUMPAD_2
++key 147   NUMPAD_3
++key 148   NUMPAD_4
++key 149   NUMPAD_5
++key 150   NUMPAD_6
++key 151   NUMPAD_7
++key 152   NUMPAD_8
++key 153   NUMPAD_9
++key 154   NUMPAD_DIVIDE
++key 155   NUMPAD_MULTIPLY
++key 156   NUMPAD_SUBTRACT
++key 157   NUMPAD_ADD
++key 158   NUMPAD_DOT
++key 159   NUMPAD_COMMA
++key 160   NUMPAD_ENTER
++key 161   NUMPAD_EQUALS
++key 162   NUMPAD_LEFT_PAREN
++key 163   NUMPAD_RIGHT_PAREN
++key 164   VOLUME_MUTE
++key 165   INFO
++key 166   CHANNEL_UP
++key 167   CHANNEL_DOWN
++key 168   ZOOM_IN
++key 169   ZOOM_OUT
++key 170   TV
++key 171   WINDOW
++key 172   GUIDE
++key 173   DVR
++key 174   BOOKMARK
++key 175   CAPTIONS
++key 176   SETTINGS
++key 177   TV_POWER
++key 178   TV_INPUT
++key 179   STB_POWER
++key 180   STB_INPUT
++key 181   AVR_POWER
++key 182   AVR_INPUT
++key 183   PROG_RED
++key 184   PROG_GREEN
++key 185   PROG_YELLOW
++key 186   PROG_BLUE
++key 187   APP_SWITCH
++key 188   BUTTON_1
++key 189   BUTTON_2
++key 190   BUTTON_3
++key 191   BUTTON_4
++key 192   BUTTON_5
++key 193   BUTTON_6
++key 194   BUTTON_7
++key 195   BUTTON_8
++key 196   BUTTON_9
++key 197   BUTTON_10
++key 198   BUTTON_11
++key 199   BUTTON_12
++key 200   BUTTON_13
++key 201   BUTTON_14
++key 202   BUTTON_15
++key 203   BUTTON_16
++key 204   LANGUAGE_SWITCH
++key 205   MANNER_MODE
++key 206   3D_MODE
++key 207   CONTACTS
++key 208   CALENDAR
++key 209   MUSIC
++key 210   CALCULATOR
++key 211   ZENKAKU_HANKAKU
++key 212   EISU
++key 213   MUHENKAN
++key 214   HENKAN
++key 215   KATAKANA_HIRAGANA
++key 216   YEN
++key 217   RO
++key 218   KANA
++key 219   ASSIST
++key 220   BRIGHTNESS_DOWN
++key 221   BRIGHTNESS_UP
++key 222   MEDIA_AUDIO_TRACK
++key 223   SLEEP
++key 224   WAKEUP
++key 225   PAIRING
++key 226   MEDIA_TOP_MENU
++key 227   11
++key 228   12
++key 229   LAST_CHANNEL
++key 230   TV_DATA_SERVICE
++key 231   VOICE_ASSIST
++key 232   TV_RADIO_SERVICE
++key 233   TV_TELETEXT
++key 234   TV_NUMBER_ENTRY
++key 235   TV_TERRESTRIAL_ANALOG
++key 236   TV_TERRESTRIAL_DIGITAL
++key 237   TV_SATELLITE
++key 238   TV_SATELLITE_BS
++key 239   TV_SATELLITE_CS
++key 240   TV_SATELLITE_SERVICE
++key 241   TV_NETWORK
++key 242   TV_ANTENNA_CABLE
++key 243   TV_INPUT_HDMI_1
++key 244   TV_INPUT_HDMI_2
++key 245   TV_INPUT_HDMI_3
++key 246   TV_INPUT_HDMI_4
++key 247   TV_INPUT_COMPOSITE_1
++key 248   TV_INPUT_COMPOSITE_2
++key 249   TV_INPUT_COMPONENT_1
++key 250   TV_INPUT_COMPONENT_2
++key 251   TV_INPUT_VGA_1
++key 252   TV_AUDIO_DESCRIPTION
++key 253   TV_AUDIO_DESCRIPTION_MIX_UP
++key 254   TV_AUDIO_DESCRIPTION_MIX_DOWN
++key 255   TV_ZOOM_MODE
++key 256   TV_CONTENTS_MENU
++key 257   TV_MEDIA_CONTEXT_MENU
++key 258   TV_TIMER_PROGRAMMING
++key 259   HELP
++key 260   NAVIGATE_PREVIOUS
++key 261   NAVIGATE_NEXT
++key 262   NAVIGATE_IN
++key 263   NAVIGATE_OUT
++key 264   STEM_PRIMARY
++key 265   STEM_1
++key 266   STEM_2
++key 267   STEM_3
++key 268   DPAD_UP_LEFT
++key 269   DPAD_DOWN_LEFT
++key 270   DPAD_UP_RIGHT
++key 271   DPAD_DOWN_RIGHT
++key 272   MEDIA_SKIP_FORWARD
++key 273   MEDIA_SKIP_BACKWARD
++key 274   MEDIA_STEP_FORWARD
++key 275   MEDIA_STEP_BACKWARD
++key 276   SOFT_SLEEP
++key 277   CUT
++key 278   COPY
++key 279   PASTE
++key 280   SYSTEM_NAVIGATION_UP
++key 281   SYSTEM_NAVIGATION_DOWN
++key 282   SYSTEM_NAVIGATION_LEFT
++key 283   SYSTEM_NAVIGATION_RIGHT
+ 
+ key 288   BUTTON_1
+ key 289   BUTTON_2
+@@ -404,12 +444,9 @@ key 484   B                 FUNCTION
+ # key 503 KEY_BRL_DOT7
+ # key 504 KEY_BRL_DOT8
+ 
+-key 522   STAR
+-key 523   POUND
+ key 580   APP_SWITCH
+ key 582   VOICE_ASSIST
+ # Linux KEY_ASSISTANT
+-key 583   ASSIST
+ 
+ # Keys defined by HID usages
+ key usage 0x0c006F BRIGHTNESS_UP
+diff --git a/opengl/java/android/opengl/GLSurfaceView.java b/opengl/java/android/opengl/GLSurfaceView.java
+index 75131b0f..3697c93b 100644
+--- a/opengl/java/android/opengl/GLSurfaceView.java
++++ b/opengl/java/android/opengl/GLSurfaceView.java
+@@ -19,6 +19,10 @@ package android.opengl;
+ import android.compat.annotation.UnsupportedAppUsage;
+ import android.content.Context;
+ import android.os.Trace;
++import android.os.SystemProperties;
++import android.os.Handler;
++import android.database.ContentObserver;
++import android.provider.Settings;
+ import android.util.AttributeSet;
+ import android.util.Log;
+ import android.view.SurfaceHolder;
+@@ -211,6 +215,7 @@ public class GLSurfaceView extends SurfaceView implements SurfaceHolder.Callback
+      */
+     public GLSurfaceView(Context context) {
+         super(context);
++        mContext = context;
+         init();
+     }
+ 
+@@ -220,6 +225,7 @@ public class GLSurfaceView extends SurfaceView implements SurfaceHolder.Callback
+      */
+     public GLSurfaceView(Context context, AttributeSet attrs) {
+         super(context, attrs);
++        mContext = context;
+         init();
+     }
+ 
+@@ -576,6 +582,14 @@ public class GLSurfaceView extends SurfaceView implements SurfaceHolder.Callback
+      * Must not be called before a renderer has been set.
+      */
+     public void onPause() {
++        if (mIsInstructionCloudPhone && mIsRegisterOberserver && mContext != null) {
++            mIsRegisterOberserver = false;
++            try {
++                mContext.getContentResolver().unregisterContentObserver(mVmiRunmodeObserver);
++            } catch (IllegalArgumentException e) {
++                Log.e(TAG, "java.lang.IllegalArgumentException is occured.");
++            }
++        }
+         mGLThread.onPause();
+     }
+ 
+@@ -589,6 +603,11 @@ public class GLSurfaceView extends SurfaceView implements SurfaceHolder.Callback
+      * Must not be called before a renderer has been set.
+      */
+     public void onResume() {
++        if (mIsInstructionCloudPhone && !mIsRegisterOberserver && mContext != null) {
++            mIsRegisterOberserver = true;
++            mContext.getContentResolver().registerContentObserver(
++                Settings.Global.getUriFor("vmi_runmode"), true, mVmiRunmodeObserver);
++        }
+         mGLThread.onResume();
+     }
+ 
+@@ -1934,4 +1953,13 @@ public class GLSurfaceView extends SurfaceView implements SurfaceHolder.Callback
+     private int mDebugFlags;
+     private int mEGLContextClientVersion;
+     private boolean mPreserveEGLContextOnPause;
++    private Context mContext;
++    private boolean mIsRegisterOberserver = false;
++    private static boolean mIsInstructionCloudPhone = "instruction".equals(SystemProperties.get("ro.sys.vmi.cloudphone", "unknow"));
++    final ContentObserver mVmiRunmodeObserver = new ContentObserver(new Handler()) {
++        @Override
++        public void onChange(boolean selfChange) {
++            requestRender();
++        }
++    };
+ }
+diff --git a/packages/PackageInstaller/AndroidManifest.xml b/packages/PackageInstaller/AndroidManifest.xml
+index fe4fdd34..add96fc0 100644
+--- a/packages/PackageInstaller/AndroidManifest.xml
++++ b/packages/PackageInstaller/AndroidManifest.xml
+@@ -32,9 +32,6 @@
+ 
+         <receiver android:name=".TemporaryFileManager"
+             android:exported="true">
+-            <intent-filter>
+-                <action android:name="android.intent.action.BOOT_COMPLETED" />
+-            </intent-filter>
+         </receiver>
+ 
+         <activity android:name=".InstallStart"
+diff --git a/packages/SystemUI/src/com/android/keyguard/CarrierTextController.java b/packages/SystemUI/src/com/android/keyguard/CarrierTextController.java
+index b1e14346..7aa6bd85 100644
+--- a/packages/SystemUI/src/com/android/keyguard/CarrierTextController.java
++++ b/packages/SystemUI/src/com/android/keyguard/CarrierTextController.java
+@@ -98,7 +98,7 @@ public class CarrierTextController {
+                 Log.d(TAG, "onRefreshCarrierInfo(), mTelephonyCapable: "
+                         + Boolean.toString(mTelephonyCapable));
+             }
+-            updateCarrierText();
++            // updateCarrierText();
+         }
+ 
+         @Override
+@@ -108,7 +108,7 @@ public class CarrierTextController {
+                         + Boolean.toString(capable));
+             }
+             mTelephonyCapable = capable;
+-            updateCarrierText();
++            // updateCarrierText();
+         }
+ 
+         public void onSimStateChanged(int subId, int slotId, int simState) {
+@@ -121,10 +121,10 @@ public class CarrierTextController {
+             if (DEBUG) Log.d(TAG, "onSimStateChanged: " + getStatusForIccState(simState));
+             if (getStatusForIccState(simState) == CarrierTextController.StatusMode.SimIoError) {
+                 mSimErrorState[slotId] = true;
+-                updateCarrierText();
++                // updateCarrierText();
+             } else if (mSimErrorState[slotId]) {
+                 mSimErrorState[slotId] = false;
+-                updateCarrierText();
++                // updateCarrierText();
+             }
+         }
+     };
+@@ -135,7 +135,7 @@ public class CarrierTextController {
+         public void onActiveDataSubscriptionIdChanged(int subId) {
+             mActiveMobileDataSubscription = subId;
+             if (mNetworkSupported.get() && mCarrierTextCallback != null) {
+-                updateCarrierText();
++                // updateCarrierText();
+             }
+         }
+     };
+diff --git a/packages/SystemUI/src/com/android/systemui/BatteryMeterView.java b/packages/SystemUI/src/com/android/systemui/BatteryMeterView.java
+index fc30be41..7735386f 100644
+--- a/packages/SystemUI/src/com/android/systemui/BatteryMeterView.java
++++ b/packages/SystemUI/src/com/android/systemui/BatteryMeterView.java
+@@ -71,6 +71,7 @@ import java.io.FileDescriptor;
+ import java.io.PrintWriter;
+ import java.lang.annotation.Retention;
+ import java.text.NumberFormat;
++import android.util.Slog;
+ 
+ public class BatteryMeterView extends LinearLayout implements
+         BatteryStateChangeCallback, Tunable, DarkReceiver, ConfigurationListener {
+@@ -386,6 +387,11 @@ public class BatteryMeterView extends LinearLayout implements
+     }
+ 
+     private void setPercentTextAtCurrentLevel() {
++    	if (mBatteryPercentView == null) {
++			Slog.i("BatteryMeterView", "mBatteryPercentView is null, return");
++			return;
++		}
++
+         mBatteryPercentView.setText(
+                 NumberFormat.getPercentInstance().format(mLevel / 100f));
+         setContentDescription(
+diff --git a/packages/SystemUI/src/com/android/systemui/ImageWallpaper.java b/packages/SystemUI/src/com/android/systemui/ImageWallpaper.java
+index 71ec33e1..111c3118 100644
+--- a/packages/SystemUI/src/com/android/systemui/ImageWallpaper.java
++++ b/packages/SystemUI/src/com/android/systemui/ImageWallpaper.java
+@@ -21,6 +21,11 @@ import android.os.Handler;
+ import android.os.HandlerThread;
+ import android.os.SystemClock;
+ import android.os.Trace;
++import android.os.SystemProperties;
++import android.content.Context;
++import android.database.ContentObserver;
++import android.provider.Settings;
++import android.net.Uri;
+ import android.service.wallpaper.WallpaperService;
+ import android.util.Log;
+ import android.util.Size;
+@@ -84,6 +89,9 @@ public class ImageWallpaper extends WallpaperService {
+         private EglHelper mEglHelper;
+         private final Runnable mFinishRenderingTask = this::finishRendering;
+         private boolean mNeedRedraw;
++        private Context mContext;
++        private boolean mIsInstructionCloudPhone = "instruction".equals(SystemProperties.get("ro.sys.vmi.cloudphone", "unknow"));
++
+ 
+         GLEngine() {
+         }
+@@ -95,6 +103,13 @@ public class ImageWallpaper extends WallpaperService {
+ 
+         @Override
+         public void onCreate(SurfaceHolder surfaceHolder) {
++            if (mIsInstructionCloudPhone) {
++                mContext = getApplicationContext();
++                if (mContext != null) {
++                    mContext.getContentResolver().registerContentObserver(
++                    Settings.Global.getUriFor("vmi_runmode"), true, mVmiRunmodeObserver);
++                }
++            }
+             mEglHelper = getEglHelperInstance();
+             // Deferred init renderer because we need to get wallpaper by display context.
+             mRenderer = getRendererInstance();
+@@ -103,6 +118,16 @@ public class ImageWallpaper extends WallpaperService {
+             updateSurfaceSize();
+         }
+ 
++        final ContentObserver mVmiRunmodeObserver = new ContentObserver(new Handler()) {
++            @Override
++            public void onChange(boolean selfChange, Uri uri) {
++                if (mWorker == null) return;
++                mWorker.getThreadHandler().post(() -> {
++                    GLEngine.this.drawFrame();
++                });
++            }
++        };
++
+         EglHelper getEglHelperInstance() {
+             return new EglHelper();
+         }
+@@ -155,7 +180,7 @@ public class ImageWallpaper extends WallpaperService {
+             mWorker.getThreadHandler().post(this::drawFrame);
+         }
+ 
+-        private void drawFrame() {
++        public void drawFrame() {
+             preRender();
+             requestRender();
+             postRender();
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/customize/TileQueryHelper.java b/packages/SystemUI/src/com/android/systemui/qs/customize/TileQueryHelper.java
+index db77e08c..e3ec2928 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/customize/TileQueryHelper.java
++++ b/packages/SystemUI/src/com/android/systemui/qs/customize/TileQueryHelper.java
+@@ -105,9 +105,6 @@ public class TileQueryHelper {
+                 possibleTiles.add(spec);
+             }
+         }
+-        if (Build.IS_DEBUGGABLE && !current.contains(GarbageMonitor.MemoryTile.TILE_SPEC)) {
+-            possibleTiles.add(GarbageMonitor.MemoryTile.TILE_SPEC);
+-        }
+ 
+         final ArrayList<QSTile> tilesToAdd = new ArrayList<>();
+         for (String spec : possibleTiles) {
+diff --git a/packages/SystemUI/src/com/android/systemui/statusbar/policy/EmergencyCryptkeeperText.java b/packages/SystemUI/src/com/android/systemui/statusbar/policy/EmergencyCryptkeeperText.java
+index 5dc91047..2692d777 100644
+--- a/packages/SystemUI/src/com/android/systemui/statusbar/policy/EmergencyCryptkeeperText.java
++++ b/packages/SystemUI/src/com/android/systemui/statusbar/policy/EmergencyCryptkeeperText.java
+@@ -41,19 +41,19 @@ public class EmergencyCryptkeeperText extends TextView {
+     private final KeyguardUpdateMonitorCallback mCallback = new KeyguardUpdateMonitorCallback() {
+         @Override
+         public void onPhoneStateChanged(int phoneState) {
+-            update();
++            // update();
+         }
+ 
+         @Override
+         public void onRefreshCarrierInfo() {
+-            update();
++            // update();
+         }
+     };
+     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
+         @Override
+         public void onReceive(Context context, Intent intent) {
+             if (Intent.ACTION_AIRPLANE_MODE_CHANGED.equals(intent.getAction())) {
+-                update();
++                // update();
+             }
+         }
+     };
+@@ -70,7 +70,7 @@ public class EmergencyCryptkeeperText extends TextView {
+         mKeyguardUpdateMonitor.registerCallback(mCallback);
+         getContext().registerReceiver(mReceiver,
+                 new IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED));
+-        update();
++        // update();
+     }
+ 
+     @Override
+diff --git a/packages/SystemUI/src/com/android/systemui/util/leak/GarbageMonitor.java b/packages/SystemUI/src/com/android/systemui/util/leak/GarbageMonitor.java
+index b12224bf..606af6eb 100644
+--- a/packages/SystemUI/src/com/android/systemui/util/leak/GarbageMonitor.java
++++ b/packages/SystemUI/src/com/android/systemui/util/leak/GarbageMonitor.java
+@@ -82,7 +82,7 @@ public class GarbageMonitor implements Dumpable {
+     public static final boolean HEAP_TRACKING_ENABLED = Build.IS_DEBUGGABLE;
+ 
+     // Tell QSTileHost.java to toss this into the default tileset?
+-    public static final boolean ADD_MEMORY_TILE_TO_DEFAULT_ON_DEBUGGABLE_BUILDS = true;
++    public static final boolean ADD_MEMORY_TILE_TO_DEFAULT_ON_DEBUGGABLE_BUILDS = false;
+ 
+     // whether to use ActivityManager.setHeapLimit (and post a notification to the user asking
+     // to dump the heap). Off by default unless you set the appropriate sysprop on userdebug
+diff --git a/services/core/java/com/android/server/ConnectivityService.java b/services/core/java/com/android/server/ConnectivityService.java
+index 9a3ab440..598db887 100644
+--- a/services/core/java/com/android/server/ConnectivityService.java
++++ b/services/core/java/com/android/server/ConnectivityService.java
+@@ -1410,12 +1410,16 @@ public class ConnectivityService extends IConnectivityManager.Stub
+      */
+     @Override
+     public NetworkInfo getActiveNetworkInfo() {
++    	/* Deleted for Kbox begin
+         enforceAccessPermission();
+         final int uid = Binder.getCallingUid();
+         final NetworkState state = getUnfilteredActiveNetworkState(uid);
+         filterNetworkStateForUid(state, uid, false);
+         maybeLogBlockedNetworkInfo(state.networkInfo, uid);
+         return state.networkInfo;
++        Deleted for Kbox end */
++        NetworkInfo info = new NetworkInfo(ConnectivityManager.TYPE_WIFI, 0, "WIFI", "");
++        return info;
+     }
+ 
+     @Override
+diff --git a/services/core/java/com/android/server/appop/AppOpsService.java b/services/core/java/com/android/server/appop/AppOpsService.java
+index 63b5af59..0e3350a0 100644
+--- a/services/core/java/com/android/server/appop/AppOpsService.java
++++ b/services/core/java/com/android/server/appop/AppOpsService.java
+@@ -1803,9 +1803,10 @@ public class AppOpsService extends IAppOpsService.Stub {
+                     }
+                 }
+             }
+-
+-            mHistoricalRegistry.clearHistory(uid, packageName);
+         }
++
++        mHandler.post(PooledLambda.obtainRunnable(HistoricalRegistry::clearHistory,
++                    mHistoricalRegistry, uid, packageName));
+     }
+ 
+     public void uidRemoved(int uid) {
+diff --git a/services/core/java/com/android/server/display/DisplayManagerService.java b/services/core/java/com/android/server/display/DisplayManagerService.java
+index 713f9c8f..fde115a6 100644
+--- a/services/core/java/com/android/server/display/DisplayManagerService.java
++++ b/services/core/java/com/android/server/display/DisplayManagerService.java
+@@ -255,6 +255,9 @@ public final class DisplayManagerService extends SystemService {
+     // The virtual display adapter, or null if not registered.
+     private VirtualDisplayAdapter mVirtualDisplayAdapter;
+ 
++    // The local display adapter, or null if not registered.
++    private LocalDisplayAdapter mLocalDisplayAdapter;
++
+     // The User ID of the current user
+     private @UserIdInt int mCurrentUserId;
+ 
+@@ -844,6 +847,16 @@ public final class DisplayManagerService extends SystemService {
+         }
+     }
+ 
++    private void resizePrimaryDisplayInternal(int width, int height) {
++        synchronized (mSyncRoot) {
++            if (mLocalDisplayAdapter == null) {
++                return;
++            }
++
++            mLocalDisplayAdapter.resizePrimaryDisplayLocked(width, height);
++        }
++    }
++
+     private void setVirtualDisplaySurfaceInternal(IBinder appToken, Surface surface) {
+         synchronized (mSyncRoot) {
+             if (mVirtualDisplayAdapter == null) {
+@@ -882,8 +895,8 @@ public final class DisplayManagerService extends SystemService {
+         // Register default display adapters.
+         synchronized (mSyncRoot) {
+             // main display adapter
+-            registerDisplayAdapterLocked(new LocalDisplayAdapter(
+-                    mSyncRoot, mContext, mHandler, mDisplayAdapterListener));
++            mLocalDisplayAdapter = new LocalDisplayAdapter(mSyncRoot, mContext, mHandler, mDisplayAdapterListener);
++            registerDisplayAdapterLocked(mLocalDisplayAdapter);
+ 
+             // Standalone VR devices rely on a virtual display as their primary display for
+             // 2D UI. We register virtual display adapter along side the main display adapter
+@@ -2251,6 +2264,16 @@ public final class DisplayManagerService extends SystemService {
+             }
+         }
+ 
++        @Override // Binder call
++        public void resizePrimaryDisplay(int width, int height) {
++            final long token = Binder.clearCallingIdentity();
++            try {
++                resizePrimaryDisplayInternal(width, height);
++            } finally {
++                Binder.restoreCallingIdentity(token);
++            }
++        }
++
+         @Override // Binder call
+         public void setVirtualDisplaySurface(IVirtualDisplayCallback callback, Surface surface) {
+             if (surface != null && surface.isSingleBuffered()) {
+diff --git a/services/core/java/com/android/server/display/LocalDisplayAdapter.java b/services/core/java/com/android/server/display/LocalDisplayAdapter.java
+index 2c08420a..ba4fa17f 100644
+--- a/services/core/java/com/android/server/display/LocalDisplayAdapter.java
++++ b/services/core/java/com/android/server/display/LocalDisplayAdapter.java
+@@ -90,6 +90,14 @@ final class LocalDisplayAdapter extends DisplayAdapter {
+         }
+     }
+ 
++    public void resizePrimaryDisplayLocked(int width, int height) {
++        long physicalId = SurfaceControl.getPhysicalDisplayIds()[0];
++        LocalDisplayDevice device = mDevices.get(physicalId);
++        if (device != null) {
++            device.resizeLocked(width, height);
++        }
++    }
++
+     private void tryConnectDisplayLocked(long physicalDisplayId) {
+         final IBinder displayToken = SurfaceControl.getPhysicalDisplayToken(physicalDisplayId);
+         if (displayToken != null) {
+@@ -204,6 +212,11 @@ final class LocalDisplayAdapter extends DisplayAdapter {
+ 
+         private DisplayDeviceConfig mDisplayDeviceConfig;
+ 
++        private static final int PENDING_RESIZE = 0x02;
++        private int mWidth;
++        private int mHeight;
++        private int mPendingChanges;
++
+         LocalDisplayDevice(IBinder displayToken, long physicalDisplayId,
+                 SurfaceControl.DisplayInfo info, SurfaceControl.DisplayConfig[] configs,
+                 int activeConfigId, SurfaceControl.DesiredDisplayConfigSpecs configSpecs,
+@@ -213,6 +226,9 @@ final class LocalDisplayAdapter extends DisplayAdapter {
+             mPhysicalDisplayId = physicalDisplayId;
+             mIsDefaultDisplay = isDefaultDisplay;
+             mDisplayInfo = info;
++            mWidth = configs[activeConfigId].width;
++            mHeight = configs[activeConfigId].height;
++            mPendingChanges = 0;
+             updateDisplayProperties(configs, activeConfigId, configSpecs, colorModes,
+                     activeColorMode, hdrCapabilities);
+             mSidekickInternal = LocalServices.getService(SidekickInternal.class);
+@@ -235,6 +251,15 @@ final class LocalDisplayAdapter extends DisplayAdapter {
+             return true;
+         }
+ 
++        @Override
++        public void performTraversalLocked(SurfaceControl.Transaction t) {
++            if ((mPendingChanges & PENDING_RESIZE) != 0) {
++                Slog.i(TAG, "performTraversalLocked PENDING_RESIZE [" + mWidth + "," + mHeight +"]");
++                t.setDisplaySize(getDisplayTokenLocked(), mWidth, mHeight);
++            }
++            mPendingChanges = 0;
++        }
++
+         /**
+          * Returns true if there is a change.
+          **/
+@@ -419,6 +444,22 @@ final class LocalDisplayAdapter extends DisplayAdapter {
+             mSystemBrightnessToNits = sysToNits;
+         }
+ 
++        public void resizeLocked(int width, int height) {
++            Slog.i(TAG, "resizeLocked [" + mWidth + "," + mHeight + ",] -> [" + width + "," + height + "]");
++            if (mWidth != width || mHeight != height) {
++                sendDisplayDeviceEventLocked(this, DISPLAY_DEVICE_EVENT_CHANGED);
++                sendTraversalRequestLocked();
++                mWidth = width;
++                mHeight = height;
++                mDisplayConfigs[mActiveConfigId].width = mWidth;
++                mDisplayConfigs[mActiveConfigId].height = mHeight;
++                mInfo = null;
++                DisplayModeRecord record = new DisplayModeRecord(mWidth, mHeight, mSupportedModes.get(mActiveModeId));
++                mSupportedModes.put(mActiveModeId, record);
++                mPendingChanges |= PENDING_RESIZE;
++            }
++        }
++
+         private boolean updateColorModesLocked(int[] colorModes, int activeColorMode) {
+             if (colorModes == null) {
+                 return false;
+@@ -1020,6 +1061,10 @@ final class LocalDisplayAdapter extends DisplayAdapter {
+             mMode = createMode(config.width, config.height, config.refreshRate);
+         }
+ 
++        public DisplayModeRecord(int width, int height, DisplayModeRecord record) {
++            mMode = new Display.Mode(record.mMode.getModeId(), width, height, record.mMode.getRefreshRate());
++        }
++
+         /**
+          * Returns whether the mode generated by the given DisplayConfig matches the mode
+          * contained by the record modulo mode ID.
+diff --git a/services/core/java/com/android/server/pm/PackageManagerService.java b/services/core/java/com/android/server/pm/PackageManagerService.java
+index cde249fe..523f1ba9 100644
+--- a/services/core/java/com/android/server/pm/PackageManagerService.java
++++ b/services/core/java/com/android/server/pm/PackageManagerService.java
+@@ -9680,6 +9680,12 @@ public class PackageManagerService extends IPackageManager.Stub
+             return;
+         }
+ 
++        /* To reduce system startup time */
++        if (true) {
++            Log.e(TAG, "kbox don't need to update");
++            return;
++        }
++
+         List<PackageSetting> pkgSettings;
+         synchronized (mLock) {
+             pkgSettings = PackageManagerServiceUtils.getPackagesForDexopt(
+diff --git a/services/core/java/com/android/server/wm/DisplayContent.java b/services/core/java/com/android/server/wm/DisplayContent.java
+index f1b110de..d7f1c53a 100644
+--- a/services/core/java/com/android/server/wm/DisplayContent.java
++++ b/services/core/java/com/android/server/wm/DisplayContent.java
+@@ -167,6 +167,7 @@ import android.os.Process;
+ import android.os.RemoteCallbackList;
+ import android.os.RemoteException;
+ import android.os.SystemClock;
++import android.os.SystemProperties;
+ import android.os.Trace;
+ import android.os.UserHandle;
+ import android.provider.Settings;
+@@ -317,6 +318,11 @@ class DisplayContent extends WindowContainer<DisplayContent.DisplayChildWindowCo
+     int mInitialDisplayHeight = 0;
+     int mInitialDisplayDensity = 0;
+ 
++    // Original display metrics.
++    int mOrigDisplayWidth = 0;
++    int mOrigDisplayHeight = 0;
++    int mOrigDisplayDensity = 0;
++
+     DisplayCutout mInitialDisplayCutout;
+     private final RotationCache<DisplayCutout, WmDisplayCutout> mDisplayCutoutCache
+             = new RotationCache<>(this::calculateDisplayCutoutForRotationUncached);
+@@ -531,6 +537,9 @@ class DisplayContent extends WindowContainer<DisplayContent.DisplayChildWindowCo
+ 
+     private MagnificationSpec mMagnificationSpec;
+ 
++    private static boolean mIsInstructionCloudPhone = "instruction".equals(SystemProperties.get("ro.sys.vmi.cloudphone", "unknow"));
++    private static boolean mIsVideoCloudPhone = "video".equals(SystemProperties.get("ro.sys.vmi.cloudphone", "unknow"));
++
+     private InputMonitor mInputMonitor;
+ 
+     /** Caches the value whether told display manager that we have content. */
+@@ -1770,6 +1779,9 @@ class DisplayContent extends WindowContainer<DisplayContent.DisplayChildWindowCo
+         if (mWmService.mAccessibilityController != null) {
+             mWmService.mAccessibilityController.onRotationChangedLocked(this);
+         }
++        if (mIsInstructionCloudPhone || mIsVideoCloudPhone) {
++            SystemProperties.set("vmi.sys.orientation", String.valueOf(rotation));
++        }
+     }
+ 
+     void configureDisplayPolicy() {
+@@ -2457,7 +2469,10 @@ class DisplayContent extends WindowContainer<DisplayContent.DisplayChildWindowCo
+         mInitialDisplayWidth = mDisplayInfo.logicalWidth;
+         mInitialDisplayHeight = mDisplayInfo.logicalHeight;
+         mInitialDisplayDensity = mDisplayInfo.logicalDensityDpi;
+-        mInitialDisplayCutout = mDisplayInfo.displayCutout;
++
++        mOrigDisplayWidth = mDisplayInfo.logicalWidth;
++        mOrigDisplayHeight = mDisplayInfo.logicalHeight;
++        mOrigDisplayDensity = mDisplayInfo.logicalDensityDpi;
+     }
+ 
+     /**
+diff --git a/services/core/java/com/android/server/wm/WindowManagerService.java b/services/core/java/com/android/server/wm/WindowManagerService.java
+index 744afb9b..d7dd35e1 100644
+--- a/services/core/java/com/android/server/wm/WindowManagerService.java
++++ b/services/core/java/com/android/server/wm/WindowManagerService.java
+@@ -5204,6 +5204,17 @@ public class WindowManagerService extends IWindowManager.Stub
+         }
+     }
+ 
++    @Override
++    public void getOrigDisplaySize(int displayId, Point size) {
++        synchronized (mWindowMap) {
++            final DisplayContent displayContent = mRoot.getDisplayContent(displayId);
++            if (displayContent != null && displayContent.hasAccess(Binder.getCallingUid())) {
++                size.x = displayContent.mOrigDisplayWidth;
++                size.y = displayContent.mOrigDisplayHeight;
++            }
++        }
++    }
++
+     @Override
+     public void getBaseDisplaySize(int displayId, Point size) {
+         synchronized (mGlobalLock) {
+@@ -5228,6 +5239,7 @@ public class WindowManagerService extends IWindowManager.Stub
+                 final DisplayContent displayContent = mRoot.getDisplayContent(displayId);
+                 if (displayContent != null) {
+                     displayContent.setForcedSize(width, height);
++                    setForcedDisplaySizeLocked(displayContent, width, height, displayContent.mBaseDisplayDensity);
+                 }
+             }
+         } finally {
+@@ -5277,6 +5289,8 @@ public class WindowManagerService extends IWindowManager.Stub
+                         ProtoLog.i(WM_ERROR, "FORCED DISPLAY SIZE: %dx%d", width, height);
+                         displayContent.updateBaseDisplayMetrics(width, height,
+                                 displayContent.mBaseDisplayDensity);
++                        mDisplayManager.resizePrimaryDisplay(width, height);
++                        displayContent.reconfigureDisplayLocked();
+                         changed = true;
+                     }
+                 } catch (NumberFormatException ex) {
+@@ -5302,6 +5316,14 @@ public class WindowManagerService extends IWindowManager.Stub
+         return changed;
+     }
+ 
++    // displayContent must not be null
++    private void setForcedDisplaySizeLocked(DisplayContent displayContent, int width, int height, int density) {
++        Slog.i(TAG_WM, "Using new display size: " + width + "x" + height);
++        displayContent.updateBaseDisplayMetrics(width, height, density);
++        mDisplayManager.resizePrimaryDisplay(width, height);
++        displayContent.reconfigureDisplayLocked();
++    }
++
+     @Override
+     public void clearForcedDisplaySize(int displayId) {
+         if (mContext.checkCallingOrSelfPermission(WRITE_SECURE_SETTINGS)
+@@ -5316,6 +5338,8 @@ public class WindowManagerService extends IWindowManager.Stub
+                 if (displayContent != null) {
+                     displayContent.setForcedSize(displayContent.mInitialDisplayWidth,
+                             displayContent.mInitialDisplayHeight);
++                    setForcedDisplaySizeLocked(displayContent, displayContent.mOrigDisplayWidth,
++                            displayContent.mOrigDisplayHeight, displayContent.mOrigDisplayDensity);
+                 }
+             }
+         } finally {
+diff --git a/services/core/java/com/android/server/wm/WindowManagerShellCommand.java b/services/core/java/com/android/server/wm/WindowManagerShellCommand.java
+index bdecb8d9..2264ae2e 100644
+--- a/services/core/java/com/android/server/wm/WindowManagerShellCommand.java
++++ b/services/core/java/com/android/server/wm/WindowManagerShellCommand.java
+@@ -119,7 +119,7 @@ public class WindowManagerShellCommand extends ShellCommand {
+         final Point baseSize = new Point();
+ 
+         try {
+-            mInterface.getInitialDisplaySize(displayId, initialSize);
++            mInterface.getOrigDisplaySize(Display.DEFAULT_DISPLAY, initialSize);
+             mInterface.getBaseDisplaySize(displayId, baseSize);
+             pw.println("Physical size: " + initialSize.x + "x" + initialSize.y);
+             if (!initialSize.equals(baseSize)) {
+diff --git a/services/java/com/android/server/SystemServer.java b/services/java/com/android/server/SystemServer.java
+index 88e69812..5378d087 100644
+--- a/services/java/com/android/server/SystemServer.java
++++ b/services/java/com/android/server/SystemServer.java
+@@ -528,8 +528,8 @@ public final class SystemServer {
+             BinderInternal.setMaxThreads(sMaxBinderThreads);
+ 
+             // Prepare the main looper thread (this thread).
+-            android.os.Process.setThreadPriority(
+-                    android.os.Process.THREAD_PRIORITY_FOREGROUND);
++            //android.os.Process.setThreadPriority(
++            //        android.os.Process.THREAD_PRIORITY_FOREGROUND);
+             android.os.Process.setCanSelfBackground(false);
+             Looper.prepareMainLooper();
+             Looper.getMainLooper().setSlowLogThresholdMs(
+@@ -960,7 +960,26 @@ public final class SystemServer {
+ 
+         t.traceBegin("StartBatteryService");
+         // Tracks the battery level.  Requires LightService.
+-        mSystemServiceManager.startService(BatteryService.class);
++		// ANBOX. We are too fast some times and a race condition appears while
++        // creating the BatteryService. Retry.
++        boolean created = false;
++        final int RETRY_TIME_MS = 20;
++        final int MAX_WAIT_TIME_MS = 400;
++        int retry = 0;
++        do {
++            try {
++                mSystemServiceManager.startService(BatteryService.class);
++                created = true;
++            } catch (RuntimeException ex) {
++                Slog.i(TAG, "Error when trying to start BatteryService");
++                if (++retry == MAX_WAIT_TIME_MS/RETRY_TIME_MS) {
++                    throw ex;
++                }
++                try {
++                    Thread.sleep(RETRY_TIME_MS);  // in ms
++                } catch (InterruptedException ex2) {}
++            }
++        } while(!created);
+         t.traceEnd();
+ 
+         // Tracks application usage stats.
+diff --git a/services/usage/java/com/android/server/usage/StorageStatsService.java b/services/usage/java/com/android/server/usage/StorageStatsService.java
+index 52b0afb5..de0d813b 100644
+--- a/services/usage/java/com/android/server/usage/StorageStatsService.java
++++ b/services/usage/java/com/android/server/usage/StorageStatsService.java
+@@ -218,14 +218,14 @@ public class StorageStatsService extends IStorageStatsManager.Stub {
+         // NOTE: No permissions required
+ 
+         if (volumeUuid == StorageManager.UUID_PRIVATE_INTERNAL) {
+-            return FileUtils.roundStorageSize(mStorage.getPrimaryStorageSize());
++            return mStorage.getPrimaryStorageSize();
+         } else {
+             final VolumeInfo vol = mStorage.findVolumeByUuid(volumeUuid);
+             if (vol == null) {
+                 throw new ParcelableException(
+                         new IOException("Failed to find storage device for UUID " + volumeUuid));
+             }
+-            return FileUtils.roundStorageSize(vol.disk.size);
++            return vol.disk.size;
+         }
+     }
+ 
+diff --git a/wifi/java/android/net/wifi/WifiInfo.java b/wifi/java/android/net/wifi/WifiInfo.java
+index 53883674..088af796 100644
+--- a/wifi/java/android/net/wifi/WifiInfo.java
++++ b/wifi/java/android/net/wifi/WifiInfo.java
+@@ -35,6 +35,8 @@ import java.net.UnknownHostException;
+ import java.util.EnumMap;
+ import java.util.Locale;
+ 
++import android.os.SystemProperties;
++
+ /**
+  * Describes the state of any Wi-Fi connection that is active or
+  * is in the process of being set up.
+@@ -95,6 +97,11 @@ public class WifiInfo implements Parcelable {
+     /** @hide **/
+     public static final int MAX_RSSI = 200;
+ 
++	/** @hide **/
++    public static final int MID_RSSI = -55;
++
++    /** @hide **/
++    public static final int LINK_SPEED_KILO = 1000;
+ 
+     /**
+      * Received Signal Strength Indicator
+@@ -462,7 +469,13 @@ public class WifiInfo implements Parcelable {
+                 return (hex != null) ? hex : WifiManager.UNKNOWN_SSID;
+             }
+         }
+-        return WifiManager.UNKNOWN_SSID;
++
++        String wifiGenCode = "";
++        wifiGenCode = SystemProperties.get("sys.prop.writewifissid");
++        if (wifiGenCode == null || wifiGenCode.length() == 0) {
++            wifiGenCode = "KBOX-WIFI";
++        }
++        return wifiGenCode;
+     }
+ 
+     /** @hide */
+@@ -474,7 +487,18 @@ public class WifiInfo implements Parcelable {
+     /** @hide */
+     @UnsupportedAppUsage
+     public void setBSSID(String BSSID) {
+-        mBSSID = BSSID;
++        if (BSSID == null || BSSID.length() == 0) {
++            int MAC_NUM = 6; // the length of mac
++            String MAX_PATTEN = "aa"; // the patten of mac
++            StringBuffer mac = new StringBuffer();
++            for (int i = 1; i <= MAC_NUM; i++) {
++                mac.append(MAX_PATTEN);
++                if(i != MAC_NUM) mac.append(":");
++            }
++            mBSSID = mac.toString().toLowerCase();
++        } else {
++            mBSSID = BSSID;
++        }
+     }
+ 
+     /**
+@@ -502,7 +526,7 @@ public class WifiInfo implements Parcelable {
+      * @return the RSSI.
+      */
+     public int getRssi() {
+-        return mRssi;
++        return MID_RSSI;
+     }
+ 
+     /** @hide */
+@@ -538,7 +562,7 @@ public class WifiInfo implements Parcelable {
+      * @see #LINK_SPEED_UNKNOWN
+      */
+     public int getLinkSpeed() {
+-        return mLinkSpeed;
++        return LINK_SPEED_KILO;
+     }
+ 
+     /** @hide */
+@@ -831,11 +855,20 @@ public class WifiInfo implements Parcelable {
+     }
+ 
+     public int getIpAddress() {
++        /* Deleted for Kbox begin
+         int result = 0;
+         if (mIpAddress instanceof Inet4Address) {
+             result = Inet4AddressUtils.inet4AddressToIntHTL((Inet4Address) mIpAddress);
+         }
+         return result;
++        Deleted for Kbox end */
++        InetAddress inetAddr = null;
++        try {
++			inetAddr = InetAddress.getByName("172.17.0.1");
++		} catch (UnknownHostException e) {
++            throw new IllegalArgumentException("Invalid InetAddress");
++        }
++        return Inet4AddressUtils.inet4AddressToIntHTL((Inet4Address) inetAddr);
+     }
+ 
+     /**
+@@ -936,8 +969,8 @@ public class WifiInfo implements Parcelable {
+     /** Implement the Parcelable interface {@hide} */
+     public void writeToParcel(Parcel dest, int flags) {
+         dest.writeInt(mNetworkId);
+-        dest.writeInt(mRssi);
+-        dest.writeInt(mLinkSpeed);
++        dest.writeInt(MID_RSSI);
++        dest.writeInt(LINK_SPEED_KILO);
+         dest.writeInt(mTxLinkSpeed);
+         dest.writeInt(mRxLinkSpeed);
+         dest.writeInt(mFrequency);
+diff --git a/wifi/java/android/net/wifi/WifiManager.java b/wifi/java/android/net/wifi/WifiManager.java
+index 4a61db89..021be25b 100644
+--- a/wifi/java/android/net/wifi/WifiManager.java
++++ b/wifi/java/android/net/wifi/WifiManager.java
+@@ -2934,11 +2934,14 @@ public class WifiManager {
+      * @see #isWifiEnabled()
+      */
+     public int getWifiState() {
++    	/* Deleted for Kbox begin
+         try {
+             return mService.getWifiEnabledState();
+         } catch (RemoteException e) {
+             throw e.rethrowFromSystemServer();
+         }
++        Deleted for Kbox end */
++        return WIFI_STATE_ENABLED;
+     }
+ 
+     /**
+@@ -4523,6 +4526,7 @@ public class WifiManager {
+          * will be required, regardless of the number of times that {@code acquire} is called.
+          */
+         public void acquire() {
++        	/* Deleted for Kbox begin
+             synchronized (mBinder) {
+                 if (mRefCounted ? (++mRefCount == 1) : (!mHeld)) {
+                     try {
+@@ -4541,6 +4545,8 @@ public class WifiManager {
+                     mHeld = true;
+                 }
+             }
++            Deleted for Kbox end */
++            Log.d("WifiMod", "WifiLock->acquire(), do nothing");
+         }
+ 
+         /**
+@@ -4556,6 +4562,7 @@ public class WifiManager {
+          * calls will be ignored.
+          */
+         public void release() {
++        	/* Deleted for Kbox begin
+             synchronized (mBinder) {
+                 if (mRefCounted ? (--mRefCount == 0) : (mHeld)) {
+                     try {
+@@ -4572,6 +4579,8 @@ public class WifiManager {
+                     throw new RuntimeException("WifiLock under-locked " + mTag);
+                 }
+             }
++            Deleted for Kbox end */
++            Log.d("WifiMod", "WifiLock->release(), do nothing");
+         }
+ 
+         /**
+@@ -4595,9 +4604,13 @@ public class WifiManager {
+          * @return true if this WifiLock is held, false otherwise
+          */
+         public boolean isHeld() {
++        	/* Deleted for Kbox begin
+             synchronized (mBinder) {
+                 return mHeld;
+             }
++            Deleted for Kbox end */
++            Log.d("WifiMod", "WifiLock->release(), force return true, to enable large file download");
++            return true;
+         }
+ 
+         public void setWorkSource(WorkSource ws) {
