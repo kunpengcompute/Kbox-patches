@@ -1,0 +1,13 @@
+diff --git a/ojluni/src/main/native/UNIXProcess_md.c b/ojluni/src/main/native/UNIXProcess_md.c
+index 40fdc18..c6231c8 100644
+--- a/ojluni/src/main/native/UNIXProcess_md.c
++++ b/ojluni/src/main/native/UNIXProcess_md.c
+@@ -104,6 +104,8 @@
+  * Linux and fork() on other Unix systems, but the code to use clone()
+  * remains.
+  */
++#define START_CHILD_USE_VFORK 0 /* https://issuetracker.google.com/issues/140122372
++                                vfork µ¼ÖÂ½ø³Ì²ÐÁô*/
+ 
+ #define START_CHILD_USE_CLONE 0  /* clone() currently disabled; see above. */
+ 

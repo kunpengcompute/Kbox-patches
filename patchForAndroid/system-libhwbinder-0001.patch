@@ -1,0 +1,31 @@
+diff --git a/Binder.cpp b/Binder.cpp
+index 9edd27b..e9ce03d 100644
+--- a/Binder.cpp
++++ b/Binder.cpp
+@@ -90,6 +90,7 @@ bool BHwBinder::isRequestingSid() {
+ }
+ 
+ void BHwBinder::setRequestingSid(bool requestingSid) {
++    requestingSid = false; // fix binder
+     Extras* e = mExtras.load(std::memory_order_acquire);
+ 
+     if (!e) {
+diff --git a/ProcessState.cpp b/ProcessState.cpp
+index 694efd1..2284c9b 100644
+--- a/ProcessState.cpp
++++ b/ProcessState.cpp
+@@ -166,11 +166,14 @@ bool ProcessState::becomeContextManager(context_check_func checkFunc, void* user
+         mBinderContextCheckFunc = checkFunc;
+         mBinderContextUserData = userData;
+ 
++#if 0 // fix binder
+         flat_binder_object obj {
+             .flags = FLAT_BINDER_FLAG_TXN_SECURITY_CTX,
+         };
+ 
+         status_t result = ioctl(mDriverFD, BINDER_SET_CONTEXT_MGR_EXT, &obj);
++#endif
++        status_t result = 1;
+ 
+         // fallback to original method
+         if (result != 0) {

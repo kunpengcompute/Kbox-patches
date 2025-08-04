@@ -1,0 +1,67 @@
+diff --git a/Utils.cpp b/Utils.cpp
+index 17921e8..13e33d4 100644
+--- a/Utils.cpp
++++ b/Utils.cpp
+@@ -240,7 +240,11 @@ int SetQuotaProjectId(const std::string& path, long projectId) {
+     }
+ 
+     fsx.fsx_projid = projectId;
+-    return ioctl(fd, FS_IOC_FSSETXATTR, &fsx);
++    ret = ioctl(fd, FS_IOC_FSSETXATTR, &fsx);
++    if (ret == -1) {
++	PLOG(ERROR) << __func__<<":"<<__LINE__ <<"  ERROR path:" << path << " projid:" << projectId;
++    }
++    return 0/*ret*/;
+ }
+ 
+ int PrepareDirWithProjectId(const std::string& path, mode_t mode, uid_t uid, gid_t gid,
+diff --git a/model/EmulatedVolume.cpp b/model/EmulatedVolume.cpp
+index db93bc2..741b72e 100644
+--- a/model/EmulatedVolume.cpp
++++ b/model/EmulatedVolume.cpp
+@@ -50,6 +50,7 @@ EmulatedVolume::EmulatedVolume(const std::string& rawPath, int userId)
+     mLabel = "emulated";
+     mFuseMounted = false;
+     mUseSdcardFs = IsSdcardfsUsed();
++    mFusePid = 0;
+     mAppDataIsolationEnabled = base::GetBoolProperty(kVoldAppDataIsolationEnabled, false);
+ }
+ 
+@@ -61,6 +62,7 @@ EmulatedVolume::EmulatedVolume(const std::string& rawPath, dev_t device, const s
+     mLabel = fsUuid;
+     mFuseMounted = false;
+     mUseSdcardFs = IsSdcardfsUsed();
++    mFusePid = 0;
+     mAppDataIsolationEnabled = base::GetBoolProperty(kVoldAppDataIsolationEnabled, false);
+ }
+ 
+@@ -333,7 +335,7 @@ status_t EmulatedVolume::doMount() {
+             PLOG(ERROR) << getId() << " failed to fork";
+             return -errno;
+         }
+-
++	    mFusePid = sdcardFsPid;
+         nsecs_t start = systemTime(SYSTEM_TIME_BOOTTIME);
+         while (before == GetDevice(mSdcardFsFull)) {
+             LOG(DEBUG) << "Waiting for sdcardfs to spin up...";
+@@ -348,6 +350,7 @@ status_t EmulatedVolume::doMount() {
+         /* sdcardfs will have exited already. The filesystem will still be running */
+         TEMP_FAILURE_RETRY(waitpid(sdcardFsPid, nullptr, 0));
+         sdcardFsPid = 0;
++		mFusePid = 0;
+     }
+ 
+     if (isFuse && isVisible) {
+diff --git a/model/EmulatedVolume.h b/model/EmulatedVolume.h
+index 1d2385d..93901a9 100644
+--- a/model/EmulatedVolume.h
++++ b/model/EmulatedVolume.h
+@@ -70,6 +70,8 @@ class EmulatedVolume : public VolumeBase {
+     /* Whether to use app data isolation is enabled tor this volume */
+     bool mAppDataIsolationEnabled;
+ 
++    /* PID of FUSE wrapper */
++    pid_t mFusePid;
+     DISALLOW_COPY_AND_ASSIGN(EmulatedVolume);
+ };
+ 

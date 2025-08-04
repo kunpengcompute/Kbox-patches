@@ -1,0 +1,29 @@
+diff --git a/AndroidManifest.xml b/AndroidManifest.xml
+index 4de3b714f..a31eada61 100644
+--- a/AndroidManifest.xml
++++ b/AndroidManifest.xml
+@@ -227,9 +227,6 @@
+         <service android:name=".ota.OtaService" />
+ 
+         <receiver android:name="com.android.managedprovisioning.BootReminder">
+-            <intent-filter>
+-                <action android:name="android.intent.action.BOOT_COMPLETED" />
+-            </intent-filter>
+         </receiver>
+ 
+         <receiver android:name="com.android.managedprovisioning.ota.PreBootListener">
+diff --git a/src/com/android/managedprovisioning/ota/OtaController.java b/src/com/android/managedprovisioning/ota/OtaController.java
+index 36e709340..5bb6c05fa 100644
+--- a/src/com/android/managedprovisioning/ota/OtaController.java
++++ b/src/com/android/managedprovisioning/ota/OtaController.java
+@@ -128,6 +128,7 @@ public class OtaController {
+                 mTaskExecutor,
+                 mProvisioningAnalyticsTracker
+         ));
++        System.exit(0);
+     }
+ 
+     void addDeviceOwnerTasks(final int userId, Context context) {
+-- 
+2.34.1
+

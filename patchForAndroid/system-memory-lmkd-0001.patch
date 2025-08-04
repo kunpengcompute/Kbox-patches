@@ -1,0 +1,321 @@
+diff --git a/lmkd.cpp b/lmkd.cpp
+index 3515fdb..8a9ee25 100644
+--- a/lmkd.cpp
++++ b/lmkd.cpp
+@@ -37,6 +37,7 @@
+ #include <sys/time.h>
+ #include <sys/types.h>
+ #include <time.h>
++#include <ctime>
+ #include <unistd.h>
+ 
+ #include <cutils/properties.h>
+@@ -81,6 +82,12 @@
+ #define MEMCG_MEMORYSW_USAGE "/dev/memcg/memory.memsw.usage_in_bytes"
+ #define ZONEINFO_PATH "/proc/zoneinfo"
+ #define MEMINFO_PATH "/proc/meminfo"
++
++#define CONTAINERID_PATH "/data/containerid"
++#define CONTAINERRENDER_PATH "/data/renderpath"
++#define VMEMINFO_PATH "/sys/kernel/debug/gpu_statistics"
++#define MEM_LIMT 40
++#define PARSE_LINE_BREAK "\n"
+ #define VMSTAT_PATH "/proc/vmstat"
+ #define PROC_STATUS_TGID_FIELD "Tgid:"
+ #define LINE_MAX 128
+@@ -516,6 +523,11 @@ static struct adjslot_list procadjslot_list[ADJTOSLOT_COUNT];
+ 
+ #define MAX_DISTINCT_OOM_ADJ 32
+ #define KILLCNT_INVALID_IDX 0xFF
++#define BUFFER_SIZE_128 128
++#define BUFFER_SIZE_256 256
++#define BUFFER_SIZE_13 13
++#define FCAST_SPACE 512
++
+ /*
+  * Because killcnt array is sparse a two-level indirection is used
+  * to keep the size small. killcnt_idx stores index of the element in
+@@ -537,6 +549,14 @@ static int clamp(int low, int high, int value) {
+     return max(min(value, high), low);
+ }
+ 
++//用于关闭文件描述符,并将文件描述符置为-1
++static void close_fd(int& fd) {
++    if (fd > 0) {
++        close(fd);
++        fd = -1;
++    }
++}
++
+ static bool parse_int64(const char* str, int64_t* ret) {
+     char* endptr;
+     long long val = strtoll(str, &endptr, 10);
+@@ -1563,8 +1583,8 @@ static void zoneinfo_parse_protection(char *buf, struct zoneinfo_zone *zone) {
+ }
+ 
+ static int zoneinfo_parse_zone(char **buf, struct zoneinfo_zone *zone) {
+-    for (char *line = strtok_r(NULL, "\n", buf); line;
+-         line = strtok_r(NULL, "\n", buf)) {
++    for (char *line = strtok_r(NULL, PARSE_LINE_BREAK, buf); line;
++         line = strtok_r(NULL, PARSE_LINE_BREAK, buf)) {
+         char *cp;
+         char *ap;
+         char *save_ptr;
+@@ -1617,8 +1637,8 @@ static int zoneinfo_parse_zone(char **buf, struct zoneinfo_zone *zone) {
+ static int zoneinfo_parse_node(char **buf, struct zoneinfo_node *node) {
+     int fields_to_match = ZI_NODE_FIELD_COUNT;
+ 
+-    for (char *line = strtok_r(NULL, "\n", buf); line;
+-         line = strtok_r(NULL, "\n", buf)) {
++    for (char *line = strtok_r(NULL, PARSE_LINE_BREAK, buf); line;
++         line = strtok_r(NULL, PARSE_LINE_BREAK, buf)) {
+         char *cp;
+         char *ap;
+         char *save_ptr;
+@@ -1671,8 +1691,8 @@ static int zoneinfo_parse(struct zoneinfo *zi) {
+         return -1;
+     }
+ 
+-    for (line = strtok_r(buf, "\n", &save_ptr); line;
+-         line = strtok_r(NULL, "\n", &save_ptr)) {
++    for (line = strtok_r(buf, PARSE_LINE_BREAK, &save_ptr); line;
++         line = strtok_r(NULL, PARSE_LINE_BREAK, &save_ptr)) {
+         int node_id;
+         if (sscanf(line, "Node %d, zone %" STRINGIFY(LINE_MAX) "s", &node_id, zone_name) == 2) {
+             if (!node || node->id != node_id) {
+@@ -1766,8 +1786,8 @@ static int meminfo_parse(union meminfo *mi) {
+         return -1;
+     }
+ 
+-    for (line = strtok_r(buf, "\n", &save_ptr); line;
+-         line = strtok_r(NULL, "\n", &save_ptr)) {
++    for (line = strtok_r(buf, PARSE_LINE_BREAK, &save_ptr); line;
++         line = strtok_r(NULL, PARSE_LINE_BREAK, &save_ptr)) {
+         if (!meminfo_parse_line(line, mi)) {
+             ALOGE("%s parse error", file_data.filename);
+             return -1;
+@@ -1821,8 +1841,8 @@ static int vmstat_parse(union vmstat *vs) {
+         return -1;
+     }
+ 
+-    for (line = strtok_r(buf, "\n", &save_ptr); line;
+-         line = strtok_r(NULL, "\n", &save_ptr)) {
++    for (line = strtok_r(buf, PARSE_LINE_BREAK, &save_ptr); line;
++         line = strtok_r(NULL, PARSE_LINE_BREAK, &save_ptr)) {
+         if (!vmstat_parse_line(line, vs)) {
+             ALOGE("%s parse error", file_data.filename);
+             return -1;
+@@ -2659,7 +2679,7 @@ static void mp_event_common(int data, uint32_t events, struct polling_params *po
+         kill_skip_count = 0;
+     }
+ 
+-    if (meminfo_parse(&mi) < 0 || zoneinfo_parse(&zi) < 0) {
++    if (meminfo_parse(&mi) < 0) {
+         ALOGE("Failed to get free memory!");
+         return;
+     }
+@@ -2974,15 +2994,18 @@ static void kernel_event_handler(int data __unused, uint32_t events __unused,
+ 
+ static bool init_monitors() {
+     /* Try to use psi monitor first if kernel has it */
+-    use_psi_monitors = property_get_bool("ro.lmk.use_psi", true) &&
++    use_psi_monitors = property_get_bool("ro.lmk.use_psi", false) &&
+         init_psi_monitors();
+     /* Fall back to vmpressure */
+     if (!use_psi_monitors &&
+         (!init_mp_common(VMPRESS_LEVEL_LOW) ||
+         !init_mp_common(VMPRESS_LEVEL_MEDIUM) ||
+         !init_mp_common(VMPRESS_LEVEL_CRITICAL))) {
+-        ALOGE("Kernel does not support memory pressure events or in-kernel low memory killer");
+-        return false;
++        use_psi_monitors = init_psi_monitors(); // 去除cgroup后导致memory.pressure_level不存在，需要使用psi
++        if (!use_psi_monitors) { 
++            ALOGE("Kernel does not support memory pressure events or in-kernel low memory killer"); 
++            return false;
++        }
+     }
+     if (use_psi_monitors) {
+         ALOGI("Using psi monitors for memory pressure detection");
+@@ -3101,6 +3124,8 @@ static int init(void) {
+         pidfd_supported = true;
+         close(pidfd);
+     }
++    property_set("sys.lmk.time_difference","30");
++    property_set("sys.lmk.memlog_activationflag","1");
+     ALOGI("Process polling is %s", pidfd_supported ? "supported" : "not supported" );
+ 
+     return 0;
+@@ -3154,12 +3179,136 @@ static void call_handler(struct event_handler_info* handler_info,
+     }
+ }
+ 
++//该接口非线程安全，不支持并发调用 forecast_space提供给共用此函数读取文件的调用，自定义预估读取字节。
++static char* read_file(int& file_fd, int forecast_space = 0) {
++    static ssize_t buf_size = PAGE_SIZE; 
++    ssize_t size;
++    static char *new_buf, *buf = NULL;
++    
++    if (buf == NULL && (buf = static_cast<char*>(malloc(buf_size))) == NULL) {
++        ALOGE("open vmem temp sapce fail");
++        return NULL;
++    }   
++    while (true) {
++        size = read_all(file_fd, buf, forecast_space <= 0 ? buf_size - 1 : forecast_space - 1);
++        if (size < 0) {
++            ALOGE("Read vmemflie fail");
++            close_fd(file_fd);
++            free(buf);
++            buf = NULL;
++            return NULL;
++        }
++        // 过量使用会进行减少内存
++        if (buf_size != PAGE_SIZE && (buf_size >= MEM_LIMT * size)) {
++            free(buf);
++            new_buf = NULL;
++            buf = NULL;
++            buf_size = PAGE_SIZE;
++            if ((buf = static_cast<char*>(malloc(buf_size))) == NULL) {
++                ALOGE("open vmem temp sapce fail");
++                return NULL;
++            }
++            continue;
++        }
++        if (size < buf_size - 1) {
++            break;
++        }
++        if ((new_buf = static_cast<char*>(realloc(buf, buf_size * 2))) == NULL) {
++            ALOGE("realloc fail!");
++            return NULL;
++        }
++        buf = new_buf;
++        buf_size *= 2;
++    }
++    return buf;
++}
++
++static void get_mem_info(char* m_buf, char* m_line) {
++    // 不采用strstr,字符串匹配会带来性能损失，确定了需要的内容在 1 2 3 15 16行。直接按需读取即可
++    char *line, *rest = NULL;
++    int lineCount = 1;
++    line = strtok_r(m_buf, PARSE_LINE_BREAK, &rest);
++    while (line != NULL) {
++        if (lineCount <= 3 || lineCount == 15) {
++            snprintf(m_line + strlen(m_line), BUFFER_SIZE_256 - strlen(m_line) - 1, "%s|", line);
++        } else if (lineCount == 16) {
++            snprintf(m_line + strlen(m_line), BUFFER_SIZE_256 - strlen(m_line) - 1, "%s", line);
++            break;
++        }
++        ++lineCount;
++        line = strtok_r(NULL, PARSE_LINE_BREAK, &rest);
++    }
++}
++
++static void get_vmem_info(char* m_buf, char* m_line, const char* m_containerid) {
++    char *line, *rest = NULL;
++    line = strtok_r(m_buf, PARSE_LINE_BREAK, &rest);
++    while (line != NULL) {
++        if (strstr(line, m_containerid)) {
++            // 由于文件位数较为固定，直接读26位后的数据，提高性能
++            snprintf(m_line + strlen(m_line), BUFFER_SIZE_256 - strlen(m_line) - 1, "%s", line + 26);
++            break;
++        }
++        line = strtok_r(NULL, PARSE_LINE_BREAK, &rest);
++    }
++}
++
++static void print_meminfo(const char* m_file, const char* m_containerid = NULL) {
++    int file_fd = -1;
++    char* buf = NULL;
++    char mem_info_line[BUFFER_SIZE_256] = {0};
++
++    file_fd = open(m_file, O_RDONLY | O_CLOEXEC);
++    if (file_fd < 0) {
++        ALOGE("%s file open fail", m_file);
++    } else  {
++        buf = m_containerid == NULL ? read_file(file_fd, PAGE_SIZE) : read_file(file_fd);
++        if (buf == NULL) {
++            ALOGE("read %s file fail!", m_file);
++        } else {
++            if (m_containerid == NULL) {
++                get_mem_info(buf, mem_info_line);
++                ALOGI("MemInfo:[%s]", mem_info_line);
++            } else {
++                get_vmem_info(buf, mem_info_line, m_containerid); 
++                ALOGI("VMemInfo:[%s]", mem_info_line);
++            }
++        }
++        close_fd(file_fd);
++    }
++}
++
++static void get_containerdata(char* buf, const char* path, ssize_t bytes) {
++    //确保container文件在读取前一定生成
++    int redo_time = 5;
++    int pathFd = -1;
++    while ((pathFd = open(path, O_RDONLY | O_CLOEXEC)) < 0 && --redo_time >= 0) {
++        sleep(1);
++    }
++    if (pathFd < 0) {
++        ALOGE("%s file open fail", path);
++        return;
++    }
++    ssize_t bytesRead = read(pathFd, buf, bytes - 1);
++    if (bytesRead < 0) {
++        ALOGE("Read %s flie fail", path);
++    }
++    close_fd(pathFd);
++}
++
++
+ static void mainloop(void) {
+     struct event_handler_info* handler_info;
+     struct polling_params poll_params;
+     struct timespec curr_tm;
+     struct epoll_event *evt;
+     long delay = -1;
++    long delayEpollTime = 20000;
++    int time_difference = property_get_int32("sys.lmk.time_difference", 30);
++    char container_id[BUFFER_SIZE_13] = {0};
++
++    get_containerdata(container_id, CONTAINERID_PATH, BUFFER_SIZE_13);
++    std::time_t timeTemp = std::time(nullptr);
+ 
+     poll_params.poll_handler = NULL;
+     poll_params.paused_handler = NULL;
+@@ -3185,7 +3334,6 @@ static void mainloop(void) {
+ 
+                 /* Wait for events until the next polling timeout */
+                 nevents = epoll_wait(epollfd, events, maxevents, delay);
+-
+                 /* Update current time after wait */
+                 clock_gettime(CLOCK_MONOTONIC_COARSE, &curr_tm);
+                 poll_now = (get_time_diff_ms(&poll_params.last_poll_tm, &curr_tm) >=
+@@ -3210,8 +3358,8 @@ static void mainloop(void) {
+                     }
+                 }
+             } else {
+-                /* Wait for events with no timeout */
+-                nevents = epoll_wait(epollfd, events, maxevents, -1);
++                /* epoll事件阻塞事件修改为delayEpollTime毫秒*/
++                nevents = epoll_wait(epollfd, events, maxevents, delayEpollTime);
+             }
+         }
+ 
+@@ -3251,6 +3399,17 @@ static void mainloop(void) {
+                 call_handler(handler_info, &poll_params, evt->events);
+             }
+         }
++
++        /* 获取time_t类型开销小于property_get_int32 */
++        std::time_t timeStamp = std::time(nullptr);
++        if (timeStamp - timeTemp >= time_difference) {
++            if (property_get_int32("sys.lmk.memlog_activationflag", 1)) {
++                timeTemp = timeStamp;
++                print_meminfo(MEMINFO_PATH);
++                print_meminfo(VMEMINFO_PATH, container_id);
++                time_difference = property_get_int32("sys.lmk.time_difference", 30);
++            }
++        }
+     }
+ }
+ 

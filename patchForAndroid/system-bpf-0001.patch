@@ -1,0 +1,15 @@
+diff --git a/libbpf_android/include/bpf/BpfUtils.h b/libbpf_android/include/bpf/BpfUtils.h
+index 6814f94..d6c9199 100644
+--- a/libbpf_android/include/bpf/BpfUtils.h
++++ b/libbpf_android/include/bpf/BpfUtils.h
+@@ -169,7 +169,9 @@ std::string BpfLevelToString(BpfLevel BpfLevel);
+ BpfLevel getBpfSupportLevel();
+ 
+ inline bool isBpfSupported() {
+-    return getBpfSupportLevel() != BpfLevel::NONE;
++
++    //return getBpfSupportLevel() != BpfLevel::NONE;
++    return false;
+ }
+ 
+ #define SKIP_IF_BPF_NOT_SUPPORTED                                                    \

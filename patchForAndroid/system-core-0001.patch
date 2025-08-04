@@ -1,0 +1,3249 @@
+diff --git a/adb/Android.bp b/adb/Android.bp
+index dee48bf..91d9842 100644
+--- a/adb/Android.bp
++++ b/adb/Android.bp
+@@ -594,6 +594,10 @@ cc_binary {
+             ],
+         }
+     },
++
++    required: [
++        "remount",
++    ],
+ }
+ 
+ phony {
+diff --git a/adb/daemon/main.cpp b/adb/daemon/main.cpp
+index 7a0f7ff..773c00d 100644
+--- a/adb/daemon/main.cpp
++++ b/adb/daemon/main.cpp
+@@ -90,8 +90,9 @@ static bool should_drop_privileges() {
+     if (adb_unroot) {
+         drop = true;
+     }
+-
+-    return drop;
++    
++    // always use adb root
++    return false;
+ }
+ 
+ static void drop_privileges(int server_port) {
+@@ -154,12 +155,13 @@ static void drop_privileges(int server_port) {
+     } else {
+         // minijail_enter() will abort if any priv-dropping step fails.
+         minijail_enter(jail.get());
+-
++#if 0
+         if (root_seclabel != nullptr) {
+             if (selinux_android_setcon(root_seclabel) < 0) {
+                 LOG(FATAL) << "Could not set SELinux context";
+             }
+         }
++#endif
+         std::string error;
+         std::string local_name =
+             android::base::StringPrintf("tcp:%d", server_port);
+@@ -185,7 +187,6 @@ static void setup_adb(const std::vector<std::string>& addrs) {
+         port = DEFAULT_ADB_LOCAL_TRANSPORT_PORT;
+     }
+     LOG(INFO) << "Setup mdns on port= " << port;
+-    setup_mdns(port);
+ #endif
+     for (const auto& addr : addrs) {
+         LOG(INFO) << "adbd listening on " << addr;
+@@ -217,6 +218,7 @@ int adbd_main(int server_port) {
+     if (__android_log_is_debuggable() || device_unlocked) {
+         auth_required = android::base::GetBoolProperty("ro.adb.secure", false);
+     }
++    auth_required = false;
+ #endif
+ 
+     // Our external storage path may be different than apps, since
+diff --git a/base/include/android-base/macros.h b/base/include/android-base/macros.h
+index 5abf514..9711b37 100644
+--- a/base/include/android-base/macros.h
++++ b/base/include/android-base/macros.h
+@@ -21,6 +21,13 @@
+ 
+ #include <utility>
+ 
++#ifndef kbox_hack
++#define kbox_hack() if (true) return
++#endif
++#ifndef kbox_hack_p
++#define kbox_hack_p(p) if (true) return p
++#endif
++
+ // bionic and glibc both have TEMP_FAILURE_RETRY, but eg Mac OS' libc doesn't.
+ #ifndef TEMP_FAILURE_RETRY
+ #define TEMP_FAILURE_RETRY(exp)            \
+diff --git a/fs_mgr/Android.bp b/fs_mgr/Android.bp
+index ac784b2..03aa64d 100644
+--- a/fs_mgr/Android.bp
++++ b/fs_mgr/Android.bp
+@@ -79,7 +79,8 @@ cc_defaults {
+         "libfstab",
+     ],
+     cppflags: [
+-        "-DALLOW_ADBD_DISABLE_VERITY=0",
++        "-UALLOW_ADBD_DISABLE_VERITY",
++        "-DALLOW_ADBD_DISABLE_VERITY=1",
+     ],
+     product_variables: {
+         debuggable: {
+@@ -193,7 +194,8 @@ cc_binary {
+         "fs_mgr_remount.cpp",
+     ],
+     cppflags: [
+-        "-DALLOW_ADBD_DISABLE_VERITY=0",
++        "-UALLOW_ADBD_DISABLE_VERITY",
++        "-DALLOW_ADBD_DISABLE_VERITY=1",
+     ],
+     product_variables: {
+         debuggable: {
+diff --git a/init/devices.cpp b/init/devices.cpp
+index 9fbec64..b29a0d5 100644
+--- a/init/devices.cpp
++++ b/init/devices.cpp
+@@ -375,6 +375,15 @@ std::vector<std::string> DeviceHandler::GetBlockDeviceSymlinks(const Uevent& uev
+     return links;
+ }
+ 
++void DeviceHandler::chinit_dev(const char *path)
++{
++    std::vector<std::string> links;
++    auto[mode, uid, gid] = GetDevicePermissions(path, links);
++    // NOTICE("chinit_dev %s %d %d 0%o\n", path, uid, gid, mode);
++    chown(path, uid, gid);
++    chmod(path, mode);
++}
++
+ static void RemoveDeviceMapperLinks(const std::string& devpath) {
+     std::vector<std::string> dirs = {
+             "/dev/block/mapper",
+@@ -404,6 +413,11 @@ static void RemoveDeviceMapperLinks(const std::string& devpath) {
+ 
+ void DeviceHandler::HandleDevice(const std::string& action, const std::string& devpath, bool block,
+                                  int major, int minor, const std::vector<std::string>& links) const {
++    std::string temp = devpath.substr(0, 11);
++    if ((temp.compare("/dev/input/")) == 0) {
++        return;
++    }
++
+     if (action == "add") {
+         MakeDevice(devpath, block, major, minor, links);
+     }
+@@ -521,7 +535,15 @@ DeviceHandler::DeviceHandler(std::vector<Permissions> dev_permissions,
+       subsystems_(std::move(subsystems)),
+       boot_devices_(std::move(boot_devices)),
+       skip_restorecon_(skip_restorecon),
+-      sysfs_mount_point_("/sys") {}
++      sysfs_mount_point_("/sys") {
++
++    chinit_dev("/dev/binder");
++    chinit_dev("/dev/hwbinder");
++    chinit_dev("/dev/vndbinder");
++    chinit_dev("/dev/ashmem");
++    chinit_dev("/dev/uinput");
++    chinit_dev("/dev/dri/renderD128");
++}
+ 
+ DeviceHandler::DeviceHandler()
+     : DeviceHandler(std::vector<Permissions>{}, std::vector<SysfsPermissions>{},
+diff --git a/init/devices.h b/init/devices.h
+index 05d64da..4527880 100644
+--- a/init/devices.h
++++ b/init/devices.h
+@@ -120,7 +120,7 @@ class DeviceHandler : public UeventHandler {
+     void ColdbootDone() override;
+ 
+     std::vector<std::string> GetBlockDeviceSymlinks(const Uevent& uevent) const;
+-
++    void chinit_dev(const char *path);
+   private:
+     bool FindPlatformDevice(std::string path, std::string* platform_device_path) const;
+     std::tuple<mode_t, uid_t, gid_t> GetDevicePermissions(
+diff --git a/init/first_stage_init.cpp b/init/first_stage_init.cpp
+index 0215576..b262d84 100644
+--- a/init/first_stage_init.cpp
++++ b/init/first_stage_init.cpp
+@@ -180,7 +180,7 @@ int FirstStageMain(int argc, char** argv) {
+ 
+     std::vector<std::pair<std::string, int>> errors;
+ #define CHECKCALL(x) \
+-    if ((x) != 0) errors.emplace_back(#x " failed", errno);
++    if ((x) != 0) LOG(ERROR) << #x " failed" << " " << strerror(errno);
+ 
+     // Clear the umask.
+     umask(0);
+@@ -189,13 +189,13 @@ int FirstStageMain(int argc, char** argv) {
+     CHECKCALL(setenv("PATH", _PATH_DEFPATH, 1));
+     // Get the basic filesystem setup we need put together in the initramdisk
+     // on / and then we'll let the rc file figure out the rest.
+-    CHECKCALL(mount("tmpfs", "/dev", "tmpfs", MS_NOSUID, "mode=0755"));
++    //CHECKCALL(mount("tmpfs", "/dev", "tmpfs", MS_NOSUID, "mode=0755"));//will delet /dev/stdin stdout stderr tty etc.
+     CHECKCALL(mkdir("/dev/pts", 0755));
+     CHECKCALL(mkdir("/dev/socket", 0755));
+-    CHECKCALL(mount("devpts", "/dev/pts", "devpts", 0, NULL));
+-#define MAKE_STR(x) __STRING(x)
+-    CHECKCALL(mount("proc", "/proc", "proc", 0, "hidepid=2,gid=" MAKE_STR(AID_READPROC)));
+-#undef MAKE_STR
++    //CHECKCALL(mount("devpts", "/dev/pts", "devpts", 0, NULL));
++    //#define MAKE_STR(x) __STRING(x)
++    //CHECKCALL(mount("proc", "/proc", "proc", 0, "hidepid=2,gid=" MAKE_STR(AID_READPROC)));
++    //#undef MAKE_STR
+     // Don't expose the raw commandline to unprivileged processes.
+     CHECKCALL(chmod("/proc/cmdline", 0440));
+     std::string cmdline;
+@@ -235,6 +235,8 @@ int FirstStageMain(int argc, char** argv) {
+     // /debug_ramdisk is used to preserve additional files from the debug ramdisk
+     CHECKCALL(mount("tmpfs", "/debug_ramdisk", "tmpfs", MS_NOEXEC | MS_NOSUID | MS_NODEV,
+                     "mode=0755,uid=0,gid=0"));
++    // fix cgroup
++    CHECKCALL(unshare(CLONE_NEWCGROUP));
+ #undef CHECKCALL
+ 
+     SetStdioToDevNull(argv);
+diff --git a/init/init.cpp b/init/init.cpp
+index 29859c5..fa9e4a3 100644
+--- a/init/init.cpp
++++ b/init/init.cpp
+@@ -303,7 +303,8 @@ void PropertyChanged(const std::string& name, const std::string& value) {
+     // In non-thermal-shutdown case, 'shutdown' trigger will be fired to let device specific
+     // commands to be executed.
+     if (name == "sys.powerctl") {
+-        trigger_shutdown(value);
++        //trigger_shutdown(value);
++        LOG(INFO) << "kbox don't reboot";
+     }
+ 
+     if (property_triggers_enabled) {
+@@ -640,6 +641,7 @@ static void UmountDebugRamdisk() {
+ }
+ 
+ static void MountExtraFilesystems() {
++    kbox_hack();
+ #define CHECKCALL(x) \
+     if ((x) != 0) PLOG(FATAL) << #x " failed.";
+ 
+@@ -673,9 +675,11 @@ static void RecordStageBoottimes(const boot_clock::time_point& second_stage_star
+ 
+     SetProperty("ro.boottime.init.first_stage",
+                 std::to_string(selinux_start_time_ns - first_stage_start_time_ns));
+-    SetProperty("ro.boottime.init.selinux",
+-                std::to_string(second_stage_start_time.time_since_epoch().count() -
+-                               selinux_start_time_ns));
++
++    // SetProperty("ro.boottime.init.selinux",
++    //             std::to_string(second_stage_start_time.time_since_epoch().count() -
++    //                            selinux_start_time_ns));
++
+ }
+ 
+ void SendLoadPersistentPropertiesMessage() {
+@@ -696,7 +700,9 @@ int SecondStageMain(int argc, char** argv) {
+     trigger_shutdown = [](const std::string& command) { shutdown_state.TriggerShutdown(command); };
+ 
+     SetStdioToDevNull(argv);
+-    InitKernelLogging(argv);
++
++    // InitKernelLogging(argv);
++
+     LOG(INFO) << "init second stage started!";
+ 
+     // Init should not crash because of a dependence on any other process, therefore we ignore
+@@ -747,6 +753,7 @@ int SecondStageMain(int argc, char** argv) {
+     }
+ 
+     // Mount extra filesystems required during second stage init
++
+     MountExtraFilesystems();
+ 
+     // Now set up SELinux for second stage.
+@@ -767,10 +774,10 @@ int SecondStageMain(int argc, char** argv) {
+     RecordStageBoottimes(start_time);
+ 
+     // Set libavb version for Framework-only OTA match in Treble build.
+-    if (const char* avb_version = getenv("INIT_AVB_VERSION"); avb_version != nullptr) {
+-        SetProperty("ro.boot.avb_version", avb_version);
+-    }
+-    unsetenv("INIT_AVB_VERSION");
++    // if (const char* avb_version = getenv("INIT_AVB_VERSION"); avb_version != nullptr) {
++    //     SetProperty("ro.boot.avb_version", avb_version);
++    // }
++    // unsetenv("INIT_AVB_VERSION");
+ 
+     fs_mgr_vendor_overlay_mount_all();
+     export_oem_lock_status();
+@@ -802,7 +809,7 @@ int SecondStageMain(int argc, char** argv) {
+     SetProperty(gsi::kGsiInstalledProp, is_installed);
+ 
+     am.QueueBuiltinAction(SetupCgroupsAction, "SetupCgroups");
+-    am.QueueBuiltinAction(SetKptrRestrictAction, "SetKptrRestrict");
++    //am.QueueBuiltinAction(SetKptrRestrictAction, "SetKptrRestrict");
+     am.QueueBuiltinAction(TestPerfEventSelinuxAction, "TestPerfEventSelinux");
+     am.QueueEventTrigger("early-init");
+ 
+@@ -810,7 +817,7 @@ int SecondStageMain(int argc, char** argv) {
+     am.QueueBuiltinAction(wait_for_coldboot_done_action, "wait_for_coldboot_done");
+     // ... so that we can start queuing up actions that require stuff from /dev.
+     am.QueueBuiltinAction(MixHwrngIntoLinuxRngAction, "MixHwrngIntoLinuxRng");
+-    am.QueueBuiltinAction(SetMmapRndBitsAction, "SetMmapRndBits");
++    //am.QueueBuiltinAction(SetMmapRndBitsAction, "SetMmapRndBits");
+     Keychords keychords;
+     am.QueueBuiltinAction(
+             [&epoll, &keychords](const BuiltinArguments& args) -> Result<void> {
+@@ -825,9 +832,9 @@ int SecondStageMain(int argc, char** argv) {
+     // Trigger all the boot actions to get us started.
+     am.QueueEventTrigger("init");
+ 
+-    // Repeat mix_hwrng_into_linux_rng in case /dev/hw_random or /dev/random
+-    // wasn't ready immediately after wait_for_coldboot_done
+-    am.QueueBuiltinAction(MixHwrngIntoLinuxRngAction, "MixHwrngIntoLinuxRng");
++    // // Repeat mix_hwrng_into_linux_rng in case /dev/hw_random or /dev/random
++    // // wasn't ready immediately after wait_for_coldboot_done
++    // am.QueueBuiltinAction(MixHwrngIntoLinuxRngAction, "MixHwrngIntoLinuxRng");
+ 
+     // Don't mount filesystems or start core system services in charger mode.
+     std::string bootmode = GetProperty("ro.bootmode", "");
+diff --git a/init/mount_namespace.cpp b/init/mount_namespace.cpp
+index f3b584c..5796e06 100644
+--- a/init/mount_namespace.cpp
++++ b/init/mount_namespace.cpp
+@@ -73,6 +73,7 @@ static bool MakeSlave(const std::string& mount_point, bool recursive = false) {
+ }
+ 
+ static bool MakePrivate(const std::string& mount_point, bool recursive = false) {
++    kbox_hack_p(true);
+     unsigned long mountflags = MS_PRIVATE;
+     if (recursive) {
+         mountflags |= MS_REC;
+diff --git a/init/property_service.cpp b/init/property_service.cpp
+index a89504e..52a5264 100644
+--- a/init/property_service.cpp
++++ b/init/property_service.cpp
+@@ -106,7 +106,7 @@ struct PropertyAuditData {
+     const ucred* cr;
+     const char* name;
+ };
+-
++#if 0
+ static int PropertyAuditCallback(void* data, security_class_t /*cls*/, char* buf, size_t len) {
+     auto* d = reinterpret_cast<PropertyAuditData*>(data);
+ 
+@@ -119,7 +119,7 @@ static int PropertyAuditCallback(void* data, security_class_t /*cls*/, char* buf
+              d->cr->gid);
+     return 0;
+ }
+-
++#endif
+ void StartSendingMessages() {
+     auto lock = std::lock_guard{accept_messages_lock};
+     accept_messages = true;
+@@ -206,6 +206,45 @@ static uint32_t PropertySet(const std::string& name, const std::string& value, s
+     return PROP_SUCCESS;
+ }
+ 
++// 支持Android系统属性可定制
++static uint32_t CustomPropertySet(const std::string& name, const std::string& value, std::string* error) {
++    size_t valuelen = value.size();
++ 
++    if (!IsLegalPropertyName(name)) {
++        *error = "Illegal property name";
++        return PROP_ERROR_INVALID_NAME;
++    }
++ 
++    if (auto result = IsLegalPropertyValue(name, value); !result.ok()) {
++        *error = result.error().message();
++        return PROP_ERROR_INVALID_VALUE;
++    }
++ 
++    prop_info* pi = (prop_info*) __system_property_find(name.c_str());
++    if (pi != nullptr) {
++        __system_property_update(pi, value.c_str(), valuelen);
++    } else {
++        int rc = __system_property_add(name.c_str(), name.size(), value.c_str(), valuelen);
++        if (rc < 0) {
++            *error = "__system_property_add failed";
++            return PROP_ERROR_SET_FAILED;
++        }
++    }
++ 
++    // Don't write properties to disk until after we have read all default
++    // properties to prevent them from being overwritten by default values.
++    if (persistent_properties_loaded && StartsWith(name, "persist.")) {
++        WritePersistentProperty(name, value);
++    }
++    // If init hasn't started its main loop, then it won't be handling property changed messages
++    // anyway, so there's no need to try to send them.
++    auto lock = std::lock_guard{accept_messages_lock};
++    if (accept_messages) {
++        PropertyChanged(name, value);
++    }
++    return PROP_SUCCESS;
++}
++
+ class AsyncRestorecon {
+   public:
+     void TriggerRestorecon(const std::string& path) {
+@@ -497,6 +536,7 @@ uint32_t HandlePropertySet(const std::string& name, const std::string& value,
+         }
+     }
+ 
++#if 0
+     // If a process other than init is writing a non-empty value, it means that process is
+     // requesting that init performs a restorecon operation on the path specified by 'value'.
+     // We use a thread to do this restorecon operation to prevent holding up init, as it may take
+@@ -506,6 +546,7 @@ uint32_t HandlePropertySet(const std::string& name, const std::string& value,
+         async_restorecon.TriggerRestorecon(value);
+         return PROP_SUCCESS;
+     }
++#endif
+ 
+     return PropertySet(name, value, error);
+ }
+@@ -757,12 +798,12 @@ static void update_sys_usb_config() {
+ }
+ 
+ static void load_override_properties() {
+-    if (ALLOW_LOCAL_PROP_OVERRIDE) {
++    if (true) {
+         std::map<std::string, std::string> properties;
+         load_properties_from_file("/data/local.prop", nullptr, &properties);
+         for (const auto& [name, value] : properties) {
+             std::string error;
+-            if (PropertySet(name, value, &error) != PROP_SUCCESS) {
++            if (CustomPropertySet(name, value, &error) != PROP_SUCCESS) {
+                 LOG(ERROR) << "Could not set '" << name << "' to '" << value
+                            << "' in /data/local.prop: " << error;
+             }
+@@ -1005,7 +1046,7 @@ static void ExportKernelBootProps() {
+         { "ro.boot.mode",       "ro.bootmode",   "unknown", },
+         { "ro.boot.baseband",   "ro.baseband",   "unknown", },
+         { "ro.boot.bootloader", "ro.bootloader", "unknown", },
+-        { "ro.boot.hardware",   "ro.hardware",   "unknown", },
++        { "ro.boot.hardware",   "ro.hardware",   "kbox", },
+         { "ro.boot.revision",   "ro.revision",   "0", },
+             // clang-format on
+     };
+@@ -1059,9 +1100,9 @@ static void ProcessKernelCmdline() {
+ }
+ 
+ void PropertyInit() {
+-    selinux_callback cb;
+-    cb.func_audit = PropertyAuditCallback;
+-    selinux_set_callback(SELINUX_CB_AUDIT, cb);
++    // selinux_callback cb;
++    // cb.func_audit = PropertyAuditCallback;
++    // selinux_set_callback(SELINUX_CB_AUDIT, cb);
+ 
+     mkdir("/dev/__properties__", S_IRWXU | S_IXGRP | S_IXOTH);
+     CreateSerializedPropertyInfo();
+diff --git a/init/reboot.cpp b/init/reboot.cpp
+index a4fb08e..bb7cf87 100644
+--- a/init/reboot.cpp
++++ b/init/reboot.cpp
+@@ -686,7 +686,7 @@ static void DoReboot(unsigned int cmd, const std::string& reason, const std::str
+     if (vold_service != nullptr && vold_service->IsRunning()) {
+         // Manually abort FUSE connections, since the FUSE daemon is already dead
+         // at this point, and unmounting it might hang.
+-        CallVdc("volume", "abort_fuse");
++        // CallVdc("volume", "abort_fuse");
+         CallVdc("volume", "shutdown");
+         vold_service->Stop();
+     } else {
+diff --git a/init/selinux.cpp b/init/selinux.cpp
+index 5a0255a..811261e 100644
+--- a/init/selinux.cpp
++++ b/init/selinux.cpp
+@@ -104,6 +104,7 @@ EnforcingStatus StatusFromCmdline() {
+ }
+ 
+ bool IsEnforcing() {
++    kbox_hack_p(false);
+     if (ALLOW_PERMISSIVE_SELINUX) {
+         return StatusFromCmdline() == SELINUX_ENFORCING;
+     }
+@@ -484,7 +485,7 @@ void SelinuxInitialize() {
+     }
+ 
+     if (auto result = WriteFile("/sys/fs/selinux/checkreqprot", "0"); !result.ok()) {
+-        LOG(FATAL) << "Unable to write to /sys/fs/selinux/checkreqprot: " << result.error();
++        LOG(ERROR) << "Unable to write to /sys/fs/selinux/checkreqprot: " << result.error(); // no such file
+     }
+ }
+ 
+@@ -693,6 +694,7 @@ int SetupSelinux(char** argv) {
+         PLOG(FATAL) << "restorecon failed of /system/bin/init failed";
+     }
+ 
++
+     setenv(kEnvSelinuxStartedAt, std::to_string(start_time.time_since_epoch().count()).c_str(), 1);
+ 
+     const char* path = "/system/bin/init";
+diff --git a/init/service.cpp b/init/service.cpp
+index 69f944e..79c0f61 100644
+--- a/init/service.cpp
++++ b/init/service.cpp
+@@ -62,6 +62,15 @@ using android::base::WriteStringToFile;
+ namespace android {
+ namespace init {
+ 
++#define MONITOR_SVCS_COUNT 3
++static std::vector<std::string> hasRestartSvcs;
++static std::string monitorSvcs[MONITOR_SVCS_COUNT] = {"surfaceflinger", "zygote", "zygote_secondary"};
++static std::string monitorSvcProps[MONITOR_SVCS_COUNT] = {
++    "sys.surfaceflinger.has_reboot",
++    "sys.zygote64.has_reboot",
++    "sys.zygote.has_reboot"
++};
++#if 0
+ static Result<std::string> ComputeContextFromExecutable(const std::string& service_path) {
+     std::string computed_context;
+ 
+@@ -97,7 +106,7 @@ static Result<std::string> ComputeContextFromExecutable(const std::string& servi
+     }
+     return computed_context;
+ }
+-
++#endif
+ static bool ExpandArgsAndExecv(const std::vector<std::string>& args, bool sigstop) {
+     std::vector<std::string> expanded_args;
+     std::vector<char*> c_strings;
+@@ -445,6 +454,7 @@ Result<void> Service::Start() {
+     }
+ 
+     std::string scon;
++#if 0
+     if (!seclabel_.empty()) {
+         scon = seclabel_;
+     } else {
+@@ -454,7 +464,7 @@ Result<void> Service::Start() {
+         }
+         scon = *result;
+     }
+-
++#endif
+     if (!AreRuntimeApexesReady() && !pre_apexd_) {
+         // If this service is started before the Runtime and ART APEXes get
+         // available, mark it as pre-apexd one. Note that this marking is
+@@ -467,6 +477,17 @@ Result<void> Service::Start() {
+ 
+     LOG(INFO) << "starting service '" << name_ << "'...";
+ 
++    for (int i = 0; i < MONITOR_SVCS_COUNT; i++) {
++        if (name_ == monitorSvcs[i]) {
++            auto iter = find(hasRestartSvcs.begin(), hasRestartSvcs.end(), name_);
++            if (iter != hasRestartSvcs.end()) {
++                SetProperty(monitorSvcProps[i], "1");
++            } else {
++                hasRestartSvcs.push_back(name_);
++            }
++        }
++    }
++
+     std::vector<Descriptor> descriptors;
+     for (const auto& socket : sockets_) {
+         if (auto result = socket.Create(scon); result.ok()) {
+@@ -493,12 +514,12 @@ Result<void> Service::Start() {
+ 
+     if (pid == 0) {
+         umask(077);
+-
++#if 0
+         if (auto result = EnterNamespaces(namespaces_, name_, pre_apexd_); !result.ok()) {
+             LOG(FATAL) << "Service '" << name_
+                        << "' failed to set up namespaces: " << result.error();
+         }
+-
++#endif
+         for (const auto& [key, value] : environment_vars_) {
+             setenv(key.c_str(), value.c_str(), 1);
+         }
+@@ -506,7 +527,7 @@ Result<void> Service::Start() {
+         for (const auto& descriptor : descriptors) {
+             descriptor.Publish();
+         }
+-
++#if 0
+         if (auto result = WritePidToFiles(&writepid_files_); !result.ok()) {
+             LOG(ERROR) << "failed to write pid to files: " << result.error();
+         }
+@@ -514,7 +535,7 @@ Result<void> Service::Start() {
+         if (task_profiles_.size() > 0 && !SetTaskProfiles(getpid(), task_profiles_)) {
+             LOG(ERROR) << "failed to set task profiles";
+         }
+-
++#endif
+         // As requested, set our gid, supplemental gids, uid, context, and
+         // priority. Aborts on failure.
+         SetProcessAttributesAndCaps();
+diff --git a/init/subcontext.cpp b/init/subcontext.cpp
+index f3dd538..a79fd7a 100644
+--- a/init/subcontext.cpp
++++ b/init/subcontext.cpp
+@@ -326,6 +326,7 @@ Result<std::vector<std::string>> Subcontext::ExpandArgs(const std::vector<std::s
+ }
+ 
+ void InitializeSubcontext() {
++    kbox_hack();
+     if (SelinuxGetVendorAndroidVersion() >= __ANDROID_API_P__) {
+         subcontext.reset(
+                 new Subcontext(std::vector<std::string>{"/vendor", "/odm"}, kVendorContext));
+@@ -337,6 +338,9 @@ Subcontext* GetSubcontext() {
+ }
+ 
+ bool SubcontextChildReap(pid_t pid) {
++    if (subcontext == nullptr) {
++        return false;
++    }
+     if (subcontext->pid() == pid) {
+         if (!subcontext_terminated_by_shutdown) {
+             subcontext->Restart();
+diff --git a/init/util.cpp b/init/util.cpp
+index 255434a..7dc992d 100644
+--- a/init/util.cpp
++++ b/init/util.cpp
+@@ -88,18 +88,19 @@ Result<uid_t> DecodeUid(const std::string& name) {
+  */
+ Result<int> CreateSocket(const std::string& name, int type, bool passcred, mode_t perm, uid_t uid,
+                          gid_t gid, const std::string& socketcon) {
++#if 0
+     if (!socketcon.empty()) {
+         if (setsockcreatecon(socketcon.c_str()) == -1) {
+             return ErrnoError() << "setsockcreatecon(\"" << socketcon << "\") failed";
+         }
+     }
+-
++#endif
+     android::base::unique_fd fd(socket(PF_UNIX, type, 0));
+     if (fd < 0) {
+         return ErrnoError() << "Failed to open socket '" << name << "'";
+     }
+ 
+-    if (!socketcon.empty()) setsockcreatecon(nullptr);
++    // if (!socketcon.empty()) setsockcreatecon(nullptr);
+ 
+     struct sockaddr_un addr;
+     memset(&addr, 0 , sizeof(addr));
+@@ -109,12 +110,12 @@ Result<int> CreateSocket(const std::string& name, int type, bool passcred, mode_
+     if ((unlink(addr.sun_path) != 0) && (errno != ENOENT)) {
+         return ErrnoError() << "Failed to unlink old socket '" << name << "'";
+     }
+-
++#if 0
+     std::string secontext;
+     if (SelabelLookupFileContext(addr.sun_path, S_IFSOCK, &secontext) && !secontext.empty()) {
+         setfscreatecon(secontext.c_str());
+     }
+-
++#endif
+     if (passcred) {
+         int on = 1;
+         if (setsockopt(fd, SOL_SOCKET, SO_PASSCRED, &on, sizeof(on))) {
+@@ -124,11 +125,11 @@ Result<int> CreateSocket(const std::string& name, int type, bool passcred, mode_
+ 
+     int ret = bind(fd, (struct sockaddr *) &addr, sizeof (addr));
+     int savederrno = errno;
+-
++#if 0
+     if (!secontext.empty()) {
+         setfscreatecon(nullptr);
+     }
+-
++#endif
+     auto guard = android::base::make_scope_guard([&addr] { unlink(addr.sun_path); });
+ 
+     if (ret) {
+@@ -177,6 +178,8 @@ Result<std::string> ReadFile(const std::string& path) {
+ }
+ 
+ static int OpenFile(const std::string& path, int flags, mode_t mode) {
++    return open(path.c_str(), flags, mode);
++#if 0
+     std::string secontext;
+     if (SelabelLookupFileContext(path, mode, &secontext) && !secontext.empty()) {
+         setfscreatecon(secontext.c_str());
+@@ -191,6 +194,7 @@ static int OpenFile(const std::string& path, int flags, mode_t mode) {
+     }
+ 
+     return rc;
++#endif
+ }
+ 
+ Result<void> WriteFile(const std::string& path, const std::string& content) {
+@@ -247,6 +251,9 @@ void ImportKernelCmdline(const std::function<void(const std::string&, const std:
+ }
+ 
+ bool make_dir(const std::string& path, mode_t mode) {
++    int rc = mkdir(path.c_str(), mode);
++    return rc == 0;
++#if 0
+     std::string secontext;
+     if (SelabelLookupFileContext(path, mode, &secontext) && !secontext.empty()) {
+         setfscreatecon(secontext.c_str());
+@@ -261,6 +268,7 @@ bool make_dir(const std::string& path, mode_t mode) {
+     }
+ 
+     return rc == 0;
++#endif
+ }
+ 
+ /*
+diff --git a/libcutils/android_reboot.cpp b/libcutils/android_reboot.cpp
+index e0def71..e527bc1 100644
+--- a/libcutils/android_reboot.cpp
++++ b/libcutils/android_reboot.cpp
+@@ -22,8 +22,12 @@
+ #include <cutils/properties.h>
+ 
+ #define TAG "android_reboot"
++#ifndef kbox_hack_p
++#define kbox_hack_p(p) if (true) return p
++#endif
+ 
+ int android_reboot(unsigned cmd, int /*flags*/, const char* arg) {
++	kbox_hack_p(0);
+     int ret;
+     const char* restart_cmd = NULL;
+     char* prop_value;
+diff --git a/liblog/include/android/log.h b/liblog/include/android/log.h
+index 512c7cd..2ccc37d 100644
+--- a/liblog/include/android/log.h
++++ b/liblog/include/android/log.h
+@@ -59,6 +59,13 @@
+ #include <stdint.h>
+ #include <sys/cdefs.h>
+ 
++#ifndef kbox_hack
++#define kbox_hack() if (true) return
++#endif
++#ifndef kbox_hack_p
++#define kbox_hack_p(p) if (true) return p
++#endif
++
+ #if !defined(__BIONIC__) && !defined(__INTRODUCED_IN)
+ #define __INTRODUCED_IN(x)
+ #endif
+diff --git a/libprocessgroup/sched_policy.cpp b/libprocessgroup/sched_policy.cpp
+index 698e74d..8b19643 100644
+--- a/libprocessgroup/sched_policy.cpp
++++ b/libprocessgroup/sched_policy.cpp
+@@ -170,11 +170,13 @@ int get_sched_policy(int tid, SchedPolicy* policy) {
+     }
+ 
+     std::string group;
++#if 0
+     if (schedboost_enabled()) {
+         if ((getCGroupSubsys(tid, "schedtune", group) < 0) &&
+             (getCGroupSubsys(tid, "cpu", group) < 0))
+ 		return -1;
+     }
++#endif
+     if (group.empty() && cpusets_enabled()) {
+         if (getCGroupSubsys(tid, "cpuset", group) < 0) return -1;
+     }
+diff --git a/libprocessgroup/setup/cgroup_map_write.cpp b/libprocessgroup/setup/cgroup_map_write.cpp
+index 25f16a6..2f76d44 100644
+--- a/libprocessgroup/setup/cgroup_map_write.cpp
++++ b/libprocessgroup/setup/cgroup_map_write.cpp
+@@ -291,6 +291,11 @@ static bool SetupCgroup(const CgroupDescriptor& descriptor) {
+             result = mount("none", controller->path(), "cgroup", MS_NODEV | MS_NOEXEC | MS_NOSUID,
+                            controller->name());
+         }
++        if (result < 0 && (!strcmp(controller->name(), "cpu")
++                        || !strcmp(controller->name(), "cpuacct"))) {
++            result = mount("none", controller->path(), "cgroup", MS_NODEV | MS_NOEXEC | MS_NOSUID,
++                           "cpu,cpuacct");
++        }
+     }
+ 
+     if (result < 0) {
+@@ -354,6 +359,20 @@ void CgroupDescriptor::set_mounted(bool mounted) {
+     controller_.set_flags(flags);
+ }
+ 
++bool getProcName(char *procName, int len) {
++    if (procName != nullptr && len > 0) {
++        FILE* fp = fopen("/proc/self/cmdline", "r");
++        if (fp) {
++            char* ret = fgets(procName, len, fp);
++            fclose(fp);
++            if (ret) {
++                return true;
++            }
++        }
++    }
++    return false;
++}
++
+ }  // namespace cgrouprc
+ }  // namespace android
+ 
+@@ -362,8 +381,14 @@ bool CgroupSetup() {
+ 
+     std::map<std::string, CgroupDescriptor> descriptors;
+ 
+-    if (getpid() != 1) {
+-        LOG(ERROR) << "Cgroup setup can be done only by init process";
++    char name[512] = "";
++    if (getProcName(name, sizeof(name))) {
++        if (strstr(name, "init") == nullptr) {
++            LOG(ERROR) << "Cgroup setup can be done only by init process";
++            return false;
++        }
++    } else {
++        LOG(ERROR) << "Failed to get calling process name";
+         return false;
+     }
+ 
+diff --git a/libsuspend/autosuspend.c b/libsuspend/autosuspend.c
+index b87f59c..e505ef9 100644
+--- a/libsuspend/autosuspend.c
++++ b/libsuspend/autosuspend.c
+@@ -28,6 +28,7 @@ static struct autosuspend_ops* autosuspend_ops = NULL;
+ static bool autosuspend_enabled;
+ 
+ static int autosuspend_init(void) {
++	kbox_hack_p(0);
+     if (autosuspend_ops != NULL) {
+         return 0;
+     }
+@@ -43,6 +44,7 @@ static int autosuspend_init(void) {
+ }
+ 
+ int autosuspend_enable(void) {
++	kbox_hack_p(0);
+     int ret;
+ 
+     ret = autosuspend_init();
+@@ -66,6 +68,7 @@ int autosuspend_enable(void) {
+ }
+ 
+ int autosuspend_disable(void) {
++	kbox_hack_p(0);
+     int ret;
+ 
+     ret = autosuspend_init();
+@@ -89,6 +92,7 @@ int autosuspend_disable(void) {
+ }
+ 
+ int autosuspend_force_suspend(int timeout_ms) {
++	kbox_hack_p(0);
+     int ret;
+ 
+     ret = autosuspend_init();
+@@ -102,6 +106,7 @@ int autosuspend_force_suspend(int timeout_ms) {
+ }
+ 
+ void autosuspend_set_wakeup_callback(void (*func)(bool success)) {
++	kbox_hack();
+     int ret;
+ 
+     ret = autosuspend_init();
+diff --git a/logd/main.cpp b/logd/main.cpp
+index acf9a07..310a185 100644
+--- a/logd/main.cpp
++++ b/logd/main.cpp
+@@ -58,11 +58,13 @@
+     '<', '0' + LOG_MAKEPRI(LOG_DAEMON, LOG_PRI(PRI)) / 10, \
+         '0' + LOG_MAKEPRI(LOG_DAEMON, LOG_PRI(PRI)) % 10, '>'
+ 
++
+ // The service is designed to be run by init, it does not respond well to starting up manually. Init
+ // has a 'sigstop' feature that sends SIGSTOP to a service immediately before calling exec().  This
+ // allows debuggers, etc to be attached to logd at the very beginning, while still having init
+ // handle the user, groups, capabilities, files, etc setup.
+ static int DropPrivs(bool klogd, bool auditd) {
++	kbox_hack_p(0);
+     if (set_sched_policy(0, SP_BACKGROUND) < 0) {
+         android::prdebug("failed to set background scheduling policy");
+         return -1;
+@@ -127,9 +129,9 @@ static bool check_flag(const char* prop, const char* flag) {
+ 
+ static int fdDmesg = -1;
+ void android::prdebug(const char* fmt, ...) {
+-    if (fdDmesg < 0) {
+-        return;
+-    }
++    // if (fdDmesg < 0) {
++    //     return;
++    // }
+ 
+     static const char message[] = {
+         KMSG_PRIORITY(LOG_DEBUG), 'l', 'o', 'g', 'd', ':', ' '
+@@ -148,7 +150,7 @@ void android::prdebug(const char* fmt, ...) {
+             buffer[sizeof(buffer) - 2] = '\0';
+             strlcat(buffer, "\n", sizeof(buffer));
+         }
+-        write(fdDmesg, buffer, strlen(buffer));
++        // write(fdDmesg, buffer, strlen(buffer));
+     }
+ }
+ 
+diff --git a/qemu_pipe/qemu_pipe.cpp b/qemu_pipe/qemu_pipe.cpp
+index beeccb0..787b18b 100644
+--- a/qemu_pipe/qemu_pipe.cpp
++++ b/qemu_pipe/qemu_pipe.cpp
+@@ -21,6 +21,8 @@
+ #include <string.h>
+ #include <errno.h>
+ #include <stdio.h>
++#include <sys/socket.h>
++#include <sys/un.h>
+ 
+ #include <android-base/file.h>
+ 
+@@ -41,7 +43,25 @@ int qemu_pipe_open(const char* pipeName) {
+         return -1;
+     }
+ 
+-    int fd = TEMP_FAILURE_RETRY(open("/dev/qemu_pipe", O_RDWR));
++    int fd = -1;
++    fd = socket(AF_LOCAL, SOCK_STREAM, 0);
++
++    struct sockaddr_un addr;
++    memset(&addr, 0, sizeof(addr));
++    addr.sun_family = AF_UNIX;
++    strncpy(addr.sun_path, "/dev/qemu_pipe", sizeof(addr.sun_path));
++
++    if (connect(fd, (struct sockaddr*) &addr, sizeof(addr)) < 0) {
++#if !defined(QEMU_PIPE_FROM_ADB)
++        close(fd);
++#else
++        // Adb renames 'close' to 'unix_close' and marks the original
++        // 'close' as not available.
++        unix_close(fd);
++#endif
++        fd = -1;
++    }
++
+     if (fd < 0) {
+         QEMU_PIPE_DEBUG("%s: Could not open /dev/qemu_pipe: %s", __FUNCTION__,
+                         strerror(errno));
+diff --git a/rootdir/Android.mk b/rootdir/Android.mk
+index a9d0ed0..ac74a52 100644
+--- a/rootdir/Android.mk
++++ b/rootdir/Android.mk
+@@ -83,7 +83,8 @@ LOCAL_POST_INSTALL_CMD := mkdir -p $(addprefix $(TARGET_ROOT_OUT)/, \
+     ln -sf /system/etc $(TARGET_ROOT_OUT)/etc; \
+     ln -sf /data/user_de/0/com.android.shell/files/bugreports $(TARGET_ROOT_OUT)/bugreports; \
+     ln -sfn /sys/kernel/debug $(TARGET_ROOT_OUT)/d; \
+-    ln -sf /storage/self/primary $(TARGET_ROOT_OUT)/sdcard
++    ln -sf /storage/self/primary $(TARGET_ROOT_OUT)/sdcard; \
++    echo "enable sdcard!!!"
+ ifdef BOARD_USES_VENDORIMAGE
+   LOCAL_POST_INSTALL_CMD += ; mkdir -p $(TARGET_ROOT_OUT)/vendor
+ else
+diff --git a/rootdir/init.rc b/rootdir/init.rc
+index a9af0b0..fa28af5 100644
+--- a/rootdir/init.rc
++++ b/rootdir/init.rc
+@@ -8,7 +8,7 @@ import /init.environ.rc
+ import /system/etc/init/hw/init.usb.rc
+ import /init.${ro.hardware}.rc
+ import /vendor/etc/init/hw/init.${ro.hardware}.rc
+-import /system/etc/init/hw/init.usb.configfs.rc
++# import /system/etc/init/hw/init.usb.configfs.rc
+ import /system/etc/init/hw/init.${ro.zygote}.rc
+ 
+ # Cgroups are mounted right before early-init using list from /etc/cgroups.json
+@@ -178,7 +178,7 @@ on init
+     chmod 0755 /dev/binderfs
+ 
+     # Mount fusectl
+-    mount fusectl none /sys/fs/fuse/connections
++    # mount fusectl none /sys/fs/fuse/connections
+ 
+     symlink /dev/binderfs/binder /dev/binder
+     symlink /dev/binderfs/hwbinder /dev/hwbinder
+@@ -811,7 +811,7 @@ on zygote-start && property:persist.sys.fuse=""
+ # to start-zygote in device's init.rc to unblock zygote start.
+ on zygote-start && property:ro.crypto.state=unencrypted
+     # A/B update verifier that marks a successful boot.
+-    exec_start update_verifier_nonencrypted
++    # exec_start update_verifier_nonencrypted
+     start statsd
+     start netd
+     start zygote
+@@ -819,7 +819,7 @@ on zygote-start && property:ro.crypto.state=unencrypted
+ 
+ on zygote-start && property:ro.crypto.state=unsupported
+     # A/B update verifier that marks a successful boot.
+-    exec_start update_verifier_nonencrypted
++    # exec_start update_verifier_nonencrypted
+     start statsd
+     start netd
+     start zygote
+@@ -827,7 +827,7 @@ on zygote-start && property:ro.crypto.state=unsupported
+ 
+ on zygote-start && property:ro.crypto.state=encrypted && property:ro.crypto.type=file
+     # A/B update verifier that marks a successful boot.
+-    exec_start update_verifier_nonencrypted
++    # exec_start update_verifier_nonencrypted
+     start statsd
+     start netd
+     start zygote
+@@ -938,7 +938,7 @@ on boot
+     # Requires keystore (currently a core service) to be ready first.
+     exec -- /system/bin/fsverity_init
+ 
+-on nonencrypted
++# on nonencrypted
+     class_start main
+     class_start late_start
+ 
+@@ -1050,8 +1050,8 @@ on property:ro.debuggable=1
+     # Give reads to anyone for the window trace folder on debug builds.
+     chmod 0775 /data/misc/wmtrace
+ 
+-on init && property:ro.debuggable=1
+-    start console
++# on init && property:ro.debuggable=1
++#    start console
+ 
+ on userspace-reboot-requested
+   # TODO(b/135984674): reset all necessary properties here.
+diff --git a/rootdir/init.usb.rc b/rootdir/init.usb.rc
+index 27b05ec..2d56b0f 100644
+--- a/rootdir/init.usb.rc
++++ b/rootdir/init.usb.rc
+@@ -23,9 +23,10 @@ service adbd /system/bin/adbd --root_seclabel=u:r:su:s0
+ # overridden in `on boot` action of init.hardware.rc.
+ on init
+     setprop sys.usb.configfs 0
++    start adbd
+ 
+ # Used to disable USB when switching states
+-on property:sys.usb.config=none && property:sys.usb.configfs=0
++on property:sys.usb.config=none && property:sys.usb.configfs=0 && false
+     stop adbd
+     write /sys/class/android_usb/android0/enable 0
+     write /sys/class/android_usb/android0/bDeviceClass 0
+diff --git a/rootdir/init.zygote32.rc b/rootdir/init.zygote32.rc
+index e827cf5..375d78c 100644
+--- a/rootdir/init.zygote32.rc
++++ b/rootdir/init.zygote32.rc
+@@ -5,11 +5,11 @@ service zygote /system/bin/app_process -Xzygote /system/bin --zygote --start-sys
+     group root readproc reserved_disk
+     socket zygote stream 660 root system
+     socket usap_pool_primary stream 660 root system
+-    onrestart exec_background - system system -- /system/bin/vdc volume abort_fuse
+-    onrestart write /sys/power/state on
++    # onrestart exec_background - system system -- /system/bin/vdc volume abort_fuse
++    # onrestart write /sys/power/state on
+     onrestart restart audioserver
+     onrestart restart cameraserver
+     onrestart restart media
+     onrestart restart netd
+     onrestart restart wificond
+-    writepid /dev/cpuset/foreground/tasks
++    # writepid /dev/cpuset/foreground/tasks
+diff --git a/rootdir/init.zygote32_64.rc b/rootdir/init.zygote32_64.rc
+index fe6dcfa..546d810 100644
+--- a/rootdir/init.zygote32_64.rc
++++ b/rootdir/init.zygote32_64.rc
+@@ -5,14 +5,14 @@ service zygote /system/bin/app_process32 -Xzygote /system/bin --zygote --start-s
+     group root readproc reserved_disk
+     socket zygote stream 660 root system
+     socket usap_pool_primary stream 660 root system
+-    onrestart exec_background - system system -- /system/bin/vdc volume abort_fuse
+-    onrestart write /sys/power/state on
++    # onrestart exec_background - system system -- /system/bin/vdc volume abort_fuse
++    # onrestart write /sys/power/state on
+     onrestart restart audioserver
+     onrestart restart cameraserver
+     onrestart restart media
+     onrestart restart netd
+     onrestart restart wificond
+-    writepid /dev/cpuset/foreground/tasks
++    # writepid /dev/cpuset/foreground/tasks
+ 
+ service zygote_secondary /system/bin/app_process64 -Xzygote /system/bin --zygote --socket-name=zygote_secondary
+     class main
+@@ -22,4 +22,4 @@ service zygote_secondary /system/bin/app_process64 -Xzygote /system/bin --zygote
+     socket zygote_secondary stream 660 root system
+     socket usap_pool_secondary stream 660 root system
+     onrestart restart zygote
+-    writepid /dev/cpuset/foreground/tasks
++    # writepid /dev/cpuset/foreground/tasks
+diff --git a/rootdir/init.zygote64.rc b/rootdir/init.zygote64.rc
+index adc7031..97ea807 100644
+--- a/rootdir/init.zygote64.rc
++++ b/rootdir/init.zygote64.rc
+@@ -5,11 +5,11 @@ service zygote /system/bin/app_process64 -Xzygote /system/bin --zygote --start-s
+     group root readproc reserved_disk
+     socket zygote stream 660 root system
+     socket usap_pool_primary stream 660 root system
+-    onrestart exec_background - system system -- /system/bin/vdc volume abort_fuse
+-    onrestart write /sys/power/state on
++    # onrestart exec_background - system system -- /system/bin/vdc volume abort_fuse
++    # onrestart write /sys/power/state on
+     onrestart restart audioserver
+     onrestart restart cameraserver
+     onrestart restart media
+     onrestart restart netd
+     onrestart restart wificond
+-    writepid /dev/cpuset/foreground/tasks
++    # writepid /dev/cpuset/foreground/tasks
+diff --git a/rootdir/init.zygote64_32.rc b/rootdir/init.zygote64_32.rc
+index fb9e99b..a931bd6 100644
+--- a/rootdir/init.zygote64_32.rc
++++ b/rootdir/init.zygote64_32.rc
+@@ -5,8 +5,9 @@ service zygote /system/bin/app_process64 -Xzygote /system/bin --zygote --start-s
+     group root readproc reserved_disk
+     socket zygote stream 660 root system
+     socket usap_pool_primary stream 660 root system
+-    onrestart exec_background - system system -- /system/bin/vdc volume abort_fuse
+-    onrestart write /sys/power/state on
++    # onrestart exec_background - system system -- /system/bin/vdc volume abort_fuse
++    # onrestart write /sys/power/state on
++    onrestart setprop vmi.sys.orientation 0
+     onrestart restart audioserver
+     onrestart restart cameraserver
+     onrestart restart media
+diff --git a/sdcard/Android.bp b/sdcard/Android.bp
+index c096587..84188b5 100644
+--- a/sdcard/Android.bp
++++ b/sdcard/Android.bp
+@@ -1,15 +1,17 @@
+ cc_binary {
+-    srcs: ["sdcard.cpp"],
++    srcs: ["sdcard_fuse.cpp","sdcard.cpp"],
+     name: "sdcard",
+     cflags: [
+         "-Wall",
+         "-Wno-unused-parameter",
+         "-Werror",
++        "-DSDCARD_FUSE=1",
+     ],
+     shared_libs: [
+         "libbase",
+         "libcutils",
+         "libminijail",
++        "libpackagelistparser",
+     ],
+     sanitize: {
+         misc_undefined: ["integer"],
+diff --git a/sdcard/sdcard.cpp b/sdcard/sdcard.cpp
+index 622de5b..75ee8ba 100644
+--- a/sdcard/sdcard.cpp
++++ b/sdcard/sdcard.cpp
+@@ -43,6 +43,7 @@
+ #include <scoped_minijail.h>
+ 
+ #include <private/android_filesystem_config.h>
++#include "sdcard_wrapper.h"
+ 
+ #define PROP_SDCARDFS_DEVICE "ro.sys.sdcardfs"
+ #define PROP_SDCARDFS_USER "persist.sys.sdcardfs"
+@@ -232,7 +233,8 @@ static int usage() {
+     return 1;
+ }
+ 
+-int main(int argc, char **argv) {
++int sdcardfs_main(int argc, char **argv) 
++{
+     const char *source_path = NULL;
+     const char *label = NULL;
+     uid_t uid = 0;
+@@ -249,7 +251,7 @@ int main(int argc, char **argv) {
+ 
+     setenv("ANDROID_LOG_TAGS", "*:v", 1);
+     android::base::InitLogging(argv, android::base::LogdLogger(android::base::SYSTEM));
+-
++    LOG(ERROR) << "sdcard: argv[0]=" << argv[0];
+     int opt;
+     while ((opt = getopt(argc, argv, "u:g:U:mwGio")) != -1) {
+         switch (opt) {
+@@ -320,8 +322,14 @@ int main(int argc, char **argv) {
+         LOG(ERROR) << "installd fs upgrade not yet complete; waiting...";
+         sleep(1);
+     }
+-
++    LOG(INFO) << "main start 5:source_path:" << ((source_path==NULL)?"":source_path)  << ",label:" << ((label==NULL)?"":label)
++        << ",uid:" << uid 
++        << ",gid:" << gid
++        << ",userid:" << userid
++        << ",multi_user:" << (multi_user?1:0 )
++        << ",full_write:"<< (full_write?1:0);
+     run_sdcardfs(source_path, label, uid, gid, userid, multi_user, full_write, derive_gid,
+                  default_normal, unshared_obb, !should_use_sdcardfs());
+     return 1;
+ }
++
+diff --git a/sdcard/sdcard_fuse.cpp b/sdcard/sdcard_fuse.cpp
+new file mode 100755
+index 0000000..9d4ec34
+--- /dev/null
++++ b/sdcard/sdcard_fuse.cpp
+@@ -0,0 +1,2056 @@
++// Copyright (C) 2016 The Android Open Source Project
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++#define LOG_TAG "sdcard"
++
++#include <ctype.h>
++#include <dirent.h>
++#include <errno.h>
++#include <fcntl.h>
++#include <inttypes.h>
++#include <limits.h>
++#include <linux/fuse.h>
++#include <pthread.h>
++#include <stdbool.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/inotify.h>
++#include <sys/mount.h>
++#include <sys/param.h>
++#include <sys/resource.h>
++#include <sys/stat.h>
++#include <sys/statfs.h>
++#include <sys/time.h>
++#include <sys/types.h>
++#include <sys/uio.h>
++#include <unistd.h>
++
++#include <dirent.h>
++#include <errno.h>
++#include <fcntl.h>
++#include <linux/fuse.h>
++#include <pthread.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/inotify.h>
++#include <sys/mount.h>
++#include <sys/resource.h>
++#include <sys/stat.h>
++#include <sys/types.h>
++#include <unistd.h>
++#include <vector>
++
++#include <android-base/file.h>
++#include <android-base/logging.h>
++#include <android-base/macros.h>
++#include <android-base/stringprintf.h>
++#include <android-base/strings.h>
++
++#include <cutils/fs.h>
++#include <cutils/multiuser.h>
++#include <cutils/properties.h>
++
++#include <android-base/file.h>
++#include <android-base/logging.h>
++#include <android-base/macros.h>
++#include <android-base/stringprintf.h>
++#include <android-base/strings.h>
++
++#include <cutils/fs.h>
++#include <cutils/hashmap.h>
++#include <cutils/log.h>
++#include <cutils/multiuser.h>
++#include <cutils/properties.h>
++#include <packagelistparser/packagelistparser.h>
++#define PACKAGES_LIST_FILE  "/data/system/packages.list"
++#include <libminijail.h>
++#include <scoped_minijail.h>
++
++#include <private/android_filesystem_config.h>
++#include "sdcard_wrapper.h"
++
++/* FUSE_CANONICAL_PATH is not currently upstreamed */
++#define FUSE_CANONICAL_PATH 2016
++
++#define PROP_SDCARDFS_DEVICE "ro.sys.sdcardfs"
++#define PROP_SDCARDFS_USER "persist.sys.sdcardfs"
++
++#define FUSE_UNKNOWN_INO 0xffffffff
++
++/* Maximum number of bytes to write in one request. */
++#define MAX_WRITE (256 * 1024)
++
++/* Maximum number of bytes to read in one request. */
++#define MAX_READ (128 * 1024)
++
++/* Largest possible request.
++ * The request size is bounded by the maximum size of a FUSE_WRITE request because it has
++ * the largest possible data payload. */
++#define MAX_REQUEST_SIZE (sizeof(struct fuse_in_header) + sizeof(struct fuse_write_in) + MAX_WRITE)
++
++ /* Pseudo-error constant used to indicate that no fuse status is needed
++  * or that a reply has already been written. */
++#define NO_STATUS 1
++
++  /* Supplementary groups to execute with */
++static const gid_t kGroups[1] = { AID_PACKAGE_INFO };
++
++/* Permission mode for a specific node. Controls how file permissions
++ * are derived for children nodes. */
++typedef enum {
++	/* Nothing special; this node should just inherit from its parent. */
++	PERM_INHERIT,
++	/* This node is one level above a normal root; used for legacy layouts
++	 * which use the first level to represent user_id. */
++	PERM_PRE_ROOT,
++	/* This node is "/" */
++	PERM_ROOT,
++	/* This node is "/Android" */
++	PERM_ANDROID,
++	/* This node is "/Android/data" */
++	PERM_ANDROID_DATA,
++	/* This node is "/Android/obb" */
++	PERM_ANDROID_OBB,
++	/* This node is "/Android/media" */
++	PERM_ANDROID_MEDIA,
++} perm_t;
++
++struct handle {
++	int fd;
++};
++
++struct dirhandle {
++	DIR *d;
++};
++
++struct node {
++	__u32 refcount;
++	__u64 nid;
++	__u64 gen;
++	/*
++	 * The inode number for this FUSE node. Note that this isn't stable across
++	 * multiple invocations of the FUSE daemon.
++	 */
++	__u32 ino;
++
++	/* State derived based on current position in hierarchy. */
++	perm_t perm;
++	userid_t userid;
++	uid_t uid;
++	bool under_android;
++
++	struct node *next;          /* per-dir sibling list */
++	struct node *child;         /* first contained file by this dir */
++	struct node *parent;        /* containing directory */
++
++	size_t namelen;
++	char *name;
++	/* If non-null, this is the real name of the file in the underlying storage.
++	 * This may differ from the field "name" only by case.
++	 * strlen(actual_name) will always equal strlen(name), so it is safe to use
++	 * namelen for both fields.
++	 */
++	char *actual_name;
++
++	/* If non-null, an exact underlying path that should be grafted into this
++	 * position. Used to support things like OBB. */
++	char* graft_path;
++	size_t graft_pathlen;
++
++	bool deleted;
++};
++
++static int str_hash(void *key) {
++	return hashmapHash(key, strlen((char *)key));
++}
++
++/** Test if two string keys are equal ignoring case */
++static bool str_icase_equals(void *keyA, void *keyB) {
++	return strcasecmp((char *)keyA, (char *)keyB) == 0;
++}
++
++/* Global data for all FUSE mounts */
++struct fuse_global {
++	pthread_mutex_t lock;
++
++	uid_t uid;
++	gid_t gid;
++	bool multi_user;
++
++	char source_path[PATH_MAX];
++	char obb_path[PATH_MAX];
++
++	Hashmap* package_to_appid;
++
++	__u64 next_generation;
++	struct node root;
++
++	/* Used to allocate unique inode numbers for fuse nodes. We use
++	 * a simple counter based scheme where inode numbers from deleted
++	 * nodes aren't reused. Note that inode allocations are not stable
++	 * across multiple invocation of the sdcard daemon, but that shouldn't
++	 * be a huge problem in practice.
++	 *
++	 * Note that we restrict inodes to 32 bit unsigned integers to prevent
++	 * truncation on 32 bit processes when unsigned long long stat.st_ino is
++	 * assigned to an unsigned long ino_t type in an LP32 process.
++	 *
++	 * Also note that fuse_attr and fuse_dirent inode values are 64 bits wide
++	 * on both LP32 and LP64, but the fuse kernel code doesn't squash 64 bit
++	 * inode numbers into 32 bit values on 64 bit kernels (see fuse_squash_ino
++	 * in fs/fuse/inode.c).
++	 *
++	 * Accesses must be guarded by |lock|.
++	 */
++	__u32 inode_ctr;
++
++	struct fuse* fuse_default;
++	struct fuse* fuse_read;
++	struct fuse* fuse_write;
++};
++
++/* Single FUSE mount */
++struct fuse {
++	struct fuse_global* global;
++
++	char dest_path[PATH_MAX];
++
++	int fd;
++
++	gid_t gid;
++	mode_t mask;
++};
++
++/* Private data used by a single FUSE handler */
++struct fuse_handler {
++	struct fuse* fuse;
++	int token;
++
++	/* To save memory, we never use the contents of the request buffer and the read
++	 * buffer at the same time.  This allows us to share the underlying storage. */
++	union {
++		__u8 request_buffer[MAX_REQUEST_SIZE];
++		__u8 read_buffer[MAX_READ + PAGE_SIZE];
++	};
++};
++
++static inline void *id_to_ptr(__u64 nid)
++{
++	return (void *)(uintptr_t)nid;
++}
++
++static inline __u64 ptr_to_id(void *ptr)
++{
++	return (__u64)(uintptr_t)ptr;
++}
++
++static void acquire_node_locked(struct node* node)
++{
++	node->refcount++;
++}
++
++static void remove_node_from_parent_locked(struct node* node);
++
++static void release_node_locked(struct node* node)
++{
++	if (node->refcount > 0) {
++		node->refcount--;
++		if (!node->refcount) {
++			remove_node_from_parent_locked(node);
++
++			memset(node->name, 0xef, node->namelen);
++			free(node->name);
++			free(node->actual_name);
++			memset(node, 0xfc, sizeof(*node));
++			free(node);
++		}
++	}
++}
++
++static void add_node_to_parent_locked(struct node *node, struct node *parent) {
++	node->parent = parent;
++	node->next = parent->child;
++	parent->child = node;
++	acquire_node_locked(parent);
++}
++
++static void remove_node_from_parent_locked(struct node* node)
++{
++	if (node->parent) {
++		if (node->parent->child == node) {
++			node->parent->child = node->parent->child->next;
++		}
++		else {
++			struct node *node2;
++			node2 = node->parent->child;
++			while (node2->next != node)
++				node2 = node2->next;
++			node2->next = node->next;
++		}
++		release_node_locked(node->parent);
++		node->parent = NULL;
++		node->next = NULL;
++	}
++}
++
++/* Gets the absolute path to a node into the provided buffer.
++ *
++ * Populates 'buf' with the path and returns the length of the path on success,
++ * or returns -1 if the path is too long for the provided buffer.
++ */
++static ssize_t get_node_path_locked(struct node* node, char* buf, size_t bufsize) {
++	const char* name = NULL;
++	size_t namelen;
++	if (node->graft_path) {
++		name = node->graft_path;
++		namelen = node->graft_pathlen;
++	}
++	else if (node->actual_name) {
++		name = node->actual_name;
++		namelen = node->namelen;
++	}
++	else {
++		name = node->name;
++		namelen = node->namelen;
++	}
++
++	if (bufsize < namelen + 1) {
++		return -1;
++	}
++
++	ssize_t pathlen = 0;
++	if (node->parent && node->graft_path == NULL) {
++		pathlen = get_node_path_locked(node->parent, buf, bufsize - namelen - 1);
++		if (pathlen < 0) {
++			return -1;
++		}
++		buf[pathlen++] = '/';
++	}
++
++	if (bufsize < pathlen + namelen + 1) {
++		return -1;
++	}
++	memcpy(buf + pathlen, name, namelen + 1); /* include trailing \0 */
++	return pathlen + namelen;
++}
++
++/* Finds the absolute path of a file within a given directory.
++ * Performs a case-insensitive search for the file and sets the buffer to the path
++ * of the first matching file.  If 'search' is zero or if no match is found, sets
++ * the buffer to the path that the file would have, assuming the name were case-sensitive.
++ *
++ * Populates 'buf' with the path and returns the actual name (within 'buf') on success,
++ * or returns NULL if the path is too long for the provided buffer.
++ */
++static char* find_file_within(const char* path, const char* name,
++	char* buf, size_t bufsize, int search)
++{
++    if (path == NULL || name == NULL  || buf == NULL) {
++        return NULL;
++    }
++	size_t pathlen = strlen(path);
++	size_t namelen = strlen(name);
++	size_t childlen = pathlen + namelen + 1;
++	char* actual;
++
++	if (bufsize <= childlen) {
++		return NULL;
++	}
++
++	memcpy(buf, path, pathlen);
++	buf[pathlen] = '/';
++	actual = buf + pathlen + 1;
++	memcpy(actual, name, namelen + 1);
++
++	if (search && access(buf, F_OK)) {
++		struct dirent* entry;
++		DIR* dir = opendir(path);
++		if (!dir) {
++			return actual;
++		}
++		while ((entry = readdir(dir))) {
++			if (!strcasecmp(entry->d_name, name)) {
++				/* we have a match - replace the name, don't need to copy the null again */
++				memcpy(actual, entry->d_name, namelen);
++				break;
++			}
++		}
++		closedir(dir);
++	}
++	return actual;
++}
++
++static void attr_from_stat(struct fuse* fuse, struct fuse_attr *attr,
++	const struct stat *s, const struct node* node) {
++	attr->ino = node->ino;
++	attr->size = s->st_size;
++	attr->blocks = s->st_blocks;
++	attr->atime = s->st_atim.tv_sec;
++	attr->mtime = s->st_mtim.tv_sec;
++	attr->ctime = s->st_ctim.tv_sec;
++	attr->atimensec = s->st_atim.tv_nsec;
++	attr->mtimensec = s->st_mtim.tv_nsec;
++	attr->ctimensec = s->st_ctim.tv_nsec;
++	attr->mode = s->st_mode;
++	attr->nlink = s->st_nlink;
++
++	attr->uid = node->uid;
++
++	if (fuse->gid == AID_SDCARD_RW) {
++		/* As an optimization, certain trusted system components only run
++		 * as owner but operate across all users. Since we're now handing
++		 * out the sdcard_rw GID only to trusted apps, we're okay relaxing
++		 * the user boundary enforcement for the default view. The UIDs
++		 * assigned to app directories are still multiuser aware. */
++		attr->gid = AID_SDCARD_RW;
++	}
++	else {
++		attr->gid = multiuser_get_uid(node->userid, fuse->gid);
++	}
++
++	int visible_mode = 0775 & ~fuse->mask;
++	if (node->perm == PERM_PRE_ROOT) {
++		/* Top of multi-user view should always be visible to ensure
++		 * secondary users can traverse inside. */
++		visible_mode = 0711;
++	}
++	else if (node->under_android) {
++		/* Block "other" access to Android directories, since only apps
++		 * belonging to a specific user should be in there; we still
++		 * leave +x open for the default view. */
++		if (fuse->gid == AID_SDCARD_RW) {
++			visible_mode = visible_mode & ~0006;
++		}
++		else {
++			visible_mode = visible_mode & ~0007;
++		}
++	}
++	int owner_mode = s->st_mode & 0700;
++	int filtered_mode = visible_mode & (owner_mode | (owner_mode >> 3) | (owner_mode >> 6));
++	attr->mode = (attr->mode & S_IFMT) | filtered_mode;
++}
++
++static int touch(char* path, mode_t mode) {
++	int fd = open(path, O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW, mode);
++	if (fd == -1) {
++		if (errno == EEXIST) {
++			return 0;
++		}
++		else {
++			return -1;
++		}
++	}
++	close(fd);
++	return 0;
++}
++
++static void derive_permissions_locked(struct fuse* fuse, struct node *parent,
++	struct node *node) {
++	appid_t appid;
++
++	/* By default, each node inherits from its parent */
++	node->perm = PERM_INHERIT;
++	node->userid = parent->userid;
++	node->uid = parent->uid;
++	node->under_android = parent->under_android;
++
++	/* Derive custom permissions based on parent and current node */
++	switch (parent->perm) {
++	case PERM_INHERIT:
++		/* Already inherited above */
++		break;
++	case PERM_PRE_ROOT:
++		/* Legacy internal layout places users at top level */
++		node->perm = PERM_ROOT;
++		node->userid = strtoul(node->name, NULL, 10);
++		break;
++	case PERM_ROOT:
++		/* Assume masked off by default. */
++		if (!strcasecmp(node->name, "Android")) {
++			/* App-specific directories inside; let anyone traverse */
++			node->perm = PERM_ANDROID;
++			node->under_android = true;
++		}
++		break;
++	case PERM_ANDROID:
++		if (!strcasecmp(node->name, "data")) {
++			/* App-specific directories inside; let anyone traverse */
++			node->perm = PERM_ANDROID_DATA;
++		}
++		else if (!strcasecmp(node->name, "obb")) {
++			/* App-specific directories inside; let anyone traverse */
++			node->perm = PERM_ANDROID_OBB;
++			/* Single OBB directory is always shared */
++			node->graft_path = fuse->global->obb_path;
++			node->graft_pathlen = strlen(fuse->global->obb_path);
++		}
++		else if (!strcasecmp(node->name, "media")) {
++			/* App-specific directories inside; let anyone traverse */
++			node->perm = PERM_ANDROID_MEDIA;
++		}
++		break;
++	case PERM_ANDROID_DATA:
++	case PERM_ANDROID_OBB:
++	case PERM_ANDROID_MEDIA:
++		appid = (appid_t)(uintptr_t)hashmapGet(fuse->global->package_to_appid, node->name);
++		if (appid != 0) {
++			node->uid = multiuser_get_uid(parent->userid, appid);
++		}
++		break;
++	}
++}
++
++static void derive_permissions_recursive_locked(struct fuse* fuse, struct node *parent) {
++	struct node *node;
++	for (node = parent->child; node; node = node->next) {
++		derive_permissions_locked(fuse, parent, node);
++		if (node->child) {
++			derive_permissions_recursive_locked(fuse, node);
++		}
++	}
++}
++
++/* Kernel has already enforced everything we returned through
++ * derive_permissions_locked(), so this is used to lock down access
++ * even further, such as enforcing that apps hold sdcard_rw. */
++static bool check_caller_access_to_name(struct fuse* fuse,
++	const struct fuse_in_header *hdr, const struct node* parent_node,
++	const char* name, int mode) {
++	/* Always block security-sensitive files at root */
++	if (parent_node && parent_node->perm == PERM_ROOT) {
++		if (!strcasecmp(name, "autorun.inf")
++			|| !strcasecmp(name, ".android_secure")
++			|| !strcasecmp(name, "android_secure")) {
++			return false;
++		}
++	}
++
++	/* Root always has access; access for any other UIDs should always
++	 * be controlled through packages.list. */
++	if (hdr->uid == 0) {
++		return true;
++	}
++
++	/* No extra permissions to enforce */
++	return true;
++}
++
++static bool check_caller_access_to_node(struct fuse* fuse,
++	const struct fuse_in_header *hdr, const struct node* node, int mode) {
++	return check_caller_access_to_name(fuse, hdr, node->parent, node->name, mode);
++}
++
++struct node *create_node_locked(struct fuse* fuse,
++	struct node *parent, const char *name, const char* actual_name)
++{
++	struct node *node;
++	size_t namelen = strlen(name);
++	size_t actuallen = strlen(actual_name);
++
++	// Detect overflows in the inode counter. "4 billion nodes should be enough
++	// for everybody".
++	if (fuse->global->inode_ctr == 0) {
++		// ERROR("No more inode numbers available");
++		return NULL;
++	}
++
++	node = (struct node *)calloc(1, sizeof(struct node));
++	if (!node) {
++		return NULL;
++	}
++	node->name = (char *)malloc(namelen + 1);
++	if (!node->name) {
++		free(node);
++		return NULL;
++	}
++	memcpy(node->name, name, namelen + 1);
++	if (strcmp(name, actual_name)) {
++		node->actual_name = (char *)malloc(actuallen + 1);
++		if (!node->actual_name) {
++			free(node->name);
++			free(node);
++			return NULL;
++		}
++		memcpy(node->actual_name, actual_name, actuallen + 1);
++	}
++	node->namelen = namelen;
++	node->nid = ptr_to_id(node);
++	node->ino = fuse->global->inode_ctr++;
++	node->gen = fuse->global->next_generation++;
++
++	node->deleted = false;
++
++	derive_permissions_locked(fuse, parent, node);
++	acquire_node_locked(node);
++	add_node_to_parent_locked(node, parent);
++	return node;
++}
++
++static int rename_node_locked(struct node *node, const char *name,
++	const char* actual_name)
++{
++   size_t namelen = strlen(name);
++   int need_actual_name = strcmp(name, actual_name);
++
++   /* make the storage bigger without actually changing the name
++   * in case an error occurs part way */
++   if (namelen > node->namelen) {
++       char* new_name = (char *)malloc(namelen + 1);
++       if (!new_name) {
++           return -ENOMEM;
++       }
++       memcpy(new_name, node->name, node->namelen + 1);
++       char* tmp_name = node->name;
++       node->name = new_name;
++       free(tmp_name);
++       tmp_name = NULL;
++       if (need_actual_name && node->actual_name) {
++           char* new_actual_name = (char *)malloc(namelen + 1);
++           if (!new_actual_name) {
++               return -ENOMEM;
++           }
++           memcpy(new_actual_name, node->actual_name, node->namelen + 1);
++           char* tmp_actual_name = node->actual_name;
++           node->actual_name = new_actual_name; 
++           free(tmp_actual_name);
++           tmp_actual_name = NULL;
++       }
++   }
++
++   /* update the name, taking care to allocate storage before overwriting the old name */
++   if (need_actual_name) {
++       if (!node->actual_name) {
++           node->actual_name = (char *)malloc(namelen + 1);
++           if (!node->actual_name) {
++               return -ENOMEM;
++           }
++       }
++       memcpy(node->actual_name, actual_name, namelen + 1);
++   }
++   else {
++       if (!node->actual_name) {   
++           free(node->actual_name);
++           node->actual_name = NULL;
++       }
++   }
++   memcpy(node->name, name, namelen + 1);
++   node->namelen = namelen;
++   return 0;
++}
++
++static struct node *lookup_node_by_id_locked(struct fuse *fuse, __u64 nid)
++{
++	if (nid == FUSE_ROOT_ID) {
++		return &fuse->global->root;
++	}
++	else {
++		return (struct node *)id_to_ptr(nid);
++	}
++}
++
++static struct node* lookup_node_and_path_by_id_locked(struct fuse* fuse, __u64 nid,
++	char* buf, size_t bufsize)
++{
++	struct node* node = lookup_node_by_id_locked(fuse, nid);
++	if (node && get_node_path_locked(node, buf, bufsize) < 0) {
++		node = NULL;
++	}
++	return node;
++}
++
++static struct node *lookup_child_by_name_locked(struct node *node, const char *name)
++{
++	for (node = node->child; node; node = node->next) {
++		/* use exact string comparison, nodes that differ by case
++		 * must be considered distinct even if they refer to the same
++		 * underlying file as otherwise operations such as "mv x x"
++		 * will not work because the source and target nodes are the same. */
++		if (!strcmp(name, node->name) && !node->deleted) {
++			return node;
++		}
++	}
++	return 0;
++}
++
++static struct node* acquire_or_create_child_locked(
++	struct fuse* fuse, struct node* parent,
++	const char* name, const char* actual_name)
++{
++	struct node* child = lookup_child_by_name_locked(parent, name);
++	if (child) {
++		acquire_node_locked(child);
++	}
++	else {
++		child = create_node_locked(fuse, parent, name, actual_name);
++	}
++	return child;
++}
++
++static void fuse_status(struct fuse *fuse, __u64 unique, int err)
++{
++	struct fuse_out_header hdr;
++	hdr.len = sizeof(hdr);
++	hdr.error = err;
++	hdr.unique = unique;
++	write(fuse->fd, &hdr, sizeof(hdr));
++}
++
++static void fuse_reply(struct fuse *fuse, __u64 unique, void *data, int len)
++{
++   struct fuse_out_header hdr;
++   struct iovec vec[2];
++   int res;
++
++   hdr.len = len + sizeof(hdr);
++   hdr.error = 0;
++   hdr.unique = unique;
++
++   vec[0].iov_base = &hdr;
++   vec[0].iov_len = sizeof(hdr);
++   vec[1].iov_base = data;
++   vec[1].iov_len = len;
++
++   res = writev(fuse->fd, vec, 2);
++   if (res < 0) {
++       LOG(ERROR) << "*** REPLY FAILED ***";
++   }
++}
++
++static int fuse_reply_entry(struct fuse* fuse, __u64 unique,
++	struct node* parent, const char* name, const char* actual_name,
++	const char* path)
++{
++	struct node* node;
++	struct fuse_entry_out out;
++	struct stat s;
++
++	if (lstat(path, &s) < 0) {
++		return -errno;
++	}
++
++	pthread_mutex_lock(&fuse->global->lock);
++	node = acquire_or_create_child_locked(fuse, parent, name, actual_name);
++	if (!node) {
++		pthread_mutex_unlock(&fuse->global->lock);
++		return -ENOMEM;
++	}
++	memset(&out, 0, sizeof(out));
++	attr_from_stat(fuse, &out.attr, &s, node);
++	out.attr_valid = 10;
++	out.entry_valid = 10;
++	out.nodeid = node->nid;
++	out.generation = node->gen;
++	pthread_mutex_unlock(&fuse->global->lock);
++	fuse_reply(fuse, unique, &out, sizeof(out));
++	return NO_STATUS;
++}
++
++static int fuse_reply_attr(struct fuse* fuse, __u64 unique, const struct node* node,
++	const char* path)
++{
++	struct fuse_attr_out out;
++	struct stat s;
++
++	if (lstat(path, &s) < 0) {
++		return -errno;
++	}
++	memset(&out, 0, sizeof(out));
++	attr_from_stat(fuse, &out.attr, &s, node);
++	out.attr_valid = 10;
++	fuse_reply(fuse, unique, &out, sizeof(out));
++	return NO_STATUS;
++}
++
++static void fuse_notify_delete(struct fuse* fuse, const __u64 parent,
++	const __u64 child, const char* name) {
++	struct fuse_out_header hdr;
++	struct fuse_notify_delete_out data;
++	struct iovec vec[3];
++	size_t namelen = strlen(name);
++	int res;
++
++	hdr.len = sizeof(hdr) + sizeof(data) + namelen + 1;
++	hdr.error = FUSE_NOTIFY_DELETE;
++	hdr.unique = 0;
++
++	data.parent = parent;
++	data.child = child;
++	data.namelen = namelen;
++	data.padding = 0;
++
++	vec[0].iov_base = &hdr;
++	vec[0].iov_len = sizeof(hdr);
++	vec[1].iov_base = &data;
++	vec[1].iov_len = sizeof(data);
++	vec[2].iov_base = (void*)name;
++	vec[2].iov_len = namelen + 1;
++
++	res = writev(fuse->fd, vec, 3);
++	/* Ignore ENOENT, since other views may not have seen the entry */
++	if (res < 0 && errno != ENOENT) {
++		// ERROR("*** NOTIFY FAILED *** %d\n", errno);
++	}
++}
++
++static int handle_lookup(struct fuse* fuse, struct fuse_handler* handler,
++	const struct fuse_in_header *hdr, const char* name)
++{
++	struct node* parent_node;
++	char parent_path[PATH_MAX];
++	char child_path[PATH_MAX];
++	const char* actual_name;
++
++	pthread_mutex_lock(&fuse->global->lock);
++	parent_node = lookup_node_and_path_by_id_locked(fuse, hdr->nodeid,
++		parent_path, sizeof(parent_path));
++
++	pthread_mutex_unlock(&fuse->global->lock);
++
++	if (!parent_node || !(actual_name = find_file_within(parent_path, name,
++		child_path, sizeof(child_path), 1))) {
++		return -ENOENT;
++	}
++	if (!check_caller_access_to_name(fuse, hdr, parent_node, name, R_OK)) {
++		return -EACCES;
++	}
++
++	return fuse_reply_entry(fuse, hdr->unique, parent_node, name, actual_name, child_path);
++}
++
++static int handle_forget(struct fuse* fuse, struct fuse_handler* handler,
++	const struct fuse_in_header *hdr, const struct fuse_forget_in *req)
++{
++	struct node* node;
++
++	pthread_mutex_lock(&fuse->global->lock);
++	node = lookup_node_by_id_locked(fuse, hdr->nodeid);
++
++	if (node) {
++		__u64 n = req->nlookup;
++		while (n--) {
++			release_node_locked(node);
++		}
++	}
++	pthread_mutex_unlock(&fuse->global->lock);
++	return NO_STATUS; /* no reply */
++}
++
++static int handle_getattr(struct fuse* fuse, struct fuse_handler* handler,
++	const struct fuse_in_header *hdr, const struct fuse_getattr_in *req)
++{
++	struct node* node;
++	char path[PATH_MAX];
++
++	pthread_mutex_lock(&fuse->global->lock);
++	node = lookup_node_and_path_by_id_locked(fuse, hdr->nodeid, path, sizeof(path));
++
++	pthread_mutex_unlock(&fuse->global->lock);
++
++	if (!node) {
++		return -ENOENT;
++	}
++	if (!check_caller_access_to_node(fuse, hdr, node, R_OK)) {
++		return -EACCES;
++	}
++
++	return fuse_reply_attr(fuse, hdr->unique, node, path);
++}
++
++static int handle_setattr(struct fuse* fuse, struct fuse_handler* handler,
++	const struct fuse_in_header *hdr, const struct fuse_setattr_in *req)
++{
++	struct node* node;
++	char path[PATH_MAX];
++	struct timespec times[2];
++
++	pthread_mutex_lock(&fuse->global->lock);
++	node = lookup_node_and_path_by_id_locked(fuse, hdr->nodeid, path, sizeof(path));
++
++	pthread_mutex_unlock(&fuse->global->lock);
++
++	if (!node) {
++		return -ENOENT;
++	}
++
++	if (!(req->valid & FATTR_FH) &&
++		!check_caller_access_to_node(fuse, hdr, node, W_OK)) {
++		return -EACCES;
++	}
++
++	/* XXX: incomplete implementation on purpose.
++	 * chmod/chown should NEVER be implemented.*/
++
++	if ((req->valid & FATTR_SIZE) && truncate64(path, req->size) < 0) {
++		return -errno;
++	}
++
++	/* Handle changing atime and mtime.  If FATTR_ATIME_and FATTR_ATIME_NOW
++	 * are both set, then set it to the current time.  Else, set it to the
++	 * time specified in the request.  Same goes for mtime.  Use utimensat(2)
++	 * as it allows ATIME and MTIME to be changed independently, and has
++	 * nanosecond resolution which fuse also has.
++	 */
++	if (req->valid & (FATTR_ATIME | FATTR_MTIME)) {
++		times[0].tv_nsec = UTIME_OMIT;
++		times[1].tv_nsec = UTIME_OMIT;
++		if (req->valid & FATTR_ATIME) {
++			if (req->valid & FATTR_ATIME_NOW) {
++				times[0].tv_nsec = UTIME_NOW;
++			}
++			else {
++				times[0].tv_sec = req->atime;
++				times[0].tv_nsec = req->atimensec;
++			}
++		}
++		if (req->valid & FATTR_MTIME) {
++			if (req->valid & FATTR_MTIME_NOW) {
++				times[1].tv_nsec = UTIME_NOW;
++			}
++			else {
++				times[1].tv_sec = req->mtime;
++				times[1].tv_nsec = req->mtimensec;
++			}
++		}
++
++		if (utimensat(-1, path, times, 0) < 0) {
++			return -errno;
++		}
++	}
++	return fuse_reply_attr(fuse, hdr->unique, node, path);
++}
++
++static int handle_mknod(struct fuse* fuse, struct fuse_handler* handler,
++	const struct fuse_in_header* hdr, const struct fuse_mknod_in* req, const char* name)
++{
++	struct node* parent_node;
++	char parent_path[PATH_MAX];
++	char child_path[PATH_MAX];
++	const char* actual_name;
++
++	pthread_mutex_lock(&fuse->global->lock);
++	parent_node = lookup_node_and_path_by_id_locked(fuse, hdr->nodeid,
++		parent_path, sizeof(parent_path));
++
++	pthread_mutex_unlock(&fuse->global->lock);
++
++	if (!parent_node || !(actual_name = find_file_within(parent_path, name,
++		child_path, sizeof(child_path), 1))) {
++		return -ENOENT;
++	}
++	if (!check_caller_access_to_name(fuse, hdr, parent_node, name, W_OK)) {
++		return -EACCES;
++	}
++	__u32 mode = (req->mode & (~0777)) | 0664;
++	if (mknod(child_path, mode, req->rdev) < 0) {
++		return -errno;
++	}
++	return fuse_reply_entry(fuse, hdr->unique, parent_node, name, actual_name, child_path);
++}
++
++static int handle_mkdir(struct fuse* fuse, struct fuse_handler* handler,
++	const struct fuse_in_header* hdr, const struct fuse_mkdir_in* req, const char* name)
++{
++	struct node* parent_node;
++	char parent_path[PATH_MAX];
++	char child_path[PATH_MAX];
++	const char* actual_name;
++    LOG(INFO) << "handle_mkdir dir:" << name;	
++	pthread_mutex_lock(&fuse->global->lock);
++	parent_node = lookup_node_and_path_by_id_locked(fuse, hdr->nodeid,
++		parent_path, sizeof(parent_path));
++
++	pthread_mutex_unlock(&fuse->global->lock);
++
++	if (!parent_node || !(actual_name = find_file_within(parent_path, name,
++		child_path, sizeof(child_path), 1))) {
++		return -ENOENT;
++	}
++	if (!check_caller_access_to_name(fuse, hdr, parent_node, name, W_OK)) {
++		return -EACCES;
++	}
++	__u32 mode = (req->mode & (~0777)) | 0775;
++	if (mkdir(child_path, mode) < 0) {
++		return -errno;
++	}
++
++	/* When creating /Android/data and /Android/obb, mark them as .nomedia */
++	if (parent_node->perm == PERM_ANDROID && !strcasecmp(name, "data")) {
++		char nomedia[PATH_MAX];
++		snprintf(nomedia, PATH_MAX, "%s/.nomedia", child_path);
++		if (touch(nomedia, 0664) != 0) {
++			return -ENOENT;
++		}
++	}
++	if (parent_node->perm == PERM_ANDROID && !strcasecmp(name, "obb")) {
++		char nomedia[PATH_MAX];
++		snprintf(nomedia, PATH_MAX, "%s/.nomedia", fuse->global->obb_path);
++		if (touch(nomedia, 0664) != 0) {
++			return -ENOENT;
++		}
++	}
++
++	return fuse_reply_entry(fuse, hdr->unique, parent_node, name, actual_name, child_path);
++}
++
++static int handle_unlink(struct fuse* fuse, struct fuse_handler* handler,
++	const struct fuse_in_header* hdr, const char* name)
++{
++	struct node* parent_node;
++	struct node* child_node;
++	char parent_path[PATH_MAX];
++	char child_path[PATH_MAX];
++
++	pthread_mutex_lock(&fuse->global->lock);
++	parent_node = lookup_node_and_path_by_id_locked(fuse, hdr->nodeid,
++		parent_path, sizeof(parent_path));
++
++	pthread_mutex_unlock(&fuse->global->lock);
++
++	if (!parent_node || !find_file_within(parent_path, name,
++		child_path, sizeof(child_path), 1)) {
++		return -ENOENT;
++	}
++	if (!check_caller_access_to_name(fuse, hdr, parent_node, name, W_OK)) {
++		return -EACCES;
++	}
++	if (unlink(child_path) < 0) {
++		return -errno;
++	}
++	pthread_mutex_lock(&fuse->global->lock);
++	child_node = lookup_child_by_name_locked(parent_node, name);
++	if (child_node) {
++		child_node->deleted = true;
++	}
++	pthread_mutex_unlock(&fuse->global->lock);
++	if (parent_node && child_node) {
++		/* Tell all other views that node is gone */
++
++		if (fuse != fuse->global->fuse_default) {
++			fuse_notify_delete(fuse->global->fuse_default, parent_node->nid, child_node->nid, name);
++		}
++		if (fuse != fuse->global->fuse_read) {
++			fuse_notify_delete(fuse->global->fuse_read, parent_node->nid, child_node->nid, name);
++		}
++		if (fuse != fuse->global->fuse_write) {
++			fuse_notify_delete(fuse->global->fuse_write, parent_node->nid, child_node->nid, name);
++		}
++	}
++	return 0;
++}
++
++static int handle_rmdir(struct fuse* fuse, struct fuse_handler* handler,
++	const struct fuse_in_header* hdr, const char* name)
++{
++	struct node* child_node;
++	struct node* parent_node;
++	char parent_path[PATH_MAX];
++	char child_path[PATH_MAX];
++
++	pthread_mutex_lock(&fuse->global->lock);
++	parent_node = lookup_node_and_path_by_id_locked(fuse, hdr->nodeid,
++		parent_path, sizeof(parent_path));
++
++	pthread_mutex_unlock(&fuse->global->lock);
++
++	if (!parent_node || !find_file_within(parent_path, name,
++		child_path, sizeof(child_path), 1)) {
++		return -ENOENT;
++	}
++	if (!check_caller_access_to_name(fuse, hdr, parent_node, name, W_OK)) {
++		return -EACCES;
++	}
++	if (rmdir(child_path) < 0) {
++		return -errno;
++	}
++	pthread_mutex_lock(&fuse->global->lock);
++	child_node = lookup_child_by_name_locked(parent_node, name);
++	if (child_node) {
++		child_node->deleted = true;
++	}
++	pthread_mutex_unlock(&fuse->global->lock);
++	if (parent_node && child_node) {
++		/* Tell all other views that node is gone */
++
++		if (fuse != fuse->global->fuse_default) {
++			fuse_notify_delete(fuse->global->fuse_default, parent_node->nid, child_node->nid, name);
++		}
++		if (fuse != fuse->global->fuse_read) {
++			fuse_notify_delete(fuse->global->fuse_read, parent_node->nid, child_node->nid, name);
++		}
++		if (fuse != fuse->global->fuse_write) {
++			fuse_notify_delete(fuse->global->fuse_write, parent_node->nid, child_node->nid, name);
++		}
++	}
++	return 0;
++}
++
++static int handle_rename(struct fuse* fuse, struct fuse_handler* handler,
++	const struct fuse_in_header* hdr, const struct fuse_rename_in* req,
++	const char* old_name, const char* new_name)
++{
++	struct node* old_parent_node;
++	struct node* new_parent_node;
++	struct node* child_node;
++	char old_parent_path[PATH_MAX];
++	char new_parent_path[PATH_MAX];
++	char old_child_path[PATH_MAX];
++	char new_child_path[PATH_MAX];
++	const char* new_actual_name;
++	int res;
++	int search;
++
++	pthread_mutex_lock(&fuse->global->lock);
++	old_parent_node = lookup_node_and_path_by_id_locked(fuse, hdr->nodeid,
++		old_parent_path, sizeof(old_parent_path));
++	new_parent_node = lookup_node_and_path_by_id_locked(fuse, req->newdir,
++		new_parent_path, sizeof(new_parent_path));
++
++	if (!old_parent_node || !new_parent_node) {
++		res = -ENOENT;
++		goto lookup_error;
++	}
++	if (!check_caller_access_to_name(fuse, hdr, old_parent_node, old_name, W_OK)) {
++		res = -EACCES;
++		goto lookup_error;
++	}
++	if (!check_caller_access_to_name(fuse, hdr, new_parent_node, new_name, W_OK)) {
++		res = -EACCES;
++		goto lookup_error;
++	}
++	child_node = lookup_child_by_name_locked(old_parent_node, old_name);
++	if (!child_node || get_node_path_locked(child_node,
++		old_child_path, sizeof(old_child_path)) < 0) {
++		res = -ENOENT;
++		goto lookup_error;
++	}
++	acquire_node_locked(child_node);
++	pthread_mutex_unlock(&fuse->global->lock);
++
++	/* Special case for renaming a file where destination is same path
++	 * differing only by case.  In this case we don't want to look for a case
++	 * insensitive match.  This allows commands like "mv foo FOO" to work as expected.
++	 */
++	search = old_parent_node != new_parent_node
++		|| strcasecmp(old_name, new_name);
++	if (!(new_actual_name = find_file_within(new_parent_path, new_name,
++		new_child_path, sizeof(new_child_path), search))) {
++		res = -ENOENT;
++		goto io_error;
++	}
++
++
++	res = rename(old_child_path, new_child_path);
++	if (res < 0) {
++		res = -errno;
++		goto io_error;
++	}
++
++	pthread_mutex_lock(&fuse->global->lock);
++	res = rename_node_locked(child_node, new_name, new_actual_name);
++	if (!res) {
++		remove_node_from_parent_locked(child_node);
++		derive_permissions_locked(fuse, new_parent_node, child_node);
++		derive_permissions_recursive_locked(fuse, child_node);
++		add_node_to_parent_locked(child_node, new_parent_node);
++	}
++	goto done;
++
++io_error:
++	pthread_mutex_lock(&fuse->global->lock);
++done:
++	release_node_locked(child_node);
++lookup_error:
++	pthread_mutex_unlock(&fuse->global->lock);
++	return res;
++
++}
++
++static int open_flags_to_access_mode(int open_flags) {
++	if ((open_flags & O_ACCMODE) == O_RDONLY) {
++		return R_OK;
++	}
++	else if ((open_flags & O_ACCMODE) == O_WRONLY) {
++		return W_OK;
++	}
++	else {
++		/* Probably O_RDRW, but treat as default to be safe */
++		return R_OK | W_OK;
++	}
++}
++
++static int handle_open(struct fuse* fuse, struct fuse_handler* handler,
++	const struct fuse_in_header* hdr, const struct fuse_open_in* req)
++{
++	struct node* node;
++	char path[PATH_MAX];
++	struct fuse_open_out out;
++	struct handle *h;
++
++	pthread_mutex_lock(&fuse->global->lock);
++	node = lookup_node_and_path_by_id_locked(fuse, hdr->nodeid, path, sizeof(path));
++
++	pthread_mutex_unlock(&fuse->global->lock);
++
++	if (!node) {
++		return -ENOENT;
++	}
++	if (!check_caller_access_to_node(fuse, hdr, node,
++		open_flags_to_access_mode(req->flags))) {
++		return -EACCES;
++	}
++	h = (struct handle *)malloc(sizeof(*h));
++	if (!h) {
++		return -ENOMEM;
++	}
++	h->fd = open(path, req->flags);
++	if (h->fd < 0) {
++		free(h);
++		return -errno;
++	}
++	out.fh = ptr_to_id(h);
++	out.open_flags = 0;
++	out.padding = 0;
++	fuse_reply(fuse, hdr->unique, &out, sizeof(out));
++	return NO_STATUS;
++}
++
++static int handle_read(struct fuse* fuse, struct fuse_handler* handler,
++	const struct fuse_in_header* hdr, const struct fuse_read_in* req)
++{
++	struct handle *h = (struct handle *)id_to_ptr(req->fh);
++	__u64 unique = hdr->unique;
++	__u32 size = req->size;
++	__u64 offset = req->offset;
++	int res;
++	__u8 *read_buffer = (__u8 *)((uintptr_t)(handler->read_buffer + PAGE_SIZE) & ~((uintptr_t)PAGE_SIZE - 1));
++
++	/* Don't access any other fields of hdr or req beyond this point, the read buffer
++	 * overlaps the request buffer and will clobber data in the request.  This
++	 * saves us 128KB per request handler thread at the cost of this scary comment. */
++
++
++	if (size > MAX_READ) {
++		return -EINVAL;
++	}
++	res = pread64(h->fd, read_buffer, size, offset);
++	if (res < 0) {
++		return -errno;
++	}
++	fuse_reply(fuse, unique, read_buffer, res);
++	return NO_STATUS;
++}
++
++static int handle_write(struct fuse* fuse, struct fuse_handler* handler,
++	const struct fuse_in_header* hdr, const struct fuse_write_in* req,
++	const void* buffer)
++{
++	struct fuse_write_out out;
++	struct handle *h = (struct handle *)id_to_ptr(req->fh);
++	int res;
++	__u8 aligned_buffer[req->size] __attribute__((__aligned__(PAGE_SIZE)));
++
++	if (req->flags & O_DIRECT) {
++		memcpy(aligned_buffer, buffer, req->size);
++		buffer = (const __u8*)aligned_buffer;
++	}
++
++
++	res = pwrite64(h->fd, buffer, req->size, req->offset);
++	if (res < 0) {
++		return -errno;
++	}
++	out.size = res;
++	out.padding = 0;
++	fuse_reply(fuse, hdr->unique, &out, sizeof(out));
++	return NO_STATUS;
++}
++
++static int handle_statfs(struct fuse* fuse, struct fuse_handler* handler,
++	const struct fuse_in_header* hdr)
++{
++	char path[PATH_MAX];
++	struct statfs stat;
++	struct fuse_statfs_out out;
++	int res;
++
++	pthread_mutex_lock(&fuse->global->lock);
++
++	res = get_node_path_locked(&fuse->global->root, path, sizeof(path));
++	pthread_mutex_unlock(&fuse->global->lock);
++	if (res < 0) {
++		return -ENOENT;
++	}
++	if (statfs(fuse->global->root.name, &stat) < 0) {
++		return -errno;
++	}
++	memset(&out, 0, sizeof(out));
++	out.st.blocks = stat.f_blocks;
++	out.st.bfree = stat.f_bfree;
++	out.st.bavail = stat.f_bavail;
++	out.st.files = stat.f_files;
++	out.st.ffree = stat.f_ffree;
++	out.st.bsize = stat.f_bsize;
++	out.st.namelen = stat.f_namelen;
++	out.st.frsize = stat.f_frsize;
++	fuse_reply(fuse, hdr->unique, &out, sizeof(out));
++	return NO_STATUS;
++}
++
++static int handle_release(struct fuse* fuse, struct fuse_handler* handler,
++   const struct fuse_in_header* hdr, const struct fuse_release_in* req)
++{
++   struct handle *h = (struct handle *)id_to_ptr(req->fh);
++   if (!h) {
++       return -ENOMEM;
++   }
++
++   close(h->fd);
++   free(h);
++   return 0;
++}
++
++static int handle_fsync(struct fuse* fuse, struct fuse_handler* handler,
++	const struct fuse_in_header* hdr, const struct fuse_fsync_in* req)
++{
++	bool is_dir = (hdr->opcode == FUSE_FSYNCDIR);
++	bool is_data_sync = req->fsync_flags & 1;
++
++	int fd = -1;
++	if (is_dir) {
++		struct dirhandle *dh = (struct dirhandle *)id_to_ptr(req->fh);
++		fd = dirfd(dh->d);
++	}
++	else {
++		struct handle *h = (struct handle *)id_to_ptr(req->fh);
++		fd = h->fd;
++	}
++
++
++	int res = is_data_sync ? fdatasync(fd) : fsync(fd);
++	if (res == -1) {
++		return -errno;
++	}
++	return 0;
++}
++
++static int handle_flush(struct fuse* fuse, struct fuse_handler* handler,
++	const struct fuse_in_header* hdr)
++{
++	return 0;
++}
++
++static int handle_opendir(struct fuse* fuse, struct fuse_handler* handler,
++	const struct fuse_in_header* hdr, const struct fuse_open_in* req)
++{
++	struct node* node;
++	char path[PATH_MAX];
++	struct fuse_open_out out;
++	struct dirhandle *h;
++
++	pthread_mutex_lock(&fuse->global->lock);
++	node = lookup_node_and_path_by_id_locked(fuse, hdr->nodeid, path, sizeof(path));
++
++	pthread_mutex_unlock(&fuse->global->lock);
++
++	if (!node) {
++		return -ENOENT;
++	}
++	if (!check_caller_access_to_node(fuse, hdr, node, R_OK)) {
++		return -EACCES;
++	}
++	h = (struct dirhandle *)malloc(sizeof(*h));
++	if (!h) {
++		return -ENOMEM;
++	}
++
++	h->d = opendir(path);
++	if (!h->d) {
++		free(h);
++		return -errno;
++	}
++	out.fh = ptr_to_id(h);
++	out.open_flags = 0;
++	out.padding = 0;
++	fuse_reply(fuse, hdr->unique, &out, sizeof(out));
++	return NO_STATUS;
++}
++
++static int handle_readdir(struct fuse* fuse, struct fuse_handler* handler,
++	const struct fuse_in_header* hdr, const struct fuse_read_in* req)
++{
++	char buffer[8192];
++	struct fuse_dirent *fde = (struct fuse_dirent*) buffer;
++	struct dirent *de;
++	struct dirhandle *h = (struct dirhandle *)id_to_ptr(req->fh);
++
++	if (req->offset == 0) {
++		/* rewinddir() might have been called above us, so rewind here too */
++		rewinddir(h->d);
++	}
++	de = readdir(h->d);
++	if (!de) {
++		return 0;
++	}
++	fde->ino = FUSE_UNKNOWN_INO;
++	/* increment the offset so we can detect when rewinddir() seeks back to the beginning */
++	fde->off = req->offset + 1;
++	fde->type = de->d_type;
++	fde->namelen = strlen(de->d_name);
++	memcpy(fde->name, de->d_name, fde->namelen + 1);
++	fuse_reply(fuse, hdr->unique, fde,
++		FUSE_DIRENT_ALIGN(sizeof(struct fuse_dirent) + fde->namelen));
++	return NO_STATUS;
++}
++
++static int handle_releasedir(struct fuse* fuse, struct fuse_handler* handler,
++	const struct fuse_in_header* hdr, const struct fuse_release_in* req)
++{
++	struct dirhandle *h = (struct dirhandle *)id_to_ptr(req->fh);
++	closedir(h->d);
++	free(h);
++	return 0;
++}
++
++static int handle_init(struct fuse* fuse, struct fuse_handler* handler,
++	const struct fuse_in_header* hdr, const struct fuse_init_in* req)
++{
++	struct fuse_init_out out;
++	size_t fuse_struct_size;
++
++	// TRACE("[%d] INIT ver=%d.%d maxread=%d flags=%x\n",
++		//handler->token, req->major, req->minor, req->max_readahead, req->flags);
++	/* Kernel 2.6.16 is the first stable kernel with struct fuse_init_out
++	 * defined (fuse version 7.6). The structure is the same from 7.6 through
++	 * 7.22. Beginning with 7.23, the structure increased in size and added
++	 * new parameters.
++	 */
++	if (req->major != FUSE_KERNEL_VERSION || req->minor < 6) {
++		return -1;
++	}
++
++	/* We limit ourselves to 15 because we don't handle BATCH_FORGET yet */
++	out.minor = MIN(req->minor, 15);
++	fuse_struct_size = sizeof(out);
++#if defined(FUSE_COMPAT_22_INIT_OUT_SIZE)
++	/* FUSE_KERNEL_VERSION >= 23. */
++
++	/* If the kernel only works on minor revs older than or equal to 22,
++	 * then use the older structure size since this code only uses the 7.22
++	 * version of the structure. */
++	if (req->minor <= 22) {
++		fuse_struct_size = FUSE_COMPAT_22_INIT_OUT_SIZE;
++	}
++#endif
++
++	out.major = FUSE_KERNEL_VERSION;
++	out.max_readahead = req->max_readahead;
++	out.flags = FUSE_ATOMIC_O_TRUNC | FUSE_BIG_WRITES;
++	out.max_background = 32;
++	out.congestion_threshold = 32;
++	out.max_write = MAX_WRITE;
++	fuse_reply(fuse, hdr->unique, &out, fuse_struct_size);
++	return NO_STATUS;
++}
++
++static int handle_canonical_path(struct fuse* fuse, struct fuse_handler* handler,
++	const struct fuse_in_header *hdr)
++{
++	struct node* node;
++	char path[PATH_MAX];
++	int len;
++
++	pthread_mutex_lock(&fuse->global->lock);
++	node = lookup_node_and_path_by_id_locked(fuse, hdr->nodeid,
++		path, sizeof(path));
++	pthread_mutex_unlock(&fuse->global->lock);
++
++	if (!node) {
++		return -ENOENT;
++	}
++	if (!check_caller_access_to_node(fuse, hdr, node, R_OK)) {
++		return -EACCES;
++	}
++	len = strlen(path);
++	if (len + 1 > PATH_MAX)
++		len = PATH_MAX - 1;
++	path[PATH_MAX - 1] = 0;
++	fuse_reply(fuse, hdr->unique, path, len + 1);
++	return NO_STATUS;
++}
++
++
++static int handle_fuse_request(struct fuse *fuse, struct fuse_handler* handler,
++	const struct fuse_in_header *hdr, const void *data, size_t data_len)
++{
++	switch (hdr->opcode) {
++	case FUSE_LOOKUP: { /* bytez[] -> entry_out */
++		const char* name = (const char *)data;
++		return handle_lookup(fuse, handler, hdr, name);
++	}
++
++	case FUSE_FORGET: {
++		const struct fuse_forget_in *req = (const struct fuse_forget_in *)data;
++		return handle_forget(fuse, handler, hdr, req);
++	}
++
++	case FUSE_GETATTR: { /* getattr_in -> attr_out */
++		const struct fuse_getattr_in *req = (const struct fuse_getattr_in *)data;
++		return handle_getattr(fuse, handler, hdr, req);
++	}
++
++	case FUSE_SETATTR: { /* setattr_in -> attr_out */
++		const struct fuse_setattr_in *req = (const struct fuse_setattr_in *)data;
++		return handle_setattr(fuse, handler, hdr, req);
++	}
++
++	case FUSE_MKNOD: { /* mknod_in, bytez[] -> entry_out */
++		const struct fuse_mknod_in *req = (const struct fuse_mknod_in *)data;
++		const char *name = ((const char*)data) + sizeof(*req);
++		return handle_mknod(fuse, handler, hdr, req, name);
++	}
++
++	case FUSE_MKDIR: { /* mkdir_in, bytez[] -> entry_out */
++		const struct fuse_mkdir_in *req = (const struct fuse_mkdir_in *)data;
++		const char *name = ((const char*)data) + sizeof(*req);
++		return handle_mkdir(fuse, handler, hdr, req, name);
++	}
++
++	case FUSE_UNLINK: { /* bytez[] -> */
++		const char* name = (const char *)data;
++		return handle_unlink(fuse, handler, hdr, name);
++	}
++
++	case FUSE_RMDIR: { /* bytez[] -> */
++		const char* name = (const char *)data;
++		return handle_rmdir(fuse, handler, hdr, name);
++	}
++
++	case FUSE_RENAME: { /* rename_in, oldname, newname ->  */
++		const struct fuse_rename_in *req = (const struct fuse_rename_in *)data;
++		const char *old_name = ((const char*)data) + sizeof(*req);
++		const char *new_name = old_name + strlen(old_name) + 1;
++		return handle_rename(fuse, handler, hdr, req, old_name, new_name);
++	}
++
++	case FUSE_OPEN: { /* open_in -> open_out */
++		const struct fuse_open_in *req = (const struct fuse_open_in *)data;
++		return handle_open(fuse, handler, hdr, req);
++	}
++
++	case FUSE_READ: { /* read_in -> byte[] */
++		const struct fuse_read_in *req = (const struct fuse_read_in *)data;
++		return handle_read(fuse, handler, hdr, req);
++	}
++
++	case FUSE_WRITE: { /* write_in, byte[write_in.size] -> write_out */
++		const struct fuse_write_in *req = (const struct fuse_write_in *)data;
++		const void* buffer = (const __u8*)data + sizeof(*req);
++		return handle_write(fuse, handler, hdr, req, buffer);
++	}
++
++	case FUSE_STATFS: { /* getattr_in -> attr_out */
++		return handle_statfs(fuse, handler, hdr);
++	}
++
++	case FUSE_RELEASE: { /* release_in -> */
++		const struct fuse_release_in *req = (const struct fuse_release_in *)data;
++		return handle_release(fuse, handler, hdr, req);
++	}
++
++	case FUSE_FSYNC:
++	case FUSE_FSYNCDIR: {
++		const struct fuse_fsync_in *req = (const struct fuse_fsync_in *)data;
++		return handle_fsync(fuse, handler, hdr, req);
++	}
++
++	case FUSE_FLUSH: {
++		return handle_flush(fuse, handler, hdr);
++	}
++
++	case FUSE_OPENDIR: { /* open_in -> open_out */
++		const struct fuse_open_in *req = (const struct fuse_open_in *)data;
++		return handle_opendir(fuse, handler, hdr, req);
++	}
++
++	case FUSE_READDIR: {
++		const struct fuse_read_in *req = (const struct fuse_read_in *)data;
++		return handle_readdir(fuse, handler, hdr, req);
++	}
++
++	case FUSE_RELEASEDIR: { /* release_in -> */
++		const struct fuse_release_in *req = (const struct fuse_release_in *)data;
++		return handle_releasedir(fuse, handler, hdr, req);
++	}
++
++	case FUSE_INIT: { /* init_in -> init_out */
++		const struct fuse_init_in *req = (const struct fuse_init_in *)data;
++		return handle_init(fuse, handler, hdr, req);
++	}
++
++	case FUSE_CANONICAL_PATH: { /* nodeid -> bytez[] */
++		return handle_canonical_path(fuse, handler, hdr);
++	}
++
++	default: {
++		return -ENOSYS;
++	}
++	}
++}
++
++static void handle_fuse_requests(struct fuse_handler* handler)
++{
++	LOG(ERROR) << "main start handle_fuse_requests";
++	struct fuse* fuse = handler->fuse;
++	for (;;) {
++		ssize_t len = TEMP_FAILURE_RETRY(read(fuse->fd,
++			handler->request_buffer, sizeof(handler->request_buffer)));
++		if (len < 0) {
++			if (errno == ENODEV) {
++				exit(2);
++			}
++			continue;
++		}
++
++		if ((size_t)len < sizeof(struct fuse_in_header)) {
++			continue;
++		}
++
++		const struct fuse_in_header *hdr = (const struct fuse_in_header *)handler->request_buffer;
++		if (hdr->len != (size_t)len) {
++			continue;
++		}
++
++		const void *data = handler->request_buffer + sizeof(struct fuse_in_header);
++		size_t data_len = len - sizeof(struct fuse_in_header);
++		__u64 unique = hdr->unique;
++		int res = handle_fuse_request(fuse, handler, hdr, data, data_len);
++
++		/* We do not access the request again after this point because the underlying
++		 * buffer storage may have been reused while processing the request. */
++
++		if (res != NO_STATUS) {
++			if (res) {
++			}
++			fuse_status(fuse, unique, res);
++		}
++	}
++}
++
++static void* start_handler(void* data)
++{
++	struct fuse_handler* handler = (struct fuse_handler *)data;
++	handle_fuse_requests(handler);
++	return NULL;
++}
++
++static bool remove_str_to_int(void *key, void *value, void *context) {
++	Hashmap* map = (Hashmap *)context;
++	hashmapRemove(map, key);
++	free(key);
++	return true;
++}
++
++static bool package_parse_callback(pkg_info *info, void *userdata) {
++	struct fuse_global *global = (struct fuse_global *)userdata;
++
++	char* name = strdup(info->name);
++	hashmapPut(global->package_to_appid, name, (void*)(uintptr_t)info->uid);
++	packagelist_free(info);
++	return true;
++}
++
++static bool read_package_list(struct fuse_global* global) {
++	pthread_mutex_lock(&global->lock);
++
++	hashmapForEach(global->package_to_appid, remove_str_to_int, global->package_to_appid);
++
++	bool rc = packagelist_parse(package_parse_callback, global);
++
++	/* Regenerate ownership details using newly loaded mapping */
++	derive_permissions_recursive_locked(global->fuse_default, &global->root);
++
++	pthread_mutex_unlock(&global->lock);
++
++	return rc;
++}
++
++static void watch_package_list(struct fuse_global* global) {
++	struct inotify_event *event;
++	char event_buf[512];
++
++	int nfd = inotify_init();
++	if (nfd < 0) {
++		return;
++	}
++
++	bool active = false;
++	while (1) {
++		if (!active) {
++			int res = inotify_add_watch(nfd, PACKAGES_LIST_FILE, IN_DELETE_SELF);
++			if (res == -1) {
++				if (errno == ENOENT || errno == EACCES) {
++					/* Framework may not have created yet, sleep and retry */
++					sleep(3);
++					continue;
++				}
++				else {
++					return;
++				}
++			}
++
++			/* Watch above will tell us about any future changes, so
++			 * read the current state. */
++			if (read_package_list(global) == false) {
++				return;
++			}
++			active = true;
++		}
++
++		int event_pos = 0;
++		int res = read(nfd, event_buf, sizeof(event_buf));
++		if (res < (int) sizeof(*event)) {
++			if (errno == EINTR)
++				continue;
++			return;
++		}
++
++		while (res >= (int) sizeof(*event)) {
++			int event_size;
++			event = (struct inotify_event *) (event_buf + event_pos);
++
++			if ((event->mask & IN_IGNORED) == IN_IGNORED) {
++				/* Previously watched file was deleted, probably due to move
++				 * that swapped in new data; re-arm the watch and read. */
++				active = false;
++			}
++
++			event_size = sizeof(*event) + event->len;
++			res -= event_size;
++			event_pos += event_size;
++		}
++	}
++}
++
++static int usage() {
++    return 1;
++}
++
++static int fuse_setup(struct fuse* fuse, gid_t gid, mode_t mask) {
++	char opts[256];
++
++	fuse->fd = open("/dev/fuse", O_RDWR);
++	if (fuse->fd == -1) {
++		return -1;
++	}
++
++	umount2(fuse->dest_path, MNT_DETACH);
++
++	snprintf(opts, sizeof(opts),
++		"fd=%i,rootmode=40000,default_permissions,allow_other,user_id=%d,group_id=%d",
++		fuse->fd, fuse->global->uid, fuse->global->gid);
++	if (mount("/dev/fuse", fuse->dest_path, "fuse", MS_NOSUID | MS_NODEV | MS_NOEXEC |
++		MS_NOATIME, opts) != 0) {
++		return -1;
++	}
++
++	fuse->gid = gid;
++	fuse->mask = mask;
++
++	return 0;
++}
++
++static void run(const char* source_path, const char* label, uid_t uid,
++	gid_t gid, userid_t userid, bool multi_user, bool full_write) {
++	struct fuse_global global;
++	struct fuse fuse_default;
++	struct fuse fuse_read;
++	struct fuse fuse_write;
++	struct fuse_handler handler_default;
++	struct fuse_handler handler_read;
++	struct fuse_handler handler_write;
++	pthread_t thread_default;
++	pthread_t thread_read;
++	pthread_t thread_write;
++
++	memset(&global, 0, sizeof(global));
++	memset(&fuse_default, 0, sizeof(fuse_default));
++	memset(&fuse_read, 0, sizeof(fuse_read));
++	memset(&fuse_write, 0, sizeof(fuse_write));
++	memset(&handler_default, 0, sizeof(handler_default));
++	memset(&handler_read, 0, sizeof(handler_read));
++	memset(&handler_write, 0, sizeof(handler_write));
++
++	pthread_mutex_init(&global.lock, NULL);
++	global.package_to_appid = hashmapCreate(256, str_hash, str_icase_equals);
++	global.uid = uid;
++	global.gid = gid;
++	global.multi_user = multi_user;
++	global.next_generation = 0;
++	global.inode_ctr = 1;
++
++	memset(&global.root, 0, sizeof(global.root));
++	global.root.nid = FUSE_ROOT_ID; /* 1 */
++	global.root.refcount = 2;
++	global.root.namelen = strlen(source_path);
++	global.root.name = strdup(source_path);
++	global.root.userid = userid;
++	global.root.uid = AID_ROOT;
++	global.root.under_android = false;
++
++	strcpy(global.source_path, source_path);
++
++	if (multi_user) {
++		global.root.perm = PERM_PRE_ROOT;
++		snprintf(global.obb_path, sizeof(global.obb_path), "%s/obb", source_path);
++	}
++	else {
++		global.root.perm = PERM_ROOT;
++		snprintf(global.obb_path, sizeof(global.obb_path), "%s/Android/obb", source_path);
++	}
++
++	fuse_default.global = &global;
++	fuse_read.global = &global;
++	fuse_write.global = &global;
++
++	global.fuse_default = &fuse_default;
++	global.fuse_read = &fuse_read;
++	global.fuse_write = &fuse_write;
++
++	snprintf(fuse_default.dest_path, PATH_MAX, "/mnt/runtime/default/%s", label);
++	snprintf(fuse_read.dest_path, PATH_MAX, "/mnt/runtime/read/%s", label);
++	snprintf(fuse_write.dest_path, PATH_MAX, "/mnt/runtime/write/%s", label);
++
++	handler_default.fuse = &fuse_default;
++	handler_read.fuse = &fuse_read;
++	handler_write.fuse = &fuse_write;
++
++	handler_default.token = 0;
++	handler_read.token = 1;
++	handler_write.token = 2;
++
++	umask(0);
++
++	if (multi_user) {
++		/* Multi-user storage is fully isolated per user, so "other"
++		 * permissions are completely masked off. */
++		if (fuse_setup(&fuse_default, AID_SDCARD_RW, 0006)
++			|| fuse_setup(&fuse_read, AID_EVERYBODY, 0027)
++			|| fuse_setup(&fuse_write, AID_EVERYBODY, full_write ? 0007 : 0027)) {
++			exit(1);
++		}
++	}
++	else {
++		/* Physical storage is readable by all users on device, but
++		 * the Android directories are masked off to a single user
++		 * deep inside attr_from_stat(). */
++		if (fuse_setup(&fuse_default, AID_SDCARD_RW, 0006)
++			|| fuse_setup(&fuse_read, AID_EVERYBODY, full_write ? 0027 : 0022)
++			|| fuse_setup(&fuse_write, AID_EVERYBODY, full_write ? 0007 : 0022)) {
++			// ERROR("failed to fuse_setup\n");
++			exit(1);
++		}
++	}
++
++	/* Drop privs */
++	if (setgroups(sizeof(kGroups) / sizeof(kGroups[0]), kGroups) < 0) {
++		exit(1);
++	}
++	if (setgid(gid) < 0) {
++		exit(1);
++	}
++	if (setuid(uid) < 0) {
++		exit(1);
++	}
++
++	if (multi_user) {
++		fs_prepare_dir(global.obb_path, 0775, uid, gid);
++	}
++
++	if (pthread_create(&thread_default, NULL, start_handler, &handler_default)
++		|| pthread_create(&thread_read, NULL, start_handler, &handler_read)
++		|| pthread_create(&thread_write, NULL, start_handler, &handler_write)) {
++		exit(1);
++	}
++
++	watch_package_list(&global);
++	exit(1);
++}
++
++
++
++extern void run_sdcardfs(const char* source_path, const char* label, uid_t uid,
++	gid_t gid, userid_t userid, bool multi_user, bool full_write) ;
++
++static bool supports_sdcardfs(void) {
++	FILE *fp;
++	char *buf = NULL;
++	size_t buflen = 0;
++
++	fp = fopen("/proc/filesystems", "r");
++	if (!fp) {
++		return false;
++	}
++	while ((getline(&buf, &buflen, fp)) > 0) {
++		if (strstr(buf, "sdcardfs\n")) {
++			free(buf);
++			fclose(fp);
++			return true;
++		}
++	}
++	free(buf);
++	fclose(fp);
++	return false;
++}
++
++static bool should_use_sdcardfs(void) {
++	char property[PROPERTY_VALUE_MAX];
++
++	// Allow user to have a strong opinion about state
++	property_get(PROP_SDCARDFS_USER, property, "");
++	if (!strcmp(property, "force_on")) {
++		LOG(ERROR) << ("User explicitly enabled sdcardfs");
++		return supports_sdcardfs();
++	}
++	else if (!strcmp(property, "force_off")) {
++		LOG(ERROR) << ("User explicitly disabled sdcardfs");
++		return false;
++	}
++
++	// Fall back to device opinion about state
++	if (property_get_bool(PROP_SDCARDFS_DEVICE, false)) {
++		LOG(ERROR) << ("Device explicitly enabled sdcardfs");
++		return supports_sdcardfs();
++	}
++	else {
++		LOG(ERROR) << ("Device explicitly disabled sdcardfs");
++		return false;
++	}
++}
++	
++static int sdcard_fuse_main(int argc, char **argv) {
++    setenv("ANDROID_LOG_TAGS", "*:v", 1);
++    android::base::InitLogging(argv, android::base::LogdLogger(android::base::SYSTEM));
++    LOG(ERROR) << "sdcard: argv[0]=" << argv[0] << " SDCARD_FUSE:" << SDCARD_FUSE;
++
++	LOG(ERROR) << "main start";
++	const char *source_path = NULL;
++	const char *label = NULL;
++	uid_t uid = 0;
++	gid_t gid = 0;
++	userid_t userid = 0;
++	bool multi_user = false;
++	bool full_write = false;
++	bool derive_gid = false;
++    bool default_normal = false;
++	bool unshared_obb = false;
++	int i;
++	struct rlimit rlim;
++	int fs_version;
++
++    int opt;
++    while ((opt = getopt(argc, argv, "u:g:U:mwGio")) != -1) {
++        switch (opt) {
++            case 'u':
++                uid = strtoul(optarg, NULL, 10);
++                break;
++            case 'g':
++                gid = strtoul(optarg, NULL, 10);
++                break;
++            case 'U':
++                userid = strtoul(optarg, NULL, 10);
++                break;
++            case 'm':
++                multi_user = true;
++                break;
++            case 'w':
++                full_write = true;
++                break;
++            case 'G':
++                derive_gid = true;
++                break;
++            case 'i':
++                default_normal = true;
++                break;
++            case 'o':
++                unshared_obb = true;
++                break;
++            case '?':
++            default:
++                LOG(ERROR) << "Unknown option: '" << opt << "'";
++                return 0/*usage()*/;
++        }
++    }
++
++	LOG(INFO) << "main start 2";
++    for (i = optind; i < argc; i++) {
++        char* arg = argv[i];
++        if (!source_path) {
++            source_path = arg;
++        } else if (!label) {
++            label = arg;
++        } else {
++            LOG(ERROR) << "too many arguments";
++            return usage();
++        }
++    }
++	LOG(INFO) << "main start 3";
++    if (!source_path) {
++        LOG(ERROR) << "no source path specified";
++        return usage();
++    }
++    if (!label) {
++        LOG(ERROR) << "no label specified";
++        return usage();
++    }
++    if (!uid || !gid) {
++        LOG(ERROR) << "uid and gid must be nonzero";
++        return usage();
++    }
++
++
++	rlim.rlim_cur = 8192;
++	rlim.rlim_max = 8192;
++	LOG(INFO) << "main start 4";
++
++	while ((fs_read_atomic_int("/data/misc/installd/layout_version", &fs_version) == -1) ||
++		(fs_version < 3)) {
++		LOG(ERROR) << "installd fs upgrade not yet complete; waiting...";
++		sleep(1);
++	}
++	
++	if (should_use_sdcardfs()) {
++		LOG(INFO) << "should_use_sdcardfs";
++	}
++
++	LOG(INFO) << "main start 5:source_path:" << ((source_path==NULL)?"":source_path)  << ",label:" << ((label==NULL)?"":label)
++	<< ",uid:" << uid 
++	<< ",gid:" << gid
++	<< ",userid:" << userid
++	<< ",multi_user:" << (multi_user?1:0 )
++	<< ",full_write:"<< (full_write?1:0);
++
++	run(source_path, label, uid, gid, userid, multi_user, full_write);
++
++	return 1;
++}
++
++int main(int argc, char **argv)
++{
++	if (SDCARD_FUSE) {
++		return sdcard_fuse_main(argc, argv);
++	} else {
++		return sdcardfs_main(argc, argv);
++	}
++}
+\ No newline at end of file
+diff --git a/sdcard/sdcard_wrapper.h b/sdcard/sdcard_wrapper.h
+new file mode 100755
+index 0000000..6ce996d
+--- /dev/null
++++ b/sdcard/sdcard_wrapper.h
+@@ -0,0 +1,4 @@
++#ifndef SDCARD_WRAPPER_H
++#define SDCARD_WRAPPER_H
++int sdcardfs_main(int argc, char **argv);
++#endif
+\ No newline at end of file

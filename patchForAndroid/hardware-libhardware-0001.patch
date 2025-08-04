@@ -1,0 +1,19 @@
+diff --git a/include/hardware/hwcomposer_defs.h b/include/hardware/hwcomposer_defs.h
+index 3823765..61e1a06 100644
+--- a/include/hardware/hwcomposer_defs.h
++++ b/include/hardware/hwcomposer_defs.h
+@@ -303,12 +303,14 @@ enum {
+ 
+     HWC_NUM_PHYSICAL_DISPLAY_TYPES = 2,
+     HWC_NUM_DISPLAY_TYPES          = 3,
++    HWC_DISPLAY_KBOX        = 4
+ };
+ 
+ enum {
+     HWC_DISPLAY_PRIMARY_BIT     = 1 << HWC_DISPLAY_PRIMARY,
+     HWC_DISPLAY_EXTERNAL_BIT    = 1 << HWC_DISPLAY_EXTERNAL,
+     HWC_DISPLAY_VIRTUAL_BIT     = 1 << HWC_DISPLAY_VIRTUAL,
++    HWC_DISPLAY_KBOX_BIT        = 1 << HWC_DISPLAY_KBOX,
+ };
+ 
+ /* Display power modes */

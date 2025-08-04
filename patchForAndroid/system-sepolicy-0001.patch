@@ -1,0 +1,28 @@
+diff --git a/prebuilts/api/30.0/private/file_contexts b/prebuilts/api/30.0/private/file_contexts
+index 9620b75..152f156 100644
+--- a/prebuilts/api/30.0/private/file_contexts
++++ b/prebuilts/api/30.0/private/file_contexts
+@@ -12,6 +12,9 @@
+ /selinux_version    u:object_r:rootfs:s0
+ /ueventd\..*        u:object_r:rootfs:s0
+ /verity_key         u:object_r:rootfs:s0
++/kbox-init.sh		u:object_r:rootfs:s0
++/hook_cpuinfo.sh	u:object_r:rootfs:s0
++/k8s-init.sh        u:object_r:rootfs:s0
+ 
+ # Executables
+ /init               u:object_r:init_exec:s0
+diff --git a/private/file_contexts b/private/file_contexts
+index 9620b75..152f156 100644
+--- a/private/file_contexts
++++ b/private/file_contexts
+@@ -12,6 +12,9 @@
+ /selinux_version    u:object_r:rootfs:s0
+ /ueventd\..*        u:object_r:rootfs:s0
+ /verity_key         u:object_r:rootfs:s0
++/kbox-init.sh		u:object_r:rootfs:s0
++/hook_cpuinfo.sh	u:object_r:rootfs:s0
++/k8s-init.sh        u:object_r:rootfs:s0
+ 
+ # Executables
+ /init               u:object_r:init_exec:s0

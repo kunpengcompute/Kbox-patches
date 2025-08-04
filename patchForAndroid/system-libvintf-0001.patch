@@ -1,0 +1,33 @@
+diff --git a/Android.bp b/Android.bp
+index 12ab161..f379f0c 100644
+--- a/Android.bp
++++ b/Android.bp
+@@ -18,6 +18,7 @@ cc_defaults {
+         "-Wall",
+         "-Werror",
+         "-Wextra-semi",
++        "-Wno-unused-parameter",
+     ],
+ 
+     target: {
+diff --git a/RuntimeInfo.cpp b/RuntimeInfo.cpp
+index df09958..2ed0f89 100644
+--- a/RuntimeInfo.cpp
++++ b/RuntimeInfo.cpp
+@@ -71,6 +71,7 @@ const Version &RuntimeInfo::bootAvbVersion() const {
+ 
+ bool RuntimeInfo::checkCompatibility(const CompatibilityMatrix& mat, std::string* error,
+                                      CheckFlags::Type flags) const {
++#if 0
+     if (mat.mType != SchemaType::FRAMEWORK) {
+         if (error != nullptr) {
+             *error = "Should not check runtime info against " + to_string(mat.mType)
+@@ -120,7 +121,7 @@ bool RuntimeInfo::checkCompatibility(const CompatibilityMatrix& mat, std::string
+             return false;
+         }
+     }
+-
++#endif
+     return true;
+ }
+ 
