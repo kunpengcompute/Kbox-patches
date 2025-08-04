@@ -1,0 +1,9 @@
+on late-fs
+    mount binfmt_misc none /proc/sys/fs/binfmt_misc
+    write /proc/sys/fs/binfmt_misc/register ":ubt_a32a64:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00:\xff\xff\xff\xff\xff\xff\xff\x00\x00\x00\x00\x00\x00\x00\x00\x00\xfe\xff\xff\xff:/system/bin/ubt_a32a64:POC"
+
+on property:exagear.enabled=1
+    write /proc/sys/fs/binfmt_misc/ubt_a32a64 1
+
+on property:exagear.enabled=0
+    write /proc/sys/fs/binfmt_misc/ubt_a32a64 0

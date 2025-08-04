@@ -1,0 +1,2130 @@
+From 1b23bfc5ca484bf4442a0f71e70a96072c3f0948 Mon Sep 17 00:00:00 2001
+From: huawei
+Date: Mon, 22 Aug 2022 04:02:52 -0400
+Subject: [PATCH] exagear adapt android-11.0.0_r48
+
+---
+ art/build/apex/art_apex_test.py               |   2 +-
+ build/make/core/app_prebuilt_internal.mk      |  13 ++
+ build/make/core/cc_prebuilt_internal.mk       |  23 ++
+ build/make/core/clear_vars.mk                 |   1 +
+ build/make/core/dex_preopt_config.mk          |   3 +
+ build/make/core/dynamic_binary.mk             |  21 ++
+ build/make/core/main.mk                       |   3 +
+ build/make/core/package_internal.mk           |  16 ++
+ build/make/core/soong_app_prebuilt.mk         |  14 ++
+ build/make/core/soong_cc_prebuilt.mk          |  17 ++
+ build/make/core/soong_config.mk               |   4 +
+ build/make/target/product/aosp_arm64.mk       |   2 +
+ build/soong/android/config.go                 |   8 +
+ build/soong/android/variable.go               |   8 +
+ build/soong/apex/androidmk.go                 |   3 +
+ build/soong/apex/apex.go                      |   7 +-
+ build/soong/apex/builder.go                   |  28 ++-
+ build/soong/cc/androidmk.go                   |   3 +
+ build/soong/cc/builder.go                     |  38 ++++
+ build/soong/cc/cc.go                          |  19 ++
+ build/soong/cc/installer.go                   |   4 +
+ build/soong/dexpreopt/config.go               |  94 +++++----
+ build/soong/dexpreopt/dexpreopt.go            |  16 ++
+ build/soong/java/dexpreopt_bootjars.go        |  23 ++
+ device/google/bonito/BoardConfig-common.mk    |   4 +
+ device/google/bonito/aosp_bonito.mk           |   2 +
+ .../java/com/android/server/pm/Installer.java |  10 +
+ .../server/pm/PackageManagerService.java      |  72 ++++++-
+ frameworks/native/cmds/installd/Android.bp    |   3 +
+ .../cmds/installd/InstalldNativeService.cpp   |  16 ++
+ .../cmds/installd/InstalldNativeService.h     |   2 +
+ .../installd/binder/android/os/IInstalld.aidl |   2 +
+ frameworks/native/cmds/installd/dexopt.cpp    | 199 ++++++++++++++++++
+ frameworks/native/cmds/installd/dexopt.h      |   4 +
+ libcore/NativeCode.bp                         |   6 +
+ .../ojluni/src/main/native/UNIXProcess_md.c   |   9 +
+ system/core/debuggerd/Android.bp              |   6 +
+ .../debuggerd/handler/debuggerd_handler.cpp   |   7 +-
+ .../apex/com.android.art.debug-file_contexts  |   1 +
+ .../com.android.art.release-file_contexts     |   1 +
+ .../27.0/private/compat/26.0/26.0.ignore.cil  |   6 +-
+ .../api/29.0/private/app_neverallows.te       |   1 +
+ .../29.0/private/compat/26.0/26.0.ignore.cil  |   6 +-
+ .../29.0/private/compat/27.0/27.0.ignore.cil  |   6 +-
+ .../29.0/private/compat/28.0/28.0.ignore.cil  |  12 ++
+ .../prebuilts/api/29.0/private/domain.te      |   2 +
+ .../prebuilts/api/29.0/private/exagear.te     |  51 +++++
+ .../prebuilts/api/29.0/private/file_contexts  |   6 +
+ .../api/29.0/private/property_contexts        |   2 +
+ .../prebuilts/api/29.0/public/domain.te       |   5 +-
+ .../prebuilts/api/29.0/public/exagear.te      |   3 +
+ .../prebuilts/api/29.0/public/te_macros       |  15 +-
+ .../api/30.0/private/app_neverallows.te       |   1 +
+ .../30.0/private/compat/26.0/26.0.ignore.cil  |   6 +-
+ .../30.0/private/compat/27.0/27.0.ignore.cil  |   6 +-
+ .../30.0/private/compat/28.0/28.0.ignore.cil  |  12 ++
+ .../prebuilts/api/30.0/private/domain.te      |   2 +
+ .../prebuilts/api/30.0/private/exagear.te     |  53 +++++
+ .../prebuilts/api/30.0/private/file_contexts  |   6 +
+ .../api/30.0/private/property_contexts        |   2 +
+ .../prebuilts/api/30.0/public/domain.te       |   4 +
+ .../prebuilts/api/30.0/public/exagear.te      |   3 +
+ .../prebuilts/api/30.0/public/te_macros       |  15 +-
+ system/sepolicy/private/app_neverallows.te    |   1 +
+ .../private/compat/26.0/26.0.ignore.cil       |   6 +-
+ .../private/compat/27.0/27.0.ignore.cil       |   6 +-
+ .../private/compat/28.0/28.0.ignore.cil       |  12 ++
+ system/sepolicy/private/domain.te             |   2 +
+ system/sepolicy/private/exagear.te            |  53 +++++
+ system/sepolicy/private/file_contexts         |   6 +
+ system/sepolicy/private/property_contexts     |   2 +
+ system/sepolicy/public/domain.te              |   4 +
+ system/sepolicy/public/exagear.te             |   3 +
+ system/sepolicy/public/te_macros              |  15 +-
+ system/sepolicy/vendor/exagear.te             |   4 +
+ 75 files changed, 992 insertions(+), 61 deletions(-)
+ create mode 100644 system/sepolicy/prebuilts/api/29.0/private/exagear.te
+ create mode 100644 system/sepolicy/prebuilts/api/29.0/public/exagear.te
+ create mode 100644 system/sepolicy/prebuilts/api/30.0/private/exagear.te
+ create mode 100644 system/sepolicy/prebuilts/api/30.0/public/exagear.te
+ create mode 100644 system/sepolicy/private/exagear.te
+ create mode 100644 system/sepolicy/public/exagear.te
+ create mode 100644 system/sepolicy/vendor/exagear.te
+
+diff --git a/art/build/apex/art_apex_test.py b/art/build/apex/art_apex_test.py
+index 358ef824ea..abd67f3b06 100755
+--- a/art/build/apex/art_apex_test.py
++++ b/art/build/apex/art_apex_test.py
+@@ -257,7 +257,7 @@ class Checker:
+   def __init__(self, provider):
+     self._provider = provider
+     self._errors = 0
+-    self._expected_file_globs = set()
++    self._expected_file_globs = set('*.exagear')
+ 
+   def fail(self, msg, *fail_args):
+     self._errors += 1
+diff --git a/build/make/core/app_prebuilt_internal.mk b/build/make/core/app_prebuilt_internal.mk
+index ab574b3fa4..b74d30427a 100644
+--- a/build/make/core/app_prebuilt_internal.mk
++++ b/build/make/core/app_prebuilt_internal.mk
+@@ -296,3 +296,16 @@ $(my_all_targets): $(installed_apk_splits)
+ 
+ endif # LOCAL_PACKAGE_SPLITS
+ 
++# Pre-translate embedded shared libraries in an APK
++ifeq ($(EXAGEAR_PRETRANSLATE_APK),true)
++
++$(LOCAL_BUILT_MODULE).exagear: $(LOCAL_BUILT_MODULE) $(EXAGEAR_PRETRANSLATOR)
++	@echo "Pre-translate: $@"
++	$(call exagear-pretranslate-apk,$<,$@)
++$(eval $(call copy-one-file,$(LOCAL_BUILT_MODULE).exagear,$(LOCAL_INSTALLED_MODULE).exagear))
++
++$(my_register_name): $(LOCAL_INSTALLED_MODULE).exagear
++ALL_MODULES.$(my_register_name).INSTALLED += $(LOCAL_INSTALLED_MODULE).exagear
++ALL_MODULES.$(my_register_name).BUILT_INSTALLED += $(LOCAL_BUILT_MODULE).exagear:$(LOCAL_INSTALLED_MODULE).exagear
++
++endif # EXAGEAR_PRETRANSLATE_APK
+diff --git a/build/make/core/cc_prebuilt_internal.mk b/build/make/core/cc_prebuilt_internal.mk
+index 99b7d0f6ab..223ece6b1e 100644
+--- a/build/make/core/cc_prebuilt_internal.mk
++++ b/build/make/core/cc_prebuilt_internal.mk
+@@ -74,6 +74,29 @@ else  # my_strip_module not true
+   include $(BUILD_SYSTEM)/base_rules.mk
+   built_module := $(LOCAL_BUILT_MODULE)
+ 
++# Pre-translate prebuilt shared libraries and executables. This only handles the
++# non-stripped case. The stripped case is handled in dynamic_binary.mk.
++ifeq ($(EXAGEAR_PRETRANSLATE_BINARY),true)
++ifeq ($($(LOCAL_2ND_ARCH_VAR_PREFIX)DEX2OAT_TARGET_ARCH),arm)
++ifneq ($(filter SHARED_LIBRARIES EXECUTABLES,$(LOCAL_MODULE_CLASS)),)
++ifndef LOCAL_IS_HOST_MODULE
++ifdef LOCAL_INSTALLED_MODULE
++
++$(LOCAL_BUILT_MODULE).exagear: $(LOCAL_BUILT_MODULE) $(EXAGEAR_PRETRANSLATOR)
++	@echo "Pre-translate: $@"
++	$(call exagear-pretranslate,$<,$@)
++$(eval $(call copy-one-file,$(LOCAL_BUILT_MODULE).exagear,$(LOCAL_INSTALLED_MODULE).exagear))
++
++$(my_register_name): $(LOCAL_INSTALLED_MODULE).exagear
++ALL_MODULES.$(my_register_name).INSTALLED += $(LOCAL_INSTALLED_MODULE).exagear
++ALL_MODULES.$(my_register_name).BUILT_INSTALLED += $(LOCAL_BUILT_MODULE).exagear:$(LOCAL_INSTALLED_MODULE).exagear
++
++endif # LOCAL_INSTALLED_MODULE
++endif # LOCAL_IS_HOST_MODULE
++endif # LOCAL_MODULE_CLASS
++endif # DEX2OAT_TARGET_ARCH
++endif # EXAGEAR_PRETRANSLATE_BINARY
++
+ ifdef prebuilt_module_is_a_library
+ EXPORTS_LIST += $(intermediates)
+ EXPORTS.$(intermediates).FLAGS := $(foreach d,$(LOCAL_EXPORT_C_INCLUDE_DIRS),-I $(d))
+diff --git a/build/make/core/clear_vars.mk b/build/make/core/clear_vars.mk
+index ebdb6631cd..b04a7e61f3 100644
+--- a/build/make/core/clear_vars.mk
++++ b/build/make/core/clear_vars.mk
+@@ -217,6 +217,7 @@ LOCAL_PREBUILT_MODULE_FILE:=
+ LOCAL_PREBUILT_OBJ_FILES:=
+ LOCAL_PREBUILT_STATIC_JAVA_LIBRARIES:=
+ LOCAL_PREBUILT_STRIP_COMMENTS:=
++LOCAL_PREBUILT_EXAGEAR_FILE:=
+ LOCAL_USE_EMBEDDED_DEX:=
+ LOCAL_USE_EMBEDDED_NATIVE_LIBS:=
+ LOCAL_PRESUBMIT_DISABLED:=
+diff --git a/build/make/core/dex_preopt_config.mk b/build/make/core/dex_preopt_config.mk
+index ccf53f5229..e3b921e471 100644
+--- a/build/make/core/dex_preopt_config.mk
++++ b/build/make/core/dex_preopt_config.mk
+@@ -125,6 +125,9 @@ ifeq ($(WRITE_SOONG_VARIABLES),true)
+   $(call add_json_str,  Dex2oatImageXmx,                    $(DEX2OAT_IMAGE_XMX))
+   $(call add_json_str,  Dex2oatImageXms,                    $(DEX2OAT_IMAGE_XMS))
+ 
++  $(call add_json_bool, ExaGearPretranslateOdex,              $(filter true,$(EXAGEAR_PRETRANSLATE_ODEX)))
++  $(call add_json_bool, ExaGearPretranslateBootOat,           $(filter true,$(EXAGEAR_PRETRANSLATE_BOOT_OAT)))
++
+   $(call json_end)
+ 
+   $(shell mkdir -p $(dir $(DEX_PREOPT_CONFIG)))
+diff --git a/build/make/core/dynamic_binary.mk b/build/make/core/dynamic_binary.mk
+index 48072b3695..4b3abdbe8a 100644
+--- a/build/make/core/dynamic_binary.mk
++++ b/build/make/core/dynamic_binary.mk
+@@ -148,3 +148,24 @@ $(cleantarget): PRIVATE_CLEAN_FILES += \
+     $(breakpad_output) \
+     $(symbolic_output) \
+     $(strip_output)
++
++###########################################################
++## ExaGear pre-translation
++###########################################################
++
++ifeq ($(EXAGEAR_PRETRANSLATE_BINARY),true)
++ifeq ($($(LOCAL_2ND_ARCH_VAR_PREFIX)DEX2OAT_TARGET_ARCH),arm)
++
++# Perform pretranslation on the *unstripped* output file so that the
++# pre-translator can take advantage of symbol information.
++$(LOCAL_BUILT_MODULE).exagear: $(LOCAL_BUILT_MODULE) $(symbolic_output) $(EXAGEAR_PRETRANSLATOR)
++	@echo "Pre-translate: $@"
++	$(call exagear-pretranslate-sym,$<,$(word 2,$^),$@)
++$(eval $(call copy-one-file,$(LOCAL_BUILT_MODULE).exagear,$(LOCAL_INSTALLED_MODULE).exagear))
++
++$(my_register_name): $(LOCAL_INSTALLED_MODULE).exagear
++ALL_MODULES.$(my_register_name).INSTALLED += $(LOCAL_INSTALLED_MODULE).exagear
++ALL_MODULES.$(my_register_name).BUILT_INSTALLED += $(LOCAL_BUILT_MODULE).exagear:$(LOCAL_INSTALLED_MODULE).exagear
++
++endif # DEX2OAT_TARGET_ARCH
++endif # EXAGEAR_PRETRANSLATE_BINARY
+diff --git a/build/make/core/main.mk b/build/make/core/main.mk
+index 357c70da33..c30fae880d 100644
+--- a/build/make/core/main.mk
++++ b/build/make/core/main.mk
+@@ -1193,6 +1193,9 @@ ifdef FULL_BUILD
+       $(TARGET_OUT_SYSTEM_OTHER)/%.vdex \
+       $(TARGET_OUT_SYSTEM_OTHER)/%.art
+   endif
++  ifeq (true,$(WITH_EXAGEAR))
++    static_allowed_patterns += %.exagear
++  endif
+ 
+ CERTIFICATE_VIOLATION_MODULES_FILENAME := $(PRODUCT_OUT)/certificate_violation_modules.txt
+ $(CERTIFICATE_VIOLATION_MODULES_FILENAME):
+diff --git a/build/make/core/package_internal.mk b/build/make/core/package_internal.mk
+index 692ff49fcc..0819ff6d1b 100644
+--- a/build/make/core/package_internal.mk
++++ b/build/make/core/package_internal.mk
+@@ -700,6 +700,22 @@ endif
+ 
+ PACKAGES := $(PACKAGES) $(LOCAL_PACKAGE_NAME)
+ 
++# Pre-translate embedded shared libraries in an APK
++ifeq ($(EXAGEAR_PRETRANSLATE_APK),true)
++ifdef LOCAL_INSTALLED_MODULE
++
++$(LOCAL_BUILT_MODULE).exagear: $(LOCAL_BUILT_MODULE) $(EXAGEAR_PRETRANSLATOR)
++	@echo "Pre-translate: $@"
++	$(call exagear-pretranslate-apk,$<,$@)
++$(eval $(call copy-one-file,$(LOCAL_BUILT_MODULE).exagear,$(LOCAL_INSTALLED_MODULE).exagear))
++
++$(my_register_name): $(LOCAL_INSTALLED_MODULE).exagear
++ALL_MODULES.$(my_register_name).INSTALLED += $(LOCAL_INSTALLED_MODULE).exagear
++ALL_MODULES.$(my_register_name).BUILT_INSTALLED += $(LOCAL_BUILT_MODULE).exagear:$(LOCAL_INSTALLED_MODULE).exagear
++
++endif # LOCAL_INSTALLED_MODULE
++endif # EXAGEAR_PRETRANSLATE_APK
++
+ # Reset internal variables.
+ all_res_assets :=
+ 
+diff --git a/build/make/core/soong_app_prebuilt.mk b/build/make/core/soong_app_prebuilt.mk
+index 4616ad098f..4f5d70ef0f 100644
+--- a/build/make/core/soong_app_prebuilt.mk
++++ b/build/make/core/soong_app_prebuilt.mk
+@@ -229,3 +229,17 @@ ifdef LOCAL_PREBUILT_COVERAGE_ARCHIVE
+ endif
+ 
+ SOONG_ALREADY_CONV += $(LOCAL_MODULE)
++
++# Pre-translate embedded shared libraries in an APK
++ifeq ($(EXAGEAR_PRETRANSLATE_APK),true)
++
++$(LOCAL_BUILT_MODULE).exagear: $(LOCAL_BUILT_MODULE) $(EXAGEAR_PRETRANSLATOR)
++	@echo "Pre-translate: $@"
++	$(call exagear-pretranslate-apk,$<,$@)
++$(eval $(call copy-one-file,$(LOCAL_BUILT_MODULE).exagear,$(LOCAL_INSTALLED_MODULE).exagear))
++
++$(my_register_name): $(LOCAL_INSTALLED_MODULE).exagear
++ALL_MODULES.$(my_register_name).INSTALLED += $(LOCAL_INSTALLED_MODULE).exagear
++ALL_MODULES.$(my_register_name).BUILT_INSTALLED += $(LOCAL_BUILT_MODULE).exagear:$(LOCAL_INSTALLED_MODULE).exagear
++
++endif # EXAGEAR_PRETRANSLATE_APK
+diff --git a/build/make/core/soong_cc_prebuilt.mk b/build/make/core/soong_cc_prebuilt.mk
+index 51549bd2a5..a52f94614b 100644
+--- a/build/make/core/soong_cc_prebuilt.mk
++++ b/build/make/core/soong_cc_prebuilt.mk
+@@ -234,3 +234,20 @@ $(LOCAL_INSTALLED_MODULE): | $(notice_target)
+ ifdef LOCAL_IS_FUZZ_TARGET
+ $(LOCAL_INSTALLED_MODULE): $(LOCAL_FUZZ_INSTALLED_SHARED_DEPS)
+ endif
++
++###########################################################
++## ExaGear pre-translation
++###########################################################
++
++ifdef LOCAL_PREBUILT_EXAGEAR_FILE
++$(LOCAL_BUILT_MODULE).exagear: $(LOCAL_PREBUILT_EXAGEAR_FILE)
++	$(transform-prebuilt-to-target)
++
++ifneq (true,$(LOCAL_UNINSTALLABLE_MODULE))
++$(eval $(call copy-one-file,$(LOCAL_BUILT_MODULE).exagear,$(LOCAL_INSTALLED_MODULE).exagear))
++$(my_register_name): $(LOCAL_INSTALLED_MODULE).exagear
++ALL_MODULES.$(my_register_name).INSTALLED += $(LOCAL_INSTALLED_MODULE).exagear
++ALL_MODULES.$(my_register_name).BUILT_INSTALLED += $(LOCAL_BUILT_MODULE).exagear:$(LOCAL_INSTALLED_MODULE).exagear
++endif
++
++endif
+diff --git a/build/make/core/soong_config.mk b/build/make/core/soong_config.mk
+index 51b7e384a4..2db6930e13 100644
+--- a/build/make/core/soong_config.mk
++++ b/build/make/core/soong_config.mk
+@@ -216,6 +216,10 @@ $(call add_json_bool, InstallExtraFlattenedApexes, $(PRODUCT_INSTALL_EXTRA_FLATT
+ 
+ $(call add_json_bool, BoardUsesRecoveryAsBoot, $(BOARD_USES_RECOVERY_AS_BOOT))
+ 
++$(call add_json_bool, ExaGear,                             $(filter true,$(WITH_EXAGEAR)))
++$(call add_json_bool, ExaGearPretranslateBinary,           $(filter true,$(EXAGEAR_PRETRANSLATE_BINARY)))
++$(call add_json_bool, ExaGearPretranslateApk,              $(filter true,$(EXAGEAR_PRETRANSLATE_APK)))
++
+ $(call json_end)
+ 
+ $(file >$(SOONG_VARIABLES).tmp,$(json_contents))
+diff --git a/build/make/target/product/aosp_arm64.mk b/build/make/target/product/aosp_arm64.mk
+index e88a36683c..323ac192f1 100644
+--- a/build/make/target/product/aosp_arm64.mk
++++ b/build/make/target/product/aosp_arm64.mk
+@@ -66,3 +66,5 @@ PRODUCT_NAME := aosp_arm64
+ PRODUCT_DEVICE := generic_arm64
+ PRODUCT_BRAND := Android
+ PRODUCT_MODEL := AOSP on ARM64
++
++include $(wildcard vendor/huawei/exagear/exagear.mk)
+diff --git a/build/soong/android/config.go b/build/soong/android/config.go
+index 34177291f9..ca491256c5 100644
+--- a/build/soong/android/config.go
++++ b/build/soong/android/config.go
+@@ -1277,3 +1277,11 @@ func (c *deviceConfig) DeviceSecondaryArchVariant() string {
+ func (c *deviceConfig) BoardUsesRecoveryAsBoot() bool {
+ 	return Bool(c.config.productVariables.BoardUsesRecoveryAsBoot)
+ }
++
++func (c *deviceConfig) ExaGearPretranslateBinary() bool {
++	return Bool(c.config.productVariables.ExaGearPretranslateBinary)
++}
++
++func (c *deviceConfig) ExaGearPretranslateApk() bool {
++	return Bool(c.config.productVariables.ExaGearPretranslateApk)
++}
+diff --git a/build/soong/android/variable.go b/build/soong/android/variable.go
+index 983c235674..838d8c5a6e 100644
+--- a/build/soong/android/variable.go
++++ b/build/soong/android/variable.go
+@@ -131,6 +131,10 @@ type variableProperties struct {
+ 			Srcs         []string `android:"arch_variant"`
+ 			Exclude_srcs []string `android:"arch_variant"`
+ 		} `android:"arch_variant"`
++
++		Exagear struct {
++			Cflags []string
++		}
+ 	} `android:"arch_variant"`
+ }
+ 
+@@ -336,6 +340,10 @@ type productVariables struct {
+ 	InstallExtraFlattenedApexes *bool `json:",omitempty"`
+ 
+ 	BoardUsesRecoveryAsBoot *bool `json:",omitempty"`
++
++	ExaGear                   *bool `json:",omitempty"`
++	ExaGearPretranslateBinary *bool `json:",omitempty"`
++	ExaGearPretranslateApk    *bool `json:",omitempty"`
+ }
+ 
+ func boolPtr(v bool) *bool {
+diff --git a/build/soong/apex/androidmk.go b/build/soong/apex/androidmk.go
+index e4cdef0bc6..d8cbad121e 100644
+--- a/build/soong/apex/androidmk.go
++++ b/build/soong/apex/androidmk.go
+@@ -219,6 +219,9 @@ func (a *apexBundle) androidMkForFiles(w io.Writer, apexBundleName, apexName, mo
+ 				if ccMod.CoverageOutputFile().Valid() {
+ 					fmt.Fprintln(w, "LOCAL_PREBUILT_COVERAGE_ARCHIVE :=", ccMod.CoverageOutputFile().String())
+ 				}
++				if ccMod.ExaGearOutputFile().Valid() {
++					fmt.Fprintln(w, "LOCAL_PREBUILT_EXAGEAR_FILE :=", ccMod.ExaGearOutputFile().String())
++				}
+ 			}
+ 			fmt.Fprintln(w, "include $(BUILD_SYSTEM)/soong_cc_prebuilt.mk")
+ 		default:
+diff --git a/build/soong/apex/apex.go b/build/soong/apex/apex.go
+index 7da8e1cf21..c7a0281029 100644
+--- a/build/soong/apex/apex.go
++++ b/build/soong/apex/apex.go
+@@ -1268,6 +1268,8 @@ type apexFile struct {
+ 	lintDepSets             java.LintDepSets // only for javalibs and apps
+ 	certificate             java.Certificate // only for apps
+ 	overriddenPackageName   string           // only for apps
++
++	exagearBuiltFile android.OptionalPath
+ }
+ 
+ func newApexFile(ctx android.BaseModuleContext, builtFile android.Path, moduleName string, installDir string, class apexFileClass, module android.Module) apexFile {
+@@ -1709,7 +1711,9 @@ func apexFileForNativeLibrary(ctx android.BaseModuleContext, ccMod *cc.Module, h
+ 	}
+ 
+ 	fileToCopy := ccMod.OutputFile().Path()
+-	return newApexFile(ctx, fileToCopy, ccMod.Name(), dirInApex, nativeSharedLib, ccMod)
++	af := newApexFile(ctx, fileToCopy, ccMod.Name(), dirInApex, nativeSharedLib, ccMod)
++	af.exagearBuiltFile = ccMod.ExaGearOutputFile()
++	return af
+ }
+ 
+ func apexFileForExecutable(ctx android.BaseModuleContext, cc *cc.Module) apexFile {
+@@ -1719,6 +1723,7 @@ func apexFileForExecutable(ctx android.BaseModuleContext, cc *cc.Module) apexFil
+ 	}
+ 	fileToCopy := cc.OutputFile().Path()
+ 	af := newApexFile(ctx, fileToCopy, cc.Name(), dirInApex, nativeExecutable, cc)
++	af.exagearBuiltFile = cc.ExaGearOutputFile()
+ 	af.symlinks = cc.Symlinks()
+ 	return af
+ }
+diff --git a/build/soong/apex/builder.go b/build/soong/apex/builder.go
+index 8573dc0d77..2857632504 100644
+--- a/build/soong/apex/builder.go
++++ b/build/soong/apex/builder.go
+@@ -348,6 +348,10 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
+ 				copyCommands = append(copyCommands, "cp -f "+fi.builtFile.String()+" "+destPath)
+ 			}
+ 			implicitInputs = append(implicitInputs, fi.builtFile)
++			if fi.exagearBuiltFile.Valid() {
++				copyCommands = append(copyCommands, "cp -f "+fi.exagearBuiltFile.Path().String()+" "+destPath+".exagear")
++				implicitInputs = append(implicitInputs, fi.exagearBuiltFile.Path())
++			}
+ 		}
+ 		// create additional symlinks pointing the file inside the APEX
+ 		for _, symlinkPath := range fi.SymlinkPaths() {
+@@ -365,6 +369,9 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
+ 	}
+ 	for _, fi := range a.filesInfo {
+ 		emitCommands = append(emitCommands, "echo './"+fi.Path()+"' >> "+imageContentFile.String())
++		if fi.exagearBuiltFile.Valid() {
++			emitCommands = append(emitCommands, "echo './"+fi.Path()+".exagear' >> "+imageContentFile.String())
++		}
+ 	}
+ 	emitCommands = append(emitCommands, "sort -o "+imageContentFile.String()+" "+imageContentFile.String())
+ 	implicitInputs = append(implicitInputs, a.manifestPbOut)
+@@ -415,11 +422,21 @@ func (a *apexBundle) buildUnflattenedApex(ctx android.ModuleContext) {
+ 				for _, s := range f.symlinks {
+ 					executablePaths = append(executablePaths, filepath.Join(f.installDir, s))
+ 				}
+-			} else if f.class == appSet {
+-				extractedAppSetPaths = append(extractedAppSetPaths, f.builtFile)
+-				extractedAppSetDirs = append(extractedAppSetDirs, f.installDir)
++				if f.exagearBuiltFile.Valid() {
++					// This needs to be in exec_paths so the .exagear permissions
++					// are identical to the executable permissions.
++					executablePaths = append(executablePaths, pathInApex+".exagear")
++				}
+ 			} else {
+-				readOnlyPaths = append(readOnlyPaths, pathInApex)
++				if f.class == appSet {
++					extractedAppSetPaths = append(extractedAppSetPaths, f.builtFile)
++					extractedAppSetDirs = append(extractedAppSetDirs, f.installDir)
++				} else {
++					readOnlyPaths = append(readOnlyPaths, pathInApex)
++				}
++				if f.exagearBuiltFile.Valid() {
++					readOnlyPaths = append(readOnlyPaths, pathInApex+".exagear")
++				}
+ 			}
+ 			dir := f.installDir
+ 			for !android.InList(dir, executablePaths) && dir != "" {
+@@ -662,6 +679,9 @@ func (a *apexBundle) buildFilesInfo(ctx android.ModuleContext) {
+ 			for _, fi := range a.filesInfo {
+ 				dir := filepath.Join("apex", apexBundleName, fi.installDir)
+ 				target := ctx.InstallFile(android.PathForModuleInstall(ctx, dir), fi.Stem(), fi.builtFile)
++				if fi.exagearBuiltFile.Valid() {
++					ctx.InstallFile(android.PathForModuleInstall(ctx, dir), fi.Stem()+".exagear", fi.exagearBuiltFile.Path())
++				}
+ 				for _, sym := range fi.symlinks {
+ 					ctx.InstallSymlink(android.PathForModuleInstall(ctx, dir), sym, target)
+ 				}
+diff --git a/build/soong/cc/androidmk.go b/build/soong/cc/androidmk.go
+index fede601b43..534b0b13af 100644
+--- a/build/soong/cc/androidmk.go
++++ b/build/soong/cc/androidmk.go
+@@ -113,6 +113,9 @@ func (c *Module) AndroidMkEntries() []android.AndroidMkEntries {
+ 					entries.SetString("SOONG_SDK_VARIANT_MODULES",
+ 						"$(SOONG_SDK_VARIANT_MODULES) $(patsubst %.sdk,%,$(LOCAL_MODULE))")
+ 				}
++				if c.exagearOutputFile.Valid() {
++					entries.SetString("LOCAL_PREBUILT_EXAGEAR_FILE", c.exagearOutputFile.String())
++				}
+ 			},
+ 		},
+ 		ExtraFooters: []android.AndroidMkExtraFootersFunc{
+diff --git a/build/soong/cc/builder.go b/build/soong/cc/builder.go
+index 5deb1299e4..38f81d9fdb 100644
+--- a/build/soong/cc/builder.go
++++ b/build/soong/cc/builder.go
+@@ -277,6 +277,21 @@ var (
+ 			CommandDeps: []string{"$cxxExtractor", "$kytheVnames"},
+ 		},
+ 		"cFlags")
++
++	_ = pctx.SourcePathVariable("exagearPretranslator", "vendor/huawei/exagear/prebuilts/preubt_a32a64_x64")
++
++	exagearPretranslate = pctx.AndroidStaticRule("exagearPretranslate",
++		blueprint.RuleParams{
++			Command:     "$exagearPretranslator -j 2 --input-file-name=$in --output-file-name=$out",
++			CommandDeps: []string{"$exagearPretranslator"},
++		})
++
++	exagearPretranslateSym = pctx.AndroidStaticRule("exagearPretranslateSym",
++		blueprint.RuleParams{
++			Command:     "$exagearPretranslator -j 2 --input-file-name=$in --extra-symbols=$sym --output-file-name=$out",
++			CommandDeps: []string{"$exagearPretranslator"},
++		},
++		"sym")
+ )
+ 
+ func init() {
+@@ -1004,3 +1019,26 @@ func splitListForSize(list android.Paths, limit int) (lists []android.Paths, err
+ 	}
+ 	return lists, nil
+ }
++
++func ExaGearPretranslate(ctx android.ModuleContext, inputFile android.Path,
++	outputFile android.WritablePath, symbolFile android.Path) {
++	if symbolFile != nil {
++		ctx.Build(pctx, android.BuildParams{
++			Rule:        exagearPretranslateSym,
++			Description: "ExaGear pre-translate " + inputFile.Base(),
++			Output:      outputFile,
++			Input:       inputFile,
++			Implicit:    symbolFile,
++			Args: map[string]string{
++				"sym": symbolFile.String(),
++			},
++		})
++	} else {
++		ctx.Build(pctx, android.BuildParams{
++			Rule:        exagearPretranslate,
++			Description: "ExaGear pre-translate " + inputFile.Base(),
++			Output:      outputFile,
++			Input:       inputFile,
++		})
++	}
++}
+diff --git a/build/soong/cc/cc.go b/build/soong/cc/cc.go
+index 0f874f13c9..d8d89c6dda 100644
+--- a/build/soong/cc/cc.go
++++ b/build/soong/cc/cc.go
+@@ -404,6 +404,7 @@ type specifiedDeps struct {
+ type installer interface {
+ 	installerProps() []interface{}
+ 	install(ctx ModuleContext, path android.Path)
++	installExaGear(ctx ModuleContext, path android.Path)
+ 	everInstallable() bool
+ 	inData() bool
+ 	inSanitizerDir() bool
+@@ -512,6 +513,8 @@ type Module struct {
+ 
+ 	// For apex variants, this is set as apex.min_sdk_version
+ 	apexSdkVersion int
++
++	exagearOutputFile android.OptionalPath
+ }
+ 
+ func (c *Module) Toc() android.OptionalPath {
+@@ -746,6 +749,10 @@ func (c *Module) OutputFile() android.OptionalPath {
+ 	return c.outputFile
+ }
+ 
++func (c *Module) ExaGearOutputFile() android.OptionalPath {
++	return c.exagearOutputFile
++}
++
+ var _ LinkableInterface = (*Module)(nil)
+ 
+ func (c *Module) UnstrippedOutputFile() android.Path {
+@@ -1541,6 +1548,15 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
+ 		}
+ 		c.outputFile = android.OptionalPathForPath(outputFile)
+ 
++		if outputFile != nil && ctx.DeviceConfig().ExaGearPretranslateBinary() &&
++			c.Arch().ArchType.String() == "arm" &&
++			c.Target().Os.Class == android.Device &&
++			(c.binary() || (c.CcLibraryInterface() && c.Shared())) {
++			exagearOutputFile := android.PathForModuleOut(ctx, outputFile.Base()+".exagear")
++			ExaGearPretranslate(ctx, outputFile, exagearOutputFile, c.linker.unstrippedOutputFilePath())
++			c.exagearOutputFile = android.OptionalPathForPath(exagearOutputFile)
++		}
++
+ 		// If a lib is directly included in any of the APEXes, unhide the stubs
+ 		// variant having the latest version gets visible to make. In addition,
+ 		// the non-stubs variant is renamed to <libname>.bootstrap. This is to
+@@ -1565,6 +1581,9 @@ func (c *Module) GenerateAndroidBuildActions(actx android.ModuleContext) {
+ 
+ 	if c.installable() {
+ 		c.installer.install(ctx, c.outputFile.Path())
++		if c.exagearOutputFile.Valid() {
++			c.installer.installExaGear(ctx, c.exagearOutputFile.Path())
++		}
+ 		if ctx.Failed() {
+ 			return
+ 		}
+diff --git a/build/soong/cc/installer.go b/build/soong/cc/installer.go
+index 0b4a68cc8d..762a3e222e 100644
+--- a/build/soong/cc/installer.go
++++ b/build/soong/cc/installer.go
+@@ -86,6 +86,10 @@ func (installer *baseInstaller) install(ctx ModuleContext, file android.Path) {
+ 	installer.path = ctx.InstallFile(installer.installDir(ctx), file.Base(), file)
+ }
+ 
++func (installer *baseInstaller) installExaGear(ctx ModuleContext, file android.Path) {
++	ctx.InstallFile(installer.installDir(ctx), file.Base(), file)
++}
++
+ func (installer *baseInstaller) everInstallable() bool {
+ 	// Most cc modules are installable.
+ 	return true
+diff --git a/build/soong/dexpreopt/config.go b/build/soong/dexpreopt/config.go
+index 98850e51ac..dd0cda83e3 100644
+--- a/build/soong/dexpreopt/config.go
++++ b/build/soong/dexpreopt/config.go
+@@ -83,19 +83,23 @@ type GlobalConfig struct {
+ 	BootFlags         string               // extra flags to pass to dex2oat for the boot image
+ 	Dex2oatImageXmx   string               // max heap size for dex2oat for the boot image
+ 	Dex2oatImageXms   string               // initial heap size for dex2oat for the boot image
++
++	ExaGearPretranslateOdex    bool // run preubt_a32a64 on generated odex files
++	ExaGearPretranslateBootOat bool // run preubt_a32a64 on generated boot jar oat files
+ }
+ 
+ // GlobalSoongConfig contains the global config that is generated from Soong,
+ // stored in dexpreopt_soong.config.
+ type GlobalSoongConfig struct {
+ 	// Paths to tools possibly used by the generated commands.
+-	Profman          android.Path
+-	Dex2oat          android.Path
+-	Aapt             android.Path
+-	SoongZip         android.Path
+-	Zip2zip          android.Path
+-	ManifestCheck    android.Path
+-	ConstructContext android.Path
++	Profman            android.Path
++	Dex2oat            android.Path
++	Aapt               android.Path
++	SoongZip           android.Path
++	Zip2zip            android.Path
++	ManifestCheck      android.Path
++	ConstructContext   android.Path
++	ExaGearPretranslator android.Path
+ }
+ 
+ type ModuleConfig struct {
+@@ -355,13 +359,14 @@ func createGlobalSoongConfig(ctx android.ModuleContext) *GlobalSoongConfig {
+ 	}
+ 
+ 	return &GlobalSoongConfig{
+-		Profman:          ctx.Config().HostToolPath(ctx, "profman"),
+-		Dex2oat:          dex2oatPathFromDep(ctx),
+-		Aapt:             ctx.Config().HostToolPath(ctx, "aapt"),
+-		SoongZip:         ctx.Config().HostToolPath(ctx, "soong_zip"),
+-		Zip2zip:          ctx.Config().HostToolPath(ctx, "zip2zip"),
+-		ManifestCheck:    ctx.Config().HostToolPath(ctx, "manifest_check"),
+-		ConstructContext: android.PathForSource(ctx, "build/make/core/construct_context.sh"),
++		Profman:            ctx.Config().HostToolPath(ctx, "profman"),
++		Dex2oat:            dex2oatPathFromDep(ctx),
++		Aapt:               ctx.Config().HostToolPath(ctx, "aapt"),
++		SoongZip:           ctx.Config().HostToolPath(ctx, "soong_zip"),
++		Zip2zip:            ctx.Config().HostToolPath(ctx, "zip2zip"),
++		ManifestCheck:      ctx.Config().HostToolPath(ctx, "manifest_check"),
++		ConstructContext:   android.PathForSource(ctx, "build/make/core/construct_context.sh"),
++		ExaGearPretranslator: android.PathForSource(ctx, "vendor/huawei/exagear/prebuilts/preubt_a32a64_x64"),
+ 	}
+ }
+ 
+@@ -407,13 +412,14 @@ func GetCachedGlobalSoongConfig(ctx android.PathContext) *GlobalSoongConfig {
+ }
+ 
+ type globalJsonSoongConfig struct {
+-	Profman          string
+-	Dex2oat          string
+-	Aapt             string
+-	SoongZip         string
+-	Zip2zip          string
+-	ManifestCheck    string
+-	ConstructContext string
++	Profman            string
++	Dex2oat            string
++	Aapt               string
++	SoongZip           string
++	Zip2zip            string
++	ManifestCheck      string
++	ConstructContext   string
++	ExaGearPretranslator string
+ }
+ 
+ // ParseGlobalSoongConfig parses the given data assumed to be read from the
+@@ -428,13 +434,14 @@ func ParseGlobalSoongConfig(ctx android.PathContext, data []byte) (*GlobalSoongC
+ 	}
+ 
+ 	config := &GlobalSoongConfig{
+-		Profman:          constructPath(ctx, jc.Profman),
+-		Dex2oat:          constructPath(ctx, jc.Dex2oat),
+-		Aapt:             constructPath(ctx, jc.Aapt),
+-		SoongZip:         constructPath(ctx, jc.SoongZip),
+-		Zip2zip:          constructPath(ctx, jc.Zip2zip),
+-		ManifestCheck:    constructPath(ctx, jc.ManifestCheck),
+-		ConstructContext: constructPath(ctx, jc.ConstructContext),
++		Profman:            constructPath(ctx, jc.Profman),
++		Dex2oat:            constructPath(ctx, jc.Dex2oat),
++		Aapt:               constructPath(ctx, jc.Aapt),
++		SoongZip:           constructPath(ctx, jc.SoongZip),
++		Zip2zip:            constructPath(ctx, jc.Zip2zip),
++		ManifestCheck:      constructPath(ctx, jc.ManifestCheck),
++		ConstructContext:   constructPath(ctx, jc.ConstructContext),
++		ExaGearPretranslator: constructPath(ctx, jc.ExaGearPretranslator),
+ 	}
+ 
+ 	return config, nil
+@@ -453,13 +460,14 @@ func (s *globalSoongConfigSingleton) GenerateBuildActions(ctx android.SingletonC
+ 	}
+ 
+ 	jc := globalJsonSoongConfig{
+-		Profman:          config.Profman.String(),
+-		Dex2oat:          config.Dex2oat.String(),
+-		Aapt:             config.Aapt.String(),
+-		SoongZip:         config.SoongZip.String(),
+-		Zip2zip:          config.Zip2zip.String(),
+-		ManifestCheck:    config.ManifestCheck.String(),
+-		ConstructContext: config.ConstructContext.String(),
++		Profman:            config.Profman.String(),
++		Dex2oat:            config.Dex2oat.String(),
++		Aapt:               config.Aapt.String(),
++		SoongZip:           config.SoongZip.String(),
++		Zip2zip:            config.Zip2zip.String(),
++		ManifestCheck:      config.ManifestCheck.String(),
++		ConstructContext:   config.ConstructContext.String(),
++		ExaGearPretranslator: config.ExaGearPretranslator.String(),
+ 	}
+ 
+ 	data, err := json.Marshal(jc)
+@@ -496,6 +504,7 @@ func (s *globalSoongConfigSingleton) MakeVars(ctx android.MakeVarsContext) {
+ 		config.Zip2zip.String(),
+ 		config.ManifestCheck.String(),
+ 		config.ConstructContext.String(),
++		config.ExaGearPretranslator.String(),
+ 	}, " "))
+ }
+ 
+@@ -546,13 +555,14 @@ func GlobalSoongConfigForTests(config android.Config) *GlobalSoongConfig {
+ 	// Get(Cached)GlobalSoongConfig returns it without trying to create a real one.
+ 	return config.Once(globalSoongConfigOnceKey, func() interface{} {
+ 		return &GlobalSoongConfig{
+-			Profman:          android.PathForTesting("profman"),
+-			Dex2oat:          android.PathForTesting("dex2oat"),
+-			Aapt:             android.PathForTesting("aapt"),
+-			SoongZip:         android.PathForTesting("soong_zip"),
+-			Zip2zip:          android.PathForTesting("zip2zip"),
+-			ManifestCheck:    android.PathForTesting("manifest_check"),
+-			ConstructContext: android.PathForTesting("construct_context.sh"),
++			Profman:            android.PathForTesting("profman"),
++			Dex2oat:            android.PathForTesting("dex2oat"),
++			Aapt:               android.PathForTesting("aapt"),
++			SoongZip:           android.PathForTesting("soong_zip"),
++			Zip2zip:            android.PathForTesting("zip2zip"),
++			ManifestCheck:      android.PathForTesting("manifest_check"),
++			ConstructContext:   android.PathForTesting("construct_context.sh"),
++			ExaGearPretranslator: android.PathForTesting("preubt_a32a64_x64"),
+ 		}
+ 	}).(*GlobalSoongConfig)
+ }
+diff --git a/build/soong/dexpreopt/dexpreopt.go b/build/soong/dexpreopt/dexpreopt.go
+index f984966b44..f7aa641d78 100644
+--- a/build/soong/dexpreopt/dexpreopt.go
++++ b/build/soong/dexpreopt/dexpreopt.go
+@@ -496,6 +496,22 @@ func dexpreoptCommand(ctx android.PathContext, globalSoong *GlobalSoongConfig, g
+ 
+ 	rule.Install(odexPath, odexInstallPath)
+ 	rule.Install(vdexPath, vdexInstallPath)
++
++	if global.ExaGearPretranslateOdex && arch.String() == "arm" {
++		// Generate symbols so that preubt_a32a64 can find function entry points.
++		symPath := odexPath.ReplaceExtension(ctx, "odex.sym")
++		cmd.FlagWithOutput("--oat-symbols=", symPath)
++
++		exagearPath := odexPath.ReplaceExtension(ctx, "odex.exagear")
++		exagearInstallPath := pathtools.ReplaceExtension(odexInstallPath, "odex.exagear")
++		rule.Command().
++			Tool(globalSoong.ExaGearPretranslator).
++			Flag("-j 2").
++			FlagWithInput("--input-file-name=", odexPath).
++			FlagWithInput("--extra-symbols=", symPath).
++			FlagWithOutput("--output-file-name=", exagearPath)
++		rule.Install(exagearPath, exagearInstallPath)
++	}
+ }
+ 
+ func shouldGenerateDM(module *ModuleConfig, global *GlobalConfig) bool {
+diff --git a/build/soong/java/dexpreopt_bootjars.go b/build/soong/java/dexpreopt_bootjars.go
+index 2f0cbdb8ca..30e1b1e8d7 100644
+--- a/build/soong/java/dexpreopt_bootjars.go
++++ b/build/soong/java/dexpreopt_bootjars.go
+@@ -205,6 +205,17 @@ func DexpreoptedArtApexJars(ctx android.BuilderContext) map[android.ArchType]and
+ 	files := map[android.ArchType]android.OutputPaths{}
+ 	for _, variant := range artBootImageConfig(ctx).variants {
+ 		files[variant.target.Arch.ArchType] = variant.imagesDeps
++
++		// Add ExaGear pre-translated .oat files
++		if dexpreopt.GetGlobalConfig(ctx).ExaGearPretranslateBootOat &&
++			variant.target.Arch.ArchType.String() == "arm" {
++			for _, path := range variant.imagesDeps {
++				if path.Ext() == ".oat" {
++					files[variant.target.Arch.ArchType] =
++						append(files[variant.target.Arch.ArchType], path.ReplaceExtension(ctx, "oat.exagear"))
++				}
++			}
++		}
+ 	}
+ 	return files
+ }
+@@ -483,6 +494,18 @@ func buildBootImageVariant(ctx android.SingletonContext, image *bootImageVariant
+ 		// Install the unstripped oat files.  The Make rules will put these in $(TARGET_OUT_UNSTRIPPED)
+ 		unstrippedInstalls = append(unstrippedInstalls,
+ 			android.RuleBuilderInstall{unstrippedOat, filepath.Join(installDir, unstrippedOat.Base())})
++
++		if global.ExaGearPretranslateBootOat && arch.String() == "arm" {
++			oat := outputDir.Join(ctx, unstrippedOat.Base())
++			exagear := oat.ReplaceExtension(ctx, "oat.exagear")
++			rule.Command().
++				Tool(globalSoong.ExaGearPretranslator).
++				Flag("-j 2").
++				FlagWithInput("--input-file-name=", oat).
++				FlagWithInput("--extra-symbols=", unstrippedOat).
++				FlagWithOutput("--output-file-name=", exagear)
++			rule.Install(exagear, filepath.Join(installDir, exagear.Base()))
++		}
+ 	}
+ 
+ 	rule.Build(pctx, ctx, image.name+"JarsDexpreopt_"+arch.String(), "dexpreopt "+image.name+" jars "+arch.String())
+diff --git a/device/google/bonito/BoardConfig-common.mk b/device/google/bonito/BoardConfig-common.mk
+index f2bad0e4c4..182210523c 100644
+--- a/device/google/bonito/BoardConfig-common.mk
++++ b/device/google/bonito/BoardConfig-common.mk
+@@ -49,6 +49,10 @@ BOARD_KERNEL_CMDLINE += lpm_levels.sleep_disabled=1
+ BOARD_KERNEL_CMDLINE += loop.max_part=7
+ BOARD_KERNEL_CMDLINE += androidboot.boot_devices=soc/7c4000.sdhci
+ 
++# This is needed because the proprietary vendor partition comes with a pre-built
++# SELinux policy which don't support ExaGear.
++BOARD_KERNEL_CMDLINE += androidboot.selinux=permissive
++
+ BOARD_KERNEL_BASE        := 0x00000000
+ BOARD_KERNEL_PAGESIZE    := 4096
+ ifeq ($(filter-out bonito_kasan sargo_kasan, $(TARGET_PRODUCT)),)
+diff --git a/device/google/bonito/aosp_bonito.mk b/device/google/bonito/aosp_bonito.mk
+index c1768593de..819b654b64 100644
+--- a/device/google/bonito/aosp_bonito.mk
++++ b/device/google/bonito/aosp_bonito.mk
+@@ -58,3 +58,5 @@ PRODUCT_BRAND := Android
+ PRODUCT_NAME := aosp_bonito
+ PRODUCT_DEVICE := bonito
+ PRODUCT_MODEL := AOSP on bonito
++
++include $(wildcard vendor/huawei/exagear/exagear.mk)
+diff --git a/frameworks/base/services/core/java/com/android/server/pm/Installer.java b/frameworks/base/services/core/java/com/android/server/pm/Installer.java
+index 5ac86ca3f6..c378915d61 100644
+--- a/frameworks/base/services/core/java/com/android/server/pm/Installer.java
++++ b/frameworks/base/services/core/java/com/android/server/pm/Installer.java
+@@ -388,6 +388,16 @@ public class Installer extends SystemService {
+         }
+     }
+ 
++    public void exagearPretranslate(String path, int uid, boolean bootComplete, boolean isApk)
++            throws InstallerException {
++        if (!checkBeforeRemote()) return;
++        try {
++            mInstalld.exagearPretranslate(path, uid, bootComplete, isApk);
++        } catch (Exception e) {
++            throw InstallerException.from(e);
++        }
++    }
++
+     public boolean mergeProfiles(int uid, String packageName, String profileName)
+             throws InstallerException {
+         if (!checkBeforeRemote()) return false;
+diff --git a/frameworks/base/services/core/java/com/android/server/pm/PackageManagerService.java b/frameworks/base/services/core/java/com/android/server/pm/PackageManagerService.java
+index cde249fe2a..0656bde090 100644
+--- a/frameworks/base/services/core/java/com/android/server/pm/PackageManagerService.java
++++ b/frameworks/base/services/core/java/com/android/server/pm/PackageManagerService.java
+@@ -396,6 +396,7 @@ import java.io.ByteArrayOutputStream;
+ import java.io.File;
+ import java.io.FileDescriptor;
+ import java.io.FileInputStream;
++import java.io.FilenameFilter;
+ import java.io.FileOutputStream;
+ import java.io.IOException;
+ import java.io.PrintWriter;
+@@ -10109,15 +10110,18 @@ public class PackageManagerService extends IPackageManager.Stub
+                             getOrCreateCompilerPackageStats(depPackage),
+                             mDexManager.getPackageUseInfoOrDefault(depPackage.getPackageName()),
+                             libraryOptions);
++                    exagearPretranslatePkg(depPackage, depPackageSetting, options.isBootComplete());
+                 } else {
+                     // TODO(ngeoffray): Support dexopting system shared libraries.
+                 }
+             }
+         }
+ 
+-        return pdo.performDexOpt(p, pkgSetting, instructionSets,
++        int res =  pdo.performDexOpt(p, pkgSetting, instructionSets,
+                 getOrCreateCompilerPackageStats(p),
+                 mDexManager.getPackageUseInfoOrDefault(p.getPackageName()), options);
++        exagearPretranslatePkg(p, pkgSetting, options.isBootComplete());
++        return res;
+     }
+ 
+     /**
+@@ -17107,6 +17111,13 @@ public class PackageManagerService extends IPackageManager.Stub
+                         getOrCreateCompilerPackageStats(pkg),
+                         mDexManager.getPackageUseInfoOrDefault(packageName),
+                         dexoptOptions);
++
++                // Perform ExaGear pre-translation after native libraries have been
++                // extracted from the apk.
++                if (SystemProperties.getBoolean("exagear.pretrans_on_install", false)) {
++                    exagearPretranslatePkg(pkg, realPkgSetting, true);
++                }
++
+                 Trace.traceEnd(TRACE_TAG_PACKAGE_MANAGER);
+             }
+ 
+@@ -25755,6 +25766,65 @@ public class PackageManagerService extends IPackageManager.Stub
+             return mSigningDetails;
+         }
+     }
++
++    private void exagearPretranslateFile(String path, int uid, boolean bootComplete, boolean isApk) {
++        try {
++            mInstaller.exagearPretranslate(path, uid, bootComplete, isApk);
++        } catch (Throwable e) {
++            e.printStackTrace();
++        }
++    }
++
++    private void exagearPretranslatePkg(AndroidPackage pkg, PackageSetting pkgSetting,
++            boolean bootComplete) {
++        // We only support pre-translating packages in the data partition.
++        if (!AndroidPackageUtils.canHaveOatDir(pkg,
++                pkgSetting.getPkgState().isUpdatedSystemApp()))
++            return;
++
++        final int sharedGid = UserHandle.getSharedAppGid(pkg.getUid());
++
++        // Pre-translate .so files which are embedded in apk files. These are
++        // page-aligned and uncompressed, which allows them to be mmap'ed
++        // directly without extracting them.
++        if (SystemProperties.getBoolean("exagear.pretrans.apk", false)) {
++            for (String apk : AndroidPackageUtils.getAllCodePathsExcludingResourceOnly(pkg)) {
++                exagearPretranslateFile(apk, sharedGid, bootComplete, true);
++            }
++        } else {
++            Slog.i(TAG, "exagear: skipping APK pre-translation for " + pkg.getPackageName());
++        }
++
++        // Pre-translate .so files which are extracted from apk files.
++        if (SystemProperties.getBoolean("exagear.pretrans.lib", false)) {
++            String libDir = null;
++            String primaryCpuAbi = AndroidPackageUtils.getPrimaryCpuAbi(pkg, pkgSetting);
++            String secondaryCpuAbi = AndroidPackageUtils.getSecondaryCpuAbi(pkg, pkgSetting);
++            if (primaryCpuAbi != null
++                    && VMRuntime.getInstructionSet(primaryCpuAbi) != null
++                    && VMRuntime.getInstructionSet(primaryCpuAbi).equals("arm")) {
++                libDir = pkg.getNativeLibraryDir();
++            } else if (secondaryCpuAbi != null
++                    && VMRuntime.getInstructionSet(secondaryCpuAbi) != null
++                    && VMRuntime.getInstructionSet(secondaryCpuAbi).equals("arm")) {
++                libDir = pkg.getSecondaryNativeLibraryDir();
++            }
++            if (libDir != null) {
++                File f = new File(libDir);
++                if (f.exists() && f.isDirectory()) {
++                    for (File lib : f.listFiles(new FilenameFilter() {
++                            public boolean accept(File dir, String name) {
++                                return name.endsWith(".so");
++                            }
++                        })) {
++                        exagearPretranslateFile(lib.getAbsolutePath(), sharedGid, bootComplete, false);
++                    }
++                }
++            }
++        } else {
++            Slog.i(TAG, "exagear: skipping shared library pre-translation for " + pkg.getPackageName());
++        }
++    }
+ }
+ 
+ interface PackageSender {
+diff --git a/frameworks/native/cmds/installd/Android.bp b/frameworks/native/cmds/installd/Android.bp
+index 8ff4dd862d..358dce492f 100644
+--- a/frameworks/native/cmds/installd/Android.bp
++++ b/frameworks/native/cmds/installd/Android.bp
+@@ -9,6 +9,8 @@ cc_defaults {
+         "-Wunreachable-code",
+         "-Wunreachable-code-break",
+         "-Wunreachable-code-return",
++
++        "-DWITH_EXAGEAR",
+     ],
+     srcs: [
+         "CacheItem.cpp",
+diff --git a/frameworks/native/cmds/installd/InstalldNativeService.cpp b/frameworks/native/cmds/installd/InstalldNativeService.cpp
+index 01eb3fe44f..fe17bae9f3 100644
+--- a/frameworks/native/cmds/installd/InstalldNativeService.cpp
++++ b/frameworks/native/cmds/installd/InstalldNativeService.cpp
+@@ -2425,6 +2425,22 @@ binder::Status InstalldNativeService::dexopt(const std::string& apkPath, int32_t
+     return res ? error(res, error_msg) : ok();
+ }
+ 
++binder::Status InstalldNativeService::exagearPretranslate(const std::string& path, int32_t uid, bool bootComplete, bool isApk) {
++#ifdef WITH_EXAGEAR
++    ENFORCE_UID(AID_SYSTEM);
++    std::lock_guard<std::recursive_mutex> lock(mLock);
++
++    int res = android::installd::exagear_pretranslate(path.c_str(), uid, bootComplete, isApk, false);
++    return res ? error(res, "Failed to pre-translate for exagear") : ok();
++#else
++    (void)path;
++    (void)uid;
++    (void)bootComplete;
++    (void)isApk;
++    return error(-1, "ExaGear is not enabled for this device");
++#endif
++}
++
+ binder::Status InstalldNativeService::compileLayouts(const std::string& apkPath,
+                                                      const std::string& packageName,
+                                                      const std ::string& outDexFile, int uid,
+diff --git a/frameworks/native/cmds/installd/InstalldNativeService.h b/frameworks/native/cmds/installd/InstalldNativeService.h
+index 8e7d98b9a1..9230bebd1f 100644
+--- a/frameworks/native/cmds/installd/InstalldNativeService.h
++++ b/frameworks/native/cmds/installd/InstalldNativeService.h
+@@ -116,6 +116,8 @@ public:
+             const std::unique_ptr<std::string>& dexMetadataPath,
+             const std::unique_ptr<std::string>& compilationReason);
+ 
++    binder::Status exagearPretranslate(const std::string& path, int32_t uid, bool bootComplete, bool isApk);
++
+     binder::Status compileLayouts(const std::string& apkPath, const std::string& packageName,
+                                   const std::string& outDexFile, int uid, bool* _aidl_return);
+ 
+diff --git a/frameworks/native/cmds/installd/binder/android/os/IInstalld.aidl b/frameworks/native/cmds/installd/binder/android/os/IInstalld.aidl
+index eeda6c5855..a2af2d86f0 100644
+--- a/frameworks/native/cmds/installd/binder/android/os/IInstalld.aidl
++++ b/frameworks/native/cmds/installd/binder/android/os/IInstalld.aidl
+@@ -69,6 +69,8 @@ interface IInstalld {
+     boolean compileLayouts(@utf8InCpp String apkPath, @utf8InCpp String packageName,
+             @utf8InCpp String outDexFile, int uid);
+ 
++    void exagearPretranslate(@utf8InCpp String path, int uid, boolean bootComplete, boolean isApk);
++
+     void rmdex(@utf8InCpp String codePath, @utf8InCpp String instructionSet);
+ 
+     boolean mergeProfiles(int uid, @utf8InCpp String packageName, @utf8InCpp String profileName);
+diff --git a/frameworks/native/cmds/installd/dexopt.cpp b/frameworks/native/cmds/installd/dexopt.cpp
+index ffa87249e2..84ebcb09cc 100644
+--- a/frameworks/native/cmds/installd/dexopt.cpp
++++ b/frameworks/native/cmds/installd/dexopt.cpp
+@@ -2277,8 +2277,202 @@ int dexopt(const char* dex_path, uid_t uid, const char* pkgname, const char* ins
+     image_fd.SetCleanup(false);
+     reference_profile_fd.SetCleanup(false);
+ 
++#ifdef WITH_EXAGEAR
++    if (!strcmp(instruction_set, "arm") && property_get_bool("exagear.pretrans.odex", false)) {
++        exagear_pretranslate(out_oat_path, uid, boot_complete, false, true);
++    }
++#endif
++
++    return 0;
++}
++
++#ifdef WITH_EXAGEAR
++int exagear_pretranslate(const char* path, uid_t uid, bool boot_complete, bool is_apk, bool is_oat) {
++    // Open the input file.
++    unique_fd input_fd(open(path, O_RDONLY, 0));
++    if (input_fd.get() < 0) {
++        ALOGE("installd cannot open '%s' for input during exagear pretranslation\n", path);
++        return -1;
++    }
++
++    // Open any existing exagear file for the signature check. We need to do this
++    // before opening the output file since that will delete the existing file.
++    std::string output_path(path);
++    output_path += ".exagear";
++    if (!is_oat) {
++        unique_fd prev_output_fd(open(output_path.c_str(), O_RDONLY, 0));
++
++        // Check if we can re-use the existing ExaGear file
++        if (prev_output_fd.get() != -1) {
++            pid_t pid = fork();
++            if (pid == 0) {
++                /* child -- drop privileges before continuing */
++                drop_capabilities(uid);
++
++                SetDex2OatScheduling(boot_complete);
++                if (flock(prev_output_fd.get(), LOCK_EX | LOCK_NB) != 0) {
++                    ALOGE("flock(%s) failed: %s\n", output_path.c_str(), strerror(errno));
++                    _exit(67);
++                }
++
++                static const char* EXAGEAR_PRETRANSLATOR_BIN = "/system/bin/preubt_a32a64";
++                std::string input_arg = "--input-fd=" + std::to_string(input_fd.get());
++                std::string output_arg = "--output-fd=" + std::to_string(prev_output_fd.get());
++                std::string input_path_arg = "--input-file-name=" + std::string(path);
++                std::string output_path_arg = "--output-file-name=" + output_path;
++                std::vector<const char*> args;
++                args.push_back(EXAGEAR_PRETRANSLATOR_BIN);
++                args.push_back("--check-signature");
++                if (is_apk)
++                    args.push_back("--apk");
++                args.push_back(input_arg.c_str());
++                args.push_back(output_arg.c_str());
++                args.push_back(input_path_arg.c_str());
++                args.push_back(output_path_arg.c_str());
++                args.push_back(NULL);
++
++                ALOGV("Running %s --check-signature in=%s out=%s\n", EXAGEAR_PRETRANSLATOR_BIN, path, output_path.c_str());
++                execv(EXAGEAR_PRETRANSLATOR_BIN, (char * const *)args.data());
++                ALOGE("execv(%s) failed: %s\n", EXAGEAR_PRETRANSLATOR_BIN, strerror(errno));
++                _exit(68);
++            } else {
++                int res = wait_child(pid);
++                if (res == 0) {
++                    // Signature check passed, output file is up-to-date
++                    ALOGV("ExaGear: --- SKIP '%s' (signature check passed) ---\n", path);
++                    return 0;
++                }
++            }
++        }
++    }
++
++    // Create the output file.
++    Dex2oatFileWrapper output_fd(
++            open_output_file(output_path.c_str(), /*recreate*/true, /*permissions*/0644),
++            [output_path]() { unlink(output_path.c_str()); });
++    if (output_fd.get() < 0) {
++        PLOG(ERROR) << "installd cannot open output during exagear pre-translation: " << output_path;
++        return -1;
++    }
++
++    // Copy the ownership & permissions from the input file
++    struct stat buf;
++    if (fstat(input_fd.get(), &buf) != 0) {
++        ALOGE("installd cannot fstat '%s' during exagear pre-translation\n", path);
++        return -1;
++    }
++    if (fchmod(output_fd.get(), buf.st_mode) != 0) {
++        ALOGE("installd cannot fchmod '%s' during exagear pre-translation\n", output_path.c_str());
++        return -1;
++    }
++    if (fchown(output_fd.get(), buf.st_uid, buf.st_gid) != 0) {
++        ALOGE("installd cannot fchown '%s' during exagear pre-translation\n", output_path.c_str());
++        return -1;
++    }
++
++    // If this is an OAT file, use oatdump to get ELF symbols for it
++    Dex2oatFileWrapper symbol_fd;
++    if (is_oat) {
++        std::string symbol_path(path);
++        symbol_path += ".sym";
++        symbol_fd = Dex2oatFileWrapper(
++            open_output_file(symbol_path.c_str(), /*recreate*/true, /*permissions*/0600),
++            [symbol_path]() { unlink(symbol_path.c_str()); });
++        if (fchown(symbol_fd.get(), uid, uid) != 0) {
++            ALOGE("installd cannot fchown '%s' during exagear pre-translation\n", symbol_path.c_str());
++            return -1;
++        }
++
++        ALOGV("ExaGearSym: --- BEGIN '%s' ---\n", path);
++
++        pid_t pid = fork();
++        if (pid == 0) {
++            /* child -- drop privileges before continuing */
++            drop_capabilities(uid);
++
++            SetDex2OatScheduling(boot_complete);
++            if (flock(symbol_fd.get(), LOCK_EX | LOCK_NB) != 0) {
++                ALOGE("flock(%s) failed: %s\n", symbol_path.c_str(), strerror(errno));
++                _exit(67);
++            }
++
++            // We need to pass the full input path to oatdump so that it can
++            // find the corresponding .vdex file.
++            static const char* OATDUMP_BIN = "/apex/com.android.art/bin/oatdump";
++            std::string input_arg = "--symbolize=" + std::string(path);
++            std::string output_arg = "--output=/proc/self/fd/" + std::to_string(symbol_fd.get());
++            std::vector<const char*> args;
++            args.push_back(OATDUMP_BIN);
++            args.push_back(input_arg.c_str());
++            args.push_back(output_arg.c_str());
++            args.push_back(NULL);
++
++            ALOGV("Running %s in=%s out=%s\n", OATDUMP_BIN, path, symbol_path.c_str());
++            execv(OATDUMP_BIN, (char * const *)args.data());
++            ALOGE("execv(%s) failed: %s\n", OATDUMP_BIN, strerror(errno));
++            _exit(68);
++        } else {
++            int res = wait_child(pid);
++            if (res == 0) {
++                ALOGV("ExaGearSym: --- END '%s' (success) ---\n", path);
++            } else {
++                ALOGE("ExaGearSym: --- END '%s' --- status=0x%04x, process failed\n", path, res);
++                return res;
++            }
++        }
++    }
++
++    ALOGV("ExaGear: --- BEGIN '%s' ---\n", path);
++
++    pid_t pid = fork();
++    if (pid == 0) {
++        /* child -- drop privileges before continuing */
++        drop_capabilities(uid);
++
++        SetDex2OatScheduling(boot_complete);
++        if (flock(output_fd.get(), LOCK_EX | LOCK_NB) != 0) {
++            ALOGE("flock(%s) failed: %s\n", output_path.c_str(), strerror(errno));
++            _exit(67);
++        }
++
++        static const char* EXAGEAR_PRETRANSLATOR_BIN = "/system/bin/preubt_a32a64";
++        std::string input_arg = "--input-fd=" + std::to_string(input_fd.get());
++        std::string output_arg = "--output-fd=" + std::to_string(output_fd.get());
++        std::string input_path_arg = "--input-file-name=" + std::string(path);
++        std::string symbol_path_arg = "--extra-symbols=/proc/self/fd/" + std::to_string(symbol_fd.get());
++        std::string output_path_arg = "--output-file-name=" + output_path;
++        std::vector<const char*> args;
++        args.push_back(EXAGEAR_PRETRANSLATOR_BIN);
++        if (is_oat)
++            args.push_back("--force");
++        if (is_apk)
++            args.push_back("--apk");
++        args.push_back(input_arg.c_str());
++        args.push_back(output_arg.c_str());
++        args.push_back(input_path_arg.c_str());
++        if (is_oat)
++            args.push_back(symbol_path_arg.c_str());
++        args.push_back(output_path_arg.c_str());
++        args.push_back(NULL);
++
++        ALOGV("Running %s in=%s out=%s\n", EXAGEAR_PRETRANSLATOR_BIN, path, output_path.c_str());
++        execv(EXAGEAR_PRETRANSLATOR_BIN, (char * const *)args.data());
++        ALOGE("execv(%s) failed: %s\n", EXAGEAR_PRETRANSLATOR_BIN, strerror(errno));
++        _exit(68);
++    } else {
++        int res = wait_child(pid);
++        if (res == 0) {
++            ALOGV("ExaGear: --- END '%s' (success) ---\n", path);
++        } else {
++            ALOGE("ExaGear: --- END '%s' --- status=0x%04x, process failed\n", path, res);
++            return res;
++        }
++    }
++
++    output_fd.SetCleanup(false);
+     return 0;
+ }
++#endif
+ 
+ // Try to remove the given directory. Log an error if the directory exists
+ // and is empty but could not be removed.
+@@ -2678,6 +2872,11 @@ bool delete_odex(const char* apk_path, const char* instruction_set, const char*
+     // Derive and delete the vdex file.
+     bool return_value_vdex = unlink_and_check(create_vdex_filename(out_path).c_str());
+ 
++#ifdef WITH_EXAGEAR
++    // Delete the exagear file. We ignore any errors here.
++    unlink_and_check((std::string(out_path) + ".exagear").c_str());
++#endif
++
+     // Report success.
+     return return_value_oat && return_value_art && return_value_vdex;
+ }
+diff --git a/frameworks/native/cmds/installd/dexopt.h b/frameworks/native/cmds/installd/dexopt.h
+index cc448736ea..20a21db32e 100644
+--- a/frameworks/native/cmds/installd/dexopt.h
++++ b/frameworks/native/cmds/installd/dexopt.h
+@@ -138,6 +138,10 @@ const char* select_execution_binary(
+         bool is_release,
+         bool is_debuggable_build);
+ 
++#ifdef WITH_EXAGEAR
++int exagear_pretranslate(const char* path, uid_t uid, bool boot_complete, bool is_apk, bool is_oat);
++#endif
++
+ }  // namespace installd
+ }  // namespace android
+ 
+diff --git a/libcore/NativeCode.bp b/libcore/NativeCode.bp
+index 9619420c20..7c5627cf9d 100644
+--- a/libcore/NativeCode.bp
++++ b/libcore/NativeCode.bp
+@@ -136,6 +136,8 @@ cc_defaults {
+         "-Wno-parentheses-equality",
+         "-Wno-constant-logical-operand",
+         "-Wno-sometimes-uninitialized",
++
++        "-DWITH_EXAGEAR",
+     ],
+ 
+     shared_libs: [
+diff --git a/libcore/ojluni/src/main/native/UNIXProcess_md.c b/libcore/ojluni/src/main/native/UNIXProcess_md.c
+index 40fdc18fb8..d460fc1bc9 100644
+--- a/libcore/ojluni/src/main/native/UNIXProcess_md.c
++++ b/libcore/ojluni/src/main/native/UNIXProcess_md.c
+@@ -107,6 +107,15 @@
+ 
+ #define START_CHILD_USE_CLONE 0  /* clone() currently disabled; see above. */
+ 
++// ExaGear translates vfork into fork internally, but the vfork libc function
++// doesn't call pre/post fork handlers that would lock the malloc mutex while
++// forking. This means that we might end up with the child process starting with
++// a locked malloc mutex, which can cause a deadlock since opendir() will try to
++// allocate memory.
++#if defined(__arm__) && WITH_EXAGEAR
++  #define START_CHILD_USE_VFORK 0
++#endif
++
+ #ifndef START_CHILD_USE_CLONE
+   #ifdef __linux__
+     #define START_CHILD_USE_CLONE 1
+diff --git a/system/core/debuggerd/Android.bp b/system/core/debuggerd/Android.bp
+index c7bd1a83bd..ff55ae7798 100644
+--- a/system/core/debuggerd/Android.bp
++++ b/system/core/debuggerd/Android.bp
+@@ -85,6 +85,8 @@ cc_library_static {
+ 
+     export_header_lib_headers: ["libdebuggerd_common_headers"],
+     export_include_dirs: ["include"],
++
++    cflags: ["-DWITH_EXAGEAR"],
+ }
+ 
+ // Implementation with a no-op fallback.
+diff --git a/system/core/debuggerd/handler/debuggerd_handler.cpp b/system/core/debuggerd/handler/debuggerd_handler.cpp
+index 8b4b6304ff..0903b66064 100644
+--- a/system/core/debuggerd/handler/debuggerd_handler.cpp
++++ b/system/core/debuggerd/handler/debuggerd_handler.cpp
+@@ -514,13 +514,18 @@ static void debuggerd_signal_handler(int signal_number, siginfo_t* info, void* c
+     }
+   }
+ 
++  // We can't use ptrace to get the register state with ExaGear, so just obtain
++  // the backtrace directly from the signal context.
++#if !defined(WITH_EXAGEAR) || !defined(__arm__)
+   // If sival_int is ~0, it means that the fallback handler has been called
+   // once before and this function is being called again to dump the stack
+   // of a specific thread. It is possible that the prctl call might return 1,
+   // then return 0 in subsequent calls, so check the sival_int to determine if
+   // the fallback handler should be called first.
+   if (si_val == kDebuggerdFallbackSivalUintptrRequestDump ||
+-      prctl(PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0) == 1) {
++      prctl(PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0) == 1)
++#endif
++  {
+     // This check might be racy if another thread sets NO_NEW_PRIVS, but this should be unlikely,
+     // you can only set NO_NEW_PRIVS to 1, and the effect should be at worst a single missing
+     // ANR trace.
+diff --git a/system/sepolicy/apex/com.android.art.debug-file_contexts b/system/sepolicy/apex/com.android.art.debug-file_contexts
+index 8007efd6de..64cb9000d0 100644
+--- a/system/sepolicy/apex/com.android.art.debug-file_contexts
++++ b/system/sepolicy/apex/com.android.art.debug-file_contexts
+@@ -6,5 +6,6 @@
+ /bin/dexoptanalyzer(d)?        u:object_r:dexoptanalyzer_exec:s0
+ /bin/profman(d)?               u:object_r:profman_exec:s0
+ /lib(64)?(/.*)?                u:object_r:system_lib_file:s0
++/bin/oatdump(d)?               u:object_r:preubt_a32a64_exec:s0
+ /bin/art_preinstall_hook(.*)?  u:object_r:art_apex_preinstall_exec:s0
+ /bin/art_postinstall_hook(.*)? u:object_r:art_apex_postinstall_exec:s0
+diff --git a/system/sepolicy/apex/com.android.art.release-file_contexts b/system/sepolicy/apex/com.android.art.release-file_contexts
+index 1598afd386..81fe6a916e 100644
+--- a/system/sepolicy/apex/com.android.art.release-file_contexts
++++ b/system/sepolicy/apex/com.android.art.release-file_contexts
+@@ -6,3 +6,4 @@
+ /bin/dexoptanalyzer      u:object_r:dexoptanalyzer_exec:s0
+ /bin/profman             u:object_r:profman_exec:s0
+ /lib(64)?(/.*)?          u:object_r:system_lib_file:s0
++/bin/oatdump             u:object_r:preubt_a32a64_exec:s0
+diff --git a/system/sepolicy/prebuilts/api/27.0/private/compat/26.0/26.0.ignore.cil b/system/sepolicy/prebuilts/api/27.0/private/compat/26.0/26.0.ignore.cil
+index 9e1eb97750..a374b8f361 100644
+--- a/system/sepolicy/prebuilts/api/27.0/private/compat/26.0/26.0.ignore.cil
++++ b/system/sepolicy/prebuilts/api/27.0/private/compat/26.0/26.0.ignore.cil
+@@ -31,4 +31,8 @@
+ ;;     Thus, these types are also not mapped, but recorded for checkapi tests
+ (typeattribute priv_objects)
+ (typeattributeset priv_objects
+-     ( adbd_tmpfs ))
++     ( adbd_tmpfs
++       exagear_debug_file
++       preubt_a32a64
++       exagear_prop
++     ))
+diff --git a/system/sepolicy/prebuilts/api/29.0/private/app_neverallows.te b/system/sepolicy/prebuilts/api/29.0/private/app_neverallows.te
+index 23e1fd2b49..93aed8f6d7 100644
+--- a/system/sepolicy/prebuilts/api/29.0/private/app_neverallows.te
++++ b/system/sepolicy/prebuilts/api/29.0/private/app_neverallows.te
+@@ -134,6 +134,7 @@ neverallow { all_untrusted_apps -mediaprovider } {
+   userdebug_or_eng(`
+     -method_trace_data_file # only on ro.debuggable=1
+     -coredump_file          # userdebug/eng only
++    -exagear_debug_file       # userdebug/eng only
+   ')
+ }:dir_file_class_set { create unlink };
+ 
+diff --git a/system/sepolicy/prebuilts/api/29.0/private/compat/26.0/26.0.ignore.cil b/system/sepolicy/prebuilts/api/29.0/private/compat/26.0/26.0.ignore.cil
+index 45e1dd9e8a..f41968e6fa 100644
+--- a/system/sepolicy/prebuilts/api/29.0/private/compat/26.0/26.0.ignore.cil
++++ b/system/sepolicy/prebuilts/api/29.0/private/compat/26.0/26.0.ignore.cil
+@@ -220,4 +220,8 @@
+ (typeattributeset priv_objects
+   ( priv_objects
+     adbd_tmpfs
+-    untrusted_app_27_tmpfs))
++    untrusted_app_27_tmpfs
++    exagear_debug_file
++    preubt_a32a64
++    exagear_prop
++  ))
+diff --git a/system/sepolicy/prebuilts/api/29.0/private/compat/27.0/27.0.ignore.cil b/system/sepolicy/prebuilts/api/29.0/private/compat/27.0/27.0.ignore.cil
+index 0e830f82c5..0f20f24656 100644
+--- a/system/sepolicy/prebuilts/api/29.0/private/compat/27.0/27.0.ignore.cil
++++ b/system/sepolicy/prebuilts/api/29.0/private/compat/27.0/27.0.ignore.cil
+@@ -197,4 +197,8 @@
+ (typeattribute priv_objects)
+ (typeattributeset priv_objects
+   ( priv_objects
+-    untrusted_app_27_tmpfs))
++    untrusted_app_27_tmpfs
++    exagear_debug_file
++    preubt_a32a64
++    exagear_prop
++  ))
+diff --git a/system/sepolicy/prebuilts/api/29.0/private/compat/28.0/28.0.ignore.cil b/system/sepolicy/prebuilts/api/29.0/private/compat/28.0/28.0.ignore.cil
+index ed3671f114..66525d96b7 100644
+--- a/system/sepolicy/prebuilts/api/29.0/private/compat/28.0/28.0.ignore.cil
++++ b/system/sepolicy/prebuilts/api/29.0/private/compat/28.0/28.0.ignore.cil
+@@ -149,3 +149,15 @@
+     vendor_task_profiles_file
+     vrflinger_vsync_service
+     watchdogd_tmpfs))
++
++;; private_objects - a collection of types that were labeled differently in
++;;     older policy, but that should not remain accessible to vendor policy.
++;;     Thus, these types are also not mapped, but recorded for checkapi tests
++(type priv_objects)
++(typeattribute priv_objects)
++(typeattributeset priv_objects
++  ( priv_objects
++    exagear_debug_file
++    preubt_a32a64
++    exagear_prop
++  ))
+diff --git a/system/sepolicy/prebuilts/api/29.0/private/domain.te b/system/sepolicy/prebuilts/api/29.0/private/domain.te
+index 209eeb0dd0..e228fabd25 100644
+--- a/system/sepolicy/prebuilts/api/29.0/private/domain.te
++++ b/system/sepolicy/prebuilts/api/29.0/private/domain.te
+@@ -231,6 +231,7 @@ neverallow {
+   -otapreopt_slot
+   -art_apex_postinstall
+   -art_apex_boot_integrity
++  -preubt_a32a64
+ } dalvikcache_data_file:file no_w_file_perms;
+ 
+ neverallow {
+@@ -244,6 +245,7 @@ neverallow {
+   -otapreopt_slot
+   -art_apex_boot_integrity
+   -art_apex_postinstall
++  -preubt_a32a64
+ } dalvikcache_data_file:dir no_w_dir_perms;
+ 
+ # Minimize dac_override and dac_read_search.
+diff --git a/system/sepolicy/prebuilts/api/29.0/private/exagear.te b/system/sepolicy/prebuilts/api/29.0/private/exagear.te
+new file mode 100644
+index 0000000000..cf633b0c3a
+--- /dev/null
++++ b/system/sepolicy/prebuilts/api/29.0/private/exagear.te
+@@ -0,0 +1,51 @@
++type preubt_a32a64_exec, system_file_type, exec_type, file_type;
++
++# binfmt_misc mount for init
++allow init proc:dir { mounton };
++allow init binfmt_miscfs:file rw_file_perms;
++
++set_prop(vendor_init, exagear_prop)
++
++# Allow the pretranslator to write log files
++userdebug_or_eng(`
++  allow preubt_a32a64 exagear_debug_file:file create_file_perms;
++  allow preubt_a32a64 exagear_debug_file:dir w_dir_perms;
++')
++
++# When invoked from installd, we use a special sandbox domain
++domain_auto_trans(installd, preubt_a32a64_exec, preubt_a32a64)
++allow preubt_a32a64 installd:fd use;
++allow preubt_a32a64 dalvikcache_data_file:file { r_file_perms write };
++allow preubt_a32a64 { apk_tmp_file apk_private_tmp_file }:file { r_file_perms write };
++allow preubt_a32a64 { apk_data_file apk_private_data_file }:file { r_file_perms write };
++allow preubt_a32a64 dalvikcache_data_file:dir r_dir_perms;
++allow preubt_a32a64 { apk_tmp_file apk_private_tmp_file }:dir r_dir_perms;
++allow preubt_a32a64 { apk_data_file apk_private_data_file }:dir r_dir_perms;
++allow installd { apk_tmp_file apk_private_tmp_file }:file create_file_perms;
++allow installd { apk_data_file apk_private_data_file }:file create_file_perms;
++
++# Access to properties which control pre-translation behavior
++get_prop(system_server, exagear_prop)
++get_prop(preubt_a32a64, exagear_prop)
++get_prop(installd, exagear_prop)
++
++# 32-bit zygote
++exagear_translated(zygote)
++exagear_translated(webview_zygote)
++
++# 32-bit app
++exagear_translated(appdomain)
++
++# 32-bit system servers
++exagear_translated(audioserver)
++exagear_translated(cameraserver)
++exagear_translated(drmserver)
++exagear_translated(mediaserver)
++
++# 32-bit ART utilities
++exagear_translated(dex2oat)
++exagear_translated(profman)
++exagear_translated(dexoptanalyzer)
++
++# 32-bit misc
++exagear_translated(crash_dump)
+
+diff --git a/system/sepolicy/prebuilts/api/29.0/private/file_contexts b/system/sepolicy/prebuilts/api/29.0/private/file_contexts
+index 530bd45fac..d65348717a 100644
+--- a/system/sepolicy/prebuilts/api/29.0/private/file_contexts
++++ b/system/sepolicy/prebuilts/api/29.0/private/file_contexts
+@@ -650,3 +650,9 @@
+ #############################
+ # mount point for read-write product partitions
+ /mnt/product(/.*)?          u:object_r:mnt_product_file:s0
++
++#############################
++# ExaGear-related files
++/data/exagear(/.*)? u:object_r:exagear_debug_file:s0
++/system/bin/preubt_a32a64 u:object_r:preubt_a32a64_exec:s0
++/system/bin/oatdump u:object_r:preubt_a32a64_exec:s0
+diff --git a/system/sepolicy/prebuilts/api/29.0/private/property_contexts b/system/sepolicy/prebuilts/api/29.0/private/property_contexts
+index cb81ba6932..deb08bf222 100644
+--- a/system/sepolicy/prebuilts/api/29.0/private/property_contexts
++++ b/system/sepolicy/prebuilts/api/29.0/private/property_contexts
+@@ -199,3 +199,5 @@ ro.gsid.                u:object_r:gsid_prop:s0
+ # Property for disabling NNAPI vendor extensions on product image (used on GSI /product image,
+ # which can't use NNAPI vendor extensions).
+ ro.nnapi.extensions.deny_on_product                u:object_r:nnapi_ext_deny_product_prop:s0
++
++exagear. u:object_r:exagear_prop:s0
+diff --git a/system/sepolicy/prebuilts/api/29.0/public/domain.te b/system/sepolicy/prebuilts/api/29.0/public/domain.te
+index 987bb9f2d3..e9888e3958 100644
+--- a/system/sepolicy/prebuilts/api/29.0/public/domain.te
++++ b/system/sepolicy/prebuilts/api/29.0/public/domain.te
+@@ -859,6 +859,7 @@ full_treble_only(`
+     # all processes.
+     -zoneinfo_data_file
+     with_native_coverage(`-method_trace_data_file')
++    userdebug_or_eng(`-exagear_debug_file')
+   }:file_class_set ~{ append getattr ioctl read write map };
+   neverallow {
+     vendor_init
+@@ -868,6 +869,7 @@ full_treble_only(`
+     -unencrypted_data_file
+     -zoneinfo_data_file
+     with_native_coverage(`-method_trace_data_file')
++    userdebug_or_eng(`-exagear_debug_file')
+   }:file_class_set ~{ append getattr ioctl read write map };
+   # vendor init needs to be able to read unencrypted_data_file to create directories with FBE.
+   # The vendor init binary lives on the system partition so there is not a concern with stability.
+@@ -887,6 +889,7 @@ full_treble_only(`
+     -vendor_data_file
+     -zoneinfo_data_file
+     with_native_coverage(`-method_trace_data_file')
++    userdebug_or_eng(`-exagear_debug_file')
+   }:dir *;
+   neverallow {
+     vendor_init
+@@ -898,6 +901,7 @@ full_treble_only(`
+     -vendor_data_file
+     -zoneinfo_data_file
+     with_native_coverage(`-method_trace_data_file')
++    userdebug_or_eng(`-exagear_debug_file')
+   }:dir *;
+   # vendor init needs to be able to read unencrypted_data_file to create directories with FBE.
+   # The vendor init binary lives on the system partition so there is not a concern with stability.
+@@ -1407,4 +1411,3 @@ neverallow {
+   -hal_codec2_server
+   -hal_omx_server
+ } hal_codec2_hwservice:hwservice_manager add;
+-
+diff --git a/system/sepolicy/prebuilts/api/29.0/public/exagear.te b/system/sepolicy/prebuilts/api/29.0/public/exagear.te
+new file mode 100644
+index 0000000000..c150e972d6
+--- /dev/null
++++ b/system/sepolicy/prebuilts/api/29.0/public/exagear.te
+@@ -0,0 +1,3 @@
++type preubt_a32a64, domain, coredomain;
++type exagear_debug_file, file_type, data_file_type, core_data_file_type, mlstrustedobject;
++type exagear_prop, property_type;
+
+diff --git a/system/sepolicy/prebuilts/api/29.0/public/te_macros b/system/sepolicy/prebuilts/api/29.0/public/te_macros
+index 85783dc9dc..de065fe686 100644
+--- a/system/sepolicy/prebuilts/api/29.0/public/te_macros
++++ b/system/sepolicy/prebuilts/api/29.0/public/te_macros
+@@ -75,7 +75,7 @@ allow $1 $2:{ file lnk_file } r_file_perms;
+ # Allow access to a unique type for this domain when creating tmpfs / ashmem files.
+ define(`tmpfs_domain', `
+ type_transition $1 tmpfs:file $1_tmpfs;
+-allow $1 $1_tmpfs:file { read write getattr map };
++allow $1 $1_tmpfs:file { read write getattr map open ioctl };
+ ')
+ 
+ # pdx macros for IPC. pdx is a high-level name which contains transport-specific
+@@ -708,3 +708,16 @@ define(`never_profile_heap', `
+   neverallow heapprofd $1:file read;
+   neverallow heapprofd $1:process signal;
+ ')
++
++###################################
++# exagear_translated(domain)
++# Extra permissions needed for translated processes
++define(`exagear_translated', `
++  allow $1 self:process execmem;
++  allow $1 tmpfs:file rw_file_perms;
++  userdebug_or_eng(`
++    allow $1 exagear_debug_file:file create_file_perms;
++    allow $1 exagear_debug_file:dir w_dir_perms;
++  ')
++  get_prop($1, exagear_prop)
++')
+diff --git a/system/sepolicy/prebuilts/api/30.0/private/app_neverallows.te b/system/sepolicy/prebuilts/api/30.0/private/app_neverallows.te
+index 1157187007..609588e2f8 100644
+--- a/system/sepolicy/prebuilts/api/30.0/private/app_neverallows.te
++++ b/system/sepolicy/prebuilts/api/30.0/private/app_neverallows.te
+@@ -143,6 +143,7 @@ neverallow { all_untrusted_apps -mediaprovider } {
+   userdebug_or_eng(`
+     -method_trace_data_file # only on ro.debuggable=1
+     -coredump_file          # userdebug/eng only
++    -exagear_debug_file       # userdebug/eng only
+   ')
+ }:dir_file_class_set { create unlink };
+ 
+diff --git a/system/sepolicy/prebuilts/api/30.0/private/compat/26.0/26.0.ignore.cil b/system/sepolicy/prebuilts/api/30.0/private/compat/26.0/26.0.ignore.cil
+index b395855afc..42c5bde450 100644
+--- a/system/sepolicy/prebuilts/api/30.0/private/compat/26.0/26.0.ignore.cil
++++ b/system/sepolicy/prebuilts/api/30.0/private/compat/26.0/26.0.ignore.cil
+@@ -226,4 +226,8 @@
+ (typeattributeset priv_objects
+   ( priv_objects
+     adbd_tmpfs
+-    untrusted_app_27_tmpfs))
++    untrusted_app_27_tmpfs
++    exagear_debug_file
++    preubt_a32a64
++    exagear_prop
++  ))
+diff --git a/system/sepolicy/prebuilts/api/30.0/private/compat/27.0/27.0.ignore.cil b/system/sepolicy/prebuilts/api/30.0/private/compat/27.0/27.0.ignore.cil
+index cb500c9e0d..f1c8163e06 100644
+--- a/system/sepolicy/prebuilts/api/30.0/private/compat/27.0/27.0.ignore.cil
++++ b/system/sepolicy/prebuilts/api/30.0/private/compat/27.0/27.0.ignore.cil
+@@ -203,4 +203,8 @@
+ (typeattribute priv_objects)
+ (typeattributeset priv_objects
+   ( priv_objects
+-    untrusted_app_27_tmpfs))
++    untrusted_app_27_tmpfs
++    exagear_debug_file
++    preubt_a32a64
++    exagear_prop
++  ))
+diff --git a/system/sepolicy/prebuilts/api/30.0/private/compat/28.0/28.0.ignore.cil b/system/sepolicy/prebuilts/api/30.0/private/compat/28.0/28.0.ignore.cil
+index d24d12d257..5892b54f36 100644
+--- a/system/sepolicy/prebuilts/api/30.0/private/compat/28.0/28.0.ignore.cil
++++ b/system/sepolicy/prebuilts/api/30.0/private/compat/28.0/28.0.ignore.cil
+@@ -157,3 +157,15 @@
+     vndk_prop
+     vrflinger_vsync_service
+     watchdogd_tmpfs))
++
++;; private_objects - a collection of types that were labeled differently in
++;;     older policy, but that should not remain accessible to vendor policy.
++;;     Thus, these types are also not mapped, but recorded for checkapi tests
++(type priv_objects)
++(typeattribute priv_objects)
++(typeattributeset priv_objects
++  ( priv_objects
++    exagear_debug_file
++    preubt_a32a64
++    exagear_prop
++  ))
+diff --git a/system/sepolicy/prebuilts/api/30.0/private/domain.te b/system/sepolicy/prebuilts/api/30.0/private/domain.te
+index 7116dadfd9..b6fb8c6801 100644
+--- a/system/sepolicy/prebuilts/api/30.0/private/domain.te
++++ b/system/sepolicy/prebuilts/api/30.0/private/domain.te
+@@ -272,6 +272,7 @@ neverallow {
+   -otapreopt_slot
+   -art_apex_postinstall
+   -art_apex_boot_integrity
++  -preubt_a32a64
+ } dalvikcache_data_file:file no_w_file_perms;
+ 
+ neverallow {
+@@ -285,6 +286,7 @@ neverallow {
+   -otapreopt_slot
+   -art_apex_boot_integrity
+   -art_apex_postinstall
++  -preubt_a32a64
+ } dalvikcache_data_file:dir no_w_dir_perms;
+ 
+ # Minimize dac_override and dac_read_search.
+diff --git a/system/sepolicy/prebuilts/api/30.0/private/exagear.te b/system/sepolicy/prebuilts/api/30.0/private/exagear.te
+new file mode 100644
+index 0000000000..2050ba3599
+--- /dev/null
++++ b/system/sepolicy/prebuilts/api/30.0/private/exagear.te
+@@ -0,0 +1,53 @@
++type preubt_a32a64_exec, system_file_type, exec_type, file_type;
++
++# binfmt_misc mount for init
++allow init proc:dir { mounton };
++allow init binfmt_miscfs:file rw_file_perms;
++
++set_prop(vendor_init, exagear_prop)
++
++# Allow the pretranslator to write log files
++userdebug_or_eng(`
++  allow preubt_a32a64 exagear_debug_file:file create_file_perms;
++  allow preubt_a32a64 exagear_debug_file:dir w_dir_perms;
++')
++
++# When invoked from installd, we use a special sandbox domain
++domain_auto_trans(installd, preubt_a32a64_exec, preubt_a32a64)
++allow preubt_a32a64 installd:fd use;
++allow preubt_a32a64 dalvikcache_data_file:file { r_file_perms write };
++allow preubt_a32a64 { apk_tmp_file apk_private_tmp_file }:file { r_file_perms write };
++allow preubt_a32a64 { apk_data_file apk_private_data_file }:file { r_file_perms write };
++allow preubt_a32a64 dalvikcache_data_file:dir r_dir_perms;
++allow preubt_a32a64 { apk_tmp_file apk_private_tmp_file }:dir r_dir_perms;
++allow preubt_a32a64 { apk_data_file apk_private_data_file }:dir r_dir_perms;
++allow installd { apk_tmp_file apk_private_tmp_file }:file create_file_perms;
++allow installd { apk_data_file apk_private_data_file }:file create_file_perms;
++
++# Access to properties which control pre-translation behavior
++get_prop(system_server, exagear_prop)
++get_prop(preubt_a32a64, exagear_prop)
++get_prop(installd, exagear_prop)
++
++# 32-bit zygote
++exagear_translated(zygote)
++exagear_translated(webview_zygote)
++
++# 32-bit app
++exagear_translated(appdomain)
++
++# 32-bit system servers
++exagear_translated(audioserver)
++exagear_translated(cameraserver)
++exagear_translated(drmserver)
++exagear_translated(mediaserver)
++
++# 32-bit ART utilities
++exagear_translated(dex2oat)
++exagear_translated(profman)
++exagear_translated(dexoptanalyzer)
++
++# 32-bit misc
++exagear_translated(boringssl_self_test)
++exagear_translated(vendor_boringssl_self_test)
++exagear_translated(crash_dump)
+diff --git a/system/sepolicy/prebuilts/api/30.0/private/file_contexts b/system/sepolicy/prebuilts/api/30.0/private/file_contexts
+index 9620b75127..beebdc423d 100644
+--- a/system/sepolicy/prebuilts/api/30.0/private/file_contexts
++++ b/system/sepolicy/prebuilts/api/30.0/private/file_contexts
+@@ -736,3 +736,9 @@
+ #############################
+ # mount point for read-write product partitions
+ /mnt/product(/.*)?          u:object_r:mnt_product_file:s0
++
++#############################
++# ExaGear-related files
++/data/exagear(/.*)? u:object_r:exagear_debug_file:s0
++/system/bin/preubt_a32a64 u:object_r:preubt_a32a64_exec:s0
++/system/bin/oatdump u:object_r:preubt_a32a64_exec:s0
+diff --git a/system/sepolicy/prebuilts/api/30.0/private/property_contexts b/system/sepolicy/prebuilts/api/30.0/private/property_contexts
+index a4fab1f228..677e215e60 100644
+--- a/system/sepolicy/prebuilts/api/30.0/private/property_contexts
++++ b/system/sepolicy/prebuilts/api/30.0/private/property_contexts
+@@ -268,3 +268,5 @@ init.userspace_reboot.watchdog.timeoutmillis u:object_r:userspace_reboot_config_
+ 
+ # surfaceflinger-settable
+ graphics.display.kernel_idle_timer.enabled u:object_r:surfaceflinger_display_prop:s0 exact bool
++
++exagear. u:object_r:exagear_prop:s0
+diff --git a/system/sepolicy/prebuilts/api/30.0/public/domain.te b/system/sepolicy/prebuilts/api/30.0/public/domain.te
+index e1ca737ce0..1a10d205ed 100644
+--- a/system/sepolicy/prebuilts/api/30.0/public/domain.te
++++ b/system/sepolicy/prebuilts/api/30.0/public/domain.te
+@@ -843,6 +843,7 @@ full_treble_only(`
+     # all processes.
+     -zoneinfo_data_file
+     with_native_coverage(`-method_trace_data_file')
++    userdebug_or_eng(`-exagear_debug_file')
+   }:file_class_set ~{ append getattr ioctl read write map };
+   neverallow {
+     vendor_init
+@@ -852,6 +853,7 @@ full_treble_only(`
+     -unencrypted_data_file
+     -zoneinfo_data_file
+     with_native_coverage(`-method_trace_data_file')
++    userdebug_or_eng(`-exagear_debug_file')
+   }:file_class_set ~{ append getattr ioctl read write map };
+   # vendor init needs to be able to read unencrypted_data_file to create directories with FBE.
+   # The vendor init binary lives on the system partition so there is not a concern with stability.
+@@ -872,6 +874,7 @@ full_treble_only(`
+     -vendor_data_file
+     -zoneinfo_data_file
+     with_native_coverage(`-method_trace_data_file')
++    userdebug_or_eng(`-exagear_debug_file')
+   }:dir *;
+   neverallow {
+     vendor_init
+@@ -884,6 +887,7 @@ full_treble_only(`
+     -vendor_data_file
+     -zoneinfo_data_file
+     with_native_coverage(`-method_trace_data_file')
++    userdebug_or_eng(`-exagear_debug_file')
+   }:dir *;
+   # vendor init needs to be able to read unencrypted_data_file to create directories with FBE.
+   # The vendor init binary lives on the system partition so there is not a concern with stability.
+diff --git a/system/sepolicy/prebuilts/api/30.0/public/exagear.te b/system/sepolicy/prebuilts/api/30.0/public/exagear.te
+new file mode 100644
+index 0000000000..f8caeca077
+--- /dev/null
++++ b/system/sepolicy/prebuilts/api/30.0/public/exagear.te
+@@ -0,0 +1,3 @@
++type preubt_a32a64, domain, coredomain;
++type exagear_debug_file, file_type, data_file_type, core_data_file_type, mlstrustedobject;
++type exagear_prop, property_type;
+diff --git a/system/sepolicy/prebuilts/api/30.0/public/te_macros b/system/sepolicy/prebuilts/api/30.0/public/te_macros
+index 56f977522e..5fef5cdb54 100644
+--- a/system/sepolicy/prebuilts/api/30.0/public/te_macros
++++ b/system/sepolicy/prebuilts/api/30.0/public/te_macros
+@@ -75,7 +75,7 @@ allow $1 $2:{ file lnk_file } r_file_perms;
+ # Allow access to a unique type for this domain when creating tmpfs / ashmem files.
+ define(`tmpfs_domain', `
+ type_transition $1 tmpfs:file $1_tmpfs;
+-allow $1 $1_tmpfs:file { read write getattr map };
++allow $1 $1_tmpfs:file { read write getattr map open ioctl };
+ ')
+ 
+ # pdx macros for IPC. pdx is a high-level name which contains transport-specific
+@@ -921,3 +921,16 @@ define(`vendor_restricted_prop', `
+ # Define a /vendor-owned property with no restrictions
+ #
+ define(`vendor_public_prop', `define_prop($1, vendor, public)')
++
++###########################################
++# exagear_translated(domain)
++# Extra permissions needed for translated processes
++define(`exagear_translated', `
++  allow $1 self:process execmem;
++  allow $1 tmpfs:file rw_file_perms;
++  userdebug_or_eng(`
++    allow $1 exagear_debug_file:file create_file_perms;
++    allow $1 exagear_debug_file:dir w_dir_perms;
++  ')
++  get_prop($1, exagear_prop)
++')
+diff --git a/system/sepolicy/private/app_neverallows.te b/system/sepolicy/private/app_neverallows.te
+index 1157187007..609588e2f8 100644
+--- a/system/sepolicy/private/app_neverallows.te
++++ b/system/sepolicy/private/app_neverallows.te
+@@ -143,6 +143,7 @@ neverallow { all_untrusted_apps -mediaprovider } {
+   userdebug_or_eng(`
+     -method_trace_data_file # only on ro.debuggable=1
+     -coredump_file          # userdebug/eng only
++    -exagear_debug_file       # userdebug/eng only
+   ')
+ }:dir_file_class_set { create unlink };
+ 
+diff --git a/system/sepolicy/private/compat/26.0/26.0.ignore.cil b/system/sepolicy/private/compat/26.0/26.0.ignore.cil
+index b395855afc..42c5bde450 100644
+--- a/system/sepolicy/private/compat/26.0/26.0.ignore.cil
++++ b/system/sepolicy/private/compat/26.0/26.0.ignore.cil
+@@ -226,4 +226,8 @@
+ (typeattributeset priv_objects
+   ( priv_objects
+     adbd_tmpfs
+-    untrusted_app_27_tmpfs))
++    untrusted_app_27_tmpfs
++    exagear_debug_file
++    preubt_a32a64
++    exagear_prop
++  ))
+diff --git a/system/sepolicy/private/compat/27.0/27.0.ignore.cil b/system/sepolicy/private/compat/27.0/27.0.ignore.cil
+index cb500c9e0d..f1c8163e06 100644
+--- a/system/sepolicy/private/compat/27.0/27.0.ignore.cil
++++ b/system/sepolicy/private/compat/27.0/27.0.ignore.cil
+@@ -203,4 +203,8 @@
+ (typeattribute priv_objects)
+ (typeattributeset priv_objects
+   ( priv_objects
+-    untrusted_app_27_tmpfs))
++    untrusted_app_27_tmpfs
++    exagear_debug_file
++    preubt_a32a64
++    exagear_prop
++  ))
+diff --git a/system/sepolicy/private/compat/28.0/28.0.ignore.cil b/system/sepolicy/private/compat/28.0/28.0.ignore.cil
+index d24d12d257..5892b54f36 100644
+--- a/system/sepolicy/private/compat/28.0/28.0.ignore.cil
++++ b/system/sepolicy/private/compat/28.0/28.0.ignore.cil
+@@ -157,3 +157,15 @@
+     vndk_prop
+     vrflinger_vsync_service
+     watchdogd_tmpfs))
++
++;; private_objects - a collection of types that were labeled differently in
++;;     older policy, but that should not remain accessible to vendor policy.
++;;     Thus, these types are also not mapped, but recorded for checkapi tests
++(type priv_objects)
++(typeattribute priv_objects)
++(typeattributeset priv_objects
++  ( priv_objects
++    exagear_debug_file
++    preubt_a32a64
++    exagear_prop
++  ))
+diff --git a/system/sepolicy/private/domain.te b/system/sepolicy/private/domain.te
+index 7116dadfd9..b6fb8c6801 100644
+--- a/system/sepolicy/private/domain.te
++++ b/system/sepolicy/private/domain.te
+@@ -272,6 +272,7 @@ neverallow {
+   -otapreopt_slot
+   -art_apex_postinstall
+   -art_apex_boot_integrity
++  -preubt_a32a64
+ } dalvikcache_data_file:file no_w_file_perms;
+ 
+ neverallow {
+@@ -285,6 +286,7 @@ neverallow {
+   -otapreopt_slot
+   -art_apex_boot_integrity
+   -art_apex_postinstall
++  -preubt_a32a64
+ } dalvikcache_data_file:dir no_w_dir_perms;
+ 
+ # Minimize dac_override and dac_read_search.
+diff --git a/system/sepolicy/private/exagear.te b/system/sepolicy/private/exagear.te
+new file mode 100644
+index 0000000000..2050ba3599
+--- /dev/null
++++ b/system/sepolicy/private/exagear.te
+@@ -0,0 +1,53 @@
++type preubt_a32a64_exec, system_file_type, exec_type, file_type;
++
++# binfmt_misc mount for init
++allow init proc:dir { mounton };
++allow init binfmt_miscfs:file rw_file_perms;
++
++set_prop(vendor_init, exagear_prop)
++
++# Allow the pretranslator to write log files
++userdebug_or_eng(`
++  allow preubt_a32a64 exagear_debug_file:file create_file_perms;
++  allow preubt_a32a64 exagear_debug_file:dir w_dir_perms;
++')
++
++# When invoked from installd, we use a special sandbox domain
++domain_auto_trans(installd, preubt_a32a64_exec, preubt_a32a64)
++allow preubt_a32a64 installd:fd use;
++allow preubt_a32a64 dalvikcache_data_file:file { r_file_perms write };
++allow preubt_a32a64 { apk_tmp_file apk_private_tmp_file }:file { r_file_perms write };
++allow preubt_a32a64 { apk_data_file apk_private_data_file }:file { r_file_perms write };
++allow preubt_a32a64 dalvikcache_data_file:dir r_dir_perms;
++allow preubt_a32a64 { apk_tmp_file apk_private_tmp_file }:dir r_dir_perms;
++allow preubt_a32a64 { apk_data_file apk_private_data_file }:dir r_dir_perms;
++allow installd { apk_tmp_file apk_private_tmp_file }:file create_file_perms;
++allow installd { apk_data_file apk_private_data_file }:file create_file_perms;
++
++# Access to properties which control pre-translation behavior
++get_prop(system_server, exagear_prop)
++get_prop(preubt_a32a64, exagear_prop)
++get_prop(installd, exagear_prop)
++
++# 32-bit zygote
++exagear_translated(zygote)
++exagear_translated(webview_zygote)
++
++# 32-bit app
++exagear_translated(appdomain)
++
++# 32-bit system servers
++exagear_translated(audioserver)
++exagear_translated(cameraserver)
++exagear_translated(drmserver)
++exagear_translated(mediaserver)
++
++# 32-bit ART utilities
++exagear_translated(dex2oat)
++exagear_translated(profman)
++exagear_translated(dexoptanalyzer)
++
++# 32-bit misc
++exagear_translated(boringssl_self_test)
++exagear_translated(vendor_boringssl_self_test)
++exagear_translated(crash_dump)
+diff --git a/system/sepolicy/private/file_contexts b/system/sepolicy/private/file_contexts
+index 9620b75127..beebdc423d 100644
+--- a/system/sepolicy/private/file_contexts
++++ b/system/sepolicy/private/file_contexts
+@@ -736,3 +736,9 @@
+ #############################
+ # mount point for read-write product partitions
+ /mnt/product(/.*)?          u:object_r:mnt_product_file:s0
++
++#############################
++# ExaGear-related files
++/data/exagear(/.*)? u:object_r:exagear_debug_file:s0
++/system/bin/preubt_a32a64 u:object_r:preubt_a32a64_exec:s0
++/system/bin/oatdump u:object_r:preubt_a32a64_exec:s0
+diff --git a/system/sepolicy/private/property_contexts b/system/sepolicy/private/property_contexts
+index a4fab1f228..677e215e60 100644
+--- a/system/sepolicy/private/property_contexts
++++ b/system/sepolicy/private/property_contexts
+@@ -268,3 +268,5 @@ init.userspace_reboot.watchdog.timeoutmillis u:object_r:userspace_reboot_config_
+ 
+ # surfaceflinger-settable
+ graphics.display.kernel_idle_timer.enabled u:object_r:surfaceflinger_display_prop:s0 exact bool
++
++exagear. u:object_r:exagear_prop:s0
+diff --git a/system/sepolicy/public/domain.te b/system/sepolicy/public/domain.te
+index e1ca737ce0..1a10d205ed 100644
+--- a/system/sepolicy/public/domain.te
++++ b/system/sepolicy/public/domain.te
+@@ -843,6 +843,7 @@ full_treble_only(`
+     # all processes.
+     -zoneinfo_data_file
+     with_native_coverage(`-method_trace_data_file')
++    userdebug_or_eng(`-exagear_debug_file')
+   }:file_class_set ~{ append getattr ioctl read write map };
+   neverallow {
+     vendor_init
+@@ -852,6 +853,7 @@ full_treble_only(`
+     -unencrypted_data_file
+     -zoneinfo_data_file
+     with_native_coverage(`-method_trace_data_file')
++    userdebug_or_eng(`-exagear_debug_file')
+   }:file_class_set ~{ append getattr ioctl read write map };
+   # vendor init needs to be able to read unencrypted_data_file to create directories with FBE.
+   # The vendor init binary lives on the system partition so there is not a concern with stability.
+@@ -872,6 +874,7 @@ full_treble_only(`
+     -vendor_data_file
+     -zoneinfo_data_file
+     with_native_coverage(`-method_trace_data_file')
++    userdebug_or_eng(`-exagear_debug_file')
+   }:dir *;
+   neverallow {
+     vendor_init
+@@ -884,6 +887,7 @@ full_treble_only(`
+     -vendor_data_file
+     -zoneinfo_data_file
+     with_native_coverage(`-method_trace_data_file')
++    userdebug_or_eng(`-exagear_debug_file')
+   }:dir *;
+   # vendor init needs to be able to read unencrypted_data_file to create directories with FBE.
+   # The vendor init binary lives on the system partition so there is not a concern with stability.
+diff --git a/system/sepolicy/public/exagear.te b/system/sepolicy/public/exagear.te
+new file mode 100644
+index 0000000000..f8caeca077
+--- /dev/null
++++ b/system/sepolicy/public/exagear.te
+@@ -0,0 +1,3 @@
++type preubt_a32a64, domain, coredomain;
++type exagear_debug_file, file_type, data_file_type, core_data_file_type, mlstrustedobject;
++type exagear_prop, property_type;
+diff --git a/system/sepolicy/public/te_macros b/system/sepolicy/public/te_macros
+index 56f977522e..5fef5cdb54 100644
+--- a/system/sepolicy/public/te_macros
++++ b/system/sepolicy/public/te_macros
+@@ -75,7 +75,7 @@ allow $1 $2:{ file lnk_file } r_file_perms;
+ # Allow access to a unique type for this domain when creating tmpfs / ashmem files.
+ define(`tmpfs_domain', `
+ type_transition $1 tmpfs:file $1_tmpfs;
+-allow $1 $1_tmpfs:file { read write getattr map };
++allow $1 $1_tmpfs:file { read write getattr map open ioctl };
+ ')
+ 
+ # pdx macros for IPC. pdx is a high-level name which contains transport-specific
+@@ -921,3 +921,16 @@ define(`vendor_restricted_prop', `
+ # Define a /vendor-owned property with no restrictions
+ #
+ define(`vendor_public_prop', `define_prop($1, vendor, public)')
++
++###########################################
++# exagear_translated(domain)
++# Extra permissions needed for translated processes
++define(`exagear_translated', `
++  allow $1 self:process execmem;
++  allow $1 tmpfs:file rw_file_perms;
++  userdebug_or_eng(`
++    allow $1 exagear_debug_file:file create_file_perms;
++    allow $1 exagear_debug_file:dir w_dir_perms;
++  ')
++  get_prop($1, exagear_prop)
++')
+diff --git a/system/sepolicy/vendor/exagear.te b/system/sepolicy/vendor/exagear.te
+new file mode 100644
+index 0000000000..a4972e9646
+--- /dev/null
++++ b/system/sepolicy/vendor/exagear.te
+@@ -0,0 +1,4 @@
++exagear_translated(mediacodec)
++exagear_translated(hal_cas_default)
++exagear_translated(hal_camera_default)
++exagear_translated(hal_audio_default)
+-- 
+2.17.1
+ 
