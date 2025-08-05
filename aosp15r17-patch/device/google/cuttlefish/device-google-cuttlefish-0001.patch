@@ -250,7 +250,7 @@ index 000000000..46202a9b5
 +	"root_dir" : "/system/vendor/etc/modem_simulator/files/"
 +}
 diff --git a/host/commands/modem_simulator/files/iccprofile_for_sim0.xml b/host/commands/modem_simulator/files/iccprofile_for_sim0.xml
-index 655c37a96..42fe547aa 100755
+index 655c37a96..461411c99 100755
 --- a/host/commands/modem_simulator/files/iccprofile_for_sim0.xml
 +++ b/host/commands/modem_simulator/files/iccprofile_for_sim0.xml
 @@ -11,7 +11,7 @@
@@ -276,6 +276,15 @@ index 655c37a96..42fe547aa 100755
          </EF>
          <EF name="EF_MBI" id="6FC9" structure="linear fixed">
              <SIMIO cmd="C0" p1="0" p2="0" p3="F" data="">144,0,62198205422100050183026FC98A01058B036F0602800200058800</SIMIO>
+@@ -92,7 +92,7 @@
+        </EF>
+        <EF name="EF_AD" id="6FAD" structure="transparent">
+             <SIMIO cmd="C0" p1="0" p2="0" p3="F" data="">144,0,62178202412183026FAD8A01058B036F060180020004880118</SIMIO>
+-            <SIMIO cmd="B0" p1="0" p2="0" p3="4" data="">144,0,00000003</SIMIO>
++            <SIMIO cmd="B0" p1="0" p2="0" p3="4" data="">144,0,00000002</SIMIO>
+        </EF>
+        <EF name="EF_MWIS" id="6FCA" structure="linear fixed">
+            <SIMIO cmd="C0" p1="0" p2="0" p3="F" data="">144,0,62198205422100050183026FCA8A01058B036F060E800200058800</SIMIO>
 diff --git a/host/commands/modem_simulator/files/numeric_operator.xml b/host/commands/modem_simulator/files/numeric_operator.xml
 index 202c84b40..f3f616235 100644
 --- a/host/commands/modem_simulator/files/numeric_operator.xml
@@ -650,7 +659,7 @@ index 3dc77b5b6..e8b3b4e7b 100644
  }
  
 diff --git a/host/commands/modem_simulator/sim_service.cpp b/host/commands/modem_simulator/sim_service.cpp
-index 8d3968967..7f3de2a55 100644
+index 8d3968967..c16f86d52 100644
 --- a/host/commands/modem_simulator/sim_service.cpp
 +++ b/host/commands/modem_simulator/sim_service.cpp
 @@ -24,6 +24,7 @@
@@ -828,22 +837,44 @@ index 8d3968967..7f3de2a55 100644
    std::vector<std::string> kFileNotFoud = {"+CRSM: 106,130", "OK"};
    std::vector<std::string> responses;
  
-@@ -1278,8 +1341,13 @@ void SimService::HandleGetIMSI(const Client& client) {
+@@ -1278,8 +1341,34 @@ void SimService::HandleGetIMSI(const Client& client) {
      client.SendCommandResponse(kCmeErrorNotFound);
      return;
    }
-+  std::string imsi = final -> GetText();
- 
+-
 -  responses.push_back(final->GetText());
++  std::string imsi = final -> GetText();
++
 +  std::string propImsi = GetPropImsi();
 +  if (propImsi.size() > 0) {
 +	  imsi = propImsi;
++	  ef = SimFileSystem::FindAttribute(df, "id", "6FAD");
++	  if (ef) {
++		  XMLElement *sim_io = ef->FirstChildElement("SIMIO");
++		  while (sim_io) {
++			  const XMLAttribute *attr_cmd = sim_io->FindAttribute("cmd");
++			  std::string attr_value = attr_cmd ? attr_cmd->Value() : "";
++			  if (attr_cmd && attr_value == "B0") {
++				  break;
++			  }
++
++			  sim_io = sim_io->NextSiblingElement("SIMIO");
++		  }
++
++		  if (sim_io) {
++			  if (propImsi.substr(0, 3) == "310") {
++				  sim_io->SetText("144,0,00000003");
++			  } else {
++				  sim_io->SetText("144,0,00000002");
++			  }
++		  }
++	  }
 +  }
 +  responses.push_back(imsi);
    responses.push_back("OK");
    client.SendCommandResponse(responses);
  }
-@@ -1291,6 +1359,20 @@ void SimService::HandleGetIMSI(const Client& client) {
+@@ -1291,6 +1380,20 @@ void SimService::HandleGetIMSI(const Client& client) {
   *
   * see RIL_REQUEST_GET_SIM_STATUS in RIL
   */
@@ -864,7 +895,7 @@ index 8d3968967..7f3de2a55 100644
  void SimService::HandleGetIccId(const Client& client) {
    std::vector<std::string> responses;
  
-@@ -1318,7 +1400,12 @@ void SimService::HandleGetIccId(const Client& client) {
+@@ -1318,7 +1421,12 @@ void SimService::HandleGetIccId(const Client& client) {
      return;
    }
  
