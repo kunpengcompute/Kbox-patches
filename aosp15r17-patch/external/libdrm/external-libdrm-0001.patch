@@ -13,3 +13,39 @@ index 672f000d..b0a55f69 100644
  	/* Set the placement. */
  	args.in.domains = alloc_buffer->preferred_heap;
  	args.in.domain_flags = alloc_buffer->flags;
+diff --git a/xf86drm.c b/xf86drm.c
+index 5f0eddc4..1b62d76b 100644
+--- a/xf86drm.c
++++ b/xf86drm.c
+@@ -1050,20 +1050,19 @@ static int drmGetMinorType(int major, int minor)
+ 
+     minor = id;
+ #endif
+-    char path[DRM_NODE_NAME_MAX];
+-    const char *dev_name;
+-    int i;
++    int type = minor >> 6;
+ 
+-    for (i = DRM_NODE_PRIMARY; i < DRM_NODE_MAX; i++) {
+-        dev_name = drmGetDeviceName(i);
+-        if (!dev_name)
+-           continue;
+-        snprintf(path, sizeof(path), dev_name, DRM_DIR_NAME, minor);
+-        if (!access(path, F_OK))
+-           return i;
++    if (minor < 0)
++        return -1;
++    
++    switch (type) {
++        case DRM_NODE_PRIMARY:
++        case DRM_NODE_CONTROL:
++        case DRM_NODE_RENDER:
++            return type;
++        default:
++            return -1;
+     }
+-
+-    return -1;
+ }
+ 
+ static const char *drmGetMinorName(int type)

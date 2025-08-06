@@ -1,5 +1,5 @@
 diff --git a/libs/binder/Binder.cpp b/libs/binder/Binder.cpp
-
+index 53bd08d420..3516dcde3a 100644
 --- a/libs/binder/Binder.cpp
 +++ b/libs/binder/Binder.cpp
 @@ -522,6 +522,7 @@ void BBinder::setRequestingSid(bool requestingSid)
@@ -11,7 +11,7 @@ diff --git a/libs/binder/Binder.cpp b/libs/binder/Binder.cpp
  
      if (!e) {
 diff --git a/libs/binder/IPCThreadState.cpp b/libs/binder/IPCThreadState.cpp
-
+index 6698d0c0cd..6707c95c0a 100644
 --- a/libs/binder/IPCThreadState.cpp
 +++ b/libs/binder/IPCThreadState.cpp
 @@ -1441,7 +1441,7 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
@@ -24,7 +24,7 @@ diff --git a/libs/binder/IPCThreadState.cpp b/libs/binder/IPCThreadState.cpp
              mHasExplicitIdentity = false;
              mLastTransactionBinderFlags = tr.flags;
 diff --git a/libs/binder/ProcessState.cpp b/libs/binder/ProcessState.cpp
-
+index 5e7f1510bc..83bae2c75f 100644
 --- a/libs/binder/ProcessState.cpp
 +++ b/libs/binder/ProcessState.cpp
 @@ -225,12 +225,15 @@ bool ProcessState::becomeContextManager()
@@ -43,4 +43,16 @@ diff --git a/libs/binder/ProcessState.cpp b/libs/binder/ProcessState.cpp
      // fallback to original method
      if (result != 0) {
          android_errorWriteLog(0x534e4554, "121035042");
-
+diff --git a/services/surfaceflinger/Scheduler/RefreshRateSelector.cpp b/services/surfaceflinger/Scheduler/RefreshRateSelector.cpp
+index ab9014e418..8bce49cb41 100644
+--- a/services/surfaceflinger/Scheduler/RefreshRateSelector.cpp
++++ b/services/surfaceflinger/Scheduler/RefreshRateSelector.cpp
+@@ -1427,6 +1427,8 @@ auto RefreshRateSelector::setPolicy(const PolicyVariant& policy) -> SetPolicyRes
+             return SetPolicyResult::Unchanged;
+         }
+ 
++        mDisplayManagerPolicy.primaryRanges.render.max = Fps::fromValue(120.f);
++
+         constructAvailableRefreshRates();
+ 
+         displayId = getActiveModeLocked().modePtr->getPhysicalDisplayId();
