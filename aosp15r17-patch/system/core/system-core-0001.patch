@@ -1,5 +1,5 @@
 diff --git a/fs_mgr/libfstab/boot_config.cpp b/fs_mgr/libfstab/boot_config.cpp
-index b21495ecd..f566f1e01 100644
+
 --- a/fs_mgr/libfstab/boot_config.cpp
 +++ b/fs_mgr/libfstab/boot_config.cpp
 @@ -154,13 +154,15 @@ bool GetKernelCmdlineFromString(const std::string& cmdline, const std::string& k
@@ -21,7 +21,7 @@ index b21495ecd..f566f1e01 100644
  }
  
 diff --git a/init/Android.bp b/init/Android.bp
-index 18a79d6c4..dd3e70267 100644
+
 --- a/init/Android.bp
 +++ b/init/Android.bp
 @@ -247,6 +247,10 @@ cc_defaults {
@@ -36,7 +36,7 @@ index 18a79d6c4..dd3e70267 100644
  
  cc_library_static {
 diff --git a/init/devices.cpp b/init/devices.cpp
-index f2bb9d276..c759bb3da 100644
+
 --- a/init/devices.cpp
 +++ b/init/devices.cpp
 @@ -444,6 +444,15 @@ std::vector<std::string> DeviceHandler::GetBlockDeviceSymlinks(const Uevent& uev
@@ -85,7 +85,7 @@ index f2bb9d276..c759bb3da 100644
  DeviceHandler::DeviceHandler()
      : DeviceHandler(std::vector<Permissions>{}, std::vector<SysfsPermissions>{},
 diff --git a/init/devices.h b/init/devices.h
-index 6da123259..610e883f0 100644
+
 --- a/init/devices.h
 +++ b/init/devices.h
 @@ -142,6 +142,7 @@ class DeviceHandler : public UeventHandler {
@@ -97,7 +97,7 @@ index 6da123259..610e883f0 100644
                        int minor, const std::vector<std::string>& links) const;
      void FixupSysPermissions(const std::string& upath, const std::string& subsystem) const;
 diff --git a/init/first_stage_init.cpp b/init/first_stage_init.cpp
-index e06a64593..8485b3dc1 100644
+
 --- a/init/first_stage_init.cpp
 +++ b/init/first_stage_init.cpp
 @@ -36,6 +36,7 @@
@@ -174,7 +174,7 @@ index e06a64593..8485b3dc1 100644
      // execv() only returns if an error happened, in which case we
      // panic and never fall through this conditional.
 diff --git a/init/init.cpp b/init/init.cpp
-index 6c8089926..36fa8e4b7 100644
+
 --- a/init/init.cpp
 +++ b/init/init.cpp
 @@ -937,7 +937,7 @@ int SecondStageMain(int argc, char** argv) {
@@ -186,6 +186,141 @@ index 6c8089926..36fa8e4b7 100644
      LOG(INFO) << "init second stage started!";
  
      SelinuxSetupKernelLogging();
+diff --git a/init/property_service.cpp b/init/property_service.cpp
+
+--- a/init/property_service.cpp
++++ b/init/property_service.cpp
+@@ -1351,7 +1351,7 @@ static void ExportKernelBootProps() {
+         { "ro.boot.mode",       "ro.bootmode",   "unknown", },
+         { "ro.boot.baseband",   "ro.baseband",   "unknown", },
+         { "ro.boot.bootloader", "ro.bootloader", "unknown", },
+-        { "ro.boot.hardware",   "ro.hardware",   "unknown", },
++        { "ro.boot.hardware",   "ro.hardware",   "kbox", },
+         { "ro.boot.revision",   "ro.revision",   "0", },
+             // clang-format on
+     };
+@@ -1393,6 +1393,8 @@ static void ProcessKernelCmdline() {
+     android::fs_mgr::ImportKernelCmdline([&](const std::string& key, const std::string& value) {
+         if (StartsWith(key, ANDROIDBOOT_PREFIX)) {
+             InitPropertySet("ro.boot." + key.substr(ANDROIDBOOT_PREFIX.size()), value);
++        } else if (StartsWith(key, "ro.")) {
++            InitPropertySet(key, value);
+         }
+     });
+ }
+diff --git a/init/selinux.cpp b/init/selinux.cpp
+
+--- a/init/selinux.cpp
++++ b/init/selinux.cpp
+@@ -106,6 +106,7 @@ EnforcingStatus StatusFromProperty() {
+ }
+ 
+ bool IsEnforcing() {
++    kbox_hack_p(false);
+     if (ALLOW_PERMISSIVE_SELINUX) {
+         return StatusFromProperty() == SELINUX_ENFORCING;
+     }
+@@ -693,7 +694,7 @@ int SetupSelinux(char** argv) {
+     }
+ 
+     boot_clock::time_point start_time = boot_clock::now();
+-
++#if 0
+     SelinuxSetupKernelLogging();
+ 
+     // TODO(b/287206497): refactor into different headers to only include what we need.
+@@ -721,7 +722,7 @@ int SetupSelinux(char** argv) {
+     if (selinux_android_restorecon("/system/bin/init", 0) == -1) {
+         PLOG(FATAL) << "restorecon failed of /system/bin/init failed";
+     }
+-
++#endif
+     setenv(kEnvSelinuxStartedAt, std::to_string(start_time.time_since_epoch().count()).c_str(), 1);
+ 
+     const char* path = "/system/bin/init";
+diff --git a/init/service.cpp b/init/service.cpp
+
+--- a/init/service.cpp
++++ b/init/service.cpp
+@@ -76,6 +76,7 @@ namespace android {
+ namespace init {
+ 
+ static Result<std::string> ComputeContextFromExecutable(const std::string& service_path) {
++    kbox_hack_p("KBOX_HACKED");
+     std::string computed_context;
+ 
+     char* raw_con = nullptr;
+diff --git a/init/subcontext.cpp b/init/subcontext.cpp
+
+--- a/init/subcontext.cpp
++++ b/init/subcontext.cpp
+@@ -346,6 +346,7 @@ Result<std::vector<std::string>> Subcontext::ExpandArgs(const std::vector<std::s
+ }
+ 
+ void InitializeSubcontext() {
++    kbox_hack();
+     if (IsMicrodroid()) {
+         LOG(INFO) << "Not using subcontext for microdroid";
+         return;
+diff --git a/libprocessgroup/processgroup.cpp b/libprocessgroup/processgroup.cpp
+
+--- a/libprocessgroup/processgroup.cpp
++++ b/libprocessgroup/processgroup.cpp
+@@ -273,6 +273,7 @@ static bool RemoveEmptyUidCgroups(const std::string& uid_path) {
+ }
+ 
+ void removeAllEmptyProcessGroups() {
++    kbox_hack();
+     LOG(VERBOSE) << "removeAllEmptyProcessGroups()";
+ 
+     std::vector<std::string> cgroups;
+diff --git a/libsysutils/src/NetlinkEvent.cpp b/libsysutils/src/NetlinkEvent.cpp
+
+--- a/libsysutils/src/NetlinkEvent.cpp
++++ b/libsysutils/src/NetlinkEvent.cpp
+@@ -159,12 +159,14 @@ NetlinkEvent::~NetlinkEvent() {
+ 
+ void NetlinkEvent::dump() {
+     int i;
+-
++    std::string buffer ;
+     for (i = 0; i < NL_PARAMS_MAX; i++) {
+         if (!mParams[i])
+             break;
+-        SLOGD("NL param '%s'\n", mParams[i]);
++        buffer += std::to_string(i) + ":" + mParams[i] ;
+     }
++    SLOGE("NL param '%s'\n",buffer.c_str());
++    SLOGE(" 下一个 \n");
+ }
+ 
+ /*
+diff --git a/rootdir/init.rc b/rootdir/init.rc
+
+--- a/rootdir/init.rc
++++ b/rootdir/init.rc
+@@ -265,10 +265,10 @@ on init
+     mkdir /dev/binderfs
+     mount binder binder /dev/binderfs stats=global
+     chmod 0755 /dev/binderfs
++    # exec -- /vendor/bin/binder_alloc /dev/binderfs/binder-control binder hwbinder vndbinder
+ 
+     # Mount fusectl
+-    mount fusectl none /sys/fs/fuse/connections
+-
++    # mount fusectl none /sys/fs/fuse/connections
+     symlink /dev/binderfs/binder /dev/binder
+     symlink /dev/binderfs/hwbinder /dev/hwbinder
+     symlink /dev/binderfs/vndbinder /dev/vndbinder
+@@ -588,7 +588,6 @@ on post-fs
+ 
+     # Once everything is setup, no need to modify /.
+     # The bind+remount combination allows this to work in containers.
+-    mount rootfs rootfs / remount bind ro nodev
+ 
+     # Mount default storage into root namespace
+     mount none /mnt/user/0 /storage bind rec
+
 diff --git a/init/ipconfigstore/Android.bp b/init/ipconfigstore/Android.bp
 new file mode 100644
 index 000000000..34ed932dd
@@ -292,7 +427,7 @@ index 000000000..12c3a1af9
 +bool writePackedUInt32(uint32_t value, FILE *stream);
 diff --git a/init/ipconfigstore/main.cc b/init/ipconfigstore/main.cc
 new file mode 100644
-index 000000000..ef4a2a5ae
+index 000000000..f5f2e0f46
 --- /dev/null
 +++ b/init/ipconfigstore/main.cc
 @@ -0,0 +1,165 @@
@@ -462,147 +597,15 @@ index 000000000..ef4a2a5ae
 +}
 +
 diff --git a/init/property_service.cpp b/init/property_service.cpp
-index f2606e3c5..9dd35762a 100644
+index 4436bc181..62f9c34ad 100644
 --- a/init/property_service.cpp
 +++ b/init/property_service.cpp
-@@ -1224,7 +1224,9 @@ void PropertyLoadBootDefaults() {
+@@ -1224,6 +1224,8 @@ void PropertyLoadBootDefaults() {
      load_properties_from_file("/odm_dlkm/etc/build.prop", nullptr, &properties);
      load_properties_from_partition("odm", /* support_legacy_path_until */ 28);
      load_properties_from_partition("product", /* support_legacy_path_until */ 30);
--
-+    load_properties_from_file("/kbox_prop/build.prop", nullptr, &properties);
 +    load_properties_from_file("/kbox_prop/default.prop", nullptr, &properties);
-+    
++    load_properties_from_file("/kbox_prop/build.prop", nullptr, &properties);
+ 
      if (access(kDebugRamdiskProp, R_OK) == 0) {
          LOG(INFO) << "Loading " << kDebugRamdiskProp;
-         if (auto res = load_properties_from_file(kDebugRamdiskProp, nullptr, &properties);
-@@ -1351,7 +1353,7 @@ static void ExportKernelBootProps() {
-         { "ro.boot.mode",       "ro.bootmode",   "unknown", },
-         { "ro.boot.baseband",   "ro.baseband",   "unknown", },
-         { "ro.boot.bootloader", "ro.bootloader", "unknown", },
--        { "ro.boot.hardware",   "ro.hardware",   "unknown", },
-+        { "ro.boot.hardware",   "ro.hardware",   "kbox", },
-         { "ro.boot.revision",   "ro.revision",   "0", },
-             // clang-format on
-     };
-@@ -1393,6 +1395,8 @@ static void ProcessKernelCmdline() {
-     android::fs_mgr::ImportKernelCmdline([&](const std::string& key, const std::string& value) {
-         if (StartsWith(key, ANDROIDBOOT_PREFIX)) {
-             InitPropertySet("ro.boot." + key.substr(ANDROIDBOOT_PREFIX.size()), value);
-+        } else if (StartsWith(key, "ro.")) {
-+            InitPropertySet(key, value);
-         }
-     });
- }
-diff --git a/init/selinux.cpp b/init/selinux.cpp
-index 01af2b64d..faa048d54 100644
---- a/init/selinux.cpp
-+++ b/init/selinux.cpp
-@@ -106,6 +106,7 @@ EnforcingStatus StatusFromProperty() {
- }
- 
- bool IsEnforcing() {
-+    kbox_hack_p(false);
-     if (ALLOW_PERMISSIVE_SELINUX) {
-         return StatusFromProperty() == SELINUX_ENFORCING;
-     }
-@@ -693,7 +694,7 @@ int SetupSelinux(char** argv) {
-     }
- 
-     boot_clock::time_point start_time = boot_clock::now();
--
-+#if 0
-     SelinuxSetupKernelLogging();
- 
-     // TODO(b/287206497): refactor into different headers to only include what we need.
-@@ -721,7 +722,7 @@ int SetupSelinux(char** argv) {
-     if (selinux_android_restorecon("/system/bin/init", 0) == -1) {
-         PLOG(FATAL) << "restorecon failed of /system/bin/init failed";
-     }
--
-+#endif
-     setenv(kEnvSelinuxStartedAt, std::to_string(start_time.time_since_epoch().count()).c_str(), 1);
- 
-     const char* path = "/system/bin/init";
-diff --git a/init/service.cpp b/init/service.cpp
-index d76a5d5e0..981f4ee82 100644
---- a/init/service.cpp
-+++ b/init/service.cpp
-@@ -76,6 +76,7 @@ namespace android {
- namespace init {
- 
- static Result<std::string> ComputeContextFromExecutable(const std::string& service_path) {
-+    kbox_hack_p("KBOX_HACKED");
-     std::string computed_context;
- 
-     char* raw_con = nullptr;
-diff --git a/init/subcontext.cpp b/init/subcontext.cpp
-index 6a095fb7b..8166f4461 100644
---- a/init/subcontext.cpp
-+++ b/init/subcontext.cpp
-@@ -346,6 +346,7 @@ Result<std::vector<std::string>> Subcontext::ExpandArgs(const std::vector<std::s
- }
- 
- void InitializeSubcontext() {
-+    kbox_hack();
-     if (IsMicrodroid()) {
-         LOG(INFO) << "Not using subcontext for microdroid";
-         return;
-diff --git a/libprocessgroup/processgroup.cpp b/libprocessgroup/processgroup.cpp
-index 83a2258bf..37bf761d0 100644
---- a/libprocessgroup/processgroup.cpp
-+++ b/libprocessgroup/processgroup.cpp
-@@ -273,6 +273,7 @@ static bool RemoveEmptyUidCgroups(const std::string& uid_path) {
- }
- 
- void removeAllEmptyProcessGroups() {
-+    kbox_hack();
-     LOG(VERBOSE) << "removeAllEmptyProcessGroups()";
- 
-     std::vector<std::string> cgroups;
-diff --git a/libsysutils/src/NetlinkEvent.cpp b/libsysutils/src/NetlinkEvent.cpp
-index 55bbe46e1..b7288c227 100644
---- a/libsysutils/src/NetlinkEvent.cpp
-+++ b/libsysutils/src/NetlinkEvent.cpp
-@@ -159,12 +159,14 @@ NetlinkEvent::~NetlinkEvent() {
- 
- void NetlinkEvent::dump() {
-     int i;
--
-+    std::string buffer ;
-     for (i = 0; i < NL_PARAMS_MAX; i++) {
-         if (!mParams[i])
-             break;
--        SLOGD("NL param '%s'\n", mParams[i]);
-+        buffer += std::to_string(i) + ":" + mParams[i] ;
-     }
-+    SLOGE("NL param '%s'\n",buffer.c_str());
-+    SLOGE(" 下一个 \n");
- }
- 
- /*
-diff --git a/rootdir/init.rc b/rootdir/init.rc
-index 1acd63774..12d696a6d 100644
---- a/rootdir/init.rc
-+++ b/rootdir/init.rc
-@@ -265,10 +265,10 @@ on init
-     mkdir /dev/binderfs
-     mount binder binder /dev/binderfs stats=global
-     chmod 0755 /dev/binderfs
-+    # exec -- /vendor/bin/binder_alloc /dev/binderfs/binder-control binder hwbinder vndbinder
- 
-     # Mount fusectl
--    mount fusectl none /sys/fs/fuse/connections
--
-+    # mount fusectl none /sys/fs/fuse/connections
-     symlink /dev/binderfs/binder /dev/binder
-     symlink /dev/binderfs/hwbinder /dev/hwbinder
-     symlink /dev/binderfs/vndbinder /dev/vndbinder
-@@ -588,7 +588,6 @@ on post-fs
- 
-     # Once everything is setup, no need to modify /.
-     # The bind+remount combination allows this to work in containers.
--    mount rootfs rootfs / remount bind ro nodev
- 
-     # Mount default storage into root namespace
-     mount none /mnt/user/0 /storage bind rec
