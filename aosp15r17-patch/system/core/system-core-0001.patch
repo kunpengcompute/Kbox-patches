@@ -596,3 +596,16 @@ index 000000000..f5f2e0f46
 +    return 0;
 +}
 +
+diff --git a/init/property_service.cpp b/init/property_service.cpp
+index 4436bc181..62f9c34ad 100644
+--- a/init/property_service.cpp
++++ b/init/property_service.cpp
+@@ -1224,6 +1224,8 @@ void PropertyLoadBootDefaults() {
+     load_properties_from_file("/odm_dlkm/etc/build.prop", nullptr, &properties);
+     load_properties_from_partition("odm", /* support_legacy_path_until */ 28);
+     load_properties_from_partition("product", /* support_legacy_path_until */ 30);
++    load_properties_from_file("/kbox_prop/default.prop", nullptr, &properties);
++    load_properties_from_file("/kbox_prop/build.prop", nullptr, &properties);
+ 
+     if (access(kDebugRamdiskProp, R_OK) == 0) {
+         LOG(INFO) << "Loading " << kDebugRamdiskProp;
