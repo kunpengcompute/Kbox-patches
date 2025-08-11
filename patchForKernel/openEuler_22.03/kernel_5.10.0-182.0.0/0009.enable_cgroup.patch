@@ -1,0 +1,26 @@
+diff --git a/kernel/cgroup/cgroup-v1.c b/kernel/cgroup/cgroup-v1.c
+index be884bc2a..745ee1f0d 100644
+--- a/kernel/cgroup/cgroup-v1.c
++++ b/kernel/cgroup/cgroup-v1.c
+@@ -15,6 +15,7 @@
+ #include <linux/pid_namespace.h>
+ #include <linux/cgroupstats.h>
+ #include <linux/fs_parser.h>
++#include <linux/kbox_kernel_switch.h>
+ 
+ #include <trace/events/cgroup.h>
+ 
+@@ -512,9 +513,11 @@ static ssize_t __cgroup1_procs_write(struct kernfs_open_file *of,
+ 	cred = of->file->f_cred;
+ 	tcred = get_task_cred(task);
+ 	if (!uid_eq(cred->euid, GLOBAL_ROOT_UID) &&
+-	    !uid_eq(cred->euid, tcred->uid) &&
+-	    !uid_eq(cred->euid, tcred->suid))
++		!uid_eq(cred->euid, tcred->uid) &&
++		!uid_eq(cred->euid, tcred->suid) &&
++		!(kbox_enable && ns_capable(tcred->user_ns, CAP_SYS_NICE))) {
+ 		ret = -EACCES;
++	}
+ 	put_cred(tcred);
+ 	if (ret)
+ 		goto out_finish;
