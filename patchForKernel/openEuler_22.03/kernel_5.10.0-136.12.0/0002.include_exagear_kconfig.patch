@@ -1,0 +1,24 @@
+diff --git a/drivers/Kconfig b/drivers/Kconfig
+index b1b3d958f..31b016111 100644
+--- a/drivers/Kconfig
++++ b/drivers/Kconfig
+@@ -240,4 +240,8 @@ source "drivers/most/Kconfig"
+ 
+ source "drivers/roh/Kconfig"
+ 
++if KBOX
++	source "drivers/tango32-module/Kconfig"
++endif
++
+ endmenu
+diff --git a/drivers/Makefile b/drivers/Makefile
+index bfbf65533..37b4f0f66 100644
+--- a/drivers/Makefile
++++ b/drivers/Makefile
+@@ -192,3 +192,4 @@ obj-$(CONFIG_INTERCONNECT)	+= interconnect/
+ obj-$(CONFIG_COUNTER)		+= counter/
+ obj-$(CONFIG_MOST)		+= most/
+ obj-$(CONFIG_ROH)		+= roh/
++obj-$(CONFIG_TANGO32)	+= tango32-module/
+-- 
+2.33.0
