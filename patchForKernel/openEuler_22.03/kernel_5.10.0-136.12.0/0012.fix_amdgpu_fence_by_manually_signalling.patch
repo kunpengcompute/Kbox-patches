@@ -1,0 +1,187 @@
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu.h b/drivers/gpu/drm/amd/amdgpu/amdgpu.h
+index d949d6c52..31b4752fc 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu.h
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu.h
+@@ -400,6 +400,7 @@ struct amdgpu_sa_manager {
+ 	void			*cpu_ptr;
+ 	uint32_t		domain;
+ 	uint32_t		align;
++	struct amdgpu_device	*adev;
+ };
+ 
+ /* sub-allocation buffer */
+@@ -997,6 +998,9 @@ struct amdgpu_device {
+ 
+ 	bool                            in_pci_err_recovery;
+ 	struct pci_saved_state          *pci_state;
++
++	/* Lock for manual signal fence in amdgpu_sa_bo_new */
++	spinlock_t sa_wa_lock;
+ };
+ 
+ static inline struct amdgpu_device *drm_to_adev(struct drm_device *ddev)
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
+index f262c4e7a..0215e855e 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_device.c
+@@ -3247,6 +3247,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
+ 	spin_lock_init(&adev->se_cac_idx_lock);
+ 	spin_lock_init(&adev->audio_endpt_idx_lock);
+ 	spin_lock_init(&adev->mm_stats.lock);
++	spin_lock_init(&adev->sa_wa_lock);
+ 
+ 	INIT_LIST_HEAD(&adev->shadow_list);
+ 	mutex_init(&adev->shadow_list_lock);
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_fence.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_fence.c
+index d07c458c0..d972eed5c 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_fence.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_fence.c
+@@ -77,7 +77,7 @@ void amdgpu_fence_slab_fini(void)
+ /*
+  * Cast helper
+  */
+-static const struct dma_fence_ops amdgpu_fence_ops;
++const struct dma_fence_ops amdgpu_fence_ops;
+ static inline struct amdgpu_fence *to_amdgpu_fence(struct dma_fence *f)
+ {
+ 	struct amdgpu_fence *__f = container_of(f, struct amdgpu_fence, base);
+@@ -686,7 +686,7 @@ static void amdgpu_fence_release(struct dma_fence *f)
+ 	call_rcu(&f->rcu, amdgpu_fence_free);
+ }
+ 
+-static const struct dma_fence_ops amdgpu_fence_ops = {
++const struct dma_fence_ops amdgpu_fence_ops = {
+ 	.get_driver_name = amdgpu_fence_get_driver_name,
+ 	.get_timeline_name = amdgpu_fence_get_timeline_name,
+ 	.enable_signaling = amdgpu_fence_enable_signaling,
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_sa.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_sa.c
+index 0bd1d4ffc..f59dc8566 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_sa.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_sa.c
+@@ -54,6 +54,7 @@ int amdgpu_sa_bo_manager_init(struct amdgpu_device *adev,
+ 	int i, r;
+ 
+ 	init_waitqueue_head(&sa_manager->wq);
++	sa_manager->adev = adev;
+ 	sa_manager->bo = NULL;
+ 	sa_manager->size = size;
+ 	sa_manager->domain = domain;
+@@ -272,15 +273,36 @@ static bool amdgpu_sa_bo_next_hole(struct amdgpu_sa_manager *sa_manager,
+ 	return false;
+ }
+ 
++struct amdgpu_fence {
++	struct dma_fence base;
++
++	/* RB, DMA, etc. */
++	struct amdgpu_ring		*ring;
++};
++
++extern const struct dma_fence_ops amdgpu_fence_ops;
++
++static inline struct amdgpu_fence *to_amdgpu_fence(struct dma_fence *f)
++{
++	struct amdgpu_fence *__f = container_of(f, struct amdgpu_fence, base);
++
++	if (__f->base.ops == &amdgpu_fence_ops)
++		return __f;
++
++	return NULL;
++}
++
+ int amdgpu_sa_bo_new(struct amdgpu_sa_manager *sa_manager,
+ 		     struct amdgpu_sa_bo **sa_bo,
+ 		     unsigned size, unsigned align)
+ {
++	struct amdgpu_device *adev = sa_manager->adev;
+ 	struct dma_fence *fences[AMDGPU_SA_NUM_FENCE_LISTS];
+ 	unsigned tries[AMDGPU_SA_NUM_FENCE_LISTS];
+ 	unsigned count;
+ 	int i, r;
+ 	signed long t;
++	bool re_checked = false;
+ 
+ 	if (WARN_ON_ONCE(align > sa_manager->align))
+ 		return -EINVAL;
+@@ -319,9 +341,52 @@ int amdgpu_sa_bo_new(struct amdgpu_sa_manager *sa_manager,
+ 
+ 		if (count) {
+ 			spin_unlock(&sa_manager->wq.lock);
++re_check:
+ 			t = dma_fence_wait_any_timeout(fences, count, false,
+-						       MAX_SCHEDULE_TIMEOUT,
++						       msecs_to_jiffies(10000), //it should be longer than TDR threshold
+ 						       NULL);
++
++			if (t == 0 && !re_checked) {
++				dev_err(adev->dev, "drm_debug: trigger wa for sa ib leak issue!\n");
++
++				for (i = 0; i < AMDGPU_SA_NUM_FENCE_LISTS; i++) {
++					struct drm_sched_fence *sfence;
++
++					if (!fences[i])
++						continue;
++
++					spin_lock(&adev->sa_wa_lock);
++					sfence = to_drm_sched_fence(fences[i]);
++					if (sfence && sfence->parent) { //this is sched fence
++						struct amdgpu_fence *afence;
++
++						afence = to_amdgpu_fence(sfence->parent);
++						if (afence) {
++							dev_err(adev->dev, "drm_debug: %u manual signal %s ring hw fence\n", i, afence->ring->name);
++							dma_fence_signal(sfence->parent); //signal hw fence
++						} else {
++							dev_err(adev->dev, "drm_debug: %u weird, parent fence is not amdgpu fence\n", i);
++						}
++					} else if (sfence) {
++						bool scheduled = false;
++
++						spin_lock(sfence->scheduled.lock);
++						if (test_and_set_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &sfence->scheduled.flags)) {
++							scheduled = true;
++						}
++						spin_unlock(sfence->scheduled.lock);
++
++						dev_err(adev->dev, "drm_debug: %u manual signal %s sched fence\n", i, sfence->sched->name);
++						dma_fence_signal(&sfence->finished);
++					} else {
++						dev_err(adev->dev, "drm_debug: %u no sched fence\n", i);
++					}
++					spin_unlock(&adev->sa_wa_lock);
++				}
++				re_checked = true;
++				goto re_check;
++			}
++
+ 			for (i = 0; i < count; ++i)
+ 				dma_fence_put(fences[i]);
+ 
+diff --git a/drivers/gpu/drm/scheduler/sched_main.c b/drivers/gpu/drm/scheduler/sched_main.c
+index 936e87ad3..8257f3697 100644
+--- a/drivers/gpu/drm/scheduler/sched_main.c
++++ b/drivers/gpu/drm/scheduler/sched_main.c
+@@ -749,8 +749,20 @@ drm_sched_select_entity(struct drm_gpu_scheduler *sched)
+ static void drm_sched_process_job(struct dma_fence *f, struct dma_fence_cb *cb)
+ {
+ 	struct drm_sched_job *s_job = container_of(cb, struct drm_sched_job, cb);
++	if (!s_job) {
++		pr_err("drm_debug: s_job is NULL in drm_sched_process_job\n");
++		return;
++	}
+ 	struct drm_sched_fence *s_fence = s_job->s_fence;
++	if (!s_fence) {
++		pr_err("drm_debug: s_fence is NULL in drm_sched_process_job\n");
++		return;
++	}
+ 	struct drm_gpu_scheduler *sched = s_fence->sched;
++	if (!sched) {
++		pr_err("drm_debug: sched is NULL in drm_sched_process_job\n");
++		return;
++	}
+ 
+ 	atomic_dec(&sched->hw_rq_count);
+ 	atomic_dec(&sched->score);
+-- 
+2.33.0
+
