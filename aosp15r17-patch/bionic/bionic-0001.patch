@@ -1,0 +1,15 @@
+diff --git a/linker/linker.cpp b/linker/linker.cpp
+index bcc25000f..971ab3486 100644
+--- a/linker/linker.cpp
++++ b/linker/linker.cpp
+@@ -3514,8 +3514,10 @@ static std::string get_ld_config_file_path(const char* executable_path) {
+   }
+ 
+   if (is_linker_config_expected(executable_path)) {
++    /*
+     DL_WARN("Warning: failed to find generated linker configuration from \"%s\"",
+             kLdGeneratedConfigFilePath);
++    */
+   }
+ 
+   path = get_ld_config_file_vndk_path();
