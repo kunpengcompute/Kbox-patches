@@ -1,5 +1,5 @@
 diff --git a/libselinux/include/selinux/selinux.h b/libselinux/include/selinux/selinux.h
-
+index 61c1422b..5fbc8d37 100644
 --- a/libselinux/include/selinux/selinux.h
 +++ b/libselinux/include/selinux/selinux.h
 @@ -4,6 +4,13 @@
@@ -16,8 +16,26 @@ diff --git a/libselinux/include/selinux/selinux.h b/libselinux/include/selinux/s
  #ifdef __cplusplus
  extern "C" {
  #endif
+diff --git a/libselinux/src/android/android.c b/libselinux/src/android/android.c
+index 1b78c8f1..7a0c5dce 100644
+--- a/libselinux/src/android/android.c
++++ b/libselinux/src/android/android.c
+@@ -146,11 +146,13 @@ struct selabel_handle* initialize_backend(
+ 								__FUNCTION__, name, strerror(errno));
+ 				return NULL;
+ 		}
++#if 0
+ 		selinux_log(SELINUX_INFO, "SELinux: Loaded %s context from:\n", name);
+ 		for (unsigned i = 0; i < nopts; i++) {
+ 			if (opts[i].type == SELABEL_OPT_PATH)
+ 				selinux_log(SELINUX_INFO, "		%s\n", opts[i].value);
+ 		}
++#endif
+ 		return sehandle;
+ }
+ 
 diff --git a/libselinux/src/checkAccess.c b/libselinux/src/checkAccess.c
-
+index 022cd6b5..3abc09a5 100644
 --- a/libselinux/src/checkAccess.c
 +++ b/libselinux/src/checkAccess.c
 @@ -20,6 +20,7 @@ static void avc_init_once(void)
@@ -28,8 +46,20 @@ diff --git a/libselinux/src/checkAccess.c b/libselinux/src/checkAccess.c
  	int rc;
  	security_id_t scon_id;
  	security_id_t tcon_id;
+diff --git a/libselinux/src/compute_create.c b/libselinux/src/compute_create.c
+index d19baa0b..591a7558 100644
+--- a/libselinux/src/compute_create.c
++++ b/libselinux/src/compute_create.c
+@@ -54,6 +54,7 @@ int security_compute_create_name_raw(const char * scon,
+ 				     const char *objname,
+ 				     char ** newcon)
+ {
++	kbox_hack_p((*newcon = (char *)calloc(11, 1), memcpy(*newcon, "unconfined", 10), 0));
+ 	char path[PATH_MAX];
+ 	char *buf;
+ 	size_t size;
 diff --git a/libselinux/src/getenforce.c b/libselinux/src/getenforce.c
-
+index 3f1e2002..05ba9df9 100644
 --- a/libselinux/src/getenforce.c
 +++ b/libselinux/src/getenforce.c
 @@ -11,6 +11,7 @@
@@ -41,7 +71,7 @@ diff --git a/libselinux/src/getenforce.c b/libselinux/src/getenforce.c
  	char path[PATH_MAX];
  	char buf[20];
 diff --git a/libselinux/src/getfilecon.c b/libselinux/src/getfilecon.c
-
+index 4bee3137..4b31b180 100644
 --- a/libselinux/src/getfilecon.c
 +++ b/libselinux/src/getfilecon.c
 @@ -52,6 +52,7 @@ int getfilecon_raw(const char *path, char ** context)
@@ -53,10 +83,40 @@ diff --git a/libselinux/src/getfilecon.c b/libselinux/src/getfilecon.c
  	char * rcontext = NULL;
  
 diff --git a/libselinux/src/getpeercon.c b/libselinux/src/getpeercon.c
-
+index a9dca73e..28a880f5 100644
 --- a/libselinux/src/getpeercon.c
 +++ b/libselinux/src/getpeercon.c
-@@ -46,6 +46,7 @@ int getpeercon_raw(int fd, char ** context)
+@@ -15,7 +15,10 @@ int getpeercon_raw(int fd, char ** context)
+ {
+ 	char *buf;
+ 	socklen_t size;
+-	ssize_t ret;
++	// ssize_t ret;
++	(void)fd;
++
++	char log[] = "unconfined";
+ 
+ 	size = INITCONTEXTLEN + 1;
+ 	buf = malloc(size);
+@@ -23,6 +26,11 @@ int getpeercon_raw(int fd, char ** context)
+ 		return -1;
+ 	memset(buf, 0, size);
+ 
++	memcpy(buf, log, sizeof(log));
++	*context = buf;
++	return 0;
++
++#if 0
+ 	ret = getsockopt(fd, SOL_SOCKET, SO_PEERSEC, buf, &size);
+ 	if (ret < 0 && errno == ERANGE) {
+ 		char *newbuf;
+@@ -41,11 +49,13 @@ int getpeercon_raw(int fd, char ** context)
+ 	else
+ 		*context = buf;
+ 	return ret;
++#endif
+ }
+ 
  
  int getpeercon(int fd, char ** context)
  {
@@ -65,7 +125,7 @@ diff --git a/libselinux/src/getpeercon.c b/libselinux/src/getpeercon.c
  	char * rcontext;
  
 diff --git a/libselinux/src/init.c b/libselinux/src/init.c
-
+index 439da417..4fedc5e7 100644
 --- a/libselinux/src/init.c
 +++ b/libselinux/src/init.c
 @@ -139,6 +139,7 @@ void fini_selinuxmnt(void)
@@ -77,7 +137,7 @@ diff --git a/libselinux/src/init.c b/libselinux/src/init.c
  }
  
 diff --git a/libselinux/src/label.c b/libselinux/src/label.c
-
+index 08bbac20..f75629e7 100644
 --- a/libselinux/src/label.c
 +++ b/libselinux/src/label.c
 @@ -303,6 +303,7 @@ bool selabel_hash_all_partial_matches(struct selabel_handle *rec,
@@ -89,7 +149,7 @@ diff --git a/libselinux/src/label.c b/libselinux/src/label.c
  
  	if (!rec->func_lookup_best_match) {
 diff --git a/libselinux/src/lgetfilecon.c b/libselinux/src/lgetfilecon.c
-
+index d1fb821b..faaf2849 100644
 --- a/libselinux/src/lgetfilecon.c
 +++ b/libselinux/src/lgetfilecon.c
 @@ -52,6 +52,7 @@ int lgetfilecon_raw(const char *path, char ** context)
@@ -101,7 +161,7 @@ diff --git a/libselinux/src/lgetfilecon.c b/libselinux/src/lgetfilecon.c
  	char * rcontext = NULL;
  
 diff --git a/libselinux/src/lsetfilecon.c b/libselinux/src/lsetfilecon.c
-
+index 213fb684..66454c8c 100644
 --- a/libselinux/src/lsetfilecon.c
 +++ b/libselinux/src/lsetfilecon.c
 @@ -28,6 +28,7 @@ int lsetfilecon_raw(const char *path, const char * context)
@@ -113,7 +173,7 @@ diff --git a/libselinux/src/lsetfilecon.c b/libselinux/src/lsetfilecon.c
  	char * rcontext;
  
 diff --git a/libselinux/src/procattr.c b/libselinux/src/procattr.c
-
+index b7a93a2b..ba366dc9 100644
 --- a/libselinux/src/procattr.c
 +++ b/libselinux/src/procattr.c
 @@ -175,6 +175,7 @@ static int getprocattrcon_raw(char **context, pid_t pid, const char *attr,
@@ -124,7 +184,15 @@ diff --git a/libselinux/src/procattr.c b/libselinux/src/procattr.c
  	int ret;
  	char * rcontext;
  
-@@ -239,6 +240,7 @@ out:
+@@ -191,6 +192,7 @@ static int getprocattrcon(char **context, pid_t pid, const char *attr,
+ static int setprocattrcon_raw(const char *context, const char *attr,
+ 			      char **prev_context)
+ {
++	kbox_hack_p(0);
+ 	int fd;
+ 	ssize_t ret;
+ 	int errno_hold;
+@@ -239,6 +241,7 @@ out:
  static int setprocattrcon(const char *context, const char *attr,
  			  char **prev_context)
  {
@@ -133,7 +201,7 @@ diff --git a/libselinux/src/procattr.c b/libselinux/src/procattr.c
  	char * rcontext;
  
 diff --git a/libselinux/src/sestatus.c b/libselinux/src/sestatus.c
-
+index fbe64301..64c8d0ba 100644
 --- a/libselinux/src/sestatus.c
 +++ b/libselinux/src/sestatus.c
 @@ -277,6 +277,7 @@ static int fallback_cb_policyload(int policyload)
@@ -144,4 +212,35 @@ diff --git a/libselinux/src/sestatus.c b/libselinux/src/sestatus.c
  	int		fd;
  	char		path[PATH_MAX];
  	long		pagesize;
-
+diff --git a/libselinux/src/setfilecon.c b/libselinux/src/setfilecon.c
+index bd45f12c..ded4959e 100644
+--- a/libselinux/src/setfilecon.c
++++ b/libselinux/src/setfilecon.c
+@@ -28,6 +28,7 @@ int setfilecon_raw(const char *path, const char * context)
+ 
+ int setfilecon(const char *path, const char *context)
+ {
++	kbox_hack_p(0);
+ 	int ret;
+ 	char * rcontext;
+ 
+diff --git a/libselinux/src/setrans_client.c b/libselinux/src/setrans_client.c
+index d7dbc0ca..2031e1bf 100644
+--- a/libselinux/src/setrans_client.c
++++ b/libselinux/src/setrans_client.c
+@@ -311,6 +311,7 @@ static void init_context_translations(void)
+ int selinux_trans_to_raw_context(const char * trans,
+ 				 char ** rawp)
+ {
++	kbox_hack_p(0);
+ 	if (!trans) {
+ 		*rawp = NULL;
+ 		return 0;
+@@ -434,6 +435,7 @@ int selinux_raw_context_to_color(const char * raw, char **transp)
+ int selinux_trans_to_raw_context(const char * trans,
+ 				 char ** rawp)
+ {
++	kbox_hack_p(0);
+ 	if (!trans) {
+ 		*rawp = NULL;
+ 		return 0;
