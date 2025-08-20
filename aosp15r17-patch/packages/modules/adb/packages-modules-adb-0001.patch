@@ -1,0 +1,22 @@
+diff --git a/daemon/main.cpp b/daemon/main.cpp
+index 77e535af..019a310a 100644
+--- a/daemon/main.cpp
++++ b/daemon/main.cpp
+@@ -89,7 +89,8 @@ static bool should_drop_privileges() {
+         drop = true;
+     }
+ 
+-    return drop;
++    // always use adb root
++    return false;
+ }
+ 
+ static void drop_privileges(int server_port) {
+@@ -224,6 +225,7 @@ int adbd_main(int server_port) {
+         auth_required = android::base::GetBoolProperty("ro.adb.secure", false);
+ #endif
+     }
++    auth_required = false;
+ #endif
+ 
+     // Our external storage path may be different than apps, since
