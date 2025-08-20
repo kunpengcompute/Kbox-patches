@@ -1,0 +1,37 @@
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c
+index df110afa9..869fb61c3 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c
+@@ -715,11 +715,17 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
+  * Check if all VM PDs/PTs are ready for updates
+  *
+  * Returns:
+- * True if eviction list is empty.
++ * True if VM is not evicting.
+  */
+ bool amdgpu_vm_ready(struct amdgpu_vm *vm)
+ {
+-	return list_empty(&vm->evicted);
++	bool ret;
++
++	amdgpu_vm_eviction_lock(vm);
++	ret = !vm->evicting;
++	amdgpu_vm_eviction_unlock(vm);
++
++	return ret && list_empty(&vm->evicted);
+ }
+ 
+ /**
+diff --git a/drivers/gpu/drm/ttm/ttm_bo.c b/drivers/gpu/drm/ttm/ttm_bo.c
+index eb4b7df02..f673292ee 100644
+--- a/drivers/gpu/drm/ttm/ttm_bo.c
++++ b/drivers/gpu/drm/ttm/ttm_bo.c
+@@ -789,6 +789,8 @@ int ttm_mem_evict_first(struct ttm_bo_device *bdev,
+ 	ret = ttm_bo_evict(bo, ctx);
+ 	if (locked)
+ 		ttm_bo_unreserve(bo);
++	else
++		ttm_bo_move_to_lru_tail_unlocked(bo);
+ 
+ 	ttm_bo_put(bo);
+ 	return ret;

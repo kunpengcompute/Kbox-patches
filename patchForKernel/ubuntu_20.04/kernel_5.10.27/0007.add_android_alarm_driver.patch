@@ -1,0 +1,12 @@
+diff --git a/drivers/android/Kconfig b/drivers/android/Kconfig
+index 53b22e262..e33b6ae96 100644
+--- a/drivers/android/Kconfig
++++ b/drivers/android/Kconfig
+@@ -53,6 +53,7 @@ config ANDROID_BINDER_IPC_SELFTEST
+ 	  Binder selftest checks the allocation and free of binder buffers
+ 	  exhaustively with combinations of various buffer sizes and
+ 	  alignments.
++source "drivers/android/alarm/Kconfig"	  
+ 
+ endif # if ANDROID
+ 
