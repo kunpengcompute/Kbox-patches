@@ -43,6 +43,23 @@ index 5e7f1510bc..83bae2c75f 100644
      // fallback to original method
      if (result != 0) {
          android_errorWriteLog(0x534e4554, "121035042");
+// aosp15黑屏问题
+diff --git a/libs/ui/GraphicBufferAllocator.cpp b/libs/ui/GraphicBufferAllocator.cpp
+index 1ebe597..2bcd4db 100644
+--- a/libs/ui/GraphicBufferAllocator.cpp
++++ b/libs/ui/GraphicBufferAllocator.cpp
+@@ -142,9 +142,10 @@ auto GraphicBufferAllocator::allocate(const AllocationRequest& request) -> Alloc
+                       (int)mMapper.getMapperVersion());
+                return result;
+           }
++          const uint64_t usage = (request.usage & ~static_cast<uint64_t>((1 << 10) | (1 << 13)));
+           // If there's no additional options, fall back to previous allocate getMapperVersion
+           result.status = mAllocator->allocate(request.requestorName, request.width, request.height,
+-                                              request.format, request.layerCount, request.usage,
++                                              request.format, request.layerCount, usage,
+                                               &result.stride, &result.handle, request.importBuffer);
+      }
+ 
 diff --git a/services/surfaceflinger/Scheduler/RefreshRateSelector.cpp b/services/surfaceflinger/Scheduler/RefreshRateSelector.cpp
 index ab9014e418..8bce49cb41 100644
 --- a/services/surfaceflinger/Scheduler/RefreshRateSelector.cpp
