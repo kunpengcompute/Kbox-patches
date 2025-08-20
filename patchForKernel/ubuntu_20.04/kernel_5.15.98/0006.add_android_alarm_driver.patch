@@ -1,0 +1,40 @@
+diff --git a/drivers/android/Kconfig b/drivers/android/Kconfig
+index 53b22e262..e33b6ae96 100644
+--- a/drivers/android/Kconfig
++++ b/drivers/android/Kconfig
+@@ -53,6 +53,7 @@ config ANDROID_BINDER_IPC_SELFTEST
+ 	  Binder selftest checks the allocation and free of binder buffers
+ 	  exhaustively with combinations of various buffer sizes and
+ 	  alignments.
++source "drivers/android/alarm/Kconfig"	  
+ 
+ endif # if ANDROID
+ 
+diff --git a/drivers/android/Makefile b/drivers/android/Makefile
+index c9d3d0c99..7422be9e5 100644
+--- a/drivers/android/Makefile
++++ b/drivers/android/Makefile
+@@ -4,3 +4,4 @@ ccflags-y += -I$(src)			# needed for trace events
+ obj-$(CONFIG_ANDROID_BINDERFS)		+= binderfs.o
+ obj-$(CONFIG_ANDROID_BINDER_IPC)	+= binder.o binder_alloc.o
+ obj-$(CONFIG_ANDROID_BINDER_IPC_SELFTEST) += binder_alloc_selftest.o
++obj-$(CONFIG_ANDROID_ALARM) += alarm/
+\ No newline at end of file
+diff --git a/drivers/android/alarm/Kconfig b/drivers/android/alarm/Kconfig
+new file mode 100755
+index 000000000..1e17949eb
+--- /dev/null
++++ b/drivers/android/alarm/Kconfig
+@@ -0,0 +1,3 @@
++config ANDROID_ALARM
++	tristate "Android Alarm Driver"
++	default m
+diff --git a/drivers/android/alarm/Makefile b/drivers/android/alarm/Makefile
+new file mode 100755
+index 000000000..2e81dea9e
+--- /dev/null
++++ b/drivers/android/alarm/Makefile
+@@ -0,0 +1,3 @@
++flags-y += -I$(src) -Wno-error=implicit-int -Wno-int-conversion -g3 -O3
++alarm_linux-y := alarm.o
++obj-$(CONFIG_ANDROID_ALARM) += alarm_linux.o

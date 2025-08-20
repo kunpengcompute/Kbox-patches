@@ -1,0 +1,23 @@
+diff --git a/drivers/Kconfig b/drivers/Kconfig
+index 0d399ddaa..88c48404b 100644
+--- a/drivers/Kconfig
++++ b/drivers/Kconfig
+@@ -236,4 +236,6 @@ source "drivers/interconnect/Kconfig"
+ source "drivers/counter/Kconfig"
+ 
+ source "drivers/most/Kconfig"
++
++source "drivers/tango32-module/Kconfig"
+ endmenu
+diff --git a/drivers/Makefile b/drivers/Makefile
+index a110338c8..a74c949fc 100644
+--- a/drivers/Makefile
++++ b/drivers/Makefile
+@@ -187,3 +187,4 @@ obj-$(CONFIG_GNSS)		+= gnss/
+ obj-$(CONFIG_INTERCONNECT)	+= interconnect/
+ obj-$(CONFIG_COUNTER)		+= counter/
+ obj-$(CONFIG_MOST)		+= most/
++obj-$(CONFIG_TANGO32)	+= tango32-module/
+-- 
+2.25.1
+
