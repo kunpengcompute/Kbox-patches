@@ -1,0 +1,42 @@
+diff --git a/kernel/sys.c b/kernel/sys.c
+old mode 100644
+new mode 100755
+index d43c33959..e114436c9
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -2613,6 +2613,20 @@ SYSCALL_DEFINE3(getcpu, unsigned __user *, cpup, unsigned __user *, nodep,
+ 	return err ? -EFAULT : 0;
+ }
+ 
++static void si_meminfo_cgroup(struct sysinfo *val)
++{
++        struct mem_cgroup *memcg = mem_cgroup_from_task(current);
++
++        val->totalram = memcg->memory.max;
++        val->sharedram = memcg_page_state(memcg, NR_SHMEM);
++        val->freeram = val->totalram - page_counter_read(&memcg->memory);
++        val->bufferram = memcg_page_state(memcg, NR_FILE_PAGES);
++        val->totalhigh = totalhigh_pages();
++        val->freehigh = nr_free_highpages();
++        val->mem_unit = PAGE_SIZE;
++}
++
++
+ /**
+  * do_sysinfo - fill in sysinfo struct
+  * @info: pointer to buffer to fill
+@@ -2633,7 +2647,10 @@ static int do_sysinfo(struct sysinfo *info)
+ 
+ 	info->procs = nr_threads;
+ 
+-	si_meminfo(info);
++	if(mem_cgroup_from_task(current)->memory.max == PAGE_COUNTER_MAX)
++		si_meminfo(info);
++	else
++		si_meminfo_cgroup(info);
+ 	si_swapinfo(info);
+ 
+ 	/*
+-- 
+2.25.1
+

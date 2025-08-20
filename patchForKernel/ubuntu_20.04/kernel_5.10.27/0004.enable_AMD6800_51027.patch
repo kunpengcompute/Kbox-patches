@@ -1,0 +1,229 @@
+diff -Nurp a/drivers/gpu/drm/amd/display/dc/calcs/Makefile b/drivers/gpu/drm/amd/display/dc/calcs/Makefile
+--- a/drivers/gpu/drm/amd/display/dc/calcs/Makefile	2021-12-30 11:41:19.000000000 +0000
++++ b/drivers/gpu/drm/amd/display/dc/calcs/Makefile	2022-01-06 08:49:38.000000000 +0000
+@@ -29,10 +29,20 @@ ifdef CONFIG_X86
+ calcs_ccflags := -mhard-float -msse
+ endif
+ 
++
++ifdef CONFIG_ARM64
++calcs_rcflags := -mgeneral-regs-only
++endif
++
++#ifdef CONFIG_ARM64
++#CFLAGS_REMOVE_$(AMDDALPATH)/dc/dsc/rc_calc.o := -mgeneral-regs-only
++#endif
++
+ ifdef CONFIG_PPC64
+-calcs_ccflags := -mhard-float -maltivec
++	calcs_ccflags := -mhard-float -maltivec
+ endif
+ 
++
+ ifdef CONFIG_CC_IS_GCC
+ ifeq ($(call cc-ifversion, -lt, 0701, y), y)
+ IS_OLD_GCC = 1
+@@ -53,6 +63,9 @@ endif
+ CFLAGS_$(AMDDALPATH)/dc/calcs/dcn_calcs.o := $(calcs_ccflags)
+ CFLAGS_$(AMDDALPATH)/dc/calcs/dcn_calc_auto.o := $(calcs_ccflags)
+ CFLAGS_$(AMDDALPATH)/dc/calcs/dcn_calc_math.o := $(calcs_ccflags) -Wno-tautological-compare
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/calcs/dcn_calcs.o := $(calcs_rcflags)
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/calcs/dcn_calc_auto.o := $(calcs_rcflags)
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/calcs/dcn_calc_math.o := $(calcs_rcflags)
+ 
+ BW_CALCS = dce_calcs.o bw_fixed.o custom_float.o
+ 
+diff -Nurp a/drivers/gpu/drm/amd/display/dc/clk_mgr/Makefile b/drivers/gpu/drm/amd/display/dc/clk_mgr/Makefile
+--- a/drivers/gpu/drm/amd/display/dc/clk_mgr/Makefile	2021-12-30 11:41:19.000000000 +0000
++++ b/drivers/gpu/drm/amd/display/dc/clk_mgr/Makefile	2022-01-06 08:49:38.000000000 +0000
+@@ -104,6 +104,10 @@ ifdef CONFIG_PPC64
+ CFLAGS_$(AMDDALPATH)/dc/clk_mgr/dcn21/rn_clk_mgr.o := $(call cc-option,-mno-gnu-attribute)
+ endif
+ 
++ifdef CONFIG_ARM64
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/clk_mgr/dcn21/rn_clk_mgr.o := -mgeneral-regs-only
++endif
++
+ AMD_DAL_CLK_MGR_DCN21 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn21/,$(CLK_MGR_DCN21))
+ 
+ AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN21)
+@@ -114,6 +118,10 @@ ifdef CONFIG_DRM_AMD_DC_DCN3_0
+ ###############################################################################
+ CLK_MGR_DCN30 = dcn30_clk_mgr.o dcn30_clk_mgr_smu_msg.o
+ 
++ifdef CONFIG_ARM64
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/clk_mgr/dcn30/dcn30_clk_mgr.o := -mgeneral-regs-only
++endif
++
+ AMD_DAL_CLK_MGR_DCN30 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn30/,$(CLK_MGR_DCN30))
+ 
+ AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN30)
+diff -Nurp a/drivers/gpu/drm/amd/display/dc/dcn10/Makefile b/drivers/gpu/drm/amd/display/dc/dcn10/Makefile
+--- a/drivers/gpu/drm/amd/display/dc/dcn10/Makefile	2021-12-30 11:41:19.000000000 +0000
++++ b/drivers/gpu/drm/amd/display/dc/dcn10/Makefile	2022-01-06 08:49:38.000000000 +0000
+@@ -31,4 +31,8 @@ DCN10 = dcn10_init.o dcn10_resource.o dc
+ 
+ AMD_DAL_DCN10 = $(addprefix $(AMDDALPATH)/dc/dcn10/,$(DCN10))
+ 
++ifdef CONFIG_ARM64
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/dcn10/dcn10_resource.o := -mgeneral-regs-only
++endif
++
+ AMD_DISPLAY_FILES += $(AMD_DAL_DCN10)
+diff -Nurp a/drivers/gpu/drm/amd/display/dc/dcn20/Makefile b/drivers/gpu/drm/amd/display/dc/dcn20/Makefile
+--- a/drivers/gpu/drm/amd/display/dc/dcn20/Makefile	2021-12-30 11:41:19.000000000 +0000
++++ b/drivers/gpu/drm/amd/display/dc/dcn20/Makefile	2022-01-06 08:49:38.000000000 +0000
+@@ -17,6 +17,10 @@ ifdef CONFIG_PPC64
+ CFLAGS_$(AMDDALPATH)/dc/dcn20/dcn20_resource.o := -mhard-float -maltivec
+ endif
+ 
++ifdef CONFIG_ARM64
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/dcn20/dcn20_resource.o := -mgeneral-regs-only
++endif
++
+ ifdef CONFIG_CC_IS_GCC
+ ifeq ($(call cc-ifversion, -lt, 0701, y), y)
+ IS_OLD_GCC = 1
+diff -Nurp a/drivers/gpu/drm/amd/display/dc/dcn21/Makefile b/drivers/gpu/drm/amd/display/dc/dcn21/Makefile
+--- a/drivers/gpu/drm/amd/display/dc/dcn21/Makefile	2021-12-30 11:41:19.000000000 +0000
++++ b/drivers/gpu/drm/amd/display/dc/dcn21/Makefile	2022-01-06 08:49:38.000000000 +0000
+@@ -13,6 +13,10 @@ ifdef CONFIG_PPC64
+ CFLAGS_$(AMDDALPATH)/dc/dcn21/dcn21_resource.o := -mhard-float -maltivec
+ endif
+ 
++ifdef CONFIG_ARM64
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/dcn21/dcn21_resource.o := -mgeneral-regs-only
++endif
++
+ ifdef CONFIG_CC_IS_GCC
+ ifeq ($(call cc-ifversion, -lt, 0701, y), y)
+ IS_OLD_GCC = 1
+diff -Nurp a/drivers/gpu/drm/amd/display/dc/dml/Makefile b/drivers/gpu/drm/amd/display/dc/dml/Makefile
+--- a/drivers/gpu/drm/amd/display/dc/dml/Makefile	2021-12-30 11:41:19.000000000 +0000
++++ b/drivers/gpu/drm/amd/display/dc/dml/Makefile	2022-01-06 08:49:38.000000000 +0000
+@@ -29,6 +29,10 @@ ifdef CONFIG_X86
+ dml_ccflags := -mhard-float -msse
+ endif
+ 
++ifdef CONFIG_ARM64
++dml_rcflags := -mgeneral-regs-only
++endif
++
+ ifdef CONFIG_PPC64
+ dml_ccflags := -mhard-float -maltivec
+ endif
+@@ -60,13 +64,25 @@ CFLAGS_$(AMDDALPATH)/dc/dml/dcn20/displa
+ CFLAGS_$(AMDDALPATH)/dc/dml/dcn20/display_rq_dlg_calc_20v2.o := $(dml_ccflags)
+ CFLAGS_$(AMDDALPATH)/dc/dml/dcn21/display_mode_vba_21.o := $(dml_ccflags)
+ CFLAGS_$(AMDDALPATH)/dc/dml/dcn21/display_rq_dlg_calc_21.o := $(dml_ccflags)
+-endif
+-ifdef CONFIG_DRM_AMD_DC_DCN3_0
+ CFLAGS_$(AMDDALPATH)/dc/dml/dcn30/display_mode_vba_30.o := $(dml_ccflags) -Wframe-larger-than=2048
+ CFLAGS_$(AMDDALPATH)/dc/dml/dcn30/display_rq_dlg_calc_30.o := $(dml_ccflags)
++CFLAGS_$(AMDDALPATH)/dc/dml/display_mode_lib.o := $(dml_ccflags)
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml/display_mode_vba.o := $(dml_rcflags)
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml/dcn20/display_mode_vba_20.o := $(dml_rcflags)
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml/dcn20/display_rq_dlg_calc_20.o := $(dml_rcflags)
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml/dcn20/display_mode_vba_20v2.o := $(dml_rcflags)
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml/dcn20/display_rq_dlg_calc_20v2.o := $(dml_rcflags)
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml/dcn21/display_mode_vba_21.o := $(dml_rcflags)
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml/dcn21/display_rq_dlg_calc_21.o := $(dml_rcflags)
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml/dcn30/display_mode_vba_30.o := $(dml_rcflags)
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml/dcn30/display_rq_dlg_calc_30.o := $(dml_rcflags)
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml/display_mode_lib.o := $(dml_rcflags)
+ endif
+ CFLAGS_$(AMDDALPATH)/dc/dml/dml1_display_rq_dlg_calc.o := $(dml_ccflags)
+ CFLAGS_$(AMDDALPATH)/dc/dml/display_rq_dlg_helpers.o := $(dml_ccflags)
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml/dml1_display_rq_dlg_calc.o := $(dml_rcflags)
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml/display_rq_dlg_helpers.o := $(dml_rcflags)
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/dml/dml_common_defs.o := $(dml_rcflags)
+ 
+ DML = display_mode_lib.o display_rq_dlg_helpers.o dml1_display_rq_dlg_calc.o \
+ 
+@@ -74,9 +90,6 @@ ifdef CONFIG_DRM_AMD_DC_DCN
+ DML += display_mode_vba.o dcn20/display_rq_dlg_calc_20.o dcn20/display_mode_vba_20.o
+ DML += dcn20/display_rq_dlg_calc_20v2.o dcn20/display_mode_vba_20v2.o
+ DML += dcn21/display_rq_dlg_calc_21.o dcn21/display_mode_vba_21.o
+-endif
+-
+-ifdef CONFIG_DRM_AMD_DC_DCN3_0
+ DML += dcn30/display_mode_vba_30.o dcn30/display_rq_dlg_calc_30.o
+ endif
+ 
+diff -Nurp a/drivers/gpu/drm/amd/display/dc/dsc/Makefile b/drivers/gpu/drm/amd/display/dc/dsc/Makefile
+--- a/drivers/gpu/drm/amd/display/dc/dsc/Makefile	2021-12-30 11:41:19.000000000 +0000
++++ b/drivers/gpu/drm/amd/display/dc/dsc/Makefile	2022-01-06 08:49:38.000000000 +0000
+@@ -6,6 +6,14 @@ ifdef CONFIG_X86
+ dsc_ccflags := -mhard-float -msse
+ endif
+ 
++ifdef CONFIG_ARM64
++dsc_rcflags := -mgeneral-regs-only
++endif
++
++ifdef CONFIG_ARM64
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/dsc/rc_calc.o := -mgeneral-regs-only
++endif
++
+ ifdef CONFIG_PPC64
+ dsc_ccflags := -mhard-float -maltivec
+ endif
+@@ -28,6 +36,10 @@ endif
+ endif
+ 
+ CFLAGS_$(AMDDALPATH)/dc/dsc/rc_calc.o := $(dsc_ccflags)
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/dsc/rc_calc.o := $(dsc_rcflags)
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/dsc/dc_dsc.o := $(dsc_rcflags)
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/dsc/rc_calc_dpi.o := $(dsc_rcflags)
++CFLAGS_REMOVE_$(AMDDALPATH)/dc/dsc/rc_calc.o := $(dsc_rcflags)
+ 
+ DSC = dc_dsc.o rc_calc.o rc_calc_dpi.o
+ 
+diff -Nurp a/drivers/gpu/drm/amd/display/dc/os_types.h b/drivers/gpu/drm/amd/display/dc/os_types.h
+--- a/drivers/gpu/drm/amd/display/dc/os_types.h	2021-12-30 11:41:19.000000000 +0000
++++ b/drivers/gpu/drm/amd/display/dc/os_types.h	2022-01-06 08:49:38.000000000 +0000
+@@ -55,6 +55,10 @@
+ #include <asm/fpu/api.h>
+ #define DC_FP_START() kernel_fpu_begin()
+ #define DC_FP_END() kernel_fpu_end()
++#elif defined(CONFIG_ARM64)
++#include <asm/neon.h>
++#define DC_FP_START() kernel_neon_begin()
++#define DC_FP_END() kernel_neon_end()
+ #elif defined(CONFIG_PPC64)
+ #include <asm/switch_to.h>
+ #include <asm/cputable.h>
+diff -Nurp a/drivers/gpu/drm/amd/display/Kconfig b/drivers/gpu/drm/amd/display/Kconfig
+--- a/drivers/gpu/drm/amd/display/Kconfig	2021-12-30 11:41:19.000000000 +0000
++++ b/drivers/gpu/drm/amd/display/Kconfig	2022-01-06 08:49:38.000000000 +0000
+@@ -6,14 +6,14 @@ config DRM_AMD_DC
+ 	bool "AMD DC - Enable new display engine"
+ 	default y
+ 	select SND_HDA_COMPONENT if SND_HDA_CORE
+-	select DRM_AMD_DC_DCN if (X86 || PPC64) && !(KCOV_INSTRUMENT_ALL && KCOV_ENABLE_COMPARISONS)
++	select DRM_AMD_DC_DCN if !(KCOV_INSTRUMENT_ALL && KCOV_ENABLE_COMPARISONS)
+ 	help
+ 	  Choose this option if you want to use the new display engine
+ 	  support for AMDGPU. This adds required support for Vega and
+ 	  Raven ASICs.
+ 
+ config DRM_AMD_DC_DCN
+-	def_bool n
++	def_bool y
+ 	help
+ 	  Raven, Navi and Renoir family support for display engine
+ 
+diff -Nurp a/sound/pci/hda/hda_intel.c b/sound/pci/hda/hda_intel.c
+--- a/sound/pci/hda/hda_intel.c	2021-12-30 11:41:19.000000000 +0000
++++ b/sound/pci/hda/hda_intel.c	2022-01-06 08:50:03.000000000 +0000
+@@ -2704,8 +2704,8 @@ static const struct pci_device_id azx_id
+ 	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS |
+ 	  AZX_DCAPS_PM_RUNTIME },
+ 	{ PCI_DEVICE(0x1002, 0xab28),
+-	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS |
+-	  AZX_DCAPS_PM_RUNTIME },
++	  .driver_data = (AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS |
++	  AZX_DCAPS_PM_RUNTIME) & ~AZX_DCAPS_NO_MSI64 },
+ 	{ PCI_DEVICE(0x1002, 0xab38),
+ 	  .driver_data = AZX_DRIVER_ATIHDMI_NS | AZX_DCAPS_PRESET_ATI_HDMI_NS |
+ 	  AZX_DCAPS_PM_RUNTIME },
