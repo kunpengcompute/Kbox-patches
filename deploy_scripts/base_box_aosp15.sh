@@ -413,9 +413,10 @@ function check_key_process() {
 }
 # 自动选择回环设备节点
 function chose_loop_device() {
-    TARGET_LOOPS=40
+    TARGET_LOOPS=39
     MAPPED_LOOPS=0
-    CURRENT_LOOP=0
+    num=$(docker ps | grep tcp | wc -l)
+    CURRENT_LOOP=$((num * 39))
     while [ $MAPPED_LOOPS -lt $TARGET_LOOPS ]; do
         # 获取已被占用的loop设备列表（每次循环更新，避免遗漏新占用的设备）
         OCCUPIED_LOOPS=$(losetup -a | grep -oP '/dev/loop\K[0-9]+' | sort -n)
@@ -604,6 +605,12 @@ function start_box() {
     RUN_OPTION+=" --volume=$(get_lxcfs_path)/proc/swaps:/proc/swaps:ro "
     RUN_OPTION+=" --volume=$(get_lxcfs_path)/proc/uptime:/proc/uptime:ro "
     RUN_OPTION+=" --volume=$KBOX_DATA_PATH/storage_size:/storage_size:rw "
+    if [ -f default.prop_$BOX_NAME ]; then
+        RUN_OPTION+=" --volume=$THISDIR/default.prop_$BOX_NAME:/kbox_prop/default.prop:rw "
+    fi
+    if [ -f build.prop ]; then
+        RUN_OPTION+=" --volume=$THISDIR/build.prop:/kbox_prop/build.prop:rw "
+    fi
     if [[ $ENABLE_RENDER_LAYER == "1" ]]; then
         RUN_OPTION+=" --volume=${USER_DATA_PATH}/shader_cache/:/vendor/shader_cache/:rw "
     fi
