@@ -1,0 +1,51 @@
+# 本文件将基于kbox基础云手机镜像和va gpu相关的二进制制作va gpu云手机镜像
+# 本文件前提是保证已有kbox基础云手机镜像（如kbox:latest）
+# 在kbox基础云手机镜像的基础上将va gpu相关的二进制放入kbox基础云手机镜像中
+# 使用docker命令制作kbox云手机镜像（如kbox:latest_va），方便用户使用
+
+# ARG是定义参数名称
+# FROM是指定kbox基础云手机镜像
+# MAINTAINER是作者名
+ARG KBOX_IMAGE
+FROM ${KBOX_IMAGE}
+MAINTAINER root
+
+COPY ./imageFile/system /imageFile/system
+
+# 注意：
+# 因为每运行RUN一次就会创建一层镜像，容易产生非常臃肿、非常多层的镜像
+# 所以将视频流云手机相关的所有二进制整合在一起，保证只运行一次RUN
+RUN cp /system/lib64/liblzma.so /system/vendor/lib64/ \
+    && cp /system/lib64/libutilscallstack.so /system/vendor/lib64/ \
+    && cp /system/lib64/libunwindstack.so /system/vendor/lib64/ \ 
+    && cp /system/lib/liblzma.so /system/vendor/lib/ \
+    && cp /system/lib/libutilscallstack.so /system/vendor/lib/ \
+    && cp /system/lib/libunwindstack.so /system/vendor/lib/ \
+    && chmod -R 755 imageFile \
+    && chown -R root:root imageFile \
+    && cp -pR imageFile/system/* /system/ \
+    && rm -rf imageFile \
+    && sed -i '$aro.hardware.gralloc=sgpu100' /system/build.prop \
+    && sed -i '$aro.hardware.hwcomposer=sgpu100' /system/build.prop \
+    && sed -i '$aro.hardware.egl=va' /system/build.prop \
+    && sed -i '$aro.hardware.vulkan=va' /system/build.prop \
+    && sed -i '$aro.product.platform=va' /system/build.prop \
+    && sed -i '$aro.vmi.hardware.gpu=257' /system/build.prop \
+    && sed -i '$aro.vmi.hardware.vpu=0' /system/build.prop \
+    && sed -i '$aro.hardware.gralloc=sgpu100' /system/vendor/build.prop \
+    && sed -i '$aro.hardware.hwcomposer=sgpu100' /system/vendor/build.prop \
+    && sed -i '$aro.hardware.egl=va' /system/vendor/build.prop \
+    && sed -i '$aro.hardware.vulkan=va' /system/vendor/build.prop \
+    && sed -i '$aro.product.platform=va' /system/vendor/build.prop \
+    && sed -i '$aro.vmi.hardware.gpu=257' /system/vendor/build.prop \
+    && sed -i '$aro.vmi.hardware.vpu=0' /system/vendor/build.prop \
+    && sed -i '$aro.va.gpu.init=1' /system/vendor/build.prop \
+    && sed -i '$adisplayServer.maxInterval=-1' /system/vendor/build.prop \
+    && sed -i '/on init/a \    export VASTSTREAM_PIPELINE true' /system/vendor/etc/init/init.kbox.rc \
+    && sed -i '/on init/a \    export VASTSTREAM_HOME \/vendor\/lib64\/vame\/' /system/vendor/etc/init/init.kbox.rc \
+    && sed -i '/on init/a \    export VACM_LOG_CFG \/vendor\/etc\/' /system/vendor/etc/init/init.kbox.rc \
+    && sed -i '/on init/a \    export LIBVASTVA_DRIVERS_PATH \/vendor\/lib64\/' /system/vendor/etc/init/init.kbox.rc \
+    && sed -i '/on init/a \    export LIBVASTVA_DRIVER_NAME va' /system/vendor/etc/init/init.kbox.rc \
+    && sed -i '/on init/a \    export VACC_RT_DDR_SHARE_MIN_SIZE 4' /system/vendor/etc/init/init.kbox.rc \
+    && sed -i '/on init/a \    export VACC_RT_DDR_SHARE_POOL_MAX 0' /system/vendor/etc/init/init.kbox.rc \
+    && sed -i '/mount debugfs/a \    exec - root -- /system/vendor/bin/gpu_config.sh' /system/vendor/etc/init/init.kbox.rc
