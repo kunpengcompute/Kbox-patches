@@ -42,3 +42,7 @@ hardware-interfaces-0039.patch
 platform_testing-0040.patch
 device-google-vrservices-0041.patch
 )
+
+soft_render_patch=(
+vendor-kbox-0042.patch
+)

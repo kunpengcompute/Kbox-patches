@@ -257,6 +257,25 @@ function apply_only_64_compile_patchs()
     fi
 }
 
+function apply_soft_render_patchs()
+{
+    PATCH_DIR=$CURRENT_DIR/dependency/patchForAndroid/patchForAndroidSoftRender
+    source $CURRENT_DIR/patch_config.sh
+    local enable_soft_render=1
+    grep -q "ENABLE_SOFT_RENDER := true" $AOSP_PATH/vendor/kbox/products/kbox_arm64.mk || enable_soft_render=0
+    if [ $enable_soft_render -eq 1 ]; then
+        cd "$PATCH_DIR" || error "无法切换到 $PATCH_DIR 目录"
+        for patch_name in "${soft_render_patch[@]}"; do
+            echo "正在合入补丁 $patch_name ..."
+            if ! apply_patch "$patch_name"; then
+                error "错误：无法合入补丁 $patch_name."
+            fi
+        done
+
+        echo "软渲染补丁尝试合入完成"
+    fi
+}
+
 main(){
     clean
     check_package
@@ -264,6 +283,7 @@ main(){
     apply_patchs
     product_prebuilt
     apply_only_64_compile_patchs
+    apply_soft_render_patchs
     return 0
 }
 

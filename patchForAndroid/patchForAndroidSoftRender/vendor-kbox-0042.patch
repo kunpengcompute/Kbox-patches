@@ -1,21 +1,23 @@
-From 5cd22c43af3ec72407699f21950a14f8f18b9aa3 Mon Sep 17 00:00:00 2001
+From 1f7d77ca4299675be028076e9de4402a588452fc Mon Sep 17 00:00:00 2001
 From: maoyue730 <maoyue5@huawei.com>
-Date: Sat, 23 Aug 2025 18:22:03 +0800
-Subject: [PATCH] =?UTF-8?q?=E6=96=B0=E5=A2=9E=E8=BD=AF=E6=B8=B2=E6=9F=93gr?=
- =?UTF-8?q?alloc=E6=A8=A1=E5=9D=97?=
+Date: Mon, 25 Aug 2025 11:23:22 +0800
+Subject: [PATCH] =?UTF-8?q?=E8=BD=AF=E6=B8=B2=E6=9F=93gralloc=E6=A8=A1?=
+ =?UTF-8?q?=E5=9D=97=E9=80=82=E9=85=8D?=
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 
 ---
  soft_gralloc/Android.mk      |  39 ++++
+ soft_gralloc/CleanSpec.mk    |   1 +
  soft_gralloc/framebuffer.cpp | 355 +++++++++++++++++++++++++++++++++++
  soft_gralloc/gr.h            |  60 ++++++
- soft_gralloc/gralloc.cpp     | 317 +++++++++++++++++++++++++++++++
- soft_gralloc/gralloc_priv.h  | 114 +++++++++++
+ soft_gralloc/gralloc.cpp     | 253 +++++++++++++++++++++++++
+ soft_gralloc/gralloc_priv.h  | 120 ++++++++++++
  soft_gralloc/mapper.cpp      | 187 ++++++++++++++++++
- 6 files changed, 1072 insertions(+)
+ 7 files changed, 1015 insertions(+)
  create mode 100644 soft_gralloc/Android.mk
+ create mode 100644 soft_gralloc/CleanSpec.mk
  create mode 100644 soft_gralloc/framebuffer.cpp
  create mode 100644 soft_gralloc/gr.h
  create mode 100644 soft_gralloc/gralloc.cpp
@@ -24,7 +26,7 @@ Content-Transfer-Encoding: 8bit
 
 diff --git a/soft_gralloc/Android.mk b/soft_gralloc/Android.mk
 new file mode 100644
-index 0000000..ff5808d
+index 0000000..3499b94
 --- /dev/null
 +++ b/soft_gralloc/Android.mk
 @@ -0,0 +1,39 @@
@@ -60,13 +62,21 @@ index 0000000..ff5808d
 +
 +LOCAL_HEADER_LIBRARIES := libhardware_headers
 +
-+LOCAL_MODULE := gralloc.default
++LOCAL_MODULE := gralloc.soft
 +LOCAL_CFLAGS:= -DLOG_TAG=\"gralloc\" -Wno-missing-field-initializers
 +ifeq ($(TARGET_USE_PAN_DISPLAY),true)
 +LOCAL_CFLAGS += -DUSE_PAN_DISPLAY=1
 +endif
 +
 +include $(BUILD_SHARED_LIBRARY)
+diff --git a/soft_gralloc/CleanSpec.mk b/soft_gralloc/CleanSpec.mk
+new file mode 100644
+index 0000000..7f4de08
+--- /dev/null
++++ b/soft_gralloc/CleanSpec.mk
+@@ -0,0 +1 @@
++$(call add-clean-step, rm -f $(PRODUCT_OUT)/system/lib*/hw/gralloc.soft.so)
+\ No newline at end of file
 diff --git a/soft_gralloc/framebuffer.cpp b/soft_gralloc/framebuffer.cpp
 new file mode 100644
 index 0000000..b2ec3e4
@@ -496,10 +506,10 @@ index 0000000..14fe6a0
 +#endif /* GR_H_ */
 diff --git a/soft_gralloc/gralloc.cpp b/soft_gralloc/gralloc.cpp
 new file mode 100644
-index 0000000..87bda97
+index 0000000..d5c7b8a
 --- /dev/null
 +++ b/soft_gralloc/gralloc.cpp
-@@ -0,0 +1,317 @@
+@@ -0,0 +1,253 @@
 +/*
 + * Copyright (C) 2008 The Android Open Source Project
 + *
@@ -545,8 +555,8 @@ index 0000000..87bda97
 +    /* our private data here */
 +};
 +
-+static int gralloc_alloc_buffer(alloc_device_t* dev,
-+        size_t size, int usage, buffer_handle_t* pHandle);
++static int gralloc_alloc_buffer(alloc_device_t* dev, int width, int height, int stride,
++        size_t size, int format, int usage, buffer_handle_t* pHandle);
 +
 +/*****************************************************************************/
 +
@@ -602,72 +612,8 @@ index 0000000..87bda97
 +
 +/*****************************************************************************/
 +
-+static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
-+        size_t size, int format, int usage, buffer_handle_t* pHandle)
-+{
-+    private_module_t* m = reinterpret_cast<private_module_t*>(
-+            dev->common.module);
-+
-+    // allocate the framebuffer
-+    if (m->framebuffer == NULL) {
-+        // initialize the framebuffer, the framebuffer is mapped once
-+        // and forever.
-+        int err = mapFrameBufferLocked(m, format);
-+        if (err < 0) {
-+            return err;
-+        }
-+    }
-+
-+    const uint32_t bufferMask = m->bufferMask;
-+    const uint32_t numBuffers = m->numBuffers;
-+    const size_t bufferSize = m->finfo.line_length * m->info.yres;
-+    if (numBuffers == 1) {
-+        // If we have only one buffer, we never use page-flipping. Instead,
-+        // we return a regular buffer which will be memcpy'ed to the main
-+        // screen when post is called.
-+        int newUsage = (usage & ~GRALLOC_USAGE_HW_FB) | GRALLOC_USAGE_HW_2D;
-+        return gralloc_alloc_buffer(dev, bufferSize, newUsage, pHandle);
-+    }
-+
-+    if (bufferMask >= ((1LU<<numBuffers)-1)) {
-+        // We ran out of buffers.
-+        return -ENOMEM;
-+    }
-+
-+    // create a "fake" handles for it
-+    intptr_t vaddr = intptr_t(m->framebuffer->base);
-+    private_handle_t* hnd = new private_handle_t(dup(m->framebuffer->fd), size,
-+            private_handle_t::PRIV_FLAGS_FRAMEBUFFER);
-+
-+    // find a free slot
-+    for (uint32_t i=0 ; i<numBuffers ; i++) {
-+        if ((bufferMask & (1LU<<i)) == 0) {
-+            m->bufferMask |= (1LU<<i);
-+            break;
-+        }
-+        vaddr += bufferSize;
-+    }
-+    
-+    hnd->base = vaddr;
-+    hnd->offset = vaddr - intptr_t(m->framebuffer->base);
-+    *pHandle = hnd;
-+
-+    return 0;
-+}
-+
-+static int gralloc_alloc_framebuffer(alloc_device_t* dev,
-+        size_t size, int format, int usage, buffer_handle_t* pHandle)
-+{
-+    private_module_t* m = reinterpret_cast<private_module_t*>(
-+            dev->common.module);
-+    pthread_mutex_lock(&m->lock);
-+    int err = gralloc_alloc_framebuffer_locked(dev, size, format, usage, pHandle);
-+    pthread_mutex_unlock(&m->lock);
-+    return err;
-+}
-+
-+static int gralloc_alloc_buffer(alloc_device_t* dev,
-+        size_t size, int /*usage*/, buffer_handle_t* pHandle)
++static int gralloc_alloc_buffer(alloc_device_t* dev, int width, int height, int stride,
++    size_t size, int format, int usage, buffer_handle_t* pHandle)
 +{
 +    int err = 0;
 +    int fd = -1;
@@ -687,6 +633,11 @@ index 0000000..87bda97
 +        err = mapBuffer(module, hnd);
 +        if (err == 0) {
 +            *pHandle = hnd;
++            hnd->width = width;
++            hnd->height = height;
++            hnd->stride = stride;
++            hnd->format = format;
++            hnd->usage = usage;
 +        }
 +    }
 +    
@@ -724,25 +675,20 @@ index 0000000..87bda97
 +            break;
 +        case HAL_PIXEL_FORMAT_RGB_565:
 +        case HAL_PIXEL_FORMAT_RAW16:
++        case HAL_PIXEL_FORMAT_YV12:
 +            bytesPerPixel = 2;
 +            break;
 +        default:
 +            return -EINVAL;
 +    }
 +
-+    const size_t tileWidth = 2;
++    const size_t tileWidth = 64;
 +    const size_t tileHeight = 2;
 +
 +    size_t stride = align(width, tileWidth);
 +    size_t size = align(height, tileHeight) * stride * bytesPerPixel + 4;
 +
-+    int err;
-+    if (usage & GRALLOC_USAGE_HW_FB) {
-+        err = gralloc_alloc_framebuffer(dev, size, format, usage, pHandle);
-+    } else {
-+        err = gralloc_alloc_buffer(dev, size, usage, pHandle);
-+    }
-+
++    int err = gralloc_alloc_buffer(dev, width, height, stride, size, format, usage, pHandle);
 +    if (err < 0) {
 +        return err;
 +    }
@@ -819,10 +765,10 @@ index 0000000..87bda97
 +}
 diff --git a/soft_gralloc/gralloc_priv.h b/soft_gralloc/gralloc_priv.h
 new file mode 100644
-index 0000000..2cd1007
+index 0000000..a8181f5
 --- /dev/null
 +++ b/soft_gralloc/gralloc_priv.h
-@@ -0,0 +1,114 @@
+@@ -0,0 +1,120 @@
 +/*
 + * Copyright (C) 2008 The Android Open Source Project
 + *
@@ -887,17 +833,23 @@ index 0000000..2cd1007
 +    struct native_handle nativeHandle;
 +#endif
 +
-+    enum {
-+        PRIV_FLAGS_FRAMEBUFFER = 0x00000001
-+    };
-+
 +    // file-descriptors
 +    int     fd;
 +    // ints
 +    int     magic;
++    int     version_placeholder;  // 用于占位，无具体意义
++    int     width;
++    int     height;
++    int     format;
++    int     usage;
++    int     stride;
 +    int     flags;
 +    int     size;
 +    int     offset;
++
++    enum {
++        PRIV_FLAGS_FRAMEBUFFER = 0x00000001
++    };
 +
 +    // FIXME: the attributes below should be out-of-line
 +    uint64_t base __attribute__((aligned(8)));
