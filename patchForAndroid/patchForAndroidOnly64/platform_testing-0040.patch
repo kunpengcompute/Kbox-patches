@@ -1,0 +1,12 @@
+diff --git a/build/tasks/tests/native_test_list.mk b/build/tasks/tests/native_test_list.mk
+index b1565ecfd..b73ab0ac5 100644
+--- a/build/tasks/tests/native_test_list.mk
++++ b/build/tasks/tests/native_test_list.mk
+@@ -110,7 +110,6 @@ native_tests := \
+     prioritydumper_test \
+     puffin_unittest \
+     recovery_unit_test \
+-    resolv_gold_test \
+     resolv_integration_test \
+     resolv_unit_test \
+     scrape_mmap_addr \

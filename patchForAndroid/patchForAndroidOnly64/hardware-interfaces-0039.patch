@@ -1,0 +1,154 @@
+diff --git a/audio/common/all-versions/default/service/Android.bp b/audio/common/all-versions/default/service/Android.bp
+index 3e8b715706..88cf7a0cd2 100644
+--- a/audio/common/all-versions/default/service/Android.bp
++++ b/audio/common/all-versions/default/service/Android.bp
+@@ -8,7 +8,7 @@ cc_binary {
+     // location for init to start it and the build system does not support
+     // having two binaries installable to the same location even if they are
+     // not installed in the same build.
+-    compile_multilib: "32",
++    compile_multilib: "64",
+     srcs: ["service.cpp"],
+ 
+     cflags: [
+diff --git a/camera/provider/2.4/default/Android.bp b/camera/provider/2.4/default/Android.bp
+index 627ddf40bc..c36e560b72 100644
+--- a/camera/provider/2.4/default/Android.bp
++++ b/camera/provider/2.4/default/Android.bp
+@@ -169,7 +169,7 @@ cc_defaults {
+ cc_binary {
+     name: "android.hardware.camera.provider@2.4-service",
+     defaults: ["camera_service_defaults"],
+-    compile_multilib: "32",
++    compile_multilib: "64",
+     init_rc: ["android.hardware.camera.provider@2.4-service.rc"],
+ }
+ 
+@@ -184,7 +184,7 @@ cc_binary {
+     name: "android.hardware.camera.provider@2.4-service-lazy",
+     overrides: ["android.hardware.camera.provider@2.4-service"],
+     defaults: ["camera_service_defaults"],
+-    compile_multilib: "32",
++    compile_multilib: "64",
+     init_rc: ["android.hardware.camera.provider@2.4-service-lazy.rc"],
+     cflags: ["-DLAZY_SERVICE"],
+ }
+@@ -204,7 +204,7 @@ cc_binary {
+     proprietary: true,
+     relative_install_path: "hw",
+     srcs: ["external-service.cpp"],
+-    compile_multilib: "32",
++    compile_multilib: "64",
+     init_rc: ["android.hardware.camera.provider@2.4-external-service.rc"],
+     shared_libs: [
+         "android.hardware.camera.common@1.0",
+diff --git a/camera/provider/2.5/default/Android.bp b/camera/provider/2.5/default/Android.bp
+index 9ddf651440..c4335fb1f0 100644
+--- a/camera/provider/2.5/default/Android.bp
++++ b/camera/provider/2.5/default/Android.bp
+@@ -119,7 +119,7 @@ cc_defaults {
+ cc_binary {
+     name: "android.hardware.camera.provider@2.5-service",
+     defaults: ["camera_service_2_5_defaults"],
+-    compile_multilib: "32",
++    compile_multilib: "64",
+     init_rc: ["android.hardware.camera.provider@2.5-service.rc"],
+ }
+ 
+@@ -134,7 +134,7 @@ cc_binary {
+     name: "android.hardware.camera.provider@2.5-service-lazy",
+     overrides: ["android.hardware.camera.provider@2.5-service"],
+     defaults: ["camera_service_2_5_defaults"],
+-    compile_multilib: "32",
++    compile_multilib: "64",
+     init_rc: ["android.hardware.camera.provider@2.5-service-lazy.rc"],
+     cflags: ["-DLAZY_SERVICE"],
+ }
+@@ -154,7 +154,7 @@ cc_binary {
+     proprietary: true,
+     relative_install_path: "hw",
+     srcs: ["external-service.cpp"],
+-    compile_multilib: "32",
++    compile_multilib: "64",
+     init_rc: ["android.hardware.camera.provider@2.5-external-service.rc"],
+     shared_libs: [
+         "android.hardware.camera.common@1.0",
+diff --git a/cas/1.0/default/Android.bp b/cas/1.0/default/Android.bp
+index f9977ff7be..66a7e4d9bc 100644
+--- a/cas/1.0/default/Android.bp
++++ b/cas/1.0/default/Android.bp
+@@ -12,7 +12,7 @@ cc_defaults {
+       "TypeConvert.cpp",
+     ],
+ 
+-    compile_multilib: "32",
++    compile_multilib: "64",
+ 
+     shared_libs: [
+       "android.hardware.cas@1.0",
+diff --git a/cas/1.1/default/Android.bp b/cas/1.1/default/Android.bp
+index 66a1eb8804..c9e9d0d7b0 100644
+--- a/cas/1.1/default/Android.bp
++++ b/cas/1.1/default/Android.bp
+@@ -12,7 +12,7 @@ cc_defaults {
+       "TypeConvert.cpp",
+     ],
+ 
+-    compile_multilib: "32",
++    compile_multilib: "64",
+ 
+     shared_libs: [
+       "android.hardware.cas@1.0",
+diff --git a/cas/1.2/default/Android.bp b/cas/1.2/default/Android.bp
+index 9e5314874f..7504b4b32c 100644
+--- a/cas/1.2/default/Android.bp
++++ b/cas/1.2/default/Android.bp
+@@ -12,7 +12,7 @@ cc_defaults {
+       "TypeConvert.cpp",
+     ],
+ 
+-    compile_multilib: "32",
++    compile_multilib: "64",
+ 
+     shared_libs: [
+       "android.hardware.cas@1.0",
+diff --git a/cas/1.2/default/DescramblerImpl.cpp b/cas/1.2/default/DescramblerImpl.cpp
+index 36dc1a51d0..d46ad95d7d 100644
+--- a/cas/1.2/default/DescramblerImpl.cpp
++++ b/cas/1.2/default/DescramblerImpl.cpp
+@@ -92,7 +92,7 @@ Return<void> DescramblerImpl::descramble(ScramblingControl scramblingControl,
+     // size in size_t. If size is over SIZE_MAX, mapMemory mapMemory could succeed
+     // but the mapped memory's actual size will be smaller than the reported size.
+     if (srcBuffer.heapBase.size() > SIZE_MAX) {
+-        ALOGE("Invalid hidl_memory size: %llu", srcBuffer.heapBase.size());
++        ALOGE("Invalid hidl_memory size: %lu", srcBuffer.heapBase.size());
+         android_errorWriteLog(0x534e4554, "79376389");
+         _hidl_cb(toStatus(BAD_VALUE), 0, NULL);
+         return Void();
+@@ -108,7 +108,7 @@ Return<void> DescramblerImpl::descramble(ScramblingControl scramblingControl,
+         return Void();
+     }
+     if (!validateRangeForSize(srcBuffer.offset, srcBuffer.size, (uint64_t)srcMem->getSize())) {
+-        ALOGE("Invalid src buffer range: offset %llu, size %llu, srcMem size %llu",
++        ALOGE("Invalid src buffer range: offset %lu, size %lu, srcMem size %lu",
+               srcBuffer.offset, srcBuffer.size, (uint64_t)srcMem->getSize());
+         android_errorWriteLog(0x534e4554, "67962232");
+         _hidl_cb(toStatus(BAD_VALUE), 0, NULL);
+@@ -125,7 +125,7 @@ Return<void> DescramblerImpl::descramble(ScramblingControl scramblingControl,
+     // is consistent with the source shared buffer size.
+     if (!validateRangeForSize(srcOffset, totalBytesInSubSamples, srcBuffer.size)) {
+         ALOGE("Invalid srcOffset and subsample size: "
+-              "srcOffset %llu, totalBytesInSubSamples %llu, srcBuffer size %llu",
++              "srcOffset %lu, totalBytesInSubSamples %lu, srcBuffer size %lu",
+               srcOffset, totalBytesInSubSamples, srcBuffer.size);
+         android_errorWriteLog(0x534e4554, "67962232");
+         _hidl_cb(toStatus(BAD_VALUE), 0, NULL);
+@@ -143,7 +143,7 @@ Return<void> DescramblerImpl::descramble(ScramblingControl scramblingControl,
+         // dstOffset against the buffer size too.
+         if (!validateRangeForSize(dstOffset, totalBytesInSubSamples, srcBuffer.size)) {
+             ALOGE("Invalid dstOffset and subsample size: "
+-                  "dstOffset %llu, totalBytesInSubSamples %llu, srcBuffer size %llu",
++                  "dstOffset %lu, totalBytesInSubSamples %lu, srcBuffer size %lu",
+                   dstOffset, totalBytesInSubSamples, srcBuffer.size);
+             android_errorWriteLog(0x534e4554, "67962232");
+             _hidl_cb(toStatus(BAD_VALUE), 0, NULL);
