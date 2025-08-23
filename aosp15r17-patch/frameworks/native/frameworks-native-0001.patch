@@ -56,3 +56,17 @@ index ab9014e418..8bce49cb41 100644
          constructAvailableRefreshRates();
  
          displayId = getActiveModeLocked().modePtr->getPhysicalDisplayId();
+diff --git a/services/surfaceflinger/SurfaceFlinger.cpp b/services/surfaceflinger/SurfaceFlinger.cpp
+index 65a0ed3065..0fd9262b3b 100644
+--- a/services/surfaceflinger/SurfaceFlinger.cpp
++++ b/services/surfaceflinger/SurfaceFlinger.cpp
+@@ -2924,7 +2924,8 @@ CompositeResultsPerDisplay SurfaceFlinger::composite(
+     // TODO(b/160583065): Enable skip validation when SF caches all client composition layers.
+     const bool hasGpuUseOrReuse =
+             coverage.any(CompositionCoverage::Gpu | CompositionCoverage::GpuReuse);
+-    mScheduler->modulateVsync({}, &VsyncModulator::onDisplayRefresh, hasGpuUseOrReuse);
++    // fix bug: 解决配置60fps实际帧率只有54、55问题。此处会引入额外的offset，导致vsync周期偏大
++    // mScheduler->modulateVsync({}, &VsyncModulator::onDisplayRefresh, hasGpuUseOrReuse);
+ 
+     mLayersWithQueuedFrames.clear();
+     mLayersIdsWithQueuedFrames.clear();
