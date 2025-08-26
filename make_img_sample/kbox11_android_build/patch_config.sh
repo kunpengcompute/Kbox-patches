@@ -34,3 +34,15 @@ system-netd-0001.patch
 system-sepolicy-0001.patch
 system-vold-0001.patch
 )
+
+android_only64_patch=(
+build-make-0037.patch
+frameworks-av-0038.patch
+hardware-interfaces-0039.patch
+platform_testing-0040.patch
+device-google-vrservices-0041.patch
+)
+
+soft_render_patch=(
+vendor-kbox-0042.patch
+)

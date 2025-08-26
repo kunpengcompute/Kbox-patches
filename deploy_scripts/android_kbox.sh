@@ -50,6 +50,10 @@ function check_devices() {
     chmod 600 /dev/dri/*
     chmod 600 /dev/input
 
+    if [ $ENABLE_SOFT_RENDER -eq 1 ]; then
+        return
+    fi
+
     if [ -n "$(lspci -n | grep ${XD_GPU_ID})" ]; then
         chmod 666 /dev/ion*
         chmod 666 /dev/pvr_sync
@@ -193,8 +197,8 @@ function wait_container_ready() {
             local cmd="docker exec -i $1 getprop sys.boot_completed | grep 1 &"
             local result=$(bash $CURRENT_DIR/base_box.sh wait_async_cmd "${cmd}")
             if [ "${result}" == "1" ]; then
-                bash $CURRENT_DIR/base_box.sh chk_key_process ${CONTAINER_NAME}
-                [ ${?} -ne 0 ] && has_restart=1 && bash $CURRENT_DIR/base_box.sh restart "${CONTAINER_NAME}" "$MOUNT_DIR" 2
+                bash $CURRENT_DIR/base_box.sh chk_key_process ${CONTAINER_NAME} ${ENABLE_SOFT_RENDER}
+                [ ${?} -ne 0 ] && has_restart=1 && bash $CURRENT_DIR/base_box.sh restart "${CONTAINER_NAME}" "$MOUNT_DIR" 2 ${ENABLE_SOFT_RENDER}
                 [ ${?} -eq 1 ] && [ $has_restart -eq 1 ] && echo "${KBOX_NAME} started failed at $(date +'%Y-%m-%d %H:%M:%S')!" && res=1 && break
 
                 echo "${KBOX_NAME} started successfully at $(date +'%Y-%m-%d %H:%M:%S')!"
@@ -345,14 +349,13 @@ function start_box_by_id() {
     # 容器编号
     local TAG_NUMBER=$3
 
-    # 没有GPU不启动容器
     local GPUS_INFO=($(lspci -D | grep "VGA compatible controller: Advanced Micro Devices" | awk '{print $1}'))
     # 芯动/VA GPU卡无法通过以上方式识别
     GPUS_INFO+=$(lspci -n | grep ${XD_GPU_ID} | awk '{print $3}')
     GPUS_INFO+=$(lspci -n | grep ${VA_SGPU100_ID} | awk '{print $3}')
     if [ ${#GPUS_INFO[@]} -eq 0 ]; then
-        echo "No GPU exists on the host"
-        exit 1
+        ENABLE_SOFT_RENDER=1
+        echo "No GPU exists on the host. Enable soft render..."
     fi
 
     # 容器名
@@ -379,7 +382,9 @@ function start_box_by_id() {
 
     # GPU
     local GPUS_RENDER
-    if [ -n "$(lspci -n | grep ${XD_GPU_ID})" ]; then
+    if [ $ENABLE_SOFT_RENDER -eq 1 ]; then
+        GPUS_RENDER=()
+    elif [ -n "$(lspci -n | grep ${XD_GPU_ID})" ]; then
         # GPU, XD一个GPU对应四个render
         local xd_gpus=($(lspci -D | grep "3D controller" | awk '{print $1}'))
         if [ ${#xd_gpus[@]} -eq 2 ]; then
@@ -409,7 +414,9 @@ function start_box_by_id() {
     # docker额外启动参数
     local EXTRA_RUN_OPTION=""
     # 使能硬解设备，若获取到的值为空，则不使能
-    if [ -n "$(lspci -n | grep ${VA_SGPU100_ID} | awk '{print $3}')" ]; then
+    if [ $ENABLE_SOFT_RENDER -eq 1 ]; then
+        true
+    elif [ -n "$(lspci -n | grep ${VA_SGPU100_ID} | awk '{print $3}')" ]; then
         EXTRA_RUN_OPTION=" ENABLE_HARD_DECODE=${ENABLE_HARD_DECODE}"
     elif [ -n "$(lspci -n | grep ${XD_GPU_ID})" ]; then
         local idx=$((`echo ${GPUS_RENDER:16}` - 128))
@@ -521,7 +528,7 @@ function main() {
                 set +e
                 enable_hard_decoder $TAG_NUMBER
                 local MOUNT_DIR=${KBOX_MOUNT_MAP[TAG_NUMBER - 1]}
-                bash $CURRENT_DIR/base_box.sh restart "kbox_$TAG_NUMBER" "$MOUNT_DIR" 3 ${ENABLE_HARD_DECODE}
+                bash $CURRENT_DIR/base_box.sh restart "kbox_$TAG_NUMBER" "$MOUNT_DIR" 3 ${ENABLE_SOFT_RENDER} ${ENABLE_HARD_DECODE}
                 [ ${?} -eq 1 ] && continue
 
                 enable_netint "kbox_$TAG_NUMBER"
