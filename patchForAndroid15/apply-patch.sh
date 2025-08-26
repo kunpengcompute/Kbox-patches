@@ -1,13 +1,12 @@
 # To apply all android patches to aosp code.
-# ./apply-patch.sh [aosp path] aosp15r17-patch
+# ./apply-patch.sh [aosp path]
 #!/bin/bash
 
-TAG="$2"
-TARGET_DIR="$1"
-SOURCE_DIR="$(pwd)/${TAG}"
+AOSP_DIR="$1"
+SOURCE_DIR="$(pwd)"
 
-if [ ! -d "$TARGET_DIR" ];then
-    echo "Error: Target directory $TARGET_DIR does not exist"
+if [ ! -d "$AOSP_DIR" ];then
+    echo "Error: Target directory $AOSP_DIR does not exist"
     exit 1
 fi
 
@@ -16,7 +15,7 @@ find "$SOURCE_DIR" -type f -name "*.patch" | while read -r patch_file; do
 
     rel_path="${subdir#$SOURCE_DIR/}"
 
-    target_subdir="$TARGET_DIR/$rel_path"
+    target_subdir="$AOSP_DIR/$rel_path"
 
     patch_name=$(basename "$patch_file")
 
