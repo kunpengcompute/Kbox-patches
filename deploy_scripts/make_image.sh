@@ -5,11 +5,12 @@
 # 脚本至少提供两个参数
 #第一个参数：kbox基础云手机镜像名称：kbox:latest
 #第二个参数：目标GPU Kbox云手机镜像名称：kbox:latest_{GPU_NAME}
-#第三个参数：[gpu驱动包名称] 为可选参数，无该参数时默认制作基于amd GPU 的kbox镜像。soft表示使能软渲染。
+#第三个参数：[gpu驱动包名称] 为可选参数，无该参数时默认制作基于amd GPU 的kbox镜像。soft表示使能软渲染，soft64表示使能纯64位软渲染。
 # 例：
 # ./make_image.sh kbox:latest kbox:latest_
 # ./make_image.sh kbox:latest kbox:latest_ xxxx.tar.gz
 # ./make_image.sh kbox:latest kbox:latest_ soft
+# ./make_image.sh kbox:latest kbox:latest_ soft64
 
 set -e
 
@@ -21,6 +22,7 @@ TMP_PACKAGE_DIR=${CUR_PATH}/imageFile
 DOCKER_FILE_DIR=${CUR_PATH}/Dockerfiles
 DOCKER_FILE_BAK=${CUR_PATH}/Dockerfile.bak
 DOCKER_FILE=${CUR_PATH}/Dockerfile
+ENABLE_ONLY64_KBOX=0
 
 function gen_docker_file()
 {
@@ -139,44 +141,32 @@ function prepare_kbox_binary()
     unzip -o "${binary_packages}" -d ${TMP_PACKAGE_DIR} > /dev/null
     BinaryPath=${TMP_PACKAGE_DIR}/product_prebuilt
 
-    local kernel_version=$(uname -r)
-    enable_only64_so=0
-    if echo $kernel_version | grep -q "^4.19"; then
-        enable_only64_so=1
-    fi
-
-    if [ ${GPUTYPE} == "cpu" ]; then
-        cp ${BinaryPath}/soft_gralloc/lib64/hw/gralloc.soft.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
-        [ $enable_only64_so -eq 1 ] || cp ${BinaryPath}/soft_gralloc/lib/hw/gralloc.soft.so ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
-    else
-        cp ${BinaryPath}/gbm_gralloc/lib64/hw/gralloc.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
-        [ $enable_only64_so -eq 1 ] || cp ${BinaryPath}/gbm_gralloc/lib/hw/gralloc.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
-    fi
-
-    [ $enable_only64_so -eq 1 ] || cp ${BinaryPath}/audio/lib/hw/audio.primary.kbox.so ${TMP_PACKAGE_DIR}/system/lib/hw/
+    cp ${BinaryPath}/gbm_gralloc/lib64/hw/gralloc.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
+    [ $ENABLE_ONLY64_KBOX -eq 1 ] || cp ${BinaryPath}/gbm_gralloc/lib/hw/gralloc.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
+    [ $ENABLE_ONLY64_KBOX -eq 1 ] || cp ${BinaryPath}/audio/lib/hw/audio.primary.kbox.so ${TMP_PACKAGE_DIR}/system/lib/hw/
     cp ${BinaryPath}/audio/lib64/hw/audio.primary.kbox.so ${TMP_PACKAGE_DIR}/system/lib64/hw/
-    [ $enable_only64_so -eq 1 ] || cp ${BinaryPath}/gps/lib/hw/gps.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
+    [ $ENABLE_ONLY64_KBOX -eq 1 ] || cp ${BinaryPath}/gps/lib/hw/gps.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
     cp ${BinaryPath}/gps/lib64/hw/gps.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
 
-    [ $enable_only64_so -eq 1 ] || cp ${BinaryPath}/omx/lib/* ${TMP_PACKAGE_DIR}/system/vendor/lib/
+    [ $ENABLE_ONLY64_KBOX -eq 1 ] || cp ${BinaryPath}/omx/lib/* ${TMP_PACKAGE_DIR}/system/vendor/lib/
     cp ${BinaryPath}/omx/lib64/* ${TMP_PACKAGE_DIR}/system/vendor/lib64/
 
     if [ $GPUTYPE = "awm" ]; then
-        [ $enable_only64_so -eq 1 ] || cp ${BinaryPath}/product_hwcomposer/lib/hw/hwcomposer.awmgpu.so ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
+        [ $ENABLE_ONLY64_KBOX -eq 1 ] || cp ${BinaryPath}/product_hwcomposer/lib/hw/hwcomposer.awmgpu.so ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
         cp ${BinaryPath}/product_hwcomposer/lib64/hw/hwcomposer.awmgpu.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
-    elif [ $GPUTYPE = "amd" ]; then
-        [ $enable_only64_so -eq 1 ] || cp ${BinaryPath}/product_hwcomposer/lib/hw/hwcomposer.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
+    elif [ $GPUTYPE = "amd" ] || [ $GPUTYPE = "cpu" ]; then
+        [ $ENABLE_ONLY64_KBOX -eq 1 ] || cp ${BinaryPath}/product_hwcomposer/lib/hw/hwcomposer.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
         cp ${BinaryPath}/product_hwcomposer/lib64/hw/hwcomposer.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
     fi
 
-    [ $enable_only64_so -eq 1 ] || cp ${BinaryPath}/sensors/lib/hw/sensors.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
+    [ $ENABLE_ONLY64_KBOX -eq 1 ] || cp ${BinaryPath}/sensors/lib/hw/sensors.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
     cp ${BinaryPath}/sensors/lib64/hw/sensors.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
     cp ${BinaryPath}/vinput/bin/vinput ${TMP_PACKAGE_DIR}/system/vendor/bin/
     cp ${BinaryPath}/vinput/vinput.rc ${TMP_PACKAGE_DIR}/system/vendor/etc/init/vinput.rc
 
     cp ${BinaryPath}/RenderAccLayer/lib64/hw/AdaptiveVsync.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
     if [ -d ${BinaryPath}/RenderAccLayer ]; then
-        [ $enable_only64_so -eq 1 ] || cp ${BinaryPath}/RenderAccLayer/lib/hw/RenderAccLayer.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
+        [ $ENABLE_ONLY64_KBOX -eq 1 ] || cp ${BinaryPath}/RenderAccLayer/lib/hw/RenderAccLayer.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
         cp ${BinaryPath}/RenderAccLayer/lib64/hw/RenderAccLayer.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
         cp ${BinaryPath}/RenderAccLayer/kbox_render_accelerating_configuration.xml ${TMP_PACKAGE_DIR}/system/vendor/etc/
     fi
@@ -212,6 +202,14 @@ function detect_gpu_type()
     if [ "${GPU_DRIVER_PACKAGE}" == "soft" ]; then
         GPUTYPE="cpu"
         echo -e "\033[1;36m[INFO] Enable soft render... \033[0m"
+        return 0
+    fi
+
+    if [ "${GPU_DRIVER_PACKAGE}" == "soft64" ]; then
+        GPUTYPE="cpu"
+        ENABLE_ONLY64_KBOX=1
+        echo -e "\033[1;36m[INFO] Enable only64 soft render... \033[0m"
+        return 0
     fi
 
     if [ 0 -ne ${#amd_gpus[@]} ]; then
@@ -233,7 +231,7 @@ function detect_gpu_type()
             echo -e "and make sure it match the gpu type. \033[0m" && exit -1
         fi
     else
-        echo -e "\033[1;36m[INFO] unsupport gpu type. Enable soft render... \033[0m" && exit -1
+        echo -e "\033[1;31m[ERROR] unsupport gpu type." && exit -1
     fi
 }
 

@@ -24,9 +24,8 @@ function check_environment() {
     CURRENT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
     cd ${CURRENT_DIR}
 
-    # 如果内核是4.19，不需要检查转码
-    local kernel_version=$(uname -r)
-    if echo $kernel_version | grep -q "^4.19"; then
+    # 如果使能纯64位，不需要转码
+    if [ "$ENABLE_ONLY64_KBOX" == "1" ]; then
         return
     fi
 
@@ -386,8 +385,7 @@ function check_paras() {
 function check_key_process() {
     # 检查关键进程是否存在
     local process_name=(system_server zygote zygote64 surfaceflinger)
-    local enable_soft_render=$2
-    if [ ${enable_soft_render} -eq 1 ]; then
+    if [ "$ENABLE_ONLY64_KBOX" == "1" ]; then
         # 软渲染为纯64位，不用检查zygote
         unset process_name[1]
     fi
@@ -774,11 +772,16 @@ function restart_box() {
     local BOX_NAME=$1
     local USER_DATA_PATH=$2
 
-    local restart_times=$3
+    local restart_times=3 # 默认最大重启次数为三次
+    if [ $# -ge 3 ]; then
+        restart_times=$3
+    fi
 
-    local ENABLE_SOFT_RENDER=$4
+    local ENABLE_HARD_DECODE=0
+    if [ $# -ge 4 ]; then
+        ENABLE_HARD_DECODE=$4
+    fi
 
-    local ENABLE_HARD_DECODE=$5
 
     set +e
     if [ -z ${USER_DATA_PATH} ]; then
@@ -864,7 +867,7 @@ function restart_box() {
             check_wait_cmd_result "${cmd}" "${result}"
             if [ "${result}" == "1" ]; then
                 # 等待容器启动完成
-                check_key_process ${BOX_NAME} ${ENABLE_SOFT_RENDER}
+                check_key_process ${BOX_NAME}
                 [ ${?} -ne 0 ] && echo "${BOX_NAME} check key process fail" && should_restart=1
                 break
             fi

@@ -197,8 +197,8 @@ function wait_container_ready() {
             local cmd="docker exec -i $1 getprop sys.boot_completed | grep 1 &"
             local result=$(bash $CURRENT_DIR/base_box.sh wait_async_cmd "${cmd}")
             if [ "${result}" == "1" ]; then
-                bash $CURRENT_DIR/base_box.sh chk_key_process ${CONTAINER_NAME} ${ENABLE_SOFT_RENDER}
-                [ ${?} -ne 0 ] && has_restart=1 && bash $CURRENT_DIR/base_box.sh restart "${CONTAINER_NAME}" "$MOUNT_DIR" 2 ${ENABLE_SOFT_RENDER}
+                bash $CURRENT_DIR/base_box.sh chk_key_process ${CONTAINER_NAME}
+                [ ${?} -ne 0 ] && has_restart=1 && bash $CURRENT_DIR/base_box.sh restart "${CONTAINER_NAME}" "$MOUNT_DIR" 2
                 [ ${?} -eq 1 ] && [ $has_restart -eq 1 ] && echo "${KBOX_NAME} started failed at $(date +'%Y-%m-%d %H:%M:%S')!" && res=1 && break
 
                 echo "${KBOX_NAME} started successfully at $(date +'%Y-%m-%d %H:%M:%S')!"
@@ -486,6 +486,8 @@ function main() {
         exit 1
     fi
 
+    export ENABLE_ONLY64_KBOX
+
     if [ $1 = "start" ];then
         local MIN=$3 MAX=$4
         if [ -z $4 ]; then
@@ -528,7 +530,7 @@ function main() {
                 set +e
                 enable_hard_decoder $TAG_NUMBER
                 local MOUNT_DIR=${KBOX_MOUNT_MAP[TAG_NUMBER - 1]}
-                bash $CURRENT_DIR/base_box.sh restart "kbox_$TAG_NUMBER" "$MOUNT_DIR" 3 ${ENABLE_SOFT_RENDER} ${ENABLE_HARD_DECODE}
+                bash $CURRENT_DIR/base_box.sh restart "kbox_$TAG_NUMBER" "$MOUNT_DIR" 3 ${ENABLE_HARD_DECODE}
                 [ ${?} -eq 1 ] && continue
 
                 enable_netint "kbox_$TAG_NUMBER"
@@ -547,6 +549,7 @@ function main() {
             fi
         done
     fi
+    unset ENABLE_ONLY64_KBOX
 }
 
 check_environment
