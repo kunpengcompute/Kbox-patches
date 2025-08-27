@@ -1,0 +1,296 @@
+<domain type='kvm'>
+  <name>vm0</name>
+  <memory unit='KiB'>209715200</memory>
+  <currentMemory unit='KiB'>209715200</currentMemory>
+  <memoryBacking>
+    <hugepages/>
+  </memoryBacking>
+  <vcpu placement='static'>80</vcpu>
+  <cputune>
+    <vcpupin vcpu='0' cpuset='80'/>
+    <vcpupin vcpu='1' cpuset='81'/>
+    <vcpupin vcpu='2' cpuset='82'/>
+    <vcpupin vcpu='3' cpuset='83'/>
+    <vcpupin vcpu='4' cpuset='84'/>
+    <vcpupin vcpu='5' cpuset='85'/>
+    <vcpupin vcpu='6' cpuset='86'/>
+    <vcpupin vcpu='7' cpuset='87'/>
+    <vcpupin vcpu='8' cpuset='88'/>
+    <vcpupin vcpu='9' cpuset='89'/>
+    <vcpupin vcpu='10' cpuset='90'/>
+    <vcpupin vcpu='11' cpuset='91'/>
+    <vcpupin vcpu='12' cpuset='92'/>
+    <vcpupin vcpu='13' cpuset='93'/>
+    <vcpupin vcpu='14' cpuset='94'/>
+    <vcpupin vcpu='15' cpuset='95'/>
+    <vcpupin vcpu='16' cpuset='96'/>
+    <vcpupin vcpu='17' cpuset='97'/>
+    <vcpupin vcpu='18' cpuset='98'/>
+    <vcpupin vcpu='19' cpuset='99'/>
+    <vcpupin vcpu='20' cpuset='100'/>
+    <vcpupin vcpu='21' cpuset='101'/>
+    <vcpupin vcpu='22' cpuset='102'/>
+    <vcpupin vcpu='23' cpuset='103'/>
+    <vcpupin vcpu='24' cpuset='104'/>
+    <vcpupin vcpu='25' cpuset='105'/>
+    <vcpupin vcpu='26' cpuset='106'/>
+    <vcpupin vcpu='27' cpuset='107'/>
+    <vcpupin vcpu='28' cpuset='108'/>
+    <vcpupin vcpu='29' cpuset='109'/>
+    <vcpupin vcpu='30' cpuset='110'/>
+    <vcpupin vcpu='31' cpuset='111'/>
+    <vcpupin vcpu='32' cpuset='112'/>
+    <vcpupin vcpu='33' cpuset='113'/>
+    <vcpupin vcpu='34' cpuset='114'/>
+    <vcpupin vcpu='35' cpuset='115'/>
+    <vcpupin vcpu='36' cpuset='116'/>
+    <vcpupin vcpu='37' cpuset='117'/>
+    <vcpupin vcpu='38' cpuset='118'/>
+    <vcpupin vcpu='39' cpuset='119'/>
+    <vcpupin vcpu='40' cpuset='120'/>
+    <vcpupin vcpu='41' cpuset='121'/>
+    <vcpupin vcpu='42' cpuset='122'/>
+    <vcpupin vcpu='43' cpuset='123'/>
+    <vcpupin vcpu='44' cpuset='124'/>
+    <vcpupin vcpu='45' cpuset='125'/>
+    <vcpupin vcpu='46' cpuset='126'/>
+    <vcpupin vcpu='47' cpuset='127'/>
+    <vcpupin vcpu='48' cpuset='128'/>
+    <vcpupin vcpu='49' cpuset='129'/>
+    <vcpupin vcpu='50' cpuset='130'/>
+    <vcpupin vcpu='51' cpuset='131'/>
+    <vcpupin vcpu='52' cpuset='132'/>
+    <vcpupin vcpu='53' cpuset='133'/>
+    <vcpupin vcpu='54' cpuset='134'/>
+    <vcpupin vcpu='55' cpuset='135'/>
+    <vcpupin vcpu='56' cpuset='136'/>
+    <vcpupin vcpu='57' cpuset='137'/>
+    <vcpupin vcpu='58' cpuset='138'/>
+    <vcpupin vcpu='59' cpuset='139'/>
+    <vcpupin vcpu='60' cpuset='140'/>
+    <vcpupin vcpu='61' cpuset='141'/>
+    <vcpupin vcpu='62' cpuset='142'/>
+    <vcpupin vcpu='63' cpuset='143'/>
+    <vcpupin vcpu='64' cpuset='144'/>
+    <vcpupin vcpu='65' cpuset='145'/>
+    <vcpupin vcpu='66' cpuset='146'/>
+    <vcpupin vcpu='67' cpuset='147'/>
+    <vcpupin vcpu='68' cpuset='148'/>
+    <vcpupin vcpu='69' cpuset='149'/>
+    <vcpupin vcpu='70' cpuset='150'/>
+    <vcpupin vcpu='71' cpuset='151'/>
+    <vcpupin vcpu='72' cpuset='152'/>
+    <vcpupin vcpu='73' cpuset='153'/>
+    <vcpupin vcpu='74' cpuset='154'/>
+    <vcpupin vcpu='75' cpuset='155'/>
+    <vcpupin vcpu='76' cpuset='156'/>
+    <vcpupin vcpu='77' cpuset='157'/>
+    <vcpupin vcpu='78' cpuset='158'/>
+    <vcpupin vcpu='79' cpuset='159'/>
+    <emulatorpin cpuset='80-159'/>
+  </cputune>
+  <numatune>
+    <memory mode='strict' nodeset='1'/>
+  </numatune>
+  <os>
+    <type arch='aarch64' machine='virt-6.2'>hvm</type>
+    <loader readonly='yes' type='pflash'>/usr/share/edk2/aarch64/QEMU_EFI-pflash.raw</loader>
+    <nvram>/var/lib/libvirt/qemu/nvram/vm0_VARS.fd</nvram>
+    <boot dev='hd'/>
+  </os>
+  <features>
+    <acpi/>
+    <gic version='3'/>
+  </features>
+  <cpu mode='host-passthrough' check='none'>
+    <topology sockets='1' dies='1' clusters='10' cores='4' threads='2'/>
+  </cpu>
+  <clock offset='utc'/>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>restart</on_reboot>
+  <on_crash>destroy</on_crash>
+  <devices>
+    <emulator>/usr/libexec/qemu-kvm</emulator>
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2'/>
+      <source file='/home/virtualMachine/vm0.qcow2'/>
+      <target dev='sda' bus='scsi'/>
+      <address type='drive' controller='0' bus='0' target='0' unit='0'/>
+    </disk>
+    <disk type='file' device='cdrom'>
+      <driver name='qemu' type='raw'/>
+      <target dev='sdb' bus='scsi'/>
+      <readonly/>
+      <address type='drive' controller='0' bus='0' target='0' unit='1'/>
+    </disk>
+    <disk type='block' device='disk'>
+      <driver name='qemu' type='raw' cache='none' io='native'/>
+      <source dev='/dev/nvme0n1p2'/>
+      <target dev='vda' bus='virtio'/>
+      <address type='pci' domain='0x0000' bus='0x10' slot='0x00' function='0x0'/>
+    </disk>
+    <controller type='usb' index='0' model='qemu-xhci' ports='15'>
+      <address type='pci' domain='0x0000' bus='0x02' slot='0x00' function='0x0'/>
+    </controller>
+    <controller type='scsi' index='0' model='virtio-scsi'>
+      <address type='pci' domain='0x0000' bus='0x03' slot='0x00' function='0x0'/>
+    </controller>
+    <controller type='pci' index='0' model='pcie-root'/>
+    <controller type='pci' index='1' model='pcie-root-port'>
+      <model name='pcie-root-port'/>
+      <target chassis='1' port='0x8'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x0' multifunction='on'/>
+    </controller>
+    <controller type='pci' index='2' model='pcie-root-port'>
+      <model name='pcie-root-port'/>
+      <target chassis='2' port='0x9'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x1'/>
+    </controller>
+    <controller type='pci' index='3' model='pcie-root-port'>
+      <model name='pcie-root-port'/>
+      <target chassis='3' port='0xa'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x2'/>
+    </controller>
+    <controller type='pci' index='4' model='pcie-root-port'>
+      <model name='pcie-root-port'/>
+      <target chassis='4' port='0xb'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x3'/>
+    </controller>
+    <controller type='pci' index='5' model='pcie-root-port'>
+      <model name='pcie-root-port'/>
+      <target chassis='5' port='0xc'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x4'/>
+    </controller>
+    <controller type='pci' index='6' model='pcie-root-port'>
+      <model name='pcie-root-port'/>
+      <target chassis='6' port='0xd'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x5'/>
+    </controller>
+    <controller type='pci' index='7' model='pcie-root-port'>
+      <model name='pcie-root-port'/>
+      <target chassis='7' port='0xe'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x6'/>
+    </controller>
+    <controller type='pci' index='8' model='pcie-root-port'>
+      <model name='pcie-root-port'/>
+      <target chassis='8' port='0xf'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x7'/>
+    </controller>
+    <controller type='pci' index='9' model='pcie-root-port'>
+      <model name='pcie-root-port'/>
+      <target chassis='9' port='0x10'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0' multifunction='on'/>
+    </controller>
+    <controller type='pci' index='10' model='pcie-root-port'>
+      <model name='pcie-root-port'/>
+      <target chassis='10' port='0x11'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x1'/>
+    </controller>
+    <controller type='pci' index='11' model='pcie-root-port'>
+      <model name='pcie-root-port'/>
+      <target chassis='11' port='0x12'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x2'/>
+    </controller>
+    <controller type='pci' index='12' model='pcie-root-port'>
+      <model name='pcie-root-port'/>
+      <target chassis='12' port='0x13'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x3'/>
+    </controller>
+    <controller type='pci' index='13' model='pcie-root-port'>
+      <model name='pcie-root-port'/>
+      <target chassis='13' port='0x14'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x4'/>
+    </controller>
+    <controller type='pci' index='14' model='pcie-root-port'>
+      <model name='pcie-root-port'/>
+      <target chassis='14' port='0x15'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x5'/>
+    </controller>
+    <controller type='pci' index='15' model='pcie-root-port'>
+      <model name='pcie-root-port'/>
+      <target chassis='15' port='0x16'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x6'/>
+    </controller>
+    <controller type='pci' index='16' model='pcie-root-port'>
+      <model name='pcie-root-port'/>
+      <target chassis='16' port='0x17'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x7'/>
+    </controller>
+    <controller type='virtio-serial' index='0'>
+      <address type='pci' domain='0x0000' bus='0x04' slot='0x00' function='0x0'/>
+    </controller>
+    <serial type='pty'>
+      <target type='system-serial' port='0'>
+        <model name='pl011'/>
+      </target>
+    </serial>
+    <console type='pty'>
+      <target type='serial' port='0'/>
+    </console>
+    <channel type='unix'>
+      <target type='virtio' name='org.qemu.guest_agent.0'/>
+      <address type='virtio-serial' controller='0' bus='0' port='1'/>
+    </channel>
+    <input type='keyboard' bus='usb'>
+      <address type='usb' bus='0' port='1'/>
+    </input>
+    <input type='tablet' bus='virtio'>
+      <address type='pci' domain='0x0000' bus='0x0f' slot='0x00' function='0x0'/>
+    </input>
+    <hostdev mode='subsystem' type='pci' managed='yes'>
+      <source>
+        <address domain='0x0000' bus='0x17' slot='0x00' function='0x0'/>
+      </source>
+      <address type='pci' domain='0x0000' bus='0x05' slot='0x00' function='0x0'/>
+    </hostdev>
+    <hostdev mode='subsystem' type='pci' managed='yes'>
+      <source>
+        <address domain='0x0000' bus='0x17' slot='0x00' function='0x1'/>
+      </source>
+      <address type='pci' domain='0x0000' bus='0x06' slot='0x00' function='0x0'/>
+    </hostdev>
+    <hostdev mode='subsystem' type='pci' managed='yes'>
+      <source>
+        <address domain='0x0000' bus='0x17' slot='0x00' function='0x2'/>
+      </source>
+      <address type='pci' domain='0x0000' bus='0x07' slot='0x00' function='0x0'/>
+    </hostdev>
+    <hostdev mode='subsystem' type='pci' managed='yes'>
+      <source>
+        <address domain='0x0000' bus='0x17' slot='0x00' function='0x3'/>
+      </source>
+      <address type='pci' domain='0x0000' bus='0x08' slot='0x00' function='0x0'/>
+    </hostdev>
+    <hostdev mode='subsystem' type='pci' managed='yes'>
+      <source>
+        <address domain='0x0000' bus='0x18' slot='0x00' function='0x0'/>
+      </source>
+      <address type='pci' domain='0x0000' bus='0x09' slot='0x00' function='0x0'/>
+    </hostdev>
+    <hostdev mode='subsystem' type='pci' managed='yes'>
+      <source>
+        <address domain='0x0000' bus='0x18' slot='0x00' function='0x1'/>
+      </source>
+      <address type='pci' domain='0x0000' bus='0x0a' slot='0x00' function='0x0'/>
+    </hostdev>
+    <hostdev mode='subsystem' type='pci' managed='yes'>
+      <source>
+        <address domain='0x0000' bus='0x18' slot='0x00' function='0x2'/>
+      </source>
+      <address type='pci' domain='0x0000' bus='0x0b' slot='0x00' function='0x0'/>
+    </hostdev>
+    <hostdev mode='subsystem' type='pci' managed='yes'>
+      <source>
+        <address domain='0x0000' bus='0x18' slot='0x00' function='0x3'/>
+      </source>
+      <address type='pci' domain='0x0000' bus='0x0c' slot='0x00' function='0x0'/>
+    </hostdev>
+    <hostdev mode='subsystem' type='pci' managed='yes'>
+      <source>
+        <address domain='0x0000' bus='0x75' slot='0x01' function='0x1'/>
+      </source>
+      <address type='pci' domain='0x0000' bus='0x0d' slot='0x00' function='0x0'/>
+    </hostdev>
+  </devices>
+</domain>
+
