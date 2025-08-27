@@ -15,7 +15,7 @@
 #   示例： ./kbox_install_kernel.sh /home/kbox_packages/
 # 4.若使用"本地模式"运行脚本，需提前上传以下文件到${packages_dir}目录下：("联网模式"无需上传)
 #   [1] linux-firmware-20210919.tar.gz (仅amdgpu需要)
-#   [2] kernel-5.10.0-136.12.0.zip 或 kernel-5.10.0-182.0.0.zip
+#   [2] kernel-5.10.0-136.12.0.zip 或 kernel-5.10.0-182.0.0.zip 或 kernel-5.10.0-216.0.0.zip
 #   [3] ExaGear_ARM32-ARM64_V2.5.tar.gz
 # ******************************************************************************** #
 
@@ -38,8 +38,10 @@ OS_MINOR_VERSION=$(cat /etc/os-release | grep -w VERSION | awk -F '[" ]' '{print
 if [ ${OS_MINOR_VERSION} = "LTS-SP1" ]
 then
     KERNEL_VERSION="5.10.0-136.12.0"
-else
+elif [ ${OS_MINOR_VERSION} = "LTS-SP3" ]
     KERNEL_VERSION="5.10.0-182.0.0"
+else
+    KERNEL_VERSION="5.10.0-216.0.0"
 fi
 
 exagear_bin_src="https://kunpeng-repo.obs.cn-north-4.myhuaweicloud.com/Exagear ARM32-ARM64/Exagear ARM32-ARM64 202.0.0/ExaGear_ARM32-ARM64_V2.5.tar.gz"
@@ -341,7 +343,7 @@ function build_install_kernel(){
                 grub_cmdline="$grub_cmdline $p"
             fi
         done
-        sed -i "s/^GRUB_CMDLINE_LINUX=.*/GRUB_CMDLINE_LINUX=\"$grub_cmdline\"/" /etc/default/grub
+        sed -i "s#^GRUB_CMDLINE_LINUX=.*#GRUB_CMDLINE_LINUX=\"$grub_cmdline\"#g" /etc/default/grub
     fi
     sed -i "s/GRUB_DEFAULT=.*/GRUB_DEFAULT=saved/g" /etc/default/grub
     grub2-mkconfig -o /boot/efi/EFI/openEuler/grub.cfg
