@@ -1,5 +1,5 @@
 diff --git a/lmkd.cpp b/lmkd.cpp
-index 3515fdb..c240c58 100644
+index 3515fdb..0450872 100644
 --- a/lmkd.cpp
 +++ b/lmkd.cpp
 @@ -37,6 +37,7 @@
@@ -62,7 +62,31 @@ index 3515fdb..c240c58 100644
  };
  
  /* Fields to parse in /proc/meminfo */
-@@ -451,6 +454,7 @@ enum vmstat_field {
+@@ -382,6 +385,7 @@ enum meminfo_field {
+     MI_UNEVICTABLE,
+     MI_TOTAL_SWAP,
+     MI_FREE_SWAP,
++    MI_DIRTY,
+     MI_ACTIVE_ANON,
+     MI_INACTIVE_ANON,
+     MI_ACTIVE_FILE,
+@@ -405,6 +409,7 @@ static const char* const meminfo_field_names[MI_FIELD_COUNT] = {
+     "Unevictable:",
+     "SwapTotal:",
+     "SwapFree:",
++    "Dirty:",
+     "Active(anon):",
+     "Inactive(anon):",
+     "Active(file):",
+@@ -428,6 +433,7 @@ union meminfo {
+         int64_t unevictable;
+         int64_t total_swap;
+         int64_t free_swap;
++        int64_t dirty;
+         int64_t active_anon;
+         int64_t inactive_anon;
+         int64_t active_file;
+@@ -451,6 +457,7 @@ enum vmstat_field {
      VS_INACTIVE_FILE,
      VS_ACTIVE_FILE,
      VS_WORKINGSET_REFAULT,
@@ -70,7 +94,7 @@ index 3515fdb..c240c58 100644
      VS_PGSCAN_KSWAPD,
      VS_PGSCAN_DIRECT,
      VS_PGSCAN_DIRECT_THROTTLE,
-@@ -462,6 +466,7 @@ static const char* const vmstat_field_names[MI_FIELD_COUNT] = {
+@@ -462,6 +469,7 @@ static const char* const vmstat_field_names[MI_FIELD_COUNT] = {
      "nr_inactive_file",
      "nr_active_file",
      "workingset_refault",
@@ -78,7 +102,7 @@ index 3515fdb..c240c58 100644
      "pgscan_kswapd",
      "pgscan_direct",
      "pgscan_direct_throttle",
-@@ -473,6 +478,7 @@ union vmstat {
+@@ -473,6 +481,7 @@ union vmstat {
          int64_t nr_inactive_file;
          int64_t nr_active_file;
          int64_t workingset_refault;
@@ -86,7 +110,7 @@ index 3515fdb..c240c58 100644
          int64_t pgscan_kswapd;
          int64_t pgscan_direct;
          int64_t pgscan_direct_throttle;
-@@ -516,6 +522,11 @@ static struct adjslot_list procadjslot_list[ADJTOSLOT_COUNT];
+@@ -516,6 +525,11 @@ static struct adjslot_list procadjslot_list[ADJTOSLOT_COUNT];
  
  #define MAX_DISTINCT_OOM_ADJ 32
  #define KILLCNT_INVALID_IDX 0xFF
@@ -98,7 +122,7 @@ index 3515fdb..c240c58 100644
  /*
   * Because killcnt array is sparse a two-level indirection is used
   * to keep the size small. killcnt_idx stores index of the element in
-@@ -537,6 +548,14 @@ static int clamp(int low, int high, int value) {
+@@ -537,6 +551,14 @@ static int clamp(int low, int high, int value) {
      return max(min(value, high), low);
  }
  
@@ -113,7 +137,7 @@ index 3515fdb..c240c58 100644
  static bool parse_int64(const char* str, int64_t* ret) {
      char* endptr;
      long long val = strtoll(str, &endptr, 10);
-@@ -1563,8 +1582,8 @@ static void zoneinfo_parse_protection(char *buf, struct zoneinfo_zone *zone) {
+@@ -1563,8 +1585,8 @@ static void zoneinfo_parse_protection(char *buf, struct zoneinfo_zone *zone) {
  }
  
  static int zoneinfo_parse_zone(char **buf, struct zoneinfo_zone *zone) {
@@ -124,7 +148,7 @@ index 3515fdb..c240c58 100644
          char *cp;
          char *ap;
          char *save_ptr;
-@@ -1617,8 +1636,8 @@ static int zoneinfo_parse_zone(char **buf, struct zoneinfo_zone *zone) {
+@@ -1617,8 +1639,8 @@ static int zoneinfo_parse_zone(char **buf, struct zoneinfo_zone *zone) {
  static int zoneinfo_parse_node(char **buf, struct zoneinfo_node *node) {
      int fields_to_match = ZI_NODE_FIELD_COUNT;
  
@@ -135,7 +159,7 @@ index 3515fdb..c240c58 100644
          char *cp;
          char *ap;
          char *save_ptr;
-@@ -1671,8 +1690,8 @@ static int zoneinfo_parse(struct zoneinfo *zi) {
+@@ -1671,8 +1693,8 @@ static int zoneinfo_parse(struct zoneinfo *zi) {
          return -1;
      }
  
@@ -146,7 +170,7 @@ index 3515fdb..c240c58 100644
          int node_id;
          if (sscanf(line, "Node %d, zone %" STRINGIFY(LINE_MAX) "s", &node_id, zone_name) == 2) {
              if (!node || node->id != node_id) {
-@@ -1719,7 +1738,6 @@ static int zoneinfo_parse(struct zoneinfo *zi) {
+@@ -1719,7 +1741,6 @@ static int zoneinfo_parse(struct zoneinfo *zi) {
          }
          zi->total_inactive_file += node->fields.field.nr_inactive_file;
          zi->total_active_file += node->fields.field.nr_active_file;
@@ -154,7 +178,7 @@ index 3515fdb..c240c58 100644
      }
      return 0;
  }
-@@ -1766,8 +1784,8 @@ static int meminfo_parse(union meminfo *mi) {
+@@ -1766,8 +1787,8 @@ static int meminfo_parse(union meminfo *mi) {
          return -1;
      }
  
@@ -165,7 +189,7 @@ index 3515fdb..c240c58 100644
          if (!meminfo_parse_line(line, mi)) {
              ALOGE("%s parse error", file_data.filename);
              return -1;
-@@ -1821,8 +1839,8 @@ static int vmstat_parse(union vmstat *vs) {
+@@ -1821,8 +1842,8 @@ static int vmstat_parse(union vmstat *vs) {
          return -1;
      }
  
@@ -176,7 +200,17 @@ index 3515fdb..c240c58 100644
          if (!vmstat_parse_line(line, vs)) {
              ALOGE("%s parse error", file_data.filename);
              return -1;
-@@ -2341,6 +2359,7 @@ static void mp_event_psi(int data, uint32_t events, struct polling_params *poll_
+@@ -2274,7 +2295,8 @@ struct zone_watermarks {
+ static enum zone_watermark get_lowest_watermark(union meminfo *mi,
+                                                 struct zone_watermarks *watermarks)
+ {
+-    int64_t nr_free_pages = mi->field.nr_free_pages - mi->field.cma_free;
++    // 计算空闲内存大小加上Cache中可立即回收的部分即非脏内存的部分
++    int64_t nr_free_pages = mi->field.nr_free_pages - mi->field.cma_free + mi->field.cached - mi->field.dirty;
+ 
+     if (nr_free_pages < watermarks->min_wmark) {
+         return WMARK_MIN;
+@@ -2341,6 +2363,7 @@ static void mp_event_psi(int data, uint32_t events, struct polling_params *poll_
      bool cut_thrashing_limit = false;
      int min_score_adj = 0;
      long since_thrashing_reset_ms;
@@ -184,7 +218,7 @@ index 3515fdb..c240c58 100644
  
      if (clock_gettime(CLOCK_MONOTONIC_COARSE, &curr_tm) != 0) {
          ALOGE("Failed to get current time");
-@@ -2366,6 +2385,8 @@ static void mp_event_psi(int data, uint32_t events, struct polling_params *poll_
+@@ -2366,6 +2389,8 @@ static void mp_event_psi(int data, uint32_t events, struct polling_params *poll_
          ALOGE("Failed to parse vmstat!");
          return;
      }
@@ -193,7 +227,7 @@ index 3515fdb..c240c58 100644
  
      if (meminfo_parse(&mi) < 0) {
          ALOGE("Failed to parse meminfo!");
-@@ -2378,7 +2399,7 @@ static void mp_event_psi(int data, uint32_t events, struct polling_params *poll_
+@@ -2378,7 +2403,7 @@ static void mp_event_psi(int data, uint32_t events, struct polling_params *poll_
          cycle_after_kill = true;
          /* Reset file-backed pagecache size and refault amounts after a kill */
          base_file_lru = vs.field.nr_inactive_file + vs.field.nr_active_file;
@@ -202,7 +236,7 @@ index 3515fdb..c240c58 100644
          thrashing_reset_tm = curr_tm;
          prev_thrash_growth = 0;
      }
-@@ -2388,7 +2409,7 @@ static void mp_event_psi(int data, uint32_t events, struct polling_params *poll_
+@@ -2388,7 +2413,7 @@ static void mp_event_psi(int data, uint32_t events, struct polling_params *poll_
          if (!swap_low_threshold) {
              swap_low_threshold = mi.field.total_swap * swap_free_low_percentage / 100;
          }
@@ -211,7 +245,7 @@ index 3515fdb..c240c58 100644
      }
  
      /* Identify reclaim state */
-@@ -2399,12 +2420,12 @@ static void mp_event_psi(int data, uint32_t events, struct polling_params *poll_
+@@ -2399,12 +2424,12 @@ static void mp_event_psi(int data, uint32_t events, struct polling_params *poll_
      } else if (vs.field.pgscan_kswapd > init_pgscan_kswapd) {
          init_pgscan_kswapd = vs.field.pgscan_kswapd;
          reclaim = KSWAPD_RECLAIM;
@@ -226,7 +260,7 @@ index 3515fdb..c240c58 100644
  
       /*
       * It's possible we fail to find an eligible process to kill (ex. no process is
-@@ -2421,7 +2442,7 @@ static void mp_event_psi(int data, uint32_t events, struct polling_params *poll_
+@@ -2421,7 +2446,7 @@ static void mp_event_psi(int data, uint32_t events, struct polling_params *poll_
      if (since_thrashing_reset_ms > THRASHING_RESET_INTERVAL_MS) {
          long windows_passed;
          /* Calculate prev_thrash_growth if we crossed THRASHING_RESET_INTERVAL_MS */
@@ -235,7 +269,7 @@ index 3515fdb..c240c58 100644
                              / (base_file_lru + 1);
          windows_passed = (since_thrashing_reset_ms / THRASHING_RESET_INTERVAL_MS);
          /*
-@@ -2435,12 +2456,12 @@ static void mp_event_psi(int data, uint32_t events, struct polling_params *poll_
+@@ -2435,12 +2460,12 @@ static void mp_event_psi(int data, uint32_t events, struct polling_params *poll_
  
          /* Record file-backed pagecache size when crossing THRASHING_RESET_INTERVAL_MS */
          base_file_lru = vs.field.nr_inactive_file + vs.field.nr_active_file;
@@ -250,7 +284,7 @@ index 3515fdb..c240c58 100644
      }
      /* Add previous cycle's decayed thrashing amount */
      thrashing += prev_thrash_growth;
-@@ -2659,7 +2680,7 @@ static void mp_event_common(int data, uint32_t events, struct polling_params *po
+@@ -2659,7 +2684,7 @@ static void mp_event_common(int data, uint32_t events, struct polling_params *po
          kill_skip_count = 0;
      }
  
@@ -259,7 +293,7 @@ index 3515fdb..c240c58 100644
          ALOGE("Failed to get free memory!");
          return;
      }
-@@ -3101,6 +3122,8 @@ static int init(void) {
+@@ -3101,6 +3126,8 @@ static int init(void) {
          pidfd_supported = true;
          close(pidfd);
      }
@@ -268,7 +302,7 @@ index 3515fdb..c240c58 100644
      ALOGI("Process polling is %s", pidfd_supported ? "supported" : "not supported" );
  
      return 0;
-@@ -3154,12 +3177,136 @@ static void call_handler(struct event_handler_info* handler_info,
+@@ -3154,12 +3181,136 @@ static void call_handler(struct event_handler_info* handler_info,
      }
  }
  
@@ -405,7 +439,7 @@ index 3515fdb..c240c58 100644
  
      poll_params.poll_handler = NULL;
      poll_params.paused_handler = NULL;
-@@ -3185,7 +3332,6 @@ static void mainloop(void) {
+@@ -3185,7 +3336,6 @@ static void mainloop(void) {
  
                  /* Wait for events until the next polling timeout */
                  nevents = epoll_wait(epollfd, events, maxevents, delay);
@@ -413,7 +447,7 @@ index 3515fdb..c240c58 100644
                  /* Update current time after wait */
                  clock_gettime(CLOCK_MONOTONIC_COARSE, &curr_tm);
                  poll_now = (get_time_diff_ms(&poll_params.last_poll_tm, &curr_tm) >=
-@@ -3210,8 +3356,8 @@ static void mainloop(void) {
+@@ -3210,8 +3360,8 @@ static void mainloop(void) {
                      }
                  }
              } else {
@@ -424,7 +458,7 @@ index 3515fdb..c240c58 100644
              }
          }
  
-@@ -3251,6 +3397,17 @@ static void mainloop(void) {
+@@ -3251,6 +3401,17 @@ static void mainloop(void) {
                  call_handler(handler_info, &poll_params, evt->events);
              }
          }
