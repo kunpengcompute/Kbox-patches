@@ -8,12 +8,10 @@
 # 1.请确认脚本位于：Kbox-AOSP*/deploy_scripts/openEuler_deploy/
 # 2.需使用root用户或sudo命令执行此脚本
 # 3.脚本运行格式：
-#   [1] 联网模式：该模式下脚本会联网下载所需源码包
-#   ./kbox_install_kernel.sh
-#   [2] 本地模式：该模式下脚本会会从本地获取源码包，${packages_dir}即本地包所在目录的绝对路径，详见步骤4
+#   脚本会从本地获取源码包，${packages_dir}即本地包所在目录的绝对路径，详见步骤4
 #   ./kbox_install_kernel.sh ${packages_dir} 
 #   示例： ./kbox_install_kernel.sh /home/kbox_packages/
-# 4.若使用"本地模式"运行脚本，需提前上传以下文件到${packages_dir}目录下：("联网模式"无需上传)
+# 4.运行脚本，需提前上传以下文件到${packages_dir}目录下：
 #   [1] linux-firmware-20210919.tar.gz (仅amdgpu需要)
 #   [2] kernel-5.10.0-136.12.0.zip 或 kernel-5.10.0-182.0.0.zip 或 kernel-5.10.0-216.0.0.zip
 #   [3] ExaGear_ARM32-ARM64_V2.5.tar.gz
@@ -39,6 +37,7 @@ if [ ${OS_MINOR_VERSION} = "LTS-SP1" ]
 then
     KERNEL_VERSION="5.10.0-136.12.0"
 elif [ ${OS_MINOR_VERSION} = "LTS-SP3" ]
+then
     KERNEL_VERSION="5.10.0-182.0.0"
 else
     KERNEL_VERSION="5.10.0-216.0.0"
@@ -99,7 +98,7 @@ function check_local_packages(){
 function set_run_mode(){
     if [ $# -eq 0 ]
     then
-        run_mode="Download"
+    	error "The number of input parameters is incorrect. please provide package dir"
     elif [ $# -eq 1 ]
     then
         run_mode="Local"
