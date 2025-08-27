@@ -174,6 +174,7 @@ function prepare_kbox_binary()
     cp ${BinaryPath}/vinput/bin/vinput ${TMP_PACKAGE_DIR}/system/vendor/bin/
     cp ${BinaryPath}/vinput/vinput.rc ${TMP_PACKAGE_DIR}/system/vendor/etc/init/vinput.rc
 
+    cp ${BinaryPath}/RenderAccLayer/lib64/hw/AdaptiveVsync.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
     if [ -d ${BinaryPath}/RenderAccLayer ]; then
         [ $enable_only64_so -eq 1 ] || cp ${BinaryPath}/RenderAccLayer/lib/hw/RenderAccLayer.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
         cp ${BinaryPath}/RenderAccLayer/lib64/hw/RenderAccLayer.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/

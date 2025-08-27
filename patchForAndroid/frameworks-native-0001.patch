@@ -1,5 +1,18 @@
+diff --git a/cmds/installd/Android.bp b/cmds/installd/Android.bp
+index 8ff4dd862d..53c67e9ac9 100644
+--- a/cmds/installd/Android.bp
++++ b/cmds/installd/Android.bp
+@@ -9,6 +9,8 @@ cc_defaults {
+         "-Wunreachable-code",
+         "-Wunreachable-code-break",
+         "-Wunreachable-code-return",
++
++        "-DWITH_EXAGEAR",
+     ],
+     srcs: [
+         "CacheItem.cpp",
 diff --git a/cmds/installd/InstalldNativeService.cpp b/cmds/installd/InstalldNativeService.cpp
-index 01eb3fe..e923532 100644
+index 01eb3fe44f..1e1563df5e 100644
 --- a/cmds/installd/InstalldNativeService.cpp
 +++ b/cmds/installd/InstalldNativeService.cpp
 @@ -360,6 +360,8 @@ fail:
@@ -11,8 +24,291 @@ index 01eb3fe..e923532 100644
      return res;
  }
  
+@@ -2425,6 +2427,22 @@ binder::Status InstalldNativeService::dexopt(const std::string& apkPath, int32_t
+     return res ? error(res, error_msg) : ok();
+ }
+ 
++binder::Status InstalldNativeService::exagearPretranslate(const std::string& path, int32_t uid, bool bootComplete, bool isApk) {
++#ifdef WITH_EXAGEAR
++    ENFORCE_UID(AID_SYSTEM);
++    std::lock_guard<std::recursive_mutex> lock(mLock);
++
++    int res = android::installd::exagear_pretranslate(path.c_str(), uid, bootComplete, isApk, false);
++    return res ? error(res, "Failed to pre-translate for exagear") : ok();
++#else
++    (void)path;
++    (void)uid;
++    (void)bootComplete;
++    (void)isApk;
++    return error(-1, "ExaGear is not enabled for this device");
++#endif
++}
++
+ binder::Status InstalldNativeService::compileLayouts(const std::string& apkPath,
+                                                      const std::string& packageName,
+                                                      const std ::string& outDexFile, int uid,
+diff --git a/cmds/installd/InstalldNativeService.h b/cmds/installd/InstalldNativeService.h
+index 8e7d98b9a1..9230bebd1f 100644
+--- a/cmds/installd/InstalldNativeService.h
++++ b/cmds/installd/InstalldNativeService.h
+@@ -116,6 +116,8 @@ public:
+             const std::unique_ptr<std::string>& dexMetadataPath,
+             const std::unique_ptr<std::string>& compilationReason);
+ 
++    binder::Status exagearPretranslate(const std::string& path, int32_t uid, bool bootComplete, bool isApk);
++
+     binder::Status compileLayouts(const std::string& apkPath, const std::string& packageName,
+                                   const std::string& outDexFile, int uid, bool* _aidl_return);
+ 
+diff --git a/cmds/installd/binder/android/os/IInstalld.aidl b/cmds/installd/binder/android/os/IInstalld.aidl
+index eeda6c5855..a2af2d86f0 100644
+--- a/cmds/installd/binder/android/os/IInstalld.aidl
++++ b/cmds/installd/binder/android/os/IInstalld.aidl
+@@ -69,6 +69,8 @@ interface IInstalld {
+     boolean compileLayouts(@utf8InCpp String apkPath, @utf8InCpp String packageName,
+             @utf8InCpp String outDexFile, int uid);
+ 
++    void exagearPretranslate(@utf8InCpp String path, int uid, boolean bootComplete, boolean isApk);
++
+     void rmdex(@utf8InCpp String codePath, @utf8InCpp String instructionSet);
+ 
+     boolean mergeProfiles(int uid, @utf8InCpp String packageName, @utf8InCpp String profileName);
+diff --git a/cmds/installd/dexopt.cpp b/cmds/installd/dexopt.cpp
+index ffa87249e2..84ebcb09cc 100644
+--- a/cmds/installd/dexopt.cpp
++++ b/cmds/installd/dexopt.cpp
+@@ -2277,8 +2277,202 @@ int dexopt(const char* dex_path, uid_t uid, const char* pkgname, const char* ins
+     image_fd.SetCleanup(false);
+     reference_profile_fd.SetCleanup(false);
+ 
++#ifdef WITH_EXAGEAR
++    if (!strcmp(instruction_set, "arm") && property_get_bool("exagear.pretrans.odex", false)) {
++        exagear_pretranslate(out_oat_path, uid, boot_complete, false, true);
++    }
++#endif
++
++    return 0;
++}
++
++#ifdef WITH_EXAGEAR
++int exagear_pretranslate(const char* path, uid_t uid, bool boot_complete, bool is_apk, bool is_oat) {
++    // Open the input file.
++    unique_fd input_fd(open(path, O_RDONLY, 0));
++    if (input_fd.get() < 0) {
++        ALOGE("installd cannot open '%s' for input during exagear pretranslation\n", path);
++        return -1;
++    }
++
++    // Open any existing exagear file for the signature check. We need to do this
++    // before opening the output file since that will delete the existing file.
++    std::string output_path(path);
++    output_path += ".exagear";
++    if (!is_oat) {
++        unique_fd prev_output_fd(open(output_path.c_str(), O_RDONLY, 0));
++
++        // Check if we can re-use the existing ExaGear file
++        if (prev_output_fd.get() != -1) {
++            pid_t pid = fork();
++            if (pid == 0) {
++                /* child -- drop privileges before continuing */
++                drop_capabilities(uid);
++
++                SetDex2OatScheduling(boot_complete);
++                if (flock(prev_output_fd.get(), LOCK_EX | LOCK_NB) != 0) {
++                    ALOGE("flock(%s) failed: %s\n", output_path.c_str(), strerror(errno));
++                    _exit(67);
++                }
++
++                static const char* EXAGEAR_PRETRANSLATOR_BIN = "/system/bin/preubt_a32a64";
++                std::string input_arg = "--input-fd=" + std::to_string(input_fd.get());
++                std::string output_arg = "--output-fd=" + std::to_string(prev_output_fd.get());
++                std::string input_path_arg = "--input-file-name=" + std::string(path);
++                std::string output_path_arg = "--output-file-name=" + output_path;
++                std::vector<const char*> args;
++                args.push_back(EXAGEAR_PRETRANSLATOR_BIN);
++                args.push_back("--check-signature");
++                if (is_apk)
++                    args.push_back("--apk");
++                args.push_back(input_arg.c_str());
++                args.push_back(output_arg.c_str());
++                args.push_back(input_path_arg.c_str());
++                args.push_back(output_path_arg.c_str());
++                args.push_back(NULL);
++
++                ALOGV("Running %s --check-signature in=%s out=%s\n", EXAGEAR_PRETRANSLATOR_BIN, path, output_path.c_str());
++                execv(EXAGEAR_PRETRANSLATOR_BIN, (char * const *)args.data());
++                ALOGE("execv(%s) failed: %s\n", EXAGEAR_PRETRANSLATOR_BIN, strerror(errno));
++                _exit(68);
++            } else {
++                int res = wait_child(pid);
++                if (res == 0) {
++                    // Signature check passed, output file is up-to-date
++                    ALOGV("ExaGear: --- SKIP '%s' (signature check passed) ---\n", path);
++                    return 0;
++                }
++            }
++        }
++    }
++
++    // Create the output file.
++    Dex2oatFileWrapper output_fd(
++            open_output_file(output_path.c_str(), /*recreate*/true, /*permissions*/0644),
++            [output_path]() { unlink(output_path.c_str()); });
++    if (output_fd.get() < 0) {
++        PLOG(ERROR) << "installd cannot open output during exagear pre-translation: " << output_path;
++        return -1;
++    }
++
++    // Copy the ownership & permissions from the input file
++    struct stat buf;
++    if (fstat(input_fd.get(), &buf) != 0) {
++        ALOGE("installd cannot fstat '%s' during exagear pre-translation\n", path);
++        return -1;
++    }
++    if (fchmod(output_fd.get(), buf.st_mode) != 0) {
++        ALOGE("installd cannot fchmod '%s' during exagear pre-translation\n", output_path.c_str());
++        return -1;
++    }
++    if (fchown(output_fd.get(), buf.st_uid, buf.st_gid) != 0) {
++        ALOGE("installd cannot fchown '%s' during exagear pre-translation\n", output_path.c_str());
++        return -1;
++    }
++
++    // If this is an OAT file, use oatdump to get ELF symbols for it
++    Dex2oatFileWrapper symbol_fd;
++    if (is_oat) {
++        std::string symbol_path(path);
++        symbol_path += ".sym";
++        symbol_fd = Dex2oatFileWrapper(
++            open_output_file(symbol_path.c_str(), /*recreate*/true, /*permissions*/0600),
++            [symbol_path]() { unlink(symbol_path.c_str()); });
++        if (fchown(symbol_fd.get(), uid, uid) != 0) {
++            ALOGE("installd cannot fchown '%s' during exagear pre-translation\n", symbol_path.c_str());
++            return -1;
++        }
++
++        ALOGV("ExaGearSym: --- BEGIN '%s' ---\n", path);
++
++        pid_t pid = fork();
++        if (pid == 0) {
++            /* child -- drop privileges before continuing */
++            drop_capabilities(uid);
++
++            SetDex2OatScheduling(boot_complete);
++            if (flock(symbol_fd.get(), LOCK_EX | LOCK_NB) != 0) {
++                ALOGE("flock(%s) failed: %s\n", symbol_path.c_str(), strerror(errno));
++                _exit(67);
++            }
++
++            // We need to pass the full input path to oatdump so that it can
++            // find the corresponding .vdex file.
++            static const char* OATDUMP_BIN = "/apex/com.android.art/bin/oatdump";
++            std::string input_arg = "--symbolize=" + std::string(path);
++            std::string output_arg = "--output=/proc/self/fd/" + std::to_string(symbol_fd.get());
++            std::vector<const char*> args;
++            args.push_back(OATDUMP_BIN);
++            args.push_back(input_arg.c_str());
++            args.push_back(output_arg.c_str());
++            args.push_back(NULL);
++
++            ALOGV("Running %s in=%s out=%s\n", OATDUMP_BIN, path, symbol_path.c_str());
++            execv(OATDUMP_BIN, (char * const *)args.data());
++            ALOGE("execv(%s) failed: %s\n", OATDUMP_BIN, strerror(errno));
++            _exit(68);
++        } else {
++            int res = wait_child(pid);
++            if (res == 0) {
++                ALOGV("ExaGearSym: --- END '%s' (success) ---\n", path);
++            } else {
++                ALOGE("ExaGearSym: --- END '%s' --- status=0x%04x, process failed\n", path, res);
++                return res;
++            }
++        }
++    }
++
++    ALOGV("ExaGear: --- BEGIN '%s' ---\n", path);
++
++    pid_t pid = fork();
++    if (pid == 0) {
++        /* child -- drop privileges before continuing */
++        drop_capabilities(uid);
++
++        SetDex2OatScheduling(boot_complete);
++        if (flock(output_fd.get(), LOCK_EX | LOCK_NB) != 0) {
++            ALOGE("flock(%s) failed: %s\n", output_path.c_str(), strerror(errno));
++            _exit(67);
++        }
++
++        static const char* EXAGEAR_PRETRANSLATOR_BIN = "/system/bin/preubt_a32a64";
++        std::string input_arg = "--input-fd=" + std::to_string(input_fd.get());
++        std::string output_arg = "--output-fd=" + std::to_string(output_fd.get());
++        std::string input_path_arg = "--input-file-name=" + std::string(path);
++        std::string symbol_path_arg = "--extra-symbols=/proc/self/fd/" + std::to_string(symbol_fd.get());
++        std::string output_path_arg = "--output-file-name=" + output_path;
++        std::vector<const char*> args;
++        args.push_back(EXAGEAR_PRETRANSLATOR_BIN);
++        if (is_oat)
++            args.push_back("--force");
++        if (is_apk)
++            args.push_back("--apk");
++        args.push_back(input_arg.c_str());
++        args.push_back(output_arg.c_str());
++        args.push_back(input_path_arg.c_str());
++        if (is_oat)
++            args.push_back(symbol_path_arg.c_str());
++        args.push_back(output_path_arg.c_str());
++        args.push_back(NULL);
++
++        ALOGV("Running %s in=%s out=%s\n", EXAGEAR_PRETRANSLATOR_BIN, path, output_path.c_str());
++        execv(EXAGEAR_PRETRANSLATOR_BIN, (char * const *)args.data());
++        ALOGE("execv(%s) failed: %s\n", EXAGEAR_PRETRANSLATOR_BIN, strerror(errno));
++        _exit(68);
++    } else {
++        int res = wait_child(pid);
++        if (res == 0) {
++            ALOGV("ExaGear: --- END '%s' (success) ---\n", path);
++        } else {
++            ALOGE("ExaGear: --- END '%s' --- status=0x%04x, process failed\n", path, res);
++            return res;
++        }
++    }
++
++    output_fd.SetCleanup(false);
+     return 0;
+ }
++#endif
+ 
+ // Try to remove the given directory. Log an error if the directory exists
+ // and is empty but could not be removed.
+@@ -2678,6 +2872,11 @@ bool delete_odex(const char* apk_path, const char* instruction_set, const char*
+     // Derive and delete the vdex file.
+     bool return_value_vdex = unlink_and_check(create_vdex_filename(out_path).c_str());
+ 
++#ifdef WITH_EXAGEAR
++    // Delete the exagear file. We ignore any errors here.
++    unlink_and_check((std::string(out_path) + ".exagear").c_str());
++#endif
++
+     // Report success.
+     return return_value_oat && return_value_art && return_value_vdex;
+ }
+diff --git a/cmds/installd/dexopt.h b/cmds/installd/dexopt.h
+index cc448736ea..20a21db32e 100644
+--- a/cmds/installd/dexopt.h
++++ b/cmds/installd/dexopt.h
+@@ -138,6 +138,10 @@ const char* select_execution_binary(
+         bool is_release,
+         bool is_debuggable_build);
+ 
++#ifdef WITH_EXAGEAR
++int exagear_pretranslate(const char* path, uid_t uid, bool boot_complete, bool is_apk, bool is_oat);
++#endif
++
+ }  // namespace installd
+ }  // namespace android
+ 
 diff --git a/cmds/servicemanager/servicemanager.rc b/cmds/servicemanager/servicemanager.rc
-index 152ac28..a08a471 100644
+index 152ac28ba4..a08a47114f 100644
 --- a/cmds/servicemanager/servicemanager.rc
 +++ b/cmds/servicemanager/servicemanager.rc
 @@ -1,6 +1,6 @@
@@ -24,7 +320,7 @@ index 152ac28..a08a471 100644
      critical
      onrestart restart healthd
 diff --git a/cmds/servicemanager/vndservicemanager.rc b/cmds/servicemanager/vndservicemanager.rc
-index 3fa4d7d..b2a757f 100644
+index 3fa4d7debd..b2a757fbb2 100644
 --- a/cmds/servicemanager/vndservicemanager.rc
 +++ b/cmds/servicemanager/vndservicemanager.rc
 @@ -1,6 +1,6 @@
@@ -36,7 +332,7 @@ index 3fa4d7d..b2a757f 100644
      writepid /dev/cpuset/system-background/tasks
      shutdown critical
 diff --git a/libs/binder/Binder.cpp b/libs/binder/Binder.cpp
-index 6ca3b16..10a0973 100644
+index 6ca3b16324..10a0973db6 100644
 --- a/libs/binder/Binder.cpp
 +++ b/libs/binder/Binder.cpp
 @@ -261,6 +261,7 @@ bool BBinder::isRequestingSid()
@@ -48,7 +344,7 @@ index 6ca3b16..10a0973 100644
  
      if (!e) {
 diff --git a/libs/binder/IPCThreadState.cpp b/libs/binder/IPCThreadState.cpp
-index 847b73a..ed02fca 100644
+index 847b73ad71..ed02fcaec5 100644
 --- a/libs/binder/IPCThreadState.cpp
 +++ b/libs/binder/IPCThreadState.cpp
 @@ -1238,7 +1238,7 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
@@ -61,7 +357,7 @@ index 847b73a..ed02fca 100644
                           << statusToString(error)
                           << " and parcel size " << reply.dataSize() << endl;
 diff --git a/libs/binder/ProcessState.cpp b/libs/binder/ProcessState.cpp
-index 4b773e8..af75288 100644
+index 4b773e816f..af7528802b 100644
 --- a/libs/binder/ProcessState.cpp
 +++ b/libs/binder/ProcessState.cpp
 @@ -138,11 +138,14 @@ bool ProcessState::becomeContextManager(context_check_func checkFunc, void* user
@@ -80,7 +376,7 @@ index 4b773e8..af75288 100644
      // fallback to original method
      if (result != 0) {
 diff --git a/libs/dumputils/dump_utils.cpp b/libs/dumputils/dump_utils.cpp
-index fd557b7..31fd439 100644
+index fd557b71dd..31fd439363 100644
 --- a/libs/dumputils/dump_utils.cpp
 +++ b/libs/dumputils/dump_utils.cpp
 @@ -34,7 +34,7 @@ static const char* native_processes_to_dump[] = {
@@ -93,7 +389,7 @@ index fd557b7..31fd439 100644
          "/system/bin/surfaceflinger",
          "/system/bin/vehicle_network_service",
 diff --git a/libs/gui/Surface.cpp b/libs/gui/Surface.cpp
-index e1a17db..d2d86b4 100644
+index e1a17db3d9..d2d86b40c9 100644
 --- a/libs/gui/Surface.cpp
 +++ b/libs/gui/Surface.cpp
 @@ -32,6 +32,7 @@
@@ -134,7 +430,7 @@ index e1a17db..d2d86b4 100644
                  backBuffer->handle);
  
 diff --git a/opengl/libs/EGL/egl_layers.cpp b/opengl/libs/EGL/egl_layers.cpp
-index ea86c9a..755b9df 100644
+index ea86c9a05b..755b9dfe41 100644
 --- a/opengl/libs/EGL/egl_layers.cpp
 +++ b/opengl/libs/EGL/egl_layers.cpp
 @@ -327,18 +327,40 @@ void LayerLoader::InitLayers(egl_connection_t* cnx) {
@@ -183,7 +479,7 @@ index ea86c9a..755b9df 100644
      std::vector<std::string> layers = android::base::Split(debug_layers, ":");
  
 diff --git a/opengl/libs/GLES_CM/gl.cpp b/opengl/libs/GLES_CM/gl.cpp
-index bacd4b4..7913e7c 100644
+index bacd4b4bc8..7913e7cf20 100644
 --- a/opengl/libs/GLES_CM/gl.cpp
 +++ b/opengl/libs/GLES_CM/gl.cpp
 @@ -347,6 +347,11 @@ extern "C" {
@@ -199,7 +495,7 @@ index bacd4b4..7913e7c 100644
      if (ret == NULL) {
          gl_hooks_t::gl_t const * const _c = &getGlThreadSpecific()->gl;
 diff --git a/services/inputflinger/dispatcher/InputDispatcher.cpp b/services/inputflinger/dispatcher/InputDispatcher.cpp
-index fe016af..b4be275 100644
+index fe016af01f..b4be27550f 100644
 --- a/services/inputflinger/dispatcher/InputDispatcher.cpp
 +++ b/services/inputflinger/dispatcher/InputDispatcher.cpp
 @@ -3336,12 +3336,19 @@ int32_t InputDispatcher::injectInputEvent(const InputEvent* event, int32_t injec
@@ -240,8 +536,47 @@ index fe016af..b4be275 100644
                                          motionEvent->getXOffset(), motionEvent->getYOffset());
                  injectedEntries.push(nextInjectedEntry);
              }
+diff --git a/services/surfaceflinger/BufferLayer.cpp b/services/surfaceflinger/BufferLayer.cpp
+index f0b0200bc5..7d378c2dd4 100644
+--- a/services/surfaceflinger/BufferLayer.cpp
++++ b/services/surfaceflinger/BufferLayer.cpp
+@@ -412,6 +412,18 @@ bool BufferLayer::latchBuffer(bool& recomputeVisibleRegions, nsecs_t latchTime,
+         return false;
+     }
+ 
++    if (mFlinger->isEnableAdaptiveVsync()) {
++        auto start = std::chrono::steady_clock::now();
++        while (!fenceHasSignaled()) {
++            auto current = std::chrono::steady_clock::now();
++            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(current - start).count();
++            if (duration > 10) {
++                break;
++            }
++            std::this_thread::sleep_for(std::chrono::milliseconds(1));
++        }
++    }
++
+     // If the head buffer's acquire fence hasn't signaled yet, return and
+     // try again later
+     if (!fenceHasSignaled()) {
+diff --git a/services/surfaceflinger/BufferQueueLayer.cpp b/services/surfaceflinger/BufferQueueLayer.cpp
+index 6e4235e409..6c034c9bf0 100644
+--- a/services/surfaceflinger/BufferQueueLayer.cpp
++++ b/services/surfaceflinger/BufferQueueLayer.cpp
+@@ -433,6 +433,11 @@ void BufferQueueLayer::onFrameAvailable(const BufferItem& item) {
+ 
+     mFlinger->signalLayerUpdate();
+     mConsumer->onBufferAvailable(item);
++
++    // 自适应调用postVsync
++    if (mFlinger->isEnableAdaptiveVsync()) {
++        mFlinger->postVsync();
++    }
+ }
+ 
+ void BufferQueueLayer::onFrameReplaced(const BufferItem& item) {
 diff --git a/services/surfaceflinger/CompositionEngine/include/compositionengine/Output.h b/services/surfaceflinger/CompositionEngine/include/compositionengine/Output.h
-index baf5258..2b6c47c 100644
+index baf52588e6..2b6c47c72f 100644
 --- a/services/surfaceflinger/CompositionEngine/include/compositionengine/Output.h
 +++ b/services/surfaceflinger/CompositionEngine/include/compositionengine/Output.h
 @@ -184,6 +184,7 @@ public:
@@ -253,7 +588,7 @@ index baf5258..2b6c47c 100644
      // Gets the current render color mode for the output
      virtual DisplayColorProfile* getDisplayColorProfile() const = 0;
 diff --git a/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h b/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h
-index 6f25e63..ef9684c 100644
+index 6f25e6391b..ef9684c9c1 100644
 --- a/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h
 +++ b/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h
 @@ -51,6 +51,7 @@ public:
@@ -273,7 +608,7 @@ index 6f25e63..ef9684c 100644
  
  // This template factory function standardizes the implementation details of the
 diff --git a/services/surfaceflinger/CompositionEngine/src/Output.cpp b/services/surfaceflinger/CompositionEngine/src/Output.cpp
-index 90ac781..74123ea 100644
+index 90ac781a0c..74123eafe2 100644
 --- a/services/surfaceflinger/CompositionEngine/src/Output.cpp
 +++ b/services/surfaceflinger/CompositionEngine/src/Output.cpp
 @@ -41,6 +41,7 @@
@@ -319,7 +654,7 @@ index 90ac781..74123ea 100644
                                      std::move(fd), &readyFence);
  
 diff --git a/services/surfaceflinger/DisplayDevice.cpp b/services/surfaceflinger/DisplayDevice.cpp
-index 730f297..6300723 100644
+index 730f29744a..630072344b 100644
 --- a/services/surfaceflinger/DisplayDevice.cpp
 +++ b/services/surfaceflinger/DisplayDevice.cpp
 @@ -116,6 +116,10 @@ void DisplayDevice::setDisplayName(const std::string& displayName) {
@@ -334,7 +669,7 @@ index 730f297..6300723 100644
      return mCompositionDisplay->getRenderSurface()->getPageFlipCount();
  }
 diff --git a/services/surfaceflinger/DisplayDevice.h b/services/surfaceflinger/DisplayDevice.h
-index cb467ea..2d6d02b 100644
+index cb467ea292..2d6d02bc72 100644
 --- a/services/surfaceflinger/DisplayDevice.h
 +++ b/services/surfaceflinger/DisplayDevice.h
 @@ -134,6 +134,7 @@ public:
@@ -346,7 +681,7 @@ index cb467ea..2d6d02b 100644
  
      /* ------------------------------------------------------------------------
 diff --git a/services/surfaceflinger/Scheduler/DispSync.cpp b/services/surfaceflinger/Scheduler/DispSync.cpp
-index ff91bf7..db12328 100644
+index ff91bf7bc0..db12328ef6 100644
 --- a/services/surfaceflinger/Scheduler/DispSync.cpp
 +++ b/services/surfaceflinger/Scheduler/DispSync.cpp
 @@ -656,6 +656,14 @@ status_t DispSync::changePhaseOffset(Callback* callback, nsecs_t phase) {
@@ -364,8 +699,194 @@ index ff91bf7..db12328 100644
      const bool pendingPeriodShouldChange =
              period != mIntendedPeriod || (period == mIntendedPeriod && mPendingPeriod != 0);
  
+diff --git a/services/surfaceflinger/Scheduler/EventThread.cpp b/services/surfaceflinger/Scheduler/EventThread.cpp
+index 845bf50ad3..93ef71d972 100644
+--- a/services/surfaceflinger/Scheduler/EventThread.cpp
++++ b/services/surfaceflinger/Scheduler/EventThread.cpp
+@@ -42,6 +42,9 @@
+ #include "EventThread.h"
+ #include "HwcStrongTypes.h"
+ 
++#include <cutils/properties.h>
++#include <dlfcn.h>
++
+ using namespace std::chrono_literals;
+ 
+ namespace android {
+@@ -164,6 +167,65 @@ EventThread::~EventThread() = default;
+ 
+ namespace impl {
+ 
++void EventThread::RenderAccDeinit()
++{
++    renderAccInitialize = nullptr;
++    renderAccDeinit = nullptr;
++    renderAccJudge = nullptr;
++    renderAccQueueBuffer = nullptr;
++    renderAccProc = nullptr;
++    
++    if (renderAccLibHdl) {
++        dlclose(renderAccLibHdl);
++    }
++    renderAccLibHdl = nullptr;
++}
++
++#define RENDERACC_SO_PATH "/system/vendor/lib64/hw/AdaptiveVsync.kbox.so"
++void EventThread::RenderAccInitialize()
++{
++    char value[PROPERTY_VALUE_MAX];
++    property_get("ro.vmi.adaptive.vsync", value, "0");
++    bool adaptiveVsyncFlag = (atoi(value) == 1);
++    ALOGI_IF(adaptiveVsyncFlag, "AdaptiveVsync: EventThread[%s] Enabling adaptive vsync.", mThreadName);
++
++    if (!adaptiveVsyncFlag) {
++        return;
++    }
++
++    void *renderAccLibHdl = dlopen(RENDERACC_SO_PATH, RTLD_LAZY);
++    if (renderAccLibHdl == nullptr) {
++        ALOGE("AdaptiveVsync: open AdaptiveVsync.kbox.so failed. path %s error %s", RENDERACC_SO_PATH, dlerror());
++        return;
++    }
++
++#define GET_PROXY_FROM_LIB(func, proxy, funcName) \
++    func = reinterpret_cast<proxy>(dlsym(renderAccLibHdl, #funcName)); \
++    if (func == nullptr) { \
++        ALOGE("AdaptiveVsync: Get %s function fail. error %s", #funcName, dlerror()); \
++    }
++
++    GET_PROXY_FROM_LIB(renderAccInitialize, RenderAccInitializeProxy, AdaptiveVsyncInit);
++    GET_PROXY_FROM_LIB(renderAccDeinit, RenderAccDeinitProxy, AdaptiveVsyncDeinit);
++    GET_PROXY_FROM_LIB(renderAccJudge, RenderAccJudgeProxy, IsCloseAdaptiveVsync);
++    GET_PROXY_FROM_LIB(renderAccQueueBuffer, RenderAccQueueBufferProxy, AdaptiveVsyncOnQueueBuffer);
++    GET_PROXY_FROM_LIB(renderAccProc, RenderAccProcProxy, AdaptiveVsyncOnVsync);
++
++    if ((renderAccInitialize == nullptr) || (renderAccDeinit == nullptr) || (renderAccJudge == nullptr) || (renderAccQueueBuffer == nullptr) || (renderAccProc == nullptr)) {
++        RenderAccDeinit();
++        return;
++    }
++
++    data = renderAccInitialize();
++    if (!data) {
++        ALOGE("AdaptiveVsync: renderAccInitialize failed");
++        RenderAccDeinit();
++        return;
++    }
++
++    ALOGI("AdaptiveVsync: renderAccInitialize success");
++}
++
+ EventThread::EventThread(std::unique_ptr<VSyncSource> vsyncSource,
+                          InterceptVSyncsCallback interceptVSyncsCallback)
+       : mVSyncSource(std::move(vsyncSource)),
+@@ -188,12 +250,21 @@ EventThread::EventThread(std::unique_ptr<VSyncSource> vsyncSource,
+         ALOGE("Couldn't set SCHED_FIFO for EventThread");
+     }
+ 
++    RenderAccInitialize();
++
+     set_sched_policy(tid, SP_FOREGROUND);
+ }
+ 
+ EventThread::~EventThread() {
+     mVSyncSource->setCallback(nullptr);
+ 
++    if (adaptiveVsyncFlag) {
++        renderAccDeinit(data); // 先释放申请的内存
++        data = nullptr;
++
++        RenderAccDeinit(); // 再清理EventThread中的资源
++    }
++
+     {
+         std::lock_guard<std::mutex> lock(mMutex);
+         mState = State::Quit;
+@@ -288,12 +359,29 @@ void EventThread::onScreenAcquired() {
+ void EventThread::onVSyncEvent(nsecs_t timestamp, nsecs_t expectedVSyncTimestamp) {
+     std::lock_guard<std::mutex> lock(mMutex);
+ 
++    if (adaptiveVsyncFlag && (mThreadName == "app") && renderAccJudge && data) {
++        nsecs_t now = systemTime(SYSTEM_TIME_MONOTONIC);
++        renderAccJudge(data, now);
++    }
++
+     LOG_FATAL_IF(!mVSyncState);
+     mPendingEvents.push_back(makeVSync(mVSyncState->displayId, timestamp, ++mVSyncState->count,
+                                        expectedVSyncTimestamp));
+     mCondition.notify_all();
+ }
+ 
++void EventThread::postVsync(nsecs_t time) {
++    if (adaptiveVsyncFlag && renderAccProc && data) {
++        renderAccProc(data, EventThread::CallOnVsync, static_cast<void *>(this), time);
++    }
++}
++
++void EventThread::notifyPostVsync() {
++    if (adaptiveVsyncFlag && (mThreadName == "app") &&  renderAccQueueBuffer && data) {
++        renderAccQueueBuffer(data);
++    }
++}
++
+ void EventThread::onHotplugReceived(PhysicalDisplayId displayId, bool connected) {
+     std::lock_guard<std::mutex> lock(mMutex);
+ 
+diff --git a/services/surfaceflinger/Scheduler/EventThread.h b/services/surfaceflinger/Scheduler/EventThread.h
+index 49f624c35e..e363fab4da 100644
+--- a/services/surfaceflinger/Scheduler/EventThread.h
++++ b/services/surfaceflinger/Scheduler/EventThread.h
+@@ -126,6 +126,9 @@ public:
+ 
+     // Retrieves the number of event connections tracked by this EventThread.
+     virtual size_t getEventThreadConnectionCount() = 0;
++
++    virtual void postVsync(nsecs_t time) = 0;
++    virtual void notifyPostVsync() = 0;
+ };
+ 
+ namespace impl {
+@@ -161,6 +164,9 @@ public:
+ 
+     size_t getEventThreadConnectionCount() override;
+ 
++    void postVsync(nsecs_t time) override;
++    void notifyPostVsync() override;
++
+ private:
+     friend EventThreadTest;
+ 
+@@ -219,6 +225,29 @@ private:
+     State mState GUARDED_BY(mMutex) = State::Idle;
+ 
+     static const char* toCString(State);
++
++    using OnVsyncProxy = void (*)(void *obj, nsecs_t timestamp, nsecs_t expectedVSyncTimestamp);
++    static void CallOnVsync(void *obj, nsecs_t timestamp, nsecs_t expectedVSyncTimestamp) {
++        static_cast<EventThread *>(obj)->onVSyncEvent(timestamp, expectedVSyncTimestamp);
++    }
++
++    void RenderAccInitialize();
++    void RenderAccDeinit();
++    using RenderAccInitializeProxy = void * (*)();
++    using RenderAccDeinitProxy = void (*)(void *ptr);
++    using RenderAccJudgeProxy = void (*)(void *ptr, int64_t now);
++    using RenderAccQueueBufferProxy = void (*)(void *ptr);
++    using RenderAccProcProxy = void (*)(void *ptr, OnVsyncProxy callOnVsync, void *obj, int64_t timestamp);
++
++    void *renderAccLibHdl = nullptr;
++    bool adaptiveVsyncFlag = false;
++    void *data = nullptr;
++
++    RenderAccInitializeProxy  renderAccInitialize = nullptr;
++    RenderAccDeinitProxy      renderAccDeinit = nullptr;
++    RenderAccJudgeProxy       renderAccJudge = nullptr;
++    RenderAccQueueBufferProxy renderAccQueueBuffer = nullptr;
++    RenderAccProcProxy        renderAccProc = nullptr;
+ };
+ 
+ // ---------------------------------------------------------------------------
 diff --git a/services/surfaceflinger/Scheduler/Scheduler.cpp b/services/surfaceflinger/Scheduler/Scheduler.cpp
-index 5c0ba01..a4aa927 100644
+index 5c0ba01cd3..cab3b862b5 100644
 --- a/services/surfaceflinger/Scheduler/Scheduler.cpp
 +++ b/services/surfaceflinger/Scheduler/Scheduler.cpp
 @@ -334,6 +334,12 @@ void Scheduler::disableHardwareVsync(bool makeUnavailable) {
@@ -394,8 +915,23 @@ index 5c0ba01..a4aa927 100644
      }
  }
  
+@@ -708,4 +718,14 @@ void Scheduler::onPrimaryDisplayAreaChanged(uint32_t displayArea) {
+     }
+ }
+ 
++void Scheduler::postVsync(ConnectionHandle handle, nsecs_t time) {
++    RETURN_IF_INVALID_HANDLE(handle);
++    mConnections[handle].thread->postVsync(time);
++}
++
++void Scheduler::notifyPostVsync(ConnectionHandle handle) {
++    RETURN_IF_INVALID_HANDLE(handle);
++    mConnections[handle].thread->notifyPostVsync();
++}
++
+ } // namespace android
 diff --git a/services/surfaceflinger/Scheduler/Scheduler.h b/services/surfaceflinger/Scheduler/Scheduler.h
-index 730ea8f..19f002a 100644
+index 730ea8f0c8..dfea3454c7 100644
 --- a/services/surfaceflinger/Scheduler/Scheduler.h
 +++ b/services/surfaceflinger/Scheduler/Scheduler.h
 @@ -120,6 +120,7 @@ public:
@@ -406,7 +942,17 @@ index 730ea8f..19f002a 100644
      void resync();
  
      // Passes a vsync sample to DispSync. periodFlushed will be true if
-@@ -223,6 +224,7 @@ private:
+@@ -163,6 +164,9 @@ public:
+ 
+     size_t getEventThreadConnectionCount(ConnectionHandle handle);
+ 
++    void postVsync(ConnectionHandle handle, nsecs_t time);
++    void notifyPostVsync(ConnectionHandle handle);
++
+ private:
+     friend class TestableScheduler;
+ 
+@@ -223,6 +227,7 @@ private:
      bool mHWVsyncAvailable GUARDED_BY(mHWVsyncLock) = false;
  
      std::atomic<nsecs_t> mLastResyncTime = 0;
@@ -415,10 +961,29 @@ index 730ea8f..19f002a 100644
      // Whether to use idle timer callbacks that support the kernel timer.
      const bool mSupportKernelTimer;
 diff --git a/services/surfaceflinger/SurfaceFlinger.cpp b/services/surfaceflinger/SurfaceFlinger.cpp
-index 79f99cc..0316109 100644
+index 79f99cc5d5..e4289bbc9f 100644
 --- a/services/surfaceflinger/SurfaceFlinger.cpp
 +++ b/services/surfaceflinger/SurfaceFlinger.cpp
-@@ -1630,11 +1630,42 @@ void SurfaceFlinger::changeRefreshRateLocked(const RefreshRate& refreshRate,
+@@ -85,6 +85,7 @@
+ #include <cinttypes>
+ #include <cmath>
+ #include <cstdint>
++#include <cstdlib>
+ #include <functional>
+ #include <mutex>
+ #include <optional>
+@@ -430,6 +431,10 @@ SurfaceFlinger::SurfaceFlinger(Factory& factory) : SurfaceFlinger(factory, SkipI
+     property_get("debug.sf.disable_client_composition_cache", value, "0");
+     mDisableClientCompositionCache = atoi(value);
+ 
++    property_get("ro.vmi.adaptive.vsync", value, "0");
++    misEnableAdaptiveVsync = (atoi(value) == 1);
++    ALOGI_IF(misEnableAdaptiveVsync, "AdaptiveVsync: Enabling adaptive vsync.");
++
+     // We should be reading 'persist.sys.sf.color_saturation' here
+     // but since /data may be encrypted, we need to wait until after vold
+     // comes online to attempt to read the property. The property is
+@@ -1630,11 +1635,42 @@ void SurfaceFlinger::changeRefreshRateLocked(const RefreshRate& refreshRate,
      setDesiredActiveConfig({refreshRate.getConfigId(), event});
  }
  
@@ -462,7 +1027,7 @@ index 79f99cc..0316109 100644
      // Ignore events that do not have the right sequenceId.
      if (sequenceId != getBE().mComposerSequenceId) {
          return;
-@@ -1676,6 +1707,9 @@ void SurfaceFlinger::onRefreshReceived(int sequenceId, hal::HWDisplayId /*hwcDis
+@@ -1676,6 +1712,9 @@ void SurfaceFlinger::onRefreshReceived(int sequenceId, hal::HWDisplayId /*hwcDis
      if (sequenceId != getBE().mComposerSequenceId) {
          return;
      }
@@ -472,7 +1037,7 @@ index 79f99cc..0316109 100644
      repaintEverythingForHWC();
  }
  
-@@ -2697,12 +2731,6 @@ void SurfaceFlinger::processDisplayChanged(const wp<IBinder>& displayToken,
+@@ -2697,12 +2736,6 @@ void SurfaceFlinger::processDisplayChanged(const wp<IBinder>& displayToken,
          if (currentState.layerStack != drawingState.layerStack) {
              display->setLayerStack(currentState.layerStack);
          }
@@ -485,7 +1050,7 @@ index 79f99cc..0316109 100644
          if (currentState.width != drawingState.width ||
              currentState.height != drawingState.height) {
              display->setDisplaySize(currentState.width, currentState.height);
-@@ -2715,6 +2743,13 @@ void SurfaceFlinger::processDisplayChanged(const wp<IBinder>& displayToken,
+@@ -2715,6 +2748,13 @@ void SurfaceFlinger::processDisplayChanged(const wp<IBinder>& displayToken,
                  mRefreshRateOverlay->setViewport(display->getSize());
              }
          }
@@ -499,8 +1064,54 @@ index 79f99cc..0316109 100644
      }
  }
  
+@@ -3007,6 +3047,21 @@ void SurfaceFlinger::initScheduler(DisplayId primaryDisplayId) {
+                                               currentConfig, vsyncPeriod);
+ }
+ 
++void SurfaceFlinger::postVsync()
++{
++    nsecs_t now = systemTime();
++    mScheduler->postVsync(mSfConnectionHandle, now);
++    mScheduler->notifyPostVsync(mAppConnectionHandle);
++}
++
++bool SurfaceFlinger::isEnableAdaptiveVsync() const
++{
++    char value[PROPERTY_VALUE_MAX];
++    property_get("vmi.enable.adaptive.vsync", value, "1");
++    bool isEnableAdaptiveVsync = atoi(value);
++    return (isEnableAdaptiveVsync && misEnableAdaptiveVsync);
++}
++
+ void SurfaceFlinger::commitTransaction()
+ {
+     commitTransactionLocked();
+diff --git a/services/surfaceflinger/SurfaceFlinger.h b/services/surfaceflinger/SurfaceFlinger.h
+index c727574780..51f2af510f 100644
+--- a/services/surfaceflinger/SurfaceFlinger.h
++++ b/services/surfaceflinger/SurfaceFlinger.h
+@@ -336,6 +336,10 @@ public:
+     // debug.sf.disable_client_composition_cache
+     bool mDisableClientCompositionCache = false;
+ 
++    // adaptiveVsync
++    void postVsync();
++    bool isEnableAdaptiveVsync() const;
++
+ private:
+     friend class BufferLayer;
+     friend class BufferQueueLayer;
+@@ -1296,6 +1300,8 @@ private:
+     int mFrameRateFlexibilityTokenCount = 0;
+ 
+     sp<IBinder> mDebugFrameRateFlexibilityToken;
++
++    bool misEnableAdaptiveVsync = false;
+ };
+ 
+ } // namespace android
 diff --git a/vulkan/libvulkan/driver.cpp b/vulkan/libvulkan/driver.cpp
-index f840561..83e01f5 100644
+index f840561292..83e01f522d 100644
 --- a/vulkan/libvulkan/driver.cpp
 +++ b/vulkan/libvulkan/driver.cpp
 @@ -245,6 +245,12 @@ bool Hal::Open() {
