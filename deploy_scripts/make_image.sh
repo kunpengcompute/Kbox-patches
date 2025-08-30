@@ -167,11 +167,8 @@ function prepare_kbox_binary()
     if [ $GPUTYPE != "cpu" ]; then
         cp ${BinaryPath}/RenderAccLayer/lib64/hw/AdaptiveVsync.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
     fi
-    if [ -d ${BinaryPath}/RenderAccLayer ]; then
-        [ $ENABLE_ONLY64_KBOX -eq 1 ] || cp ${BinaryPath}/RenderAccLayer/lib/hw/RenderAccLayer.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
-        cp ${BinaryPath}/RenderAccLayer/lib64/hw/RenderAccLayer.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
-        cp ${BinaryPath}/RenderAccLayer/kbox_render_accelerating_configuration.xml ${TMP_PACKAGE_DIR}/system/vendor/etc/
-    fi
+    [ $ENABLE_ONLY64_KBOX -eq 1 ] || cp ${BinaryPath}/RenderAccLayer/lib/hw/RenderAccLayer.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
+    cp ${BinaryPath}/RenderAccLayer/lib64/hw/RenderAccLayer.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
 }
 
 function prepare_file_system()
