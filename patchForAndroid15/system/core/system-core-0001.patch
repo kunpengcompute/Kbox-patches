@@ -292,10 +292,10 @@ index 000000000..12c3a1af9
 +bool writePackedUInt32(uint32_t value, FILE *stream);
 diff --git a/init/ipconfigstore/main.cc b/init/ipconfigstore/main.cc
 new file mode 100644
-index 000000000..ef4a2a5ae
+index 000000000..ecbc0ea18
 --- /dev/null
 +++ b/init/ipconfigstore/main.cc
-@@ -0,0 +1,165 @@
+@@ -0,0 +1,166 @@
 +#include <sys/types.h>
 +#include <ifaddrs.h>
 +#include <sys/socket.h>
@@ -413,8 +413,8 @@ index 000000000..ef4a2a5ae
 +    }
 +}
 +
-+static int write_conf(struct ipconfig *conf, uint32_t v) {
-+    FILE *fp = fopen("/data/misc/ethernet/ipconfig.txt", "w+");
++static int write_conf(char *file_path, struct ipconfig *conf, uint32_t v) {
++    FILE *fp = fopen(file_path, "w+");
 +
 +    writePackedUInt32(v, fp); // version
 +
@@ -457,7 +457,8 @@ index 000000000..ef4a2a5ae
 +    struct ipconfig conf;
 +    get_conf(&conf);
 +    printf("ipconfig: ipv4: %s, mask: %i, gateway: %s", conf.ipv4, conf.mask, conf.gateway);
-+    write_conf(&conf, v);
++    write_conf((char *)"/data/misc/ethernet/ipconfig.txt", &conf, v);
++    write_conf((char *)"/data/misc/apexdata/com.android.tethering/misc/ethernet/ipconfig.txt", &conf, v);
 +    return 0;
 +}
 +
