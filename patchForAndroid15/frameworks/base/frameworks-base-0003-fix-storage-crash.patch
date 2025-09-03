@@ -1,0 +1,328 @@
+diff --git a/core/java/android/app/usage/StorageStatsManager.java b/core/java/android/app/usage/StorageStatsManager.java
+index a4b17537f4b2..05c1acf4b865 100644
+--- a/core/java/android/app/usage/StorageStatsManager.java
++++ b/core/java/android/app/usage/StorageStatsManager.java
+@@ -108,14 +108,7 @@ public class StorageStatsManager {
+      */
+     @WorkerThread
+     public @BytesLong long getTotalBytes(@NonNull UUID storageUuid) throws IOException {
+-        try {
+-            return mService.getTotalBytes(convert(storageUuid), mContext.getOpPackageName());
+-        } catch (ParcelableException e) {
+-            e.maybeRethrow(IOException.class);
+-            throw new RuntimeException(e);
+-        } catch (RemoteException e) {
+-            throw e.rethrowFromSystemServer();
+-        }
++        return 0; // TODO: 这里需要返回实际值
+     }
+ 
+     /** {@hide} */
+diff --git a/core/java/android/os/storage/StorageManager.java b/core/java/android/os/storage/StorageManager.java
+index 91ad22f51345..8761f67faa3b 100644
+--- a/core/java/android/os/storage/StorageManager.java
++++ b/core/java/android/os/storage/StorageManager.java
+@@ -1351,15 +1351,21 @@ public class StorageManager {
+ 
+     /** {@hide} */
+     public static Pair<String, Long> getPrimaryStoragePathAndSize() {
++        /*
+         return Pair.create(null,
+                 FileUtils.roundStorageSize(Environment.getDataDirectory().getTotalSpace()
+                     + Environment.getRootDirectory().getTotalSpace()));
++        */
++        return Pair.create(null, Environment.getDataDirectory().getTotalSpace());
+     }
+ 
+     /** {@hide} */
+     public long getPrimaryStorageSize() {
++        /*
+         return FileUtils.roundStorageSize(Environment.getDataDirectory().getTotalSpace()
+                 + Environment.getRootDirectory().getTotalSpace());
++        */
++        return Environment.getDataDirectory().getTotalSpace();
+     }
+ 
+     /** {@hide} */
+diff --git a/core/jni/android_os_Debug.cpp b/core/jni/android_os_Debug.cpp
+index 3c2dccd451d4..4e31a7b1d6d3 100644
+--- a/core/jni/android_os_Debug.cpp
++++ b/core/jni/android_os_Debug.cpp
+@@ -377,6 +377,10 @@ static jlong android_os_Debug_getRss(JNIEnv* env, jobject clazz) {
+     return android_os_Debug_getRssPid(env, clazz, getpid(), NULL);
+ }
+ 
++static long get_allocated_vmalloc_memory() {
++    return 0;
++}
++
+ // The 1:1 mapping of MEMINFO_* enums here must match with the constants from
+ // Debug.java.
+ enum {
+@@ -409,19 +413,60 @@ enum {
+     MEMINFO_COUNT
+ };
+ 
++static long long get_zram_mem_used()
++{
++#define ZRAM_SYSFS "/sys/block/zram0/"
++    UniqueFile mm_stat_file = MakeUniqueFile(ZRAM_SYSFS "mm_stat", "re");
++    if (mm_stat_file) {
++        long long mem_used_total = 0;
++
++        int matched = fscanf(mm_stat_file.get(), "%*d %*d %lld %*d %*d %*d %*d", &mem_used_total);
++        if (matched != 1) {
++            ALOGW("failed to parse " ZRAM_SYSFS "mm_stat");
++        }
++
++        return mem_used_total;
++    }
++
++    UniqueFile mem_used_total_file = MakeUniqueFile(ZRAM_SYSFS "mem_used_total", "re");
++    if (mem_used_total_file) {
++        long long mem_used_total = 0;
++
++        int matched = fscanf(mem_used_total_file.get(), "%lld", &mem_used_total);
++        if (matched != 1) {
++            ALOGW("failed to parse " ZRAM_SYSFS "mem_used_total");
++        }
++
++        return mem_used_total;
++    }
++
++    return 0;
++}
++
+ static void android_os_Debug_getMemInfo(JNIEnv *env, jobject clazz, jlongArray out)
+ {
++    char buffer[4096];
++    size_t numFound = 0;
++
+     if (out == NULL) {
+         jniThrowNullPointerException(env, "out == null");
+         return;
+     }
+ 
++    /*
+     int outLen = env->GetArrayLength(out);
+     if (outLen < MEMINFO_COUNT) {
+         jniThrowRuntimeException(env, "outLen < MEMINFO_COUNT");
+         return;
+     }
++    */
++    int fd = open("/proc/meminfo", O_RDONLY | O_CLOEXEC);
++    if (fd < 0) {
++        ALOGW("Unable to open /proc/meminfo: %s\n", strerror(errno));
++        return;
++    }
+ 
++    /*
+     // Read system memory info including ZRAM. The values are stored in the vector
+     // in the same order as MEMINFO_* enum
+     std::vector<std::string_view> tags(
+@@ -434,15 +479,102 @@ static void android_os_Debug_getMemInfo(JNIEnv *env, jobject clazz, jlongArray o
+         jniThrowRuntimeException(env, "SysMemInfo read failed");
+         return;
+     }
++    */
++    int len = read(fd, buffer, sizeof(buffer) - 1);
++    close(fd);
++
++    if (len < 0) {
++        ALOGW("Empty /proc/meminfo");
++        return;
++    }
++    buffer[len] = 0;
++
++    static const char* const tags[] = {
++        "MemTotal:",
++        "MemFree:",
++        "Buffers:",
++        "Cached:",
++        "Shmem:",
++        "Slab:",
++        "SReclaimable:",
++        "SUnreclaim:",
++        "SwapTotal:",
++        "SwapFree:",
++        "ZRam:",
++        "Mapped:",
++        "VmallocUsed:",
++        "PageTables:",
++        "KernelStack:",
++        NULL
++    };
++    static const int tagsLen[] = {
++        9,
++        8,
++        8,
++        7,
++        6,
++        5,
++        13,
++        11,
++        10,
++        9,
++        5,
++        7,
++        12,
++        11,
++        12,
++        0
++    };
++    long mem[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
++
++    char *p = buffer;
++    while (*p && numFound < (sizeof(tagsLen) / sizeof(tagsLen[0]))) {
++        int i = 0;
++        while (tags[i]) {
++            if (strncmp(p, tags[i], tagsLen[i]) == 0) {
++                p += tagsLen[i];
++                while (*p == ' ') p++;
++                char *num = p;
++                while (*p >= '0' && *p <= '9') p++;
++                if (*p != 0) {
++                    *p = 0;
++                    p++;
++                }
++                mem[i] = atoll(num);
++                numFound++;
++                break;
++            }
++            i++;
++        }
++        while(*p && *p != '\n') {
++            p++;
++        }
++        if (*p) p++;
++    }
++
++    mem[MEMINFO_ZRAM_TOTAL] = get_zram_mem_used() / 1024;
++    // Rcompute Vmalloc Used since the value in meminfo
++    // doesn't accoutn for I/O remapping which doesn't use RAM.
++    mem[MEMINFO_VMALLOC_USED] = get_allocated_vmalloc_memory() / 1024;
++
++    int maxNum = env->GetArrayLength(out);
++    if (maxNum > MEMINFO_COUNT) {
++        maxNum = MEMINFO_COUNT;
++    }
++    // tags[11] -> "Mapped:" , set meminfo->Mapped 0 in kbox
++    mem[11] = 0;
+ 
+     jlong* outArray = env->GetLongArrayElements(out, 0);
+     if (outArray != NULL) {
++        /*
+         outLen = MEMINFO_COUNT;
+         for (int i = 0; i < outLen; i++) {
+             if (i == MEMINFO_VMALLOC_USED && mem[i] == 0) {
+                 outArray[i] = smi.ReadVmallocInfo() / 1024;
+                 continue;
+             }
++        */
++        for (int i = 0; i < maxNum; i++) {
+             outArray[i] = mem[i];
+         }
+     }
+diff --git a/core/jni/android_util_Process.cpp b/core/jni/android_util_Process.cpp
+index 49191ee02ad6..d8b84585158f 100644
+--- a/core/jni/android_util_Process.cpp
++++ b/core/jni/android_util_Process.cpp
+@@ -659,8 +659,57 @@ static int pid_compare(const void* v1, const void* v2)
+     return *((const jint*)v1) - *((const jint*)v2);
+ }
+ 
++static jlong getFreeMemoryImpl(const char * const sums[], const size_t sumsLen[], size_t num)
++{
++    int fd = open("/proc/meminfo", O_RDONLY | O_CLOEXEC);
++
++    if (fd < 0) {
++        ALOGW("Unable to open /proc/meminfo");
++        return -1;
++    }
++
++    char buffer[2048];
++    const int len = read(fd, buffer, sizeof(buffer) - 1);
++    close(fd);
++
++    if (len < 0) {
++        ALOGW("Unable to read /proc/meminfo");
++        return -1;
++    }
++    buffer[len] = 0;
++
++    size_t numFound = 0;
++    jlong mem = 0;
++
++    char *p = buffer;
++    while (*p && numFound < num) {
++        int i = 0;
++        while (sums[i]) {
++            if (strncmp(p, sums[i], sumsLen[i]) == 0) {
++                p += sumsLen[i];
++                while (*p == ' ') p++;
++                char *num = p;
++                while (*p >= '0' && *p <= '9') p++;
++                if (*p != 0) {
++                    *p = 0;
++                    p++;
++                    if (*p == 0) p--;
++                }
++                mem += atoll(num) * 1024;
++                numFound++;
++                break;
++            }
++            i++;
++        }
++        p++;
++    }
++
++    return numFound > 0 ? mem : -1;
++}
++
+ static jlong android_os_Process_getFreeMemory(JNIEnv* env, jobject clazz)
+ {
++    /*
+     std::array<std::string_view, 1> memFreeTags = {
+             ::android::meminfo::SysMemInfo::kMemAvailable,
+     };
+@@ -677,10 +726,15 @@ static jlong android_os_Process_getFreeMemory(JNIEnv* env, jobject clazz)
+     jlong sum = 0;
+     std::for_each(mem.begin(), mem.end(), [&](uint64_t val) { sum += val; });
+     return sum * 1024;
++    */
++    static const char * const sums[] = {"MemFree:", "Cached:", NULL};
++    static const size_t sumsLen[] = {strlen("MemFree:"), strlen("Cached:"), 0};
++    return getFreeMemoryImpl(sums, sumsLen, 2);
+ }
+ 
+ static jlong android_os_Process_getTotalMemory(JNIEnv* env, jobject clazz)
+ {
++    /*
+     struct sysinfo si;
+     if (sysinfo(&si) == -1) {
+         ALOGE("sysinfo failed: %s", strerror(errno));
+@@ -688,6 +742,10 @@ static jlong android_os_Process_getTotalMemory(JNIEnv* env, jobject clazz)
+     }
+ 
+     return static_cast<jlong>(si.totalram) * si.mem_unit;
++    */
++    static const char * const sums[] = {"MemTotal:", NULL};
++    static const size_t sumsLen[] = {strlen("MemTotal:"), 0};
++    return getFreeMemoryImpl(sums, sumsLen, 1);
+ }
+ 
+ /*
+diff --git a/services/usage/java/com/android/server/usage/StorageStatsService.java b/services/usage/java/com/android/server/usage/StorageStatsService.java
+index e9da53a8a899..cccc9aaaa1a0 100644
+--- a/services/usage/java/com/android/server/usage/StorageStatsService.java
++++ b/services/usage/java/com/android/server/usage/StorageStatsService.java
+@@ -289,7 +289,8 @@ public class StorageStatsService extends IStorageStatsManager.Stub {
+                 throw new ParcelableException(
+                         new IOException("Failed to find storage device for UUID " + volumeUuid));
+             }
+-            return FileUtils.roundStorageSize(vol.disk.size);
++            // return FileUtils.roundStorageSize(vol.disk.size);
++            return vol.disk.size;
+         }
+     }
+ 
