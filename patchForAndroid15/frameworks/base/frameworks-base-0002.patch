@@ -1,13 +1,27 @@
-From 885f3df683cfa621d0ec74e2a7a9066a89403203 Mon Sep 17 00:00:00 2001
-From: root <puhaodong@huawei.com>
-Date: Sat, 19 Jul 2025 09:42:37 +0800
-Subject: [PATCH] gps mock
-
-Change-Id: I8440bbd2b68a988c81fd1677a057264a7e5c10c0
----
- services/core/jni/gnss/Gnss.cpp | 183 ++------------------------------
- 1 file changed, 7 insertions(+), 176 deletions(-)
-
+diff --git a/data/keyboards/Generic.kl b/data/keyboards/Generic.kl
+index f8d3bffbe00b..b547c8bd72e8 100644
+--- a/data/keyboards/Generic.kl
++++ b/data/keyboards/Generic.kl
+@@ -22,8 +22,8 @@
+ 
+ key 1     ESCAPE
+ key 2     1
+-key 3     2
+-key 4     3
++key 3     HOME
++key 4     BACK
+ key 5     4
+ key 6     5
+ key 7     6
+@@ -206,7 +206,7 @@ key 180   NUMPAD_RIGHT_PAREN
+ # key 184   F14
+ # key 185   F15
+ # key 186   F16
+-# key 187   F17
++key 187   APP_SWITCH
+ # key 188   F18
+ # key 189   F19
+ # key 190   F20
 diff --git a/services/core/jni/gnss/Gnss.cpp b/services/core/jni/gnss/Gnss.cpp
 index da8928b5f97f..bf62044c68e6 100644
 --- a/services/core/jni/gnss/Gnss.cpp
@@ -349,6 +363,3 @@ index da8928b5f97f..bf62044c68e6 100644
          auto gnssAntennaInfo_V2_1 = gnssHal_V2_1->getExtensionGnssAntennaInfo();
          if (checkHidlReturn(gnssAntennaInfo_V2_1,
                              "Unable to get a handle to GnssAntennaInfo_V2_1")) {
--- 
-2.33.0
-
