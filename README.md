@@ -71,7 +71,7 @@ Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的重要组成部分，
 
 # 许可证书<a name="ZH-CN_TOPIC_0000002442314016"></a>
 
-本项目采用Apache License 2.0许可证。详见[LICENSE](https://gitcode.com/boostkit/cloud-virtual/blob/master/LICENSE)文件。
+本项目采用Apache License 2.0许可证。详见[LICENSE](https://gitee.com/kunpengcompute/Kbox/blob/AOSP11/LICENSE)文件。
 
 # 参考文档<a name="ZH-CN_TOPIC_0000002475759045"></a>
 
