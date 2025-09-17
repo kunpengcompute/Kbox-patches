@@ -1,0 +1,79 @@
+# 项目介绍<a name="ZH-CN_TOPIC_0000002475594085"></a>
+
+Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的重要组成部分，Kbox代码仓存放安卓和Linux内核的相关补丁。Kbox云手机实现了GPS、加速度传感器、陀螺仪、IMEI、Wi-Fi等外设硬件的数据Mock功能，以及Gralloc & HWComposor模块，确保AOSP系统可以正常启动运行。可以远程实时控制云手机，实现Android APP的云端运行；也可以基于云手机的基础算力，高效搭建应用，如云游戏、移动办公、直播互娱等场景。
+
+# 版本说明<a name="ZH-CN_TOPIC_0000002475594081"></a>
+
+<a name="table740710612324"></a>
+<table><thead align="left"><tr id="row144075603214"><th class="cellrowborder" valign="top" width="49.96%" id="mcps1.1.3.1.1"><p id="p114078693216"><a name="p114078693216"></a><a name="p114078693216"></a>项目</p>
+</th>
+<th class="cellrowborder" valign="top" width="50.03999999999999%" id="mcps1.1.3.1.2"><p id="p4238382489"><a name="p4238382489"></a><a name="p4238382489"></a>版本</p>
+</th>
+</tr>
+</thead>
+<tbody>
+<tr id="row44089619323"><td class="cellrowborder" valign="top" width="49.96%" headers="mcps1.1.3.1.1 "><p id="p64089617323"><a name="p64089617323"></a><a name="p64089617323"></a><span>Android</span></p>
+</td>
+<td class="cellrowborder" valign="top" width="50.03999999999999%" headers="mcps1.1.3.1.2 "><p id="p540820673214"><a name="p540820673214"></a><a name="p540820673214"></a>11</p>
+</td>
+</tr>
+</tbody>
+</table>
+
+# 环境部署<a name="ZH-CN_TOPIC_0000002442154120"></a>
+
+1.  配置BIOS，包括MISC、Performance、Memory和PCIe相关选项的配置。
+2.  网卡绑定CPU。
+3.  配置GPU工作模式和CPU绑定（可选）。
+
+详细操作步骤见[参考文档](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/kboxcpc/kunpengcpskbox_20_0002.html)
+
+# 快速上手<a name="ZH-CN_TOPIC_0000002442314008"></a>
+
+该代码仓的脚本和补丁涉及内核编译，镜像制作，云手机启动。
+
+1.  编译内核
+
+    ```
+    cd deploy_scripts/openEuler_deploy/
+    ./kbox_install_kernel.sh
+    ```
+
+2.  部署Kbox，安装显卡驱动，部署Exagear转码包。
+3.  挂载安卓镜像。
+4.  启动一个编号为1的实例。
+
+    ```
+    ./android_kbox.sh start kbox:origin  1
+    ```
+
+5.  启动编号为1\~5的五个实例。
+
+    ```
+    ./android_kbox.sh start kbox:origin  1 5
+    ```
+
+6.  执行如下命令确认Kbox容器是否启动成功，其中“$\{index\}“为启动实例的编号。
+
+    ```
+    docker exec -it kbox_${index} getprop | grep boot_completed
+    ```
+
+    详细操作步骤见[参考文档](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/kboxcpc/kunpengcpskbox_20_0002.html)
+
+# 贡献指南<a name="ZH-CN_TOPIC_0000002442154116"></a>
+
+如果使用过程中有任何问题，或者需要反馈特性需求和bug报告，可以提交issue联系我们，具体贡献方法可参考[这里](https://gitcode.com/boostkit/community/blob/master/docs/contributor/contributing.md)。
+
+# 免责声明<a name="ZH-CN_TOPIC_0000002475673913"></a>
+
+此代码仓仅包含安卓和Linux内核的相关补丁，旨在展示特定功能的使用方式与集成方法，不用于生产环境。所有代码仅为技术参考，不继承或承诺任何上下游软件的安全设计与防护机制。本仓库中的示例代码可能存在安全缺陷、漏洞或不完整实现，鲲鹏计算社区不对代码的安全性、稳定性及合规性承担任何责任。使用者应自行评估风险，并根据实际场景进行安全加固。任何因使用本仓库代码所引发的安全问题，均由使用者自行承担。请勿将本仓库代码直接用于生产系统，建议持续关注上游开源项目的安全公告与版本更新。
+
+# 许可证书<a name="ZH-CN_TOPIC_0000002442314016"></a>
+
+本项目采用Apache License 2.0许可证。详见[LICENSE](https://gitcode.com/boostkit/cloud-virtual/blob/master/LICENSE)文件。
+
+# 参考文档<a name="ZH-CN_TOPIC_0000002475759045"></a>
+
+特性指南（[https://support.huawei.com/enterprise/zh/doc/EDOC1100485492/ed99dbc0?idPath=23710424|251364417|9856629|253662285](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/kboxcpc/kunpengcpskbox_20_0002.html)）
+
