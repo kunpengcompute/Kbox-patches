@@ -1,3 +1,436 @@
+diff --git a/src/amd/vulkan/meson.build b/src/amd/vulkan/meson.build
+index 71c8b16d4fc..691ebd9d616 100644
+--- a/src/amd/vulkan/meson.build
++++ b/src/amd/vulkan/meson.build
+@@ -70,6 +70,7 @@ libradv_files = files(
+   'radv_meta_fmask_copy.c',
+   'radv_meta_fmask_expand.c',
+   'radv_meta_astc_decode.c',
++  'radv_meta_rgba_encode.c',
+   'radv_meta_resolve.c',
+   'radv_meta_resolve_cs.c',
+   'radv_meta_resolve_fs.c',
+diff --git a/src/amd/vulkan/radv_image.c b/src/amd/vulkan/radv_image.c
+index 3fd4ea777a8..dfd7bdca894 100644
+--- a/src/amd/vulkan/radv_image.c
++++ b/src/amd/vulkan/radv_image.c
+@@ -38,6 +38,7 @@
+ #include <cutils/properties.h>
+ 
+ #include "gfx10_format_table.h"
++#include "vk_texcompress_bcn.h"
+ 
+ static const VkImageUsageFlagBits RADV_IMAGE_USAGE_WRITE_BITS =
+    VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+@@ -546,6 +547,66 @@ radv_patch_image_from_extra_info(struct radv_device *device, struct radv_image *
+ 
+ extern bool radv_is_format_emulated(const struct radv_physical_device *physical_device, VkFormat format);
+ 
++static char isEnableHardEncode[PROPERTY_VALUE_MAX];
++VkFormat
++radv_translate_rgba2dxt5(VkFormat format)
++{
++   switch (format) {
++   case VK_FORMAT_R8G8B8A8_UNORM:
++      return VK_FORMAT_BC3_UNORM_BLOCK;
++   case VK_FORMAT_R8G8B8A8_SRGB:
++      return VK_FORMAT_BC3_SRGB_BLOCK;
++   default:
++      return format;
++   }
++}
++
++static bool
++radv_need_hard_encode(const struct radv_physical_device *pdev, const VkImageCreateInfo *pCreateInfo)
++{
++   if (property_get("sys.vmi.vk.texturecompress", isEnableHardEncode, "0") && strcmp(isEnableHardEncode, "2") != 0) {
++      return false;
++   }
++
++   // 暂不支持对图像数组进行压缩
++   if (pCreateInfo->arrayLayers > 1) {
++      return false;
++   }
++
++   if (!radv_is_format_emulated(pdev, pCreateInfo->format)) {
++      return false;
++   }
++
++   const enum util_format_layout format_layout = vk_format_description(pCreateInfo->format)->layout;
++   if (format_layout != UTIL_FORMAT_LAYOUT_ASTC &&
++       vk_texcompress_etc2_emulation_format(pCreateInfo->format) != VK_FORMAT_R8G8B8A8_UNORM &&
++       vk_texcompress_etc2_emulation_format(pCreateInfo->format) != VK_FORMAT_R8G8B8A8_SRGB) {
++      return false;
++   }
++
++   // 过滤掉对稀疏纹理的压缩，对该部分纹理进行压缩时可能造成GPU reset。 
++   if (pCreateInfo->flags & (VK_IMAGE_CREATE_SPARSE_BINDING_BIT | VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT |
++      VK_IMAGE_CREATE_SPARSE_ALIASED_BIT)) {
++      return false;
++   }
++
++	// 检查图像的用途，防止压缩 swapchain 的 images；并只对 VK_IMAGE_TYPE_2D 类型纹理进行压缩
++	if (!(pCreateInfo->usage & VK_IMAGE_USAGE_SAMPLED_BIT) || pCreateInfo->imageType != VK_IMAGE_TYPE_2D) {
++		return false;
++	}
++
++   // 图像太大内存申请不了
++	if (pCreateInfo->extent.width >= 3960 && pCreateInfo->extent.height >= 3960) {
++	   return false;
++	}
++
++	// 检查图像大小
++	if (pCreateInfo->extent.width >= 256 && pCreateInfo->extent.height >= 256) {
++	   return true;
++	}
++	return false;
++}
++
+ static VkFormat
+ radv_image_get_plane_format(const struct radv_physical_device *pdev, const struct radv_image *image,
+                             unsigned plane)
+@@ -553,10 +614,15 @@ radv_image_get_plane_format(const struct radv_physical_device *pdev, const struc
+    if (radv_is_format_emulated(pdev, image->vk_format)) {
+       if (plane == 0)
+          return image->vk_format;
+-      if (vk_format_description(image->vk_format)->layout == UTIL_FORMAT_LAYOUT_ASTC)
++      if (vk_format_description(image->vk_format)->layout == UTIL_FORMAT_LAYOUT_ASTC) {
++         if (image->isNeedHardEncode)
++            return radv_translate_rgba2dxt5(vk_texcompress_astc_emulation_format(image->vk_format));
+          return vk_texcompress_astc_emulation_format(image->vk_format);
+-      else
++      } else {
++         if (image->isNeedHardEncode)
++            return radv_translate_rgba2dxt5(vk_texcompress_etc2_emulation_format(image->vk_format));
+          return vk_texcompress_etc2_emulation_format(image->vk_format);
++      }
+    }
+    return vk_format_get_plane_format(image->vk_format, plane);
+ }
+@@ -1710,6 +1776,12 @@ radv_destroy_image(struct radv_device *device, const VkAllocationCallbacks *pAll
+    vk_free2(&device->vk.alloc, pAllocator, image);
+ }
+ 
++void
++radv_internal_image_finish(struct radv_image *image)
++{
++   vk_object_base_finish(&image->base);
++}
++
+ static void
+ radv_image_print_info(struct radv_device *device, struct radv_image *image)
+ {
+@@ -1890,9 +1962,11 @@ radv_image_create(VkDevice _device, const struct radv_image_create_info *create_
+       vk_find_struct_const(pCreateInfo->pNext, EXTERNAL_MEMORY_IMAGE_CREATE_INFO);
+    assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO);
+ 
++   bool needHardEncode = radv_need_hard_encode(device->physical_device, pCreateInfo);
++
+    unsigned plane_count = radv_get_internal_plane_count(device->physical_device, format);
+ 
+-   bool needSoftEncode = !external_info && radv_need_soft_encode(pCreateInfo);
++   bool needSoftEncode = !external_info && radv_need_soft_encode(pCreateInfo) && !needHardEncode;
+    bool needSoftDecode = needSoftEncode && radv_need_soft_decode(format);
+    VkFormat softDecodeFormat = radv_translate_etc(format);
+    VkFormat softEncodeFormat = radv_translate_rgb2BC(format);
+@@ -1936,6 +2010,7 @@ radv_image_create(VkDevice _device, const struct radv_image_create_info *create_
+    image->usage = pCreateInfo->usage;
+    image->flags = pCreateInfo->flags;
+    image->plane_count = vk_format_get_plane_count(format);
++   image->isNeedHardEncode = needHardEncode;
+ 
+    //满足要求的 ETC2 纹理使用软解
+    if (needSoftDecode) {
+diff --git a/src/amd/vulkan/radv_meta.c b/src/amd/vulkan/radv_meta.c
+index b1080ef8935..9b5a73cd1be 100644
+--- a/src/amd/vulkan/radv_meta.c
++++ b/src/amd/vulkan/radv_meta.c
+@@ -601,8 +601,14 @@ radv_device_init_meta(struct radv_device *device)
+    if (result != VK_SUCCESS)
+       goto fail_astc_decode;
+ 
++   result = radv_device_init_meta_rgba_encode_state(device);
++   if (result != VK_SUCCESS)
++      goto fail_bcn_encode;
++
+    return VK_SUCCESS;
+ 
++fail_bcn_encode:
++   radv_device_finish_meta_rgba_encode_state(device);
+ fail_astc_decode:
+    radv_device_finish_meta_astc_decode_state(device);
+ fail_etc_decode:
+@@ -644,6 +650,7 @@ fail_clear:
+ void
+ radv_device_finish_meta(struct radv_device *device)
+ {
++   radv_device_finish_meta_rgba_encode_state(device);
+    radv_device_finish_meta_etc_decode_state(device);
+    radv_device_finish_meta_astc_decode_state(device);
+    radv_device_finish_accel_struct_build_state(device);
+diff --git a/src/amd/vulkan/radv_meta.h b/src/amd/vulkan/radv_meta.h
+index d8ab75481d9..9702bfc9c7b 100644
+--- a/src/amd/vulkan/radv_meta.h
++++ b/src/amd/vulkan/radv_meta.h
+@@ -107,6 +107,9 @@ void radv_device_finish_meta_etc_decode_state(struct radv_device *device);
+ VkResult radv_device_init_meta_astc_decode_state(struct radv_device *device, bool on_demand);
+ void radv_device_finish_meta_astc_decode_state(struct radv_device *device);
+ 
++VkResult radv_device_init_meta_rgba_encode_state(struct radv_device *device);
++void radv_device_finish_meta_rgba_encode_state(struct radv_device *device);
++
+ void radv_meta_save(struct radv_meta_saved_state *saved_state, struct radv_cmd_buffer *cmd_buffer,
+                     uint32_t flags);
+ 
+@@ -232,6 +235,9 @@ void radv_meta_decode_etc(struct radv_cmd_buffer *cmd_buffer, struct radv_image
+ void radv_meta_decode_astc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, VkImageLayout layout,
+                            const VkImageSubresourceLayers *subresource, VkOffset3D offset, VkExtent3D extent);
+ 
++void radv_meta_bcn_encoded(struct radv_cmd_buffer *cmd_buffer, struct radv_image *image, VkImageLayout layout,
++                           const VkImageSubresourceLayers *subresource, VkOffset3D offset, VkExtent3D extent);
++
+ /**
+  * Return whether the bound pipeline is the FMASK decompress pass.
+  */
+diff --git a/src/amd/vulkan/radv_meta_astc_decode.c b/src/amd/vulkan/radv_meta_astc_decode.c
+index 93a63692c09..006394c639b 100644
+--- a/src/amd/vulkan/radv_meta_astc_decode.c
++++ b/src/amd/vulkan/radv_meta_astc_decode.c
+@@ -166,8 +166,15 @@ radv_meta_decode_astc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *ima
+    struct radv_image_view src_iview, dst_iview;
+    image_view_init(device, image, VK_FORMAT_R32G32B32A32_UINT, VK_IMAGE_ASPECT_COLOR_BIT, subresource->mipLevel,
+                    subresource->baseArrayLayer, vk_image_subresource_layer_count(vkImage, subresource), &src_iview);
+-   image_view_init(device, image, VK_FORMAT_R8G8B8A8_UINT, VK_IMAGE_ASPECT_PLANE_1_BIT, subresource->mipLevel,
+-                   subresource->baseArrayLayer, vk_image_subresource_layer_count(vkImage, subresource), &dst_iview);
++   if (image->isNeedHardEncode) {
++      RADV_FROM_HANDLE(radv_image, store_image, image->staging_images->image_rgba);
++      cmd_buffer->state.flush_bits |= radv_dst_access_flush(cmd_buffer, VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT, store_image);
++      image_view_init(device, store_image, VK_FORMAT_R8G8B8A8_UINT, VK_IMAGE_ASPECT_COLOR_BIT, subresource->mipLevel,
++         subresource->baseArrayLayer, vk_image_subresource_layer_count(vkImage, subresource), &dst_iview);
++   } else {
++      image_view_init(device, image, VK_FORMAT_R8G8B8A8_UINT, VK_IMAGE_ASPECT_PLANE_1_BIT, subresource->mipLevel,
++         subresource->baseArrayLayer, vk_image_subresource_layer_count(vkImage, subresource), &dst_iview);
++   }
+ 
+    VkExtent3D extent_copy = {
+       .width = extent.width,
+diff --git a/src/amd/vulkan/radv_meta_copy.c b/src/amd/vulkan/radv_meta_copy.c
+index b418d3f2ab9..a0a6b41cce9 100644
+--- a/src/amd/vulkan/radv_meta_copy.c
++++ b/src/amd/vulkan/radv_meta_copy.c
+@@ -26,6 +26,7 @@
+ #include "main/formats.h"
+ #include "main/texcompress_etc.h"
+ #include "main/texcompress_bptc_tmp.h"
++#include "vk_texcompress_bcn.h"
+ 
+ static VkExtent3D
+ meta_image_block_size(const struct radv_image *image)
+@@ -471,6 +472,74 @@ copy_buffer_to_image(struct radv_cmd_buffer *cmd_buffer, struct radv_buffer *buf
+    radv_meta_restore(&saved_state, cmd_buffer);
+ }
+ 
++void radv_create_staging_images(struct radv_image *dst_image, struct radv_cmd_buffer *cmd_buffer)
++{
++   struct vk_texcompress_bcn_image *staging_images =
++      vk_alloc(&cmd_buffer->device->vk.alloc, sizeof(struct vk_texcompress_bcn_image), 8, VK_SYSTEM_ALLOCATION_SCOPE_COMMAND);
++   dst_image->staging_images = staging_images;
++
++   uint32_t size = 0;
++   VkExtent3D extent = (VkExtent3D){dst_image->info.width, dst_image->info.height, 1};
++   VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
++   vk_texcompress_create_image(&cmd_buffer->device->vk, NULL, &staging_images->image_mem,
++                               &staging_images->image_rgba, extent, format, 0);
++   RADV_FROM_HANDLE(radv_image, _image_rgba, dst_image->staging_images->image_rgba);
++   size += _image_rgba->size;
++
++   extent = (VkExtent3D){(dst_image->info.width + 3) / 4, (dst_image->info.height + 3) / 4, 1};
++   format = VK_FORMAT_R32G32_UINT;
++   vk_texcompress_create_image(&cmd_buffer->device->vk, NULL, &staging_images->image_mem,
++                               &staging_images->image_bc1, extent, format, 0);
++   RADV_FROM_HANDLE(radv_image, _image_bc1, dst_image->staging_images->image_bc1);
++   size += _image_bc1->size;
++
++   extent = (VkExtent3D){(dst_image->info.width + 3) / 4, (dst_image->info.height + 3) / 4, 1};
++   format = VK_FORMAT_R32G32_UINT;
++   vk_texcompress_create_image(&cmd_buffer->device->vk, NULL, &staging_images->image_mem,
++                               &staging_images->image_bc4, extent, format, 0);
++   RADV_FROM_HANDLE(radv_image, _image_bc4, dst_image->staging_images->image_bc4);
++   size += _image_bc4->size;
++
++   extent = (VkExtent3D){dst_image->info.width, dst_image->info.height, 1};
++   format = VK_FORMAT_R8G8B8A8_UNORM;
++   vk_texcompress_create_image(&cmd_buffer->device->vk, NULL, &staging_images->image_mem,
++      &staging_images->image_dummy, extent, format, size);
++   RADV_FROM_HANDLE(radv_image, _image_dummy, dst_image->staging_images->image_dummy);
++
++   bind_memory(&cmd_buffer->device->vk, &staging_images->image_rgba, &staging_images->image_mem, 0);
++   bind_memory(&cmd_buffer->device->vk, &staging_images->image_bc1, &staging_images->image_mem, _image_rgba->size);
++   bind_memory(&cmd_buffer->device->vk, &staging_images->image_bc4, &staging_images->image_mem, _image_bc1->size);
++
++   cmd_buffer->vk.is_need_hard_encode = true;
++
++   vk_texcompress_insert_head(&cmd_buffer->vk.staging_image_list_head, dst_image->staging_images);
++}
++
++void radv_copy_buffer_hard_encode(struct radv_image *dst_image,
++                                  const enum util_format_layout format_layout,
++                                  struct radv_cmd_buffer *cmd_buffer,
++                                  const VkCopyBufferToImageInfo2 *pCopyBufferToImageInfo)
++{
++   radv_create_staging_images(dst_image, cmd_buffer);
++   for (unsigned r = 0; r < pCopyBufferToImageInfo->regionCount; r++) {
++      if (format_layout == UTIL_FORMAT_LAYOUT_ASTC) {
++         radv_meta_decode_astc(cmd_buffer, dst_image, pCopyBufferToImageInfo->dstImageLayout,
++                               &pCopyBufferToImageInfo->pRegions[r].imageSubresource,
++                               pCopyBufferToImageInfo->pRegions[r].imageOffset,
++                               pCopyBufferToImageInfo->pRegions[r].imageExtent);
++      } else {
++         radv_meta_decode_etc(cmd_buffer, dst_image, pCopyBufferToImageInfo->dstImageLayout,
++                              &pCopyBufferToImageInfo->pRegions[r].imageSubresource,
++                              pCopyBufferToImageInfo->pRegions[r].imageOffset,
++                              pCopyBufferToImageInfo->pRegions[r].imageExtent);
++      }
++      radv_meta_bcn_encoded(cmd_buffer, dst_image, pCopyBufferToImageInfo->dstImageLayout,
++                            &pCopyBufferToImageInfo->pRegions[r].imageSubresource,
++                            pCopyBufferToImageInfo->pRegions[r].imageOffset,
++                            pCopyBufferToImageInfo->pRegions[r].imageExtent);
++   }
++}
++
+ extern bool
+ radv_is_format_emulated(const struct radv_physical_device *physical_device, VkFormat format);
+ 
+@@ -495,6 +564,12 @@ radv_CmdCopyBufferToImage2(VkCommandBuffer commandBuffer,
+          radv_dst_access_flush(cmd_buffer, VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT, dst_image);
+ 
+       const enum util_format_layout format_layout = vk_format_description(dst_image->vk_format)->layout;
++
++      if (dst_image->isNeedHardEncode) {
++         radv_copy_buffer_hard_encode(dst_image, format_layout, cmd_buffer, pCopyBufferToImageInfo);
++         return;
++      }
++
+       for (unsigned r = 0; r < pCopyBufferToImageInfo->regionCount; r++) {
+          if (format_layout == UTIL_FORMAT_LAYOUT_ASTC) {
+             radv_meta_decode_astc(cmd_buffer, dst_image, pCopyBufferToImageInfo->dstImageLayout,
+@@ -847,6 +922,36 @@ copy_image(struct radv_cmd_buffer *cmd_buffer, struct radv_image *src_image,
+    radv_meta_restore(&saved_state, cmd_buffer);
+ }
+ 
++void radv_copy_image_hard_encode(struct radv_image *dst_image,
++                                  const enum util_format_layout format_layout,
++                                  struct radv_cmd_buffer *cmd_buffer,
++                                  const VkCopyImageInfo2 *pCopyImageInfo)
++{
++   radv_create_staging_images(dst_image, cmd_buffer);
++   RADV_FROM_HANDLE(radv_image, src_image, pCopyImageInfo->srcImage);
++   for (unsigned r = 0; r < pCopyImageInfo->regionCount; r++) {
++      VkExtent3D dst_extent = pCopyImageInfo->pRegions[r].extent;
++      if (src_image->vk_format != dst_image->vk_format) {
++         dst_extent.width = dst_extent.width / vk_format_get_blockwidth(src_image->vk_format) *
++                            vk_format_get_blockwidth(dst_image->vk_format);
++         dst_extent.height = dst_extent.height / vk_format_get_blockheight(src_image->vk_format) *
++                             vk_format_get_blockheight(dst_image->vk_format);
++      }
++      if (format_layout == UTIL_FORMAT_LAYOUT_ASTC) {
++         radv_meta_decode_astc(cmd_buffer, dst_image, pCopyImageInfo->dstImageLayout,
++                               &pCopyImageInfo->pRegions[r].dstSubresource, pCopyImageInfo->pRegions[r].dstOffset,
++                               dst_extent);
++      } else {
++         radv_meta_decode_etc(cmd_buffer, dst_image, pCopyImageInfo->dstImageLayout,
++                              &pCopyImageInfo->pRegions[r].dstSubresource, pCopyImageInfo->pRegions[r].dstOffset,
++                              dst_extent);
++      }
++      radv_meta_bcn_encoded(cmd_buffer, dst_image, pCopyImageInfo->dstImageLayout,
++                            &pCopyImageInfo->pRegions[r].dstSubresource, pCopyImageInfo->pRegions[r].dstOffset,
++                            dst_extent);
++   }
++}
++
+ VKAPI_ATTR void VKAPI_CALL
+ radv_CmdCopyImage2(VkCommandBuffer commandBuffer, const VkCopyImageInfo2 *pCopyImageInfo)
+ {
+@@ -866,6 +971,12 @@ radv_CmdCopyImage2(VkCommandBuffer commandBuffer, const VkCopyImageInfo2 *pCopyI
+          radv_dst_access_flush(cmd_buffer, VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT, dst_image);
+ 
+       const enum util_format_layout format_layout = vk_format_description(dst_image->vk_format)->layout;
++
++      if (dst_image->isNeedHardEncode) {
++         radv_copy_image_hard_encode(dst_image, format_layout, cmd_buffer, pCopyImageInfo);
++         return;
++      }
++
+       for (unsigned r = 0; r < pCopyImageInfo->regionCount; r++) {
+          VkExtent3D dst_extent = pCopyImageInfo->pRegions[r].extent;
+          if (src_image->vk_format != dst_image->vk_format) {
+diff --git a/src/amd/vulkan/radv_meta_etc_decode.c b/src/amd/vulkan/radv_meta_etc_decode.c
+index d5d002c63a0..3685218d915 100644
+--- a/src/amd/vulkan/radv_meta_etc_decode.c
++++ b/src/amd/vulkan/radv_meta_etc_decode.c
+@@ -801,23 +801,45 @@ radv_meta_decode_etc(struct radv_cmd_buffer *cmd_buffer, struct radv_image *imag
+       store_format = VK_FORMAT_R8G8B8A8_UNORM;
+    }
+    struct radv_image_view dest_iview;
+-   radv_image_view_init(
+-      &dest_iview, cmd_buffer->device,
+-      &(VkImageViewCreateInfo){
+-         .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+-         .image = radv_image_to_handle(image),
+-         .viewType = radv_meta_get_view_type(image),
+-         .format = store_format,
+-         .subresourceRange =
+-            {
+-               .aspectMask = VK_IMAGE_ASPECT_PLANE_1_BIT,
+-               .baseMipLevel = subresource->mipLevel,
+-               .levelCount = 1,
+-               .baseArrayLayer = 0,
+-               .layerCount = subresource->baseArrayLayer + subresource->layerCount,
+-            },
+-      },
+-      NULL);
++   if (image->isNeedHardEncode) {
++      RADV_FROM_HANDLE(radv_image, store_image, image->staging_images->image_rgba);
++      cmd_buffer->state.flush_bits |= radv_dst_access_flush(cmd_buffer, VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT, store_image);
++      radv_image_view_init(
++         &dest_iview, cmd_buffer->device,
++         &(VkImageViewCreateInfo){
++            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
++            .image = radv_image_to_handle(store_image),
++            .viewType = radv_meta_get_view_type(store_image),
++            .format = store_format,
++            .subresourceRange =
++               {
++                  .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
++                  .baseMipLevel = subresource->mipLevel,
++                  .levelCount = 1,
++                  .baseArrayLayer = 0,
++                  .layerCount = subresource->baseArrayLayer + subresource->layerCount,
++               },
++         },
++         NULL);
++   } else {
++      radv_image_view_init(
++         &dest_iview, cmd_buffer->device,
++         &(VkImageViewCreateInfo){
++            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
++            .image = radv_image_to_handle(image),
++            .viewType = radv_meta_get_view_type(image),
++            .format = store_format,
++            .subresourceRange =
++               {
++                  .aspectMask = VK_IMAGE_ASPECT_PLANE_1_BIT,
++                  .baseMipLevel = subresource->mipLevel,
++                  .levelCount = 1,
++                  .baseArrayLayer = 0,
++                  .layerCount = subresource->baseArrayLayer + subresource->layerCount,
++               },
++         },
++         NULL);
++   }
+ 
+    decode_etc(cmd_buffer, &src_iview, &dest_iview, &(VkOffset3D){offset.x, offset.y, base_slice},
+               &(VkExtent3D){extent.width, extent.height, slice_count});
 diff --git a/src/amd/vulkan/radv_meta_rgba_encode.c b/src/amd/vulkan/radv_meta_rgba_encode.c
 new file mode 100644
 index 00000000000..b144767143d
@@ -316,6 +749,239 @@ index 00000000000..b144767143d
 +
 +   radv_meta_restore(&saved_state, cmd_buffer);
 +}
+diff --git a/src/amd/vulkan/radv_private.h b/src/amd/vulkan/radv_private.h
+index 472858dd401..04a670d714d 100644
+--- a/src/amd/vulkan/radv_private.h
++++ b/src/amd/vulkan/radv_private.h
+@@ -98,6 +98,7 @@ typedef uint32_t xcb_window_t;
+ 
+ #include "vk_texcompress_astc.h"
+ #include "wsi_common.h"
++#include "vk_texcompress_bcn.h"
+ 
+ #ifdef __cplusplus
+ extern "C"
+@@ -681,6 +682,8 @@ struct radv_meta_state {
+    } etc_decode;
+ 
+    struct vk_texcompress_astc_state *astc_decode;
++
++   struct vk_texcompress_bcn_state *bcn_encoded[VK_TEXCOMPRESS_BCN_NUM_COMPUTE_PIPELINES];
+ };
+ 
+ #define RADV_NUM_HW_CTX (RADEON_CTX_PRIORITY_REALTIME + 1)
+@@ -2090,8 +2093,12 @@ struct radv_image {
+    bool dcc_sign_reinterpret;
+    bool support_comp_to_single;
+ 
+-   bool isNeedSoftEncode;// 是否需要使用 软编
+-   bool isNeedSoftDecode;// 是否需要使用 软解
++   bool isNeedSoftEncode;  // 是否需要使用 软编
++   bool isNeedSoftDecode;  // 是否需要使用 软解
++
++   bool isNeedHardEncode;  // 是否需要使用 硬编
++   struct vk_texcompress_bcn_image *staging_images;  // 硬编的中间资源
++
+ 	VkFormat srcFormat; //用于保存纹理的原始格式
+ 	VkFormat unpackETCFormat;//用于保存ETC纹理解压后的格式
+ 
+@@ -2474,6 +2481,8 @@ void radv_image_view_init(struct radv_image_view *view, struct radv_device *devi
+                           const struct radv_image_view_extra_create_info *extra_create_info);
+ void radv_image_view_finish(struct radv_image_view *iview);
+ 
++void radv_internal_image_finish(struct radv_image *image);
++
+ VkFormat radv_get_aspect_format(struct radv_image *image, VkImageAspectFlags mask);
+ 
+ struct radv_sampler_ycbcr_conversion_state {
+diff --git a/src/compiler/glsl/bc1.glsl b/src/compiler/glsl/bc1.glsl
+index 251635d7b69..627b2e5419c 100644
+--- a/src/compiler/glsl/bc1.glsl
++++ b/src/compiler/glsl/bc1.glsl
+@@ -1,3 +1,4 @@
++#version 310 es
+ /*
+  * Copyright 2020-2022 Matias N. Goldberg
+  * Copyright 2022 Intel Corporation
+@@ -21,7 +22,6 @@
+  * DEALINGS IN THE SOFTWARE.
+  */
+ 
+-#version 310 es
+ 
+ #if defined(GL_ES) && GL_ES == 1
+ 	// Desktop GLSL allows the const keyword for either compile-time or
+@@ -31,10 +31,31 @@
+ 	#define const
+ #endif
+ 
+-%s // include "CrossPlatformSettings_piece_all.glsl"
+-
+ #define FLT_MAX 340282346638528859811704183484516925440.0f
+ 
++#ifdef VULKAN
++
++#extension GL_GOOGLE_include_directive : require
++#include "CrossPlatformSettings_piece_all.glsl"
++
++layout(push_constant, std430) uniform pc {
++	uint p_numRefinements;
++};
++
++layout ( set = 0, binding = 0 ) uniform sampler2D srcTex;
++
++layout (std430, set = 0, binding = 1) readonly restrict buffer globalBuffer
++{
++	float2 c_oMatch5[256];
++	float2 c_oMatch6[256];
++};
++
++layout (rgba16ui, set = 0, binding = 2 ) uniform restrict writeonly mediump uimage2D dstTexture;
++
++#else
++
++%s // include "CrossPlatformSettings_piece_all.glsl"
++
+ layout( location = 0 ) uniform uint p_numRefinements;
+ 
+ uniform sampler2D srcTex;
+@@ -47,6 +68,8 @@ layout( std430, binding = 1 ) readonly restrict buffer globalBuffer
+ 	float2 c_oMatch6[256];
+ };
+ 
++#endif
++
+ layout( local_size_x = 8,  //
+ 		local_size_y = 8,  //
+ 		local_size_z = 1 ) in;
+diff --git a/src/compiler/glsl/bc4.glsl b/src/compiler/glsl/bc4.glsl
+index 2486fa4ae0c..0b9d236d624 100644
+--- a/src/compiler/glsl/bc4.glsl
++++ b/src/compiler/glsl/bc4.glsl
+@@ -1,3 +1,5 @@
++#version 310 es
++
+ /*
+  * Copyright 2020-2022 Matias N. Goldberg
+  * Copyright 2022 Intel Corporation
+@@ -21,8 +23,6 @@
+  * DEALINGS IN THE SOFTWARE.
+  */
+ 
+-#version 310 es
+-
+ #if defined(GL_ES) && GL_ES == 1
+ 	// Desktop GLSL allows the const keyword for either compile-time or
+ 	// run-time constants. GLSL ES only allows the keyword for compile-time
+@@ -33,20 +33,37 @@
+ 
+ #define __sharedOnlyBarrier memoryBarrierShared();barrier();
+ 
+-%s // include "CrossPlatformSettings_piece_all.glsl"
++#ifdef VULKAN
+ 
+-shared float2 g_minMaxValues[4u * 4u * 4u];
+-shared uint2 g_mask[4u * 4u];
++#extension GL_GOOGLE_include_directive : require
++#include "CrossPlatformSettings_piece_all.glsl"
+ 
+-layout( location = 0 ) uniform uint2 params;
++layout(push_constant, std430) uniform pc {
++	uint2 params;
++};
+ 
+-#define p_channelIdx params.x
+-#define p_useSNorm params.y
++layout ( set = 0, binding = 0 ) uniform sampler2D srcTex;
++
++layout (rgba16ui, set = 0, binding = 1) uniform restrict writeonly mediump uimage2D dstTexture;
++
++#else
++
++%s // include "CrossPlatformSettings_piece_all.glsl"
+ 
+ uniform sampler2D srcTex;
+ 
+ layout( rgba16ui ) uniform restrict writeonly mediump uimage2D dstTexture;
+ 
++layout( location = 0 ) uniform uint2 params;
++
++#endif
++
++shared float2 g_minMaxValues[4u * 4u * 4u];
++shared uint2 g_mask[4u * 4u];
++
++#define p_channelIdx params.x
++#define p_useSNorm params.y
++
+ layout( local_size_x = 4,  //
+ 		local_size_y = 4,  //
+ 		local_size_z = 4 ) in;
+diff --git a/src/compiler/glsl/etc2_rgba_stitch.glsl b/src/compiler/glsl/etc2_rgba_stitch.glsl
+index f90accb82e1..8d50c469956 100644
+--- a/src/compiler/glsl/etc2_rgba_stitch.glsl
++++ b/src/compiler/glsl/etc2_rgba_stitch.glsl
+@@ -1,3 +1,5 @@
++#version 310 es
++
+ /*
+  * Copyright 2020-2022 Matias N. Goldberg
+  * Copyright 2022 Intel Corporation
+@@ -25,18 +27,30 @@
+ // This compute shader merely stitches them together to form the final result
+ // It's also used by RG11 driver to stitch two R11 into one RG11
+ 
+-#version 310 es
++#ifdef VULKAN
+ 
+-%s // include "CrossPlatformSettings_piece_all.glsl"
++#extension GL_GOOGLE_include_directive : require
++#include "CrossPlatformSettings_piece_all.glsl"
+ 
+-layout( local_size_x = 8,  //
+-		local_size_y = 8,  //
+-		local_size_z = 1 ) in;
++layout ( binding = 0 ) uniform highp usampler2D srcRGB;
++layout ( binding = 1 ) uniform highp usampler2D srcAlpha;
++
++layout ( rgba32ui, binding = 2 ) uniform restrict writeonly mediump uimage2D dstTexture;
++
++#else
++
++%s // include "CrossPlatformSettings_piece_all.glsl"
+ 
+ layout( binding = 0 ) uniform highp usampler2D srcRGB;
+ layout( binding = 1 ) uniform highp usampler2D srcAlpha;
+ layout( rgba32ui ) uniform restrict writeonly highp uimage2D dstTexture;
+ 
++#endif
++
++layout( local_size_x = 8,  //
++		local_size_y = 8,  //
++		local_size_z = 1 ) in;
++
+ void main()
+ {
+ 	uint2 etcRgb = OGRE_Load2D( srcRGB, int2( gl_GlobalInvocationID.xy ), 0 ).xy;
+diff --git a/src/compiler/meson.build b/src/compiler/meson.build
+index e18af3bf335..85b19b84bec 100644
+--- a/src/compiler/meson.build
++++ b/src/compiler/meson.build
+@@ -24,6 +24,14 @@ inc_spirv = include_directories('spirv')
+ 
+ astc_decoder_glsl_file = files('glsl/astc_decoder.glsl')
+ 
++bc3_encode_head_dir = meson.current_source_dir() / 'glsl'
++
++bc1_glsl_file = files('glsl/bc1.glsl')
++
++bc4_glsl_file = files('glsl/bc4.glsl')
++
++etc2_rgba_stitch_glsl_file = files('glsl/etc2_rgba_stitch.glsl')
++
+ files_libcompiler = files(
+   'builtin_type_macros.h',
+   'glsl_types.cpp',
 diff --git a/src/util/bc1_tables.h b/src/util/bc1_tables.h
 new file mode 100644
 index 00000000000..654ccdadb78
@@ -446,6 +1112,123 @@ index 00000000000..654ccdadb78
 +	{ 62, 54 }, { 62, 55 }, { 62, 55 }, { 62, 56 }, { 63, 55 }, { 63, 56 }, { 63, 56 }, { 63, 57 },
 +	{ 63, 58 }, { 63, 59 }, { 63, 59 }, { 63, 60 }, { 63, 61 }, { 63, 62 }, { 63, 62 }, { 63, 63 }
 +};
+diff --git a/src/vulkan/runtime/meson.build b/src/vulkan/runtime/meson.build
+index 1c02e1a5dd8..54c89d793a0 100644
+--- a/src/vulkan/runtime/meson.build
++++ b/src/vulkan/runtime/meson.build
+@@ -93,12 +93,31 @@ endif
+ 
+ if prog_glslang.found()
+   vulkan_runtime_files += files('vk_texcompress_astc.c', 'vk_texcompress_astc.h')
++  vulkan_runtime_files += files('vk_texcompress_bcn.c', 'vk_texcompress_bcn.h')
+   vulkan_runtime_files += custom_target(
+     'astc_spv.h',
+     input : astc_decoder_glsl_file,
+     output : 'astc_spv.h',
+     command : [prog_glslang, '-V', '-S', 'comp', '-x', '-o', '@OUTPUT@', '@INPUT@'] + glslang_quiet,
+     )
++  vulkan_runtime_files += custom_target(
++    'bc1_spv.h',
++    input : bc1_glsl_file,
++    output : 'bc1_spv.h',
++    command : [prog_glslang, '-V', '-S', 'comp', '-x', '-Ibc3_encode_head_dir', '-o', '@OUTPUT@', '@INPUT@'] + glslang_quiet,
++  )
++  vulkan_runtime_files += custom_target(
++    'bc4_spv.h',
++    input : bc4_glsl_file,
++    output : 'bc4_spv.h',
++    command : [prog_glslang, '-V', '-S', 'comp', '-x', '-Ibc3_encode_head_dir', '-o', '@OUTPUT@', '@INPUT@'] + glslang_quiet,
++  )
++  vulkan_runtime_files += custom_target(
++    'bc3_spv.h',
++    input : etc2_rgba_stitch_glsl_file,
++    output : 'bc3_spv.h',
++    command : [prog_glslang, '-V', '-S', 'comp', '-x', '-Ibc3_encode_head_dir', '-o', '@OUTPUT@', '@INPUT@'] + glslang_quiet,
++  )
+ endif
+ 
+ vk_common_entrypoints = custom_target(
+diff --git a/src/vulkan/runtime/vk_command_buffer.h b/src/vulkan/runtime/vk_command_buffer.h
+index 36099d03a56..1a04b53510f 100644
+--- a/src/vulkan/runtime/vk_command_buffer.h
++++ b/src/vulkan/runtime/vk_command_buffer.h
+@@ -28,6 +28,7 @@
+ #include "vk_object.h"
+ #include "util/list.h"
+ #include "util/u_dynarray.h"
++#include "vk_texcompress_bcn.h"
+ 
+ #ifdef __cplusplus
+ extern "C" {
+@@ -130,6 +131,12 @@ struct vk_command_buffer {
+    /* This uses the same trick as STACK_ARRAY */
+    struct vk_attachment_state *attachments;
+    struct vk_attachment_state _attachments[8];
++
++   bool is_need_hard_encode;
++
++   struct vk_texcompress_staging_images* staging_image_list_head;
++
++   struct vk_texcompress_dummy_image* dummy;
+ };
+ 
+ VK_DEFINE_HANDLE_CASTS(vk_command_buffer, base, VkCommandBuffer,
+diff --git a/src/vulkan/runtime/vk_queue.c b/src/vulkan/runtime/vk_queue.c
+index 6216af9d856..15994e3420d 100644
+--- a/src/vulkan/runtime/vk_queue.c
++++ b/src/vulkan/runtime/vk_queue.c
+@@ -42,6 +42,7 @@
+ #include "vk_util.h"
+ 
+ #include "vulkan/wsi/wsi_common.h"
++#include "vk_texcompress_bcn.h"
+ 
+ static VkResult
+ vk_queue_start_submit_thread(struct vk_queue *queue);
+@@ -1140,7 +1141,22 @@ vk_common_QueueSubmit2KHR(VkQueue _queue,
+       }
+    }
+ 
++   int n_command_buffers = 0;
++   for (uint32_t s = 0; s < submitCount; s++) {
++      n_command_buffers += pSubmits[s].commandBufferInfoCount;
++   }
++   const uint32_t const_num_cmd_buf = n_command_buffers;
++   uint32_t num_cmd_buf = 0;
++   struct vk_command_buffer *need_delete_cmd_buf[const_num_cmd_buf];
++
+    for (uint32_t i = 0; i < submitCount; i++) {
++      for (uint32_t j = 0; j < pSubmits[i].commandBufferInfoCount; j++) {
++         VK_FROM_HANDLE(vk_command_buffer, commandBuffer, (pSubmits[i].pCommandBufferInfos)[j].commandBuffer);
++         if (commandBuffer->is_need_hard_encode) {
++            need_delete_cmd_buf[num_cmd_buf] = commandBuffer;
++            num_cmd_buf += 1;
++         }
++      }
+       struct vulkan_submit_info info = {
+          .pNext = pSubmits[i].pNext,
+          .command_buffer_count = pSubmits[i].commandBufferInfoCount,
+@@ -1156,6 +1172,20 @@ vk_common_QueueSubmit2KHR(VkQueue _queue,
+          return result;
+    }
+ 
++   if (num_cmd_buf > 0 && fence == NULL) {
++      vk_texcompress_create_fence(queue->base.device, NULL, &_fence);
++   }
++
++   if (num_cmd_buf > 0) {
++      vk_texcompress_wait_fence(queue->base.device, NULL, &_fence);
++      for (uint32_t i = 0; i < num_cmd_buf; i++) {
++         while (need_delete_cmd_buf[i]->staging_image_list_head != NULL) {
++            vk_texcompress_delete_head(&need_delete_cmd_buf[i]->staging_image_list_head, queue->base.device);
++         }
++         need_delete_cmd_buf[i]->is_need_hard_encode = false;
++      }
++   }
++
+    return VK_SUCCESS;
+ }
+ 
 diff --git a/src/vulkan/runtime/vk_texcompress_bcn.c b/src/vulkan/runtime/vk_texcompress_bcn.c
 new file mode 100644
 index 00000000000..2c85d98af5c
