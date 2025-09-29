@@ -415,7 +415,7 @@ function check_key_process() {
 function chose_loop_device() {
     TARGET_LOOPS=39
     MAPPED_LOOPS=0
-    num=$(docker ps | grep tcp | wc -l)
+    num=$(echo "$1" | cut -d '_' -f 3)
     CURRENT_LOOP=$((num * 39))
     while [ $MAPPED_LOOPS -lt $TARGET_LOOPS ]; do
         # 获取已被占用的loop设备列表（每次循环更新，避免遗漏新占用的设备）
@@ -541,7 +541,7 @@ function start_box() {
     RUN_OPTION+=" --cidfile ${HOOK_PATH}/${BOX_NAME}/container_id.cid "
     RUN_OPTION+=" --cpu-shares=$(lscpu | grep -w "CPU(s)" | head -n 1 | awk '{print $2}') "
 
-    chose_loop_device
+    chose_loop_device ${BOX_NAME}
 
     local CPU NUMA TEMP
     for CPU in ${CPUS[@]}; do
@@ -651,17 +651,6 @@ function start_box() {
         fi
         $RUNTIME_CMD cp build.prop_${BOX_NAME} ${BOX_NAME}:/system/vendor/build.prop
         rm -rf ./build.prop_${BOX_NAME}
-    fi
-    local cid=$($RUNTIME_CMD ps | grep -w " ${BOX_NAME}" | awk '{print $1}')
-    local BINDER_MAJOR_ID=$(cat /proc/devices | grep binder | awk '{print $1}')
-    if [ $DEFAULT_RUNTIME == "docker" ]; then
-        # 赋予容器binder设备节点cgroup devices权限
-        echo "c $BINDER_MAJOR_ID:* rwm" >$(ls -d /sys/fs/cgroup/devices/docker/$cid*/devices.allow)
-        echo 1 > /sys/fs/cgroup/cpuset/docker/$cid*/cgroup.clone_children
-    else
-        # 赋予容器binder设备节点cgroup devices权限
-        echo "c $BINDER_MAJOR_ID:* rwm" >$(ls -d /sys/fs/cgroup/devices/default/$cid*/devices.allow)
-        echo 1 > /sys/fs/cgroup/cpuset/default/$cid*/cgroup.clone_children
     fi
 }
 
@@ -828,7 +817,7 @@ function restart_box() {
         $RUNTIME_CMD stop -t 0 ${BOX_NAME}
         echo "${BOX_NAME} begins restarting the $i times!"
 	RUN_OPTION+=""
-        chose_loop_device
+        chose_loop_device ${BOX_NAME}
         $RUNTIME_CMD start ${BOX_NAME}
 
         if [ $DEFAULT_RUNTIME == "containerd" ]; then
