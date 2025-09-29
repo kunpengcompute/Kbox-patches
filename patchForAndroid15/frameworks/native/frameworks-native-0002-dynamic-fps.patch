@@ -1,0 +1,134 @@
+diff --git a/services/surfaceflinger/Scheduler/Scheduler.h b/services/surfaceflinger/Scheduler/Scheduler.h
+index c88b563805..ab622e93bd 100644
+--- a/services/surfaceflinger/Scheduler/Scheduler.h
++++ b/services/surfaceflinger/Scheduler/Scheduler.h
+@@ -332,6 +332,12 @@ public:
+         mPacesetterFrameDurationFractionToSkip = frameDurationFraction;
+     }
+ 
++    void setVsyncPeriod(PhysicalDisplayId id, nsecs_t vsyncPeriod) {
++        auto schedule = getVsyncSchedule(id);
++        LOG_ALWAYS_FATAL_IF(!schedule);
++        schedule->setVsyncPeriod(vsyncPeriod);
++    }
++
+ private:
+     friend class TestableScheduler;
+ 
+diff --git a/services/surfaceflinger/Scheduler/VSyncPredictor.cpp b/services/surfaceflinger/Scheduler/VSyncPredictor.cpp
+index 6e36f02463..c134dfca11 100644
+--- a/services/surfaceflinger/Scheduler/VSyncPredictor.cpp
++++ b/services/surfaceflinger/Scheduler/VSyncPredictor.cpp
+@@ -620,6 +620,26 @@ void VSyncPredictor::resetModel() {
+     clearTimestamps(/* clearTimelines */ true);
+ }
+ 
++void VSyncPredictor::setVsyncPeriod(nsecs_t vsyncPeriod) {
++    std::lock_guard lock(mMutex);
++
++    DisplayModePtr newMode = DisplayMode::Builder(mDisplayModePtr->getHwcId())
++        .setId(mDisplayModePtr->getId())
++        .setPhysicalDisplayId(mDisplayModePtr->getPhysicalDisplayId())
++        .setResolution(mDisplayModePtr->getResolution())
++        .setVsyncPeriod(vsyncPeriod)
++        .setVrrConfig(mDisplayModePtr->getVrrConfig())
++        .setDpiX(mDisplayModePtr->getDpi().x)
++        .setDpiY(mDisplayModePtr->getDpi().y)
++        .setGroup(mDisplayModePtr->getGroup())
++        .build();
++
++    mDisplayModePtr = ftl::as_non_null(newMode);
++
++    mRateMap[idealPeriod()] = {idealPeriod(), 0};
++    clearTimestamps(/* clearTimelines */ true);
++}
++
+ void VSyncPredictor::dump(std::string& result) const {
+     std::lock_guard lock(mMutex);
+     StringAppendF(&result, "\tmDisplayModePtr=%s\n", to_string(*mDisplayModePtr).c_str());
+diff --git a/services/surfaceflinger/Scheduler/VSyncPredictor.h b/services/surfaceflinger/Scheduler/VSyncPredictor.h
+index 2df3d0465f..ca811705dc 100644
+--- a/services/surfaceflinger/Scheduler/VSyncPredictor.h
++++ b/services/surfaceflinger/Scheduler/VSyncPredictor.h
+@@ -52,6 +52,7 @@ public:
+     nsecs_t currentPeriod() const final EXCLUDES(mMutex);
+     Period minFramePeriod() const final EXCLUDES(mMutex);
+     void resetModel() final EXCLUDES(mMutex);
++    void setVsyncPeriod(nsecs_t vsyncPeriod) final EXCLUDES(mMutex);
+ 
+     /* Query if the model is in need of more samples to make a prediction.
+      * \return  True, if model would benefit from more samples, False if not.
+diff --git a/services/surfaceflinger/Scheduler/VSyncTracker.h b/services/surfaceflinger/Scheduler/VSyncTracker.h
+index 3376fadad0..c0b4ce06b4 100644
+--- a/services/surfaceflinger/Scheduler/VSyncTracker.h
++++ b/services/surfaceflinger/Scheduler/VSyncTracker.h
+@@ -79,6 +79,7 @@ public:
+ 
+     /* Inform the tracker that the samples it has are not accurate for prediction. */
+     virtual void resetModel() = 0;
++    virtual void setVsyncPeriod(nsecs_t vsyncPeriod) = 0;
+ 
+     virtual bool needsMoreSamples() const = 0;
+ 
+diff --git a/services/surfaceflinger/Scheduler/VsyncSchedule.h b/services/surfaceflinger/Scheduler/VsyncSchedule.h
+index 881d6789b2..786c889664 100644
+--- a/services/surfaceflinger/Scheduler/VsyncSchedule.h
++++ b/services/surfaceflinger/Scheduler/VsyncSchedule.h
+@@ -98,6 +98,9 @@ public:
+     // Turn on hardware VSYNCs, unless mHwVsyncState is Disallowed, in which
+     // case this call is ignored.
+     void enableHardwareVsync() EXCLUDES(mHwVsyncLock);
++    void setVsyncPeriod(nsecs_t vsyncPeriod) {
++        getTracker().setVsyncPeriod(vsyncPeriod);
++    }
+ 
+     // Disable hardware VSYNCs. If `disallow` is true, future calls to
+     // enableHardwareVsync are ineffective until isHardwareVsyncAllowed is
+diff --git a/services/surfaceflinger/SurfaceFlinger.cpp b/services/surfaceflinger/SurfaceFlinger.cpp
+index 65a0ed3065..d20e6bef90 100644
+--- a/services/surfaceflinger/SurfaceFlinger.cpp
++++ b/services/surfaceflinger/SurfaceFlinger.cpp
+@@ -2196,12 +2196,43 @@ void SurfaceFlinger::onComposerHalVsync(hal::HWDisplayId hwcDisplayId, int64_t t
+     }
+ }
+ 
++#define VSYNC_PERIOD_VALUE_BASE 1000000000
++#define MAX_FPS 300
++#define DEFAULT_FPS 30
++static nsecs_t getPeriodFromProp(std::string prop)
++{
++    int fps = base::GetIntProperty(prop, 30);
++
++    if (fps <= 0 || fps > MAX_FPS) {
++        fps = DEFAULT_FPS;
++    }
++    return VSYNC_PERIOD_VALUE_BASE / fps; // 1000*1000*1000/30
++}
++
++#define HWC_DISPLAY_KBOX 4
+ void SurfaceFlinger::onComposerHalHotplugEvent(hal::HWDisplayId hwcDisplayId,
+                                                DisplayHotplugEvent event) {
+     if (event == DisplayHotplugEvent::CONNECTED || event == DisplayHotplugEvent::DISCONNECTED) {
+         hal::Connection connection = (event == DisplayHotplugEvent::CONNECTED)
+                 ? hal::Connection::CONNECTED
+                 : hal::Connection::DISCONNECTED;
++
++        if (hwcDisplayId == HWC_DISPLAY_KBOX) {
++            Mutex::Autolock lock(mStateLock);
++
++            nsecs_t period = getPeriodFromProp("ro.hardware.fps");
++            const auto defaultDisplayId = getDefaultDisplayDeviceLocked()->getPhysicalId();
++
++            if (connection == hal::Connection::CONNECTED) {
++                mScheduler->setVsyncPeriod(defaultDisplayId, period);
++            } else if (connection == hal::Connection::DISCONNECTED) {
++                nsecs_t downPeriod = getPeriodFromProp("ro.hardware.downfps");
++                downPeriod = (downPeriod > period) ? downPeriod : period; // 约束下降后的周期一定大于原始周期
++                mScheduler->setVsyncPeriod(defaultDisplayId, downPeriod);
++            }
++            return;
++        }
++
+         {
+             std::lock_guard<std::mutex> lock(mHotplugMutex);
+             mPendingHotplugEvents.push_back(HotplugEvent{hwcDisplayId, connection});
