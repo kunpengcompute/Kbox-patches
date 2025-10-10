@@ -241,15 +241,6 @@ function check_encode_card()
  
     cmd="nvme list"
     output=$($cmd)
-    if echo "$output" | grep -q "QuadraT2A"; then
-        echo "set encode card to QuadraT2A"
-        HARD_DECODE_TYPE=1
-    elif echo "$output" | grep -q "T432"; then
-        echo "set encode card to T432"
-        HARD_DECODE_TYPE=0
-    else
-        echo "encode card unchange"
-    fi
 }
 
 function enable_hard_decoder() {
@@ -271,19 +262,14 @@ function enable_hard_decoder() {
         # VA GPU 硬解逻辑到base_box中处理，兼容视频流
         return;
     fi
-    # 从硬解使能软解
+    # 不使用硬解
     if [ $ENABLE_HARD_DECODE -ne 1 ];then
         docker cp ${container_name}:/system/vendor/etc/media_codecs.xml .
-        sed -i 's/media_codecs_kbox_video.xml/media_codecs_google_video.xml/g' media_codecs.xml
+        sed -i '81,100d' media_codecs.xml    #删除当前xml文件中关于解码器相关配置
         docker cp ./media_codecs.xml ${container_name}:/system/vendor/etc/
         docker exec -itd ${container_name} chmod 644 /system/vendor/etc/media_codecs.xml
         return
     fi
-    # 使能硬解
-    docker cp ${container_name}:/system/vendor/etc/media_codecs.xml .
-    sed -i 's/media_codecs_google_video.xml/media_codecs_kbox_video.xml/g' media_codecs.xml
-    docker cp ./media_codecs.xml ${container_name}:/system/vendor/etc/
-    docker exec -itd ${container_name} chmod 644 /system/vendor/etc/media_codecs.xml
     echo "enable hard decoder done"
 }
 
@@ -300,24 +286,12 @@ function enable_netint() {
 
     container_name=$1
     check_encode_card
-    # T432初始化执行方式不变；Quadra采用ni_rsrc_mon自启动，生命周期由编码卡厂家管理，此处仅打印返回值
-    if [ $HARD_DECODE_TYPE -eq 0 ];then
-        docker exec -itd ${container_name} /system/bin/ni_rsrc_mon_logan
-        sleep 3
-        docker exec -itd ${container_name} chmod 666 /dev/nvm*n*
-        docker exec -itd ${container_name} chmod 777 -R /dev/shm_netint
-        [ ${?} != 0 ] && echo "Failed to enable netint device" && return
-        echo "enable netint device success"
-    elif [ $HARD_DECODE_TYPE -eq 1 ];then
-        local container_name=$1
-        local ni_init_success=$(docker exec -itd ${container_name} getprop ni_rsrc_init_completed)
-        if [ "${ni_init_success}" == "yes" ]; then
-            echo "Failed to enable netint device"
-        else
-            echo "enable netint device success"
-        fi
+    local container_name=$1
+    local ni_init_success=$(docker exec -itd ${container_name} getprop ni_rsrc_init_completed)
+    if [ "${ni_init_success}" == "yes" ]; then
+        echo "Failed to enable netint device"
     else
-        return;
+        echo "enable netint device success"
     fi
 }
 
@@ -435,7 +409,7 @@ function start_box_by_id() {
     --container_data_path "/var/lib/docker" \
     --enable_render_layer "$ENABLE_RENDER_LAYER"
 
-    #enable_hard_decoder $TAG_NUMBER
+    enable_hard_decoder $TAG_NUMBER
 
     # 调整vinput设备权限
     cid=$(docker ps | grep -w ${CONTAINER_NAME} | awk '{print $1}')
@@ -518,7 +492,6 @@ function main() {
                 echo "no container kbox_$TAG_NUMBER!"
             else
                 set +e
-                enable_hard_decoder $TAG_NUMBER
                 local MOUNT_DIR=${KBOX_MOUNT_MAP[TAG_NUMBER - 1]}
                 bash $CURRENT_DIR/base_box_aosp15.sh restart "kbox_$TAG_NUMBER" "$MOUNT_DIR" 3 ${ENABLE_HARD_DECODE}
                 [ ${?} -eq 1 ] && continue
