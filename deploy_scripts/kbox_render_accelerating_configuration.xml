@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- 图像加速层配置文件，规则如下：
+     1. system代表通用配置，具体的application可以覆盖system的配置
+     2. gpuMock功能配置说明：
+          1）GL_EXTENSION_MOCK value为1是在系统的extension上追加，0为去除系统默认的extension
+     3. shaderCahce功能配置说明：
+          1）系统通用配置禁止使能shadercache
+          2）SHADER_CACHE_MODE选项表示shader的读写模式 0:CLOSED, 1: READONLY, 2: READWRITE, 3:DEFAULT
+          3）SHADER_CACHE_DIR_SIZE选项表示shader可存储的大小，单位 MB，取值：64 128 256 512 1024
+          4）使能shadercache功能，gpumock会自动使能
+     4. 具体应用配置示例
+     <Application name="process_name" isEnable="false">
+          <feature name="kbox.render.accelerating.shaderCache"  isEnable="false">
+               <GL_SHADER_CACHE>
+                    <param name="SHADER_CACHE_MODE" value="3"/>
+                    <param name="SHADER_CACHE_DIR_SIZE" value="200"/>
+               </GL_SHADER_CACHE>
+          </feature>
+          <feature name="kbox.render.accelerating.gpuMock"  isEnable="false">
+               <GL_RENDERER_MOCK>
+                    <param name="GL_RENDERER" value="Mali_G76"/>
+                    <param name="GL_VENDOR" value="Huawei"/>
+                    <param name="GL_VERSION" value="OpenGL ES 3.2 Mesa 22.1.7"/>
+               </GL_RENDERER_MOCK>
+               <GL_EXTENSION_MOCK>
+                    <param name="GL_EXT_blend_minmax" value="1"/>
+                    <param name="GL_EXT_color_buffer_float" value="1"/>
+               </GL_EXTENSION_MOCK>
+               <GL_MAX_VALUE_MOCK>
+                    <param name="GL_MAX_VERTEX_ATTRIBS" value="16"/>
+                    <param name="GL_MAX_FRAMEBUFFER_LAYERS" value="888"/>
+               </GL_MAX_VALUE_MOCK>
+          </feature>
+     </Application>
+-->
+
+<configuration version="1.0">
+     <Application name="system" isEnable="false">
+          <feature name="kbox.render.accelerating.gpuMock"  isEnable="false">
+               <GL_RENDERER_MOCK>
+                    <param name="GL_RENDERER" value="Mali_G76"/>
+                    <param name="GL_VENDOR" value="Huawei"/>
+                    <param name="GL_VERSION" value="OpenGL ES 3.2 Mesa 22.1.7"/>
+               </GL_RENDERER_MOCK>
+          </feature>
+     </Application>
+
+     <Application name="com.miHoYo.Yuanshen" isEnable="false">
+          <feature name="kbox.render.accelerating.shaderCache"  isEnable="false">
+               <GL_SHADER_CACHE>
+                    <param name="SHADER_CACHE_MODE" value="3"/>
+                    <param name="SHADER_CACHE_DIR_SIZE" value="256"/>
+               </GL_SHADER_CACHE>
+          </feature>
+     </Application>
+
+     <Application name="com.miHoYo.enterprise.NGHSoDBak" isEnable="false">
+          <feature name="kbox.render.accelerating.shaderCache"  isEnable="false">
+               <GL_SHADER_CACHE>
+                    <param name="SHADER_CACHE_MODE" value="3"/>
+                    <param name="SHADER_CACHE_DIR_SIZE" value="256"/>
+               </GL_SHADER_CACHE>
+          </feature>
+     </Application>
+
+     <Application name="com.liuzh.deviceinfo" isEnable="false">
+          <feature name="kbox.render.accelerating.gpuMock"  isEnable="false">
+               <GL_RENDERER_MOCK>
+                    <param name="GL_RENDERER" value="Mali_G76"/>
+                    <param name="GL_VENDOR" value="Huawei"/>
+                    <param name="GL_VERSION" value="OpenGL ES 3.2 Mesa 22.1.7"/>
+               </GL_RENDERER_MOCK>
+          </feature>
+     </Application>
+</configuration>

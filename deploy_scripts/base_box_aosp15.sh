@@ -436,6 +436,118 @@ function chose_loop_device() {
     done
 }
 
+function create_app_shader_filesystem()
+{
+    local box_name=$1
+    local -n RUN_OPTION_REF=$2
+    if [ ! -e "kbox_render_accelerating_configuration.xml" ]; then
+        echo -e "\033[31mThe RenderAccLayer cannot be enabled. kbox_render_accelerating_configuration.xml not exist.\033[0m"
+        return
+    fi
+    result=$(python3 << EOF
+# -*- coding: utf-8 -*-
+import xml.etree.ElementTree as ET
+
+app_config = {}
+
+def read_xml(xml_file):
+    try:
+        tree = ET.parse(xml_file)
+        root = tree.getroot()
+        dir_size_list = [-1, 64, 128, 256, 512, 1024]  # 单位 MB
+
+        for app in root.findall("Application"):
+            if app.get('isEnable') != 'true' and app.get('isEnable') != '1':
+                continue
+            app_name = app.get('name')
+            if app_name == "system":
+                continue
+            shader_cache_config = {}
+            # 提取shadercache配置
+            for feature in app.findall('feature'):
+                if feature.get('name') != 'kbox.render.accelerating.shaderCache':
+                    continue
+                if feature.get('isEnable') != 'true' and feature.get('isEnable') != '1':
+                    continue
+                cache_mode = feature.find('.//param[@name="SHADER_CACHE_MODE"]')
+                cache_size = feature.find('.//param[@name="SHADER_CACHE_DIR_SIZE"]')
+                if cache_mode is not None:
+                    mode = int(cache_mode.get('value'))
+                    if mode < 0 or mode >= 3:
+                        mode = 0
+                    shader_cache_config["mode"] = mode
+                else:
+                    shader_cache_config["mode"] = 0  # 默认关闭
+
+                if cache_size is not None:
+                    size = int(cache_size.get('value'))
+                    for item in dir_size_list[::-1]:
+                        if size >= item:
+                            size = item
+                            break
+                    if size <= 0:
+                        size = 256
+                    shader_cache_config["size"] = size
+                else:
+                    shader_cache_config["size"] = 256  # 默认256 MB
+
+                app_config[app_name] = shader_cache_config
+        return 0
+
+    except ET.ParseError as e:
+        raise ValueError("XML解析失败") 
+    except FileNotFoundError as e:
+        raise FileNotFoundError("XML文件不存在")
+    except Exception as e:
+        raise Exception("未知错误")
+
+
+if __name__ == "__main__":
+    input_file = "kbox_render_accelerating_configuration.xml" 
+    result = read_xml(input_file)
+
+    for item in app_config:
+        print("%s"%item, "%d"%app_config[item]["mode"], "%d"%app_config[item]["size"])
+EOF
+)
+    if [ $? -ne 0 ]; then
+        echo -e "\033[31mFailed to enabled render layer! Failed to read kbox_render_accelerating_configuration.xml \033[0m"
+        return
+    fi
+
+    apps=($(printf "%s" "$result" | awk '{print $1}'))
+    modes=($(printf "%s" "$result" | awk '{print $2}'))
+    sizes=($(printf "%s" "$result" | awk '{print $3}'))
+    app_num=${#apps[@]}
+    mode_config=("CLOSED" "READONLY" "READWRITE" "DEFAULT")
+    mkdir -p $USER_DATA_PATH/shader_cache
+    cd $USER_DATA_PATH/shader_cache
+    echo "------------------ SHADERCACHE CONFIG ------------------"
+    for i in $(seq 0 $(($app_num - 1))); do
+        app=${apps[i]}
+        mode=${modes[i]}
+        size=${sizes[i]}
+        printf "App: %-40s  Mode: %s  Size: %1d MB\n " "${app}" "${mode_config[mode]}" "${size}"
+        if [ ${mode} -ne 2 ] && [ ${mode} -ne 1 ]; then
+            # 不是读写或者只读模式
+            continue
+        fi
+        if [ ${mode} -eq 1 ] && [ ! -e ${app}.img ]; then
+            echo -e "\033[33m WARN:Failed to bind shader cache path! mode is READONLY but ${app}.img not exist. \033[0m"
+            continue
+        fi
+        if [ ${mode} -eq 2 ] && [ ! -e ${app}.img ]; then
+            fallocate -l ${size}M ${app}.img
+            yes | mkfs -t ext4 ${app}.img
+        fi
+        mkdir -p $app
+        mount ${app}.img $app
+        RUN_OPTION_REF+=" --volume=${USER_DATA_PATH}/shader_cache/$app/:/vendor/shader_cache/$app:rw "
+    done
+    echo "---------------------------------------------------"
+    cd - >/dev/null 2>&1
+    return 0
+}
 
 function start_box() {
     ########################## 1. 参数检查 ##########################
@@ -455,7 +567,7 @@ function start_box() {
             --image)             local IMAGE_NAME=$2;        shift;;
             --user_data_path)    local USER_DATA_PATH=$2;    shift;;
             --container_data_path)  local CONTAINER_DATA_PATH=$2;  shift;;
-            --enable_render_layer) local ENABLE_RENDER_LAYER=$2;  shift;;
+            --enable_render_layer)  local ENABLE_RENDER_LAYER=$2;  shift;;
             --)                  shift;                      break;;
             -?*) printf 'WARN: Unknown option: %s\n' "$1" >&2;;
             *)   break
@@ -612,7 +724,7 @@ function start_box() {
         RUN_OPTION+=" --volume=$THISDIR/build.prop:/kbox_prop/build.prop:rw "
     fi
     if [[ $ENABLE_RENDER_LAYER == "1" ]]; then
-        RUN_OPTION+=" --volume=${USER_DATA_PATH}/shader_cache/:/vendor/shader_cache/:rw "
+        create_app_shader_filesystem ${BOX_NAME} RUN_OPTION
     fi
     mock_cpu
     mock_power_supply
@@ -651,6 +763,22 @@ function start_box() {
         fi
         $RUNTIME_CMD cp build.prop_${BOX_NAME} ${BOX_NAME}:/system/vendor/build.prop
         rm -rf ./build.prop_${BOX_NAME}
+    fi
+
+    # 部署渲染中间层
+    if [[ $ENABLE_RENDER_LAYER == "1" ]]; then
+        # 渲染中间层
+        $RUNTIME_CMD exec -it ${BOX_NAME} sh -c "if [ -d /vendor/shader_cache/ ]; then chmod 755 -R /vendor/shader_cache/; fi"
+        $RUNTIME_CMD exec -it ${BOX_NAME} sh -c "mkdir -p /data/local/debug/gles"
+        $RUNTIME_CMD exec -it ${BOX_NAME} sh -c "chmod 755 -R /data/local/debug/"
+        $RUNTIME_CMD exec -it ${BOX_NAME} sh -c "mkdir -p /data/local/tmp"
+        if [ -e "kbox_render_accelerating_configuration.xml" ]; then
+            $RUNTIME_CMD cp kbox_render_accelerating_configuration.xml ${BOX_NAME}:/data/local/tmp
+        fi
+        $RUNTIME_CMD exec -it ${BOX_NAME} sh -c "cp /system/vendor/lib64/hw/RenderAccLayer.kbox.so /data/local/debug/gles"
+        if [ $? -ne 0 ]; then
+            echo -e "\033[31mFailed to enabled render layer! RenderAccLayer.kbox.so may not exist\033[0m"
+        fi
     fi
 }
 
@@ -787,12 +915,16 @@ function restart_box() {
     local USER_DATA_PATH=$2
 
     local restart_times=3 # 默认最大重启次数为三次
-    if [ $# -eq 3 ]; then
+    if [ $# -ge 3 ]; then
         restart_times=$3
     fi
     local ENABLE_HARD_DECODE=0
-    if [ $# -eq 4 ]; then
+    if [ $# -ge 4 ]; then
         ENABLE_HARD_DECODE=$4
+    fi
+    local ENABLE_RENDER_LAYER=0
+    if [ $# -ge 5 ]; then
+        ENABLE_RENDER_LAYER=$5
     fi
 
     set +e
@@ -903,6 +1035,10 @@ function restart_box() {
             fi
         fi
     done
+
+    if [[ $ENABLE_RENDER_LAYER == "1" ]]; then
+            docker exec -it "${BOX_NAME}" sh -c "setprop debug.gles.layers RenderAccLayer.kbox.so"
+    fi
 }
 
 check_environment
