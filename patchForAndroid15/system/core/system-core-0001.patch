@@ -581,7 +581,7 @@ index 55bbe46e1..b7288c227 100644
  
  /*
 diff --git a/rootdir/init.rc b/rootdir/init.rc
-index 1acd63774..12d696a6d 100644
+index 1acd63774..48b261e28 100644
 --- a/rootdir/init.rc
 +++ b/rootdir/init.rc
 @@ -265,10 +265,10 @@ on init
@@ -605,6 +605,15 @@ index 1acd63774..12d696a6d 100644
  
      # Mount default storage into root namespace
      mount none /mnt/user/0 /storage bind rec
+@@ -1095,7 +1094,7 @@ on post-fs-data
+     # sys.memfd_use set to false by default, which keeps it disabled
+     # until it is confirmed that apps and vendor processes don't make
+     # IOCTLs on ashmem fds any more.
+-    setprop sys.use_memfd false
++    setprop sys.use_memfd true
+ 
+     # Set fscklog permission
+     chown root system /dev/fscklogs/log
 diff --git a/rootdir/init.usb.rc b/rootdir/init.usb.rc
 index b30d6d02c..4dd943149 100644
 --- a/rootdir/init.usb.rc
