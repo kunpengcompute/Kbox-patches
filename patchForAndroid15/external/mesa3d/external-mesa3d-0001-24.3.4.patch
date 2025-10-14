@@ -1,551 +1,165 @@
 diff --git a/android/Android.mk b/android/Android.mk
-new file mode 100644
-index 00000000000..94cb0b97341
---- /dev/null
+index d5b4c10..5132617 100644
+--- a/android/Android.mk
 +++ b/android/Android.mk
-@@ -0,0 +1,193 @@
-+# Mesa 3-D graphics library
-+#
-+# Copyright (C) 2021 GlobalLogic Ukraine
-+# Copyright (C) 2021 Roman Stratiienko (r.stratiienko@gmail.com)
-+#
-+# Permission is hereby granted, free of charge, to any person obtaining a
-+# copy of this software and associated documentation files (the "Software"),
-+# to deal in the Software without restriction, including without limitation
-+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
-+# and/or sell copies of the Software, and to permit persons to whom the
-+# Software is furnished to do so, subject to the following conditions:
-+#
-+# The above copyright notice and this permission notice shall be included
-+# in all copies or substantial portions of the Software.
-+#
-+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
-+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-+# DEALINGS IN THE SOFTWARE.
-+
-+ifneq ($(filter true, $(BOARD_MESA3D_USES_MESON_BUILD)),)
-+
-+LOCAL_PATH := $(call my-dir)
-+MESA3D_TOP := $(dir $(LOCAL_PATH))
-+
-+LIBDRM_VERSION = $(shell cat external/libdrm/meson.build | grep -o "\<version\>\s*:\s*'\w*\.\w*\.\w*'" | grep -o "\w*\.\w*\.\w*" | head -1)
+@@ -27,6 +27,7 @@ LOCAL_PATH := $(call my-dir)
+ MESA3D_TOP := $(dir $(LOCAL_PATH))
+ 
+ LIBDRM_VERSION = $(shell cat external/libdrm/meson.build | grep -o "\<version\>\s*:\s*'\w*\.\w*\.\w*'" | grep -o "\w*\.\w*\.\w*" | head -1)
 +LIBVA_VERSION = $(shell cat external/libva/meson.build | grep -o "\<version\>\s*:\s*'\w*\.\w*\.\w*'" | grep -o "\w*\.\w*\.\w*" | head -1)
-+LLVM_VERSION_MAJOR = $(shell \
-+    if [ -f external/llvm-project/cmake/Modules/LLVMVersion.cmake ]; then \
-+        grep 'set.LLVM_VERSION_MAJOR ' external/llvm-project/cmake/Modules/LLVMVersion.cmake | grep -o '[0-9]\+'; \
-+    else \
-+        grep 'set.LLVM_VERSION_MAJOR ' external/llvm-project/llvm/CMakeLists.txt | grep -o '[0-9]\+'; \
-+    fi)
-+
-+MESA_VK_LIB_SUFFIX_amd := radeon
-+MESA_VK_LIB_SUFFIX_intel := intel
-+MESA_VK_LIB_SUFFIX_intel_hasvk := intel_hasvk
-+MESA_VK_LIB_SUFFIX_freedreno := freedreno
-+MESA_VK_LIB_SUFFIX_broadcom := broadcom
-+MESA_VK_LIB_SUFFIX_panfrost := panfrost
-+MESA_VK_LIB_SUFFIX_virtio := virtio
-+MESA_VK_LIB_SUFFIX_swrast := lvp
-+
-+include $(CLEAR_VARS)
-+
+ LLVM_VERSION_MAJOR = $(shell \
+     if [ -f external/llvm-project/cmake/Modules/LLVMVersion.cmake ]; then \
+         grep 'set.LLVM_VERSION_MAJOR ' external/llvm-project/cmake/Modules/LLVMVersion.cmake | grep -o '[0-9]\+'; \
+@@ -45,10 +46,10 @@ MESA_VK_LIB_SUFFIX_swrast := lvp
+ 
+ include $(CLEAR_VARS)
+ 
+-LOCAL_SHARED_LIBRARIES := libc libdl libdrm libm liblog libcutils libz libc++ libnativewindow libsync libhardware
+-LOCAL_STATIC_LIBRARIES := libexpat libarect libelf
 +LOCAL_SHARED_LIBRARIES := libc libdl libdrm libm liblog libcutils libz libc++ libnativewindow libsync libhardware libva
 +LOCAL_STATIC_LIBRARIES := libexpat libarect libelf libzstd
-+LOCAL_HEADER_LIBRARIES := libnativebase_headers hwvulkan_headers
+ LOCAL_HEADER_LIBRARIES := libnativebase_headers hwvulkan_headers
+-MESON_GEN_PKGCONFIGS := log cutils expat hardware libdrm:$(LIBDRM_VERSION) nativewindow sync zlib:1.2.11 libelf
 +MESON_GEN_PKGCONFIGS := log cutils expat hardware libdrm:$(LIBDRM_VERSION) nativewindow sync zlib:1.2.11 libelf libva:$(LIBVA_VERSION)
-+LOCAL_CFLAGS += $(BOARD_MESA3D_CFLAGS)
-+
-+ifneq ($(filter swrast,$(BOARD_MESA3D_GALLIUM_DRIVERS) $(BOARD_MESA3D_VULKAN_DRIVERS)),)
-+ifeq ($(BOARD_MESA3D_FORCE_SOFTPIPE),)
-+MESON_GEN_LLVM_STUB := true
-+endif
-+endif
-+
-+ifneq ($(filter zink,$(BOARD_MESA3D_GALLIUM_DRIVERS)),)
-+LOCAL_SHARED_LIBRARIES += libvulkan
-+MESON_GEN_PKGCONFIGS += vulkan
-+endif
-+
-+ifneq ($(filter iris,$(BOARD_MESA3D_GALLIUM_DRIVERS)),)
-+LOCAL_SHARED_LIBRARIES += libdrm_intel
-+MESON_GEN_PKGCONFIGS += libdrm_intel:$(LIBDRM_VERSION)
-+endif
-+
-+ifneq ($(filter radeonsi,$(BOARD_MESA3D_GALLIUM_DRIVERS)),)
-+ifneq ($(MESON_GEN_LLVM_STUB),)
-+LOCAL_CFLAGS += -DFORCE_BUILD_AMDGPU   # instructs LLVM to declare LLVMInitializeAMDGPU* functions
-+# The flag is required for the Android-x86 LLVM port that follows the AOSP LLVM porting rules
-+# https://osdn.net/projects/android-x86/scm/git/external-llvm-project
-+endif
-+endif
-+
-+ifneq ($(filter radeonsi amd,$(BOARD_MESA3D_GALLIUM_DRIVERS) $(BOARD_MESA3D_VULKAN_DRIVERS)),)
-+LOCAL_SHARED_LIBRARIES += libdrm_amdgpu
-+MESON_GEN_PKGCONFIGS += libdrm_amdgpu:$(LIBDRM_VERSION)
-+endif
-+
-+ifneq ($(filter radeonsi r300 r600,$(BOARD_MESA3D_GALLIUM_DRIVERS)),)
-+LOCAL_SHARED_LIBRARIES += libdrm_radeon
-+MESON_GEN_PKGCONFIGS += libdrm_radeon:$(LIBDRM_VERSION)
-+endif
-+
-+ifneq ($(filter d3d12,$(BOARD_MESA3D_GALLIUM_DRIVERS)),)
-+LOCAL_HEADER_LIBRARIES += DirectX-Headers
-+LOCAL_STATIC_LIBRARIES += DirectX-Guids
-+MESON_GEN_PKGCONFIGS += DirectX-Headers
-+endif
-+
-+ifneq ($(MESON_GEN_LLVM_STUB),)
+ LOCAL_CFLAGS += $(BOARD_MESA3D_CFLAGS)
+ 
+ ifneq ($(filter swrast,$(BOARD_MESA3D_GALLIUM_DRIVERS) $(BOARD_MESA3D_VULKAN_DRIVERS)),)
+@@ -92,8 +93,8 @@ MESON_GEN_PKGCONFIGS += DirectX-Headers
+ endif
+ 
+ ifneq ($(MESON_GEN_LLVM_STUB),)
+-MESON_LLVM_VERSION := $(LLVM_VERSION_MAJOR).0.0
+-LOCAL_SHARED_LIBRARIES += libLLVM$(LLVM_VERSION_MAJOR)
 +MESON_LLVM_VERSION := 13.0.1
 +LOCAL_SHARED_LIBRARIES += libLLVM70
-+endif
-+
-+ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 30; echo $$?), 0)
-+LOCAL_SHARED_LIBRARIES += \
-+    android.hardware.graphics.mapper@4.0 \
-+    libgralloctypes \
-+    libhidlbase \
-+    libutils
-+ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 35; echo $$?), 0)
-+LOCAL_SHARED_LIBRARIES += libui
-+MESON_GEN_PKGCONFIGS += ui
-+endif
-+MESON_GEN_PKGCONFIGS += android.hardware.graphics.mapper:4.0
-+endif
-+
-+__MY_SHARED_LIBRARIES := $(LOCAL_SHARED_LIBRARIES)
-+
-+MESA_LIBGBM_NAME := libgbm
-+
-+ifeq ($(TARGET_IS_64_BIT),true)
-+LOCAL_MULTILIB := 64
-+else
-+LOCAL_MULTILIB := 32
-+endif
-+include $(LOCAL_PATH)/mesa3d_cross.mk
-+
-+
-+ifdef TARGET_2ND_ARCH
-+LOCAL_MULTILIB := 32
-+include $(LOCAL_PATH)/mesa3d_cross.mk
-+endif
-+
-+#-------------------------------------------------------------------------------
-+
-+# $1: name
-+# $2: subdir
-+# $3: source prebuilt
-+# $4: export headers
-+define mesa3d-lib
-+include $(CLEAR_VARS)
-+LOCAL_MODULE_CLASS := SHARED_LIBRARIES
-+LOCAL_MODULE := $1
-+LOCAL_VENDOR_MODULE := true
-+LOCAL_MODULE_RELATIVE_PATH := $2
-+LOCAL_PREBUILT_MODULE_FILE := $($3)
-+LOCAL_MULTILIB := first
-+LOCAL_CHECK_ELF_FILES := false
-+LOCAL_MODULE_SUFFIX := .so
-+LOCAL_SHARED_LIBRARIES := $(__MY_SHARED_LIBRARIES)
-+LOCAL_EXPORT_C_INCLUDE_DIRS := $4
-+include $(BUILD_PREBUILT)
-+
-+ifdef TARGET_2ND_ARCH
-+include $(CLEAR_VARS)
-+LOCAL_MODULE_CLASS := SHARED_LIBRARIES
-+LOCAL_MODULE := $1
-+LOCAL_VENDOR_MODULE := true
-+LOCAL_MODULE_RELATIVE_PATH := $2
-+LOCAL_PREBUILT_MODULE_FILE := $(2ND_$3)
-+LOCAL_MULTILIB := 32
-+LOCAL_CHECK_ELF_FILES := false
-+LOCAL_MODULE_SUFFIX := .so
-+LOCAL_SHARED_LIBRARIES := $(__MY_SHARED_LIBRARIES)
-+LOCAL_EXPORT_C_INCLUDE_DIRS := $4
-+include $(BUILD_PREBUILT)
-+endif
-+endef
-+
-+ifneq ($(strip $(BOARD_MESA3D_GALLIUM_DRIVERS)),)
-+# Module 'libgallium_dri', produces '/vendor/lib{64}/libgallium_dri.so'
-+# This module also trigger DRI symlinks creation process
-+$(eval $(call mesa3d-lib,libgallium_dri,,MESA3D_GALLIUM_BIN))
-+# Module 'libglapi', produces '/vendor/lib{64}/libglapi.so'
-+$(eval $(call mesa3d-lib,libglapi,,MESA3D_LIBGLAPI_BIN))
+ endif
+ 
+ ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 30; echo $$?), 0)
+@@ -111,11 +112,7 @@ endif
+ 
+ __MY_SHARED_LIBRARIES := $(LOCAL_SHARED_LIBRARIES)
+ 
+-ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 30; echo $$?), 0)
+-MESA_LIBGBM_NAME := libgbm_mesa
+-else
+ MESA_LIBGBM_NAME := libgbm
+-endif
+ 
+ ifeq ($(TARGET_IS_64_BIT),true)
+ LOCAL_MULTILIB := 64
+@@ -171,6 +168,7 @@ ifneq ($(strip $(BOARD_MESA3D_GALLIUM_DRIVERS)),)
+ $(eval $(call mesa3d-lib,libgallium_dri,,MESA3D_GALLIUM_BIN))
+ # Module 'libglapi', produces '/vendor/lib{64}/libglapi.so'
+ $(eval $(call mesa3d-lib,libglapi,,MESA3D_LIBGLAPI_BIN))
 +$(eval $(call mesa3d-lib,dri_gbm,dri,MESA3D_DRI_GBM_BIN))
-+
-+# Module 'libEGL_mesa', produces '/vendor/lib{64}/egl/libEGL_mesa.so'
-+$(eval $(call mesa3d-lib,libEGL_mesa,egl,MESA3D_LIBEGL_BIN))
-+# Module 'libGLESv1_CM_mesa', produces '/vendor/lib{64}/egl/libGLESv1_CM_mesa.so'
-+$(eval $(call mesa3d-lib,libGLESv1_CM_mesa,egl,MESA3D_LIBGLESV1_BIN))
-+# Module 'libGLESv2_mesa', produces '/vendor/lib{64}/egl/libGLESv2_mesa.so'
-+$(eval $(call mesa3d-lib,libGLESv2_mesa,egl,MESA3D_LIBGLESV2_BIN))
-+endif
-+
-+# Modules 'vulkan.{driver_name}', produces '/vendor/lib{64}/hw/vulkan.{driver_name}.so' HAL
-+$(foreach driver,$(BOARD_MESA3D_VULKAN_DRIVERS), \
-+    $(eval $(call mesa3d-lib,vulkan.$(MESA_VK_LIB_SUFFIX_$(driver)),hw,MESA3D_VULKAN_$(driver)_BIN)))
-+
+ 
+ # Module 'libEGL_mesa', produces '/vendor/lib{64}/egl/libEGL_mesa.so'
+ $(eval $(call mesa3d-lib,libEGL_mesa,egl,MESA3D_LIBEGL_BIN))
+@@ -184,12 +182,11 @@ endif
+ $(foreach driver,$(BOARD_MESA3D_VULKAN_DRIVERS), \
+     $(eval $(call mesa3d-lib,vulkan.$(MESA_VK_LIB_SUFFIX_$(driver)),hw,MESA3D_VULKAN_$(driver)_BIN)))
+ 
+-ifneq ($(filter true, $(BOARD_MESA3D_BUILD_LIBGBM)),)
 +#ifneq ($(filter true, $(BOARD_MESA3D_BUILD_LIBGBM)),)
-+# Modules 'libgbm', produces '/vendor/lib{64}/libgbm.so'
-+$(eval $(call mesa3d-lib,$(MESA_LIBGBM_NAME),,MESA3D_LIBGBM_BIN,$(MESA3D_TOP)/src/gbm/main))
+ # Modules 'libgbm', produces '/vendor/lib{64}/libgbm.so'
+ $(eval $(call mesa3d-lib,$(MESA_LIBGBM_NAME),,MESA3D_LIBGBM_BIN,$(MESA3D_TOP)/src/gbm/main))
+-$(eval $(call mesa3d-lib,dri_gbm,,MESA3D_DRI_GBM_BIN))
+-endif
 +#endif
-+
-+#-------------------------------------------------------------------------------
-+
+ 
+ #-------------------------------------------------------------------------------
+ 
+-endif
 +endif
+\ No newline at end of file
 diff --git a/android/mesa3d_cross.mk b/android/mesa3d_cross.mk
-new file mode 100644
-index 00000000000..5e080ac1474
---- /dev/null
+index b834279..90027c5 100644
+--- a/android/mesa3d_cross.mk
 +++ b/android/mesa3d_cross.mk
-@@ -0,0 +1,326 @@
-+# Mesa 3-D graphics library
-+#
-+# Copyright (C) 2021 GlobalLogic Ukraine
-+# Copyright (C) 2021 Roman Stratiienko (r.stratiienko@gmail.com)
-+#
-+# Permission is hereby granted, free of charge, to any person obtaining a
-+# copy of this software and associated documentation files (the "Software"),
-+# to deal in the Software without restriction, including without limitation
-+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
-+# and/or sell copies of the Software, and to permit persons to whom the
-+# Software is furnished to do so, subject to the following conditions:
-+#
-+# The above copyright notice and this permission notice shall be included
-+# in all copies or substantial portions of the Software.
-+#
-+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
-+# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-+# DEALINGS IN THE SOFTWARE.
-+
-+MY_PATH := $(call my-dir)
-+
-+AOSP_ABSOLUTE_PATH := $(realpath .)
-+define relative-to-absolute
-+$(if $(patsubst /%,,$1),$(AOSP_ABSOLUTE_PATH)/$1,$1)
-+endef
-+
-+LOCAL_MODULE_CLASS := SHARED_LIBRARIES
-+LOCAL_MODULE := meson.dummy.$(LOCAL_MULTILIB)
-+
-+m_dummy := $(local-generated-sources-dir)/dummy.c
-+$(m_dummy):
-+	mkdir -p $(dir $@)
-+	touch $@
-+
-+LOCAL_GENERATED_SOURCES := $(m_dummy) 
-+LOCAL_VENDOR_MODULE := true
-+
-+# Prepare intermediate variables by AOSP make/core internals
-+include $(BUILD_SHARED_LIBRARY)
-+
-+LOCAL_PATH := $(MY_PATH)
-+
-+link_deps := \
-+	$(built_static_libraries) \
-+	$(built_shared_libraries) \
-+	$(built_whole_libraries) \
-+	$(strip $(all_objects)) \
-+	$(my_target_libatomic) \
-+	$(my_target_libcrt_builtins) \
-+	$(my_target_crtbegin_so_o) \
-+	$(my_target_crtend_so_o)
-+
-+# Build mesa3d using intermediate variables provided by AOSP make/core internals
-+M_TARGET_PREFIX := $(my_2nd_arch_prefix)
-+
-+MESA3D_LIB_DIR := lib$(subst 32,,$(LOCAL_MULTILIB))
-+
-+MESON_OUT_DIR                            := $($(M_TARGET_PREFIX)TARGET_OUT_INTERMEDIATES)/MESON_MESA3D
-+MESON_GEN_DIR                            := $(MESON_OUT_DIR)_GEN
-+MESON_GEN_FILES_TARGET                   := $(MESON_GEN_DIR)/.timestamp
-+
-+MESA3D_GALLIUM_DIR                       := $(MESON_OUT_DIR)/install/usr/local/lib
-+$(M_TARGET_PREFIX)MESA3D_GALLIUM_BIN     := $(MESON_OUT_DIR)/install/usr/local/lib/libgallium_dri.so
-+$(M_TARGET_PREFIX)MESA3D_LIBEGL_BIN      := $(MESON_OUT_DIR)/install/usr/local/lib/libEGL.so
-+$(M_TARGET_PREFIX)MESA3D_LIBGLESV1_BIN   := $(MESON_OUT_DIR)/install/usr/local/lib/libGLESv1_CM.so
-+$(M_TARGET_PREFIX)MESA3D_LIBGLESV2_BIN   := $(MESON_OUT_DIR)/install/usr/local/lib/libGLESv2.so
-+$(M_TARGET_PREFIX)MESA3D_LIBGLAPI_BIN    := $(MESON_OUT_DIR)/install/usr/local/lib/libglapi.so
-+$(M_TARGET_PREFIX)MESA3D_LIBGBM_BIN      := $(MESON_OUT_DIR)/install/usr/local/lib/$(MESA_LIBGBM_NAME).so
-+$(M_TARGET_PREFIX)MESA3D_DRI_GBM_BIN     := $(MESON_OUT_DIR)/install/usr/local/lib/gbm/dri_gbm.so
-+
-+
-+MESA3D_GBM_BINS := \
-+    $($(M_TARGET_PREFIX)MESA3D_LIBGBM_BIN) \
-+    $($(M_TARGET_PREFIX)MESA3D_DRI_GBM_BIN)   \
-+
-+MESA3D_GLES_BINS := \
-+    $($(M_TARGET_PREFIX)MESA3D_GALLIUM_BIN) \
+@@ -79,27 +79,31 @@ MESA3D_GBM_BINS := \
+ 
+ MESA3D_GLES_BINS := \
+     $($(M_TARGET_PREFIX)MESA3D_GALLIUM_BIN) \
 +    $($(M_TARGET_PREFIX)MESA3D_RADEONSI_DRI_VIDEO_BIN) \
-+    $($(M_TARGET_PREFIX)MESA3D_LIBEGL_BIN)    \
-+    $($(M_TARGET_PREFIX)MESA3D_LIBGLESV1_BIN) \
-+    $($(M_TARGET_PREFIX)MESA3D_LIBGLESV2_BIN) \
-+    $($(M_TARGET_PREFIX)MESA3D_LIBGLAPI_BIN)  \
-+
-+MESON_GEN_NINJA := \
+     $($(M_TARGET_PREFIX)MESA3D_LIBEGL_BIN)    \
+     $($(M_TARGET_PREFIX)MESA3D_LIBGLESV1_BIN) \
+     $($(M_TARGET_PREFIX)MESA3D_LIBGLESV2_BIN) \
+     $($(M_TARGET_PREFIX)MESA3D_LIBGLAPI_BIN)  \
+ 
+ MESON_GEN_NINJA := \
+-	cd $(MESON_OUT_DIR) && PATH=/usr/bin:/usr/local/bin:$$PATH meson ./build     \
 +	cd $(MESON_OUT_DIR) && PATH=/usr/bin:/usr/local/bin:$$PATH meson15.py ./build     \
-+	--cross-file $(call relative-to-absolute,$(MESON_GEN_DIR))/aosp_cross        \
-+	--buildtype=release                                                          \
+ 	--cross-file $(call relative-to-absolute,$(MESON_GEN_DIR))/aosp_cross        \
+ 	--buildtype=release                                                          \
 +	-Dgbm-backends-path=/vendor/$(MESA3D_LIB_DIR)/dri                              \
-+	-Dplatforms=android                                                          \
-+	-Dplatform-sdk-version=$(PLATFORM_SDK_VERSION)                               \
+ 	-Dplatforms=android                                                          \
+ 	-Dplatform-sdk-version=$(PLATFORM_SDK_VERSION)                               \
+-	-Dgallium-drivers=$(subst $(space),$(comma),$(BOARD_MESA3D_GALLIUM_DRIVERS)) \
 +	-Dgallium-drivers=radeonsi \
-+	-Dvulkan-drivers=$(subst $(space),$(comma),$(subst radeon,amd,$(BOARD_MESA3D_VULKAN_DRIVERS)))   \
-+	-Dgbm=enabled                                                                \
+ 	-Dvulkan-drivers=$(subst $(space),$(comma),$(subst radeon,amd,$(BOARD_MESA3D_VULKAN_DRIVERS)))   \
+ 	-Dgbm=enabled                                                                \
+-	-Dgbm-backends-path=/vendor/$(MESA3D_LIB_DIR)                                \
+-	-Degl=$(if $(BOARD_MESA3D_GALLIUM_DRIVERS),enabled,disabled)                 \
+-	-Dllvm=$(if $(MESON_GEN_LLVM_STUB),enabled,disabled)                         \
 +	-Degl=enabled                                                                \
 +	-Dllvm=disabled                                                                \
-+	-Dcpp_rtti=false                                                             \
+ 	-Dcpp_rtti=false                                                             \
+-	-Dlmsensors=disabled                                                         \
+-	-Dandroid-libbacktrace=disabled                                              \
+-	$(BOARD_MESA3D_MESON_ARGS)                                                   \
 +	-Dlmsensors=disabled                                                          \
 +	-Dandroid-libbacktrace=enabled                                                \
 +	$(BOARD_MESA3D_MESON_ARGS)                                                    \
 +	-Dgallium-va=enabled                                                           \
 +	-Dandroid-stub=true                                                            \
 +	-Degl-native-platform=android                                                  \
-+
-+MESON_BUILD := PATH=/usr/bin:/bin:/sbin:$$PATH ninja -C $(MESON_OUT_DIR)/build
-+
-+$(MESON_GEN_FILES_TARGET): MESON_CPU_FAMILY := $(subst arm64,aarch64,$(TARGET_$(M_TARGET_PREFIX)ARCH))
-+
-+define create-pkgconfig
-+echo -e "Name: $2" \
-+	"\nDescription: $2" \
-+	"\nVersion: $3" > $1/$2.pc
-+
-+endef
-+
-+# Taken from build/make/core/binary.mk. We need this
-+# to use definitions from build/make/core/definitions.mk
-+$(MESON_GEN_FILES_TARGET): PRIVATE_GLOBAL_C_INCLUDES := $(my_target_global_c_includes)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_GLOBAL_C_SYSTEM_INCLUDES := $(my_target_global_c_system_includes)
-+
-+$(MESON_GEN_FILES_TARGET): PRIVATE_2ND_ARCH_VAR_PREFIX := $(M_TARGET_PREFIX)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_CC := $(my_cc)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_LINKER := $(my_linker)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_CXX := $(my_cxx)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_CXX_LINK := $(my_cxx_link)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_YACCFLAGS := $(LOCAL_YACCFLAGS)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_ASFLAGS := $(my_asflags)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_CONLYFLAGS := $(my_conlyflags)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_CFLAGS := $(my_cflags)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_CPPFLAGS := $(my_cppflags)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_CFLAGS_NO_OVERRIDE := $(my_cflags_no_override)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_CPPFLAGS_NO_OVERRIDE := $(my_cppflags_no_override)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_RTTI_FLAG := $(LOCAL_RTTI_FLAG)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_DEBUG_CFLAGS := $(debug_cflags)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_C_INCLUDES := $(my_c_includes)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_IMPORTED_INCLUDES := $(imported_includes)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_LDFLAGS := $(my_ldflags)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_LDLIBS := $(my_ldlibs)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_TIDY_CHECKS := $(my_tidy_checks)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_TIDY_FLAGS := $(my_tidy_flags)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_ARFLAGS := $(my_arflags)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_ALL_SHARED_LIBRARIES := $(built_shared_libraries)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_ALL_STATIC_LIBRARIES := $(built_static_libraries)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_ALL_WHOLE_STATIC_LIBRARIES := $(built_whole_libraries)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_ALL_OBJECTS := $(strip $(all_objects))
-+
-+$(MESON_GEN_FILES_TARGET): PRIVATE_ARM_CFLAGS := $(normal_objects_cflags)
-+
-+$(MESON_GEN_FILES_TARGET): PRIVATE_TARGET_GLOBAL_CFLAGS := $(my_target_global_cflags)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_TARGET_GLOBAL_CONLYFLAGS := $(my_target_global_conlyflags)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_TARGET_GLOBAL_CPPFLAGS := $(my_target_global_cppflags)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_TARGET_GLOBAL_LDFLAGS := $(my_target_global_ldflags)
-+
-+$(MESON_GEN_FILES_TARGET): PRIVATE_TARGET_LIBCRT_BUILTINS := $(my_target_libcrt_builtins)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_TARGET_LIBATOMIC := $(my_target_libatomic)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_TARGET_CRTBEGIN_SO_O := $(my_target_crtbegin_so_o)
-+$(MESON_GEN_FILES_TARGET): PRIVATE_TARGET_CRTEND_SO_O := $(my_target_crtend_so_o)
-+##
-+
-+define m-lld-flags
-+  -Wl,-e,main \
-+  -nostdlib -Wl,--gc-sections \
-+  $(PRIVATE_TARGET_CRTBEGIN_SO_O) \
-+  $(PRIVATE_ALL_OBJECTS) \
-+  -Wl,--whole-archive \
-+  $(PRIVATE_ALL_WHOLE_STATIC_LIBRARIES) \
-+  -Wl,--no-whole-archive \
-+  $(if $(PRIVATE_GROUP_STATIC_LIBRARIES),-Wl$(comma)--start-group) \
-+  $(PRIVATE_ALL_STATIC_LIBRARIES) \
-+  $(if $(PRIVATE_GROUP_STATIC_LIBRARIES),-Wl$(comma)--end-group) \
-+  $(if $(filter true,$(NATIVE_COVERAGE)),$(PRIVATE_TARGET_COVERAGE_LIB)) \
-+  $(PRIVATE_TARGET_LIBCRT_BUILTINS) \
-+  $(PRIVATE_TARGET_LIBATOMIC) \
-+  $(PRIVATE_TARGET_GLOBAL_LDFLAGS) \
-+  $(PRIVATE_LDFLAGS) \
-+  $(PRIVATE_ALL_SHARED_LIBRARIES) \
-+  $(PRIVATE_TARGET_CRTEND_SO_O) \
-+  $(PRIVATE_LDLIBS)
-+endef
-+
-+define m-lld-flags-cleaned
-+  $(patsubst -Wl$(comma)--build-id=%,, \
-+  $(subst prebuilts/,$(AOSP_ABSOLUTE_PATH)/prebuilts/, \
-+  $(subst $(OUT_DIR)/,$(call relative-to-absolute,$(OUT_DIR))/, \
-+  $(subst -Wl$(comma)--fatal-warnings,,                \
-+  $(subst -Wl$(comma)--no-undefined-version,,          \
-+  $(subst -Wl$(comma)--gc-sections,,                   \
-+  $(patsubst %dummy.o,,                                \
-+    $(m-lld-flags))))))))
-+endef
-+
-+define m-cpp-flags
-+  $(PRIVATE_TARGET_GLOBAL_CFLAGS) \
-+  $(PRIVATE_TARGET_GLOBAL_CPPFLAGS) \
-+  $(PRIVATE_ARM_CFLAGS) \
-+  $(PRIVATE_RTTI_FLAG) \
-+  $(PRIVATE_CFLAGS) \
-+  $(PRIVATE_CPPFLAGS) \
-+  $(PRIVATE_DEBUG_CFLAGS) \
-+  $(PRIVATE_CFLAGS_NO_OVERRIDE) \
-+  $(PRIVATE_CPPFLAGS_NO_OVERRIDE)
-+endef
-+
-+define m-c-flags
-+  $(PRIVATE_TARGET_GLOBAL_CFLAGS) \
-+  $(PRIVATE_TARGET_GLOBAL_CONLYFLAGS) \
-+  $(PRIVATE_ARM_CFLAGS) \
-+  $(PRIVATE_CFLAGS) \
-+  $(PRIVATE_CONLYFLAGS) \
-+  $(PRIVATE_DEBUG_CFLAGS) \
-+  $(PRIVATE_CFLAGS_NO_OVERRIDE)
-+endef
-+
-+define filter-c-flags
-+  $(filter-out -std=gnu++17 -std=gnu++14 -std=gnu99 -fno-rtti \
-+    -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang \
-+    -ftrivial-auto-var-init=zero,
-+    $(patsubst  -W%,, $1))
-+endef
-+
-+define nospace-includes
-+  $(subst $(space)-isystem$(space),$(space)-isystem, \
-+  $(subst $(space)-I$(space),$(space)-I, \
-+  $(strip $(c-includes)))) 
-+endef
-+
-+# Ensure include paths are always absolute
-+# When OUT_DIR_COMMON_BASE env variable is set the AOSP/KATI will use absolute paths
-+# for headers in intermediate output directories, but relative for all others.
-+define abs-include
-+$(strip \
-+  $(if $(patsubst -I%,,$1),\
-+    $(if $(patsubst -isystem/%,,$1),\
-+      $(subst -isystem,-isystem$(AOSP_ABSOLUTE_PATH)/,$1),\
-+      $1\
-+    ),\
-+    $(if $(patsubst -I/%,,$1),\
-+      $(subst -I,-I$(AOSP_ABSOLUTE_PATH)/,$1),\
-+      $1\
-+    )\
-+  )
-+)
-+endef
-+
-+$(MESON_GEN_FILES_TARGET): PREPROCESS_MESON_CONFIGS:=$(PREPROCESS_MESON_CONFIGS)
-+$(MESON_GEN_FILES_TARGET): MESON_GEN_DIR:=$(MESON_GEN_DIR)
-+$(MESON_GEN_FILES_TARGET): $(sort $(shell find -L $(MESA3D_TOP) -not -path '*/\.*'))
-+	mkdir -p $(dir $@)
-+	echo -e "[properties]\n"                                                                                                  \
-+		"c_args = [$(foreach flag,$(call filter-c-flags,$(m-c-flags)),'$(flag)', )  \
-+		             $(foreach inc,$(nospace-includes),'$(call abs-include,$(inc))', )'']\n" \
-+		"cpp_args = [$(foreach flag,$(call filter-c-flags,$(m-cpp-flags)),'$(flag)', ) \
-+		               $(foreach inc,$(nospace-includes),'$(call abs-include,$(inc))', )'']\n" \
-+		"c_link_args = [$(foreach flag, $(m-lld-flags-cleaned),'$(flag)',)'']\n"                                          \
-+		"cpp_link_args = [$(foreach flag, $(m-lld-flags-cleaned),'$(flag)',)'']\n"                                        \
-+		"needs_exe_wrapper = true\n"                                                                                      \
-+		"[binaries]\n"                                                                                                    \
-+		"ar = '$(AOSP_ABSOLUTE_PATH)/$($($(M_TARGET_PREFIX))TARGET_AR)'\n"                                                \
-+		"c = [$(foreach arg,$(PRIVATE_CC),'$(subst prebuilts/,$(AOSP_ABSOLUTE_PATH)/prebuilts/,$(arg))',)'']\n"           \
-+		"cpp = [$(foreach arg,$(PRIVATE_CXX),'$(subst prebuilts/,$(AOSP_ABSOLUTE_PATH)/prebuilts/,$(arg))',)'']\n"        \
-+		"c_ld = 'lld'\n"                                                                                                  \
-+		"cpp_ld = 'lld'\n\n"                                                                                              \
-+		"pkgconfig = ['env', 'PKG_CONFIG_LIBDIR=' + '$(call relative-to-absolute,$(MESON_GEN_DIR))', '/usr/bin/pkg-config']\n\n" \
-+		"llvm-config = '/dev/null'\n"                                                                                     \
-+		"[host_machine]\n"                                                                                                \
-+		"system = 'android'\n"                                                                                              \
-+		"cpu_family = '$(MESON_CPU_FAMILY)'\n"                                                                            \
-+		"cpu = '$(MESON_CPU_FAMILY)'\n"                                                                                   \
-+		"endian = 'little'" > $(dir $@)/aosp_cross
-+
-+	#
-+	$(foreach pkg, $(MESON_GEN_PKGCONFIGS), $(call create-pkgconfig,$(dir $@),$(word 1, $(subst :, ,$(pkg))),$(word 2, $(subst :, ,$(pkg)))))
-+	touch $@
-+
-+$(MESON_OUT_DIR)/.build.timestamp: MESON_GEN_NINJA:=$(MESON_GEN_NINJA)
-+$(MESON_OUT_DIR)/.build.timestamp: MESON_BUILD:=$(MESON_BUILD)
-+$(MESON_OUT_DIR)/.build.timestamp: $(MESON_GEN_FILES_TARGET) $(link_deps)
-+	rm -rf $(dir $@)
-+	mkdir -p $(dir $@)
-+	mkdir -p $(dir $@)/build
-+	# Meson will update timestamps in sources directory, continuously retriggering the build
-+	# even if nothing changed. Copy sources into intermediate dir to avoid this effect.
-+	cp -r $(MESA3D_TOP)/* $(dir $@)
-+ifneq ($(MESON_GEN_LLVM_STUB),)
-+	mkdir -p $(dir $@)/subprojects/llvm/
-+	echo -e "project('llvm', 'cpp', version : '$(MESON_LLVM_VERSION)')\n" \
-+		"dep_llvm = declare_dependency()\n"                           \
-+		"has_rtti = false\n" > $(dir $@)/subprojects/llvm/meson.build
-+endif
-+	$(MESON_GEN_NINJA)
-+	$(MESON_BUILD)
-+	touch $@
-+
+ 
+ MESON_BUILD := PATH=/usr/bin:/bin:/sbin:$$PATH ninja -C $(MESON_OUT_DIR)/build
+ 
+@@ -290,11 +294,16 @@ endif
+ 	$(MESON_BUILD)
+ 	touch $@
+ 
 +MESON_COPY_LIBGALLIUM := \
 +	cp $($(M_TARGET_PREFIX)MESA3D_DRI_GBM_BIN) $(MESA3D_GALLIUM_DIR)
 +
 +$(MESON_OUT_DIR)/install/.install.timestamp: MESON_COPY_LIBGALLIUM:=$(MESON_COPY_LIBGALLIUM)
-+$(MESON_OUT_DIR)/install/.install.timestamp: MESON_BUILD:=$(MESON_BUILD)
-+$(MESON_OUT_DIR)/install/.install.timestamp: $(MESON_OUT_DIR)/.build.timestamp
-+	rm -rf $(dir $@)
-+	mkdir -p $(dir $@)
-+	DESTDIR=$(call relative-to-absolute,$(dir $@)) $(MESON_BUILD) install
+ $(MESON_OUT_DIR)/install/.install.timestamp: MESON_BUILD:=$(MESON_BUILD)
+ $(MESON_OUT_DIR)/install/.install.timestamp: $(MESON_OUT_DIR)/.build.timestamp
+ 	rm -rf $(dir $@)
+ 	mkdir -p $(dir $@)
+ 	DESTDIR=$(call relative-to-absolute,$(dir $@)) $(MESON_BUILD) install
 +	$(MESON_COPY_LIBGALLIUM)
-+	touch $@
-+
-+$(MESA3D_GBM_BINS) $(MESA3D_GLES_BINS): $(MESON_OUT_DIR)/install/.install.timestamp
-+	echo "Build $@"
-+	touch $@
-+
-+define vulkan_target
-+$(M_TARGET_PREFIX)MESA3D_VULKAN_$1_BIN := $(MESON_OUT_DIR)/install/usr/local/lib/libvulkan_$(MESA_VK_LIB_SUFFIX_$1).so
-+$(MESON_OUT_DIR)/install/usr/local/lib/libvulkan_$(MESA_VK_LIB_SUFFIX_$1).so: $(MESON_OUT_DIR)/install/.install.timestamp
-+	touch $(MESON_OUT_DIR)/install/usr/local/lib/libvulkan_$(MESA_VK_LIB_SUFFIX_$1).so
-+
-+endef
-+
-+$(foreach driver,$(BOARD_MESA3D_VULKAN_DRIVERS), $(eval $(call vulkan_target,$(driver))))
+ 	touch $@
+ 
+ $(MESA3D_GBM_BINS) $(MESA3D_GLES_BINS): $(MESON_OUT_DIR)/install/.install.timestamp
+@@ -309,3 +318,9 @@ $(MESON_OUT_DIR)/install/usr/local/lib/libvulkan_$(MESA_VK_LIB_SUFFIX_$1).so: $(
+ endef
+ 
+ $(foreach driver,$(BOARD_MESA3D_VULKAN_DRIVERS), $(eval $(call vulkan_target,$(driver))))
 +
 +$($(M_TARGET_PREFIX)TARGET_OUT_VENDOR_SHARED_LIBRARIES)/dri/.symlinks.timestamp: $(MESON_OUT_DIR)/install/.install.timestamp
 +	# Create Symlinks
 +	mkdir -p $(dir $@)
 +	ln -s -f libgallium_dri.so $(dir $@)/radeonsi_dri.so
 +	touch $@
+\ No newline at end of file
 diff --git a/include/GL/internal/dri_interface.h b/include/GL/internal/dri_interface.h
-index 87c046b2545..db5f0a6819c 100644
+index 87c046b..e1dd966 100644
 --- a/include/GL/internal/dri_interface.h
 +++ b/include/GL/internal/dri_interface.h
-@@ -1583,6 +1583,10 @@ struct __DRIimageExtensionRec {
+@@ -1582,6 +1582,9 @@ struct __DRIimageExtensionRec {
+    void *(*mapImage)(__DRIcontext *context, __DRIimage *image,
                       int x0, int y0, int width, int height,
                       unsigned int flags, int *stride, void **data);
- 
 +   void *(*mapImage_native)(__DRIcontext *context, __DRIimage *image,
 +                     int x0, int y0, int width, int height,
 +                     unsigned int flags, int *stride, void **data);
-+
+ 
     /**
      * Unmap a previously mapped __DRIimage
-     *
 diff --git a/meson.build b/meson.build
-index eeefe7a97f3..25b6e5d86fa 100644
+index de9c9af..2e68ad1 100644
 --- a/meson.build
 +++ b/meson.build
 @@ -8,7 +8,7 @@ project(
@@ -557,7 +171,7 @@ index eeefe7a97f3..25b6e5d86fa 100644
      'b_ndebug=if-release',
      'c_std=c11',
      'cpp_std=c++17',
-@@ -570,7 +570,7 @@ if with_vulkan_icd_dir == ''
+@@ -576,7 +576,7 @@ if with_vulkan_icd_dir == ''
    with_vulkan_icd_dir = join_paths(get_option('datadir'), 'vulkan/icd.d')
  endif
  
@@ -566,7 +180,7 @@ index eeefe7a97f3..25b6e5d86fa 100644
  
  with_x11_dri2 = with_dri2 and get_option('legacy-x11').contains('dri2')
  
-@@ -671,7 +671,7 @@ with_gallium_va = dep_va.found()
+@@ -677,7 +677,7 @@ with_gallium_va = dep_va.found()
  
  va_drivers_path = get_option('va-libs-path')
  if va_drivers_path == ''
@@ -575,7 +189,7 @@ index eeefe7a97f3..25b6e5d86fa 100644
  endif
  
  with_gallium_xa = get_option('gallium-xa') \
-@@ -1060,7 +1060,6 @@ if cc.get_argument_syntax() == 'msvc'
+@@ -1071,7 +1071,6 @@ if cc.get_argument_syntax() == 'msvc'
  else
    _trial_c = [
      '-Werror=implicit-function-declaration',
@@ -583,7 +197,7 @@ index eeefe7a97f3..25b6e5d86fa 100644
      '-Werror=return-type',
      '-Werror=empty-body',
      '-Werror=incompatible-pointer-types',
-@@ -1101,7 +1100,7 @@ else
+@@ -1112,7 +1111,7 @@ else
  
    # MinGW chokes on format specifiers and I can't get it all working
    if not (cc.get_argument_syntax() == 'gcc' and host_machine.system() == 'windows')
@@ -592,7 +206,7 @@ index eeefe7a97f3..25b6e5d86fa 100644
      _trial_cpp += ['-Werror=format', '-Wformat-security']
    endif
  
-@@ -1139,7 +1138,7 @@ else
+@@ -1150,7 +1149,7 @@ else
    # Check for C and C++ arguments for MSVC compatibility. These are only used
    # in parts of the mesa code base that need to compile with MSVC, mainly
    # common code
@@ -602,7 +216,7 @@ index eeefe7a97f3..25b6e5d86fa 100644
    cpp_msvc_compat_args += cpp.get_supported_arguments(_trial_msvc)
  endif
 diff --git a/src/amd/llvm/ac_llvm_util.c b/src/amd/llvm/ac_llvm_util.c
-index 221cb99ee60..890d1cab5bb 100644
+index 11456a3..ca46a11 100644
 --- a/src/amd/llvm/ac_llvm_util.c
 +++ b/src/amd/llvm/ac_llvm_util.c
 @@ -17,6 +17,8 @@
@@ -615,10 +229,10 @@ index 221cb99ee60..890d1cab5bb 100644
  {
     LLVMInitializeAMDGPUTargetInfo();
 diff --git a/src/compiler/glsl/builtin_variables.cpp b/src/compiler/glsl/builtin_variables.cpp
-index 6496a6d24e5..dcf64361970 100644
+index 40e48ee..c2c6522 100644
 --- a/src/compiler/glsl/builtin_variables.cpp
 +++ b/src/compiler/glsl/builtin_variables.cpp
-@@ -743,13 +743,11 @@ builtin_variable_generator::generate_constants()
+@@ -742,13 +742,11 @@ builtin_variable_generator::generate_constants()
     if (!state->es_shader) {
        add_const("gl_MaxFragmentUniformComponents",
                  state->Const.MaxFragmentUniformComponents);
@@ -635,7 +249,7 @@ index 6496a6d24e5..dcf64361970 100644
                  state->Const.MaxFragmentUniformComponents / 4);
  
 diff --git a/src/gallium/auxiliary/pipe-loader/driinfo_gallium.h b/src/gallium/auxiliary/pipe-loader/driinfo_gallium.h
-index f764916b630..6b8b4a98848 100644
+index 3b0ab72..2343da0 100644
 --- a/src/gallium/auxiliary/pipe-loader/driinfo_gallium.h
 +++ b/src/gallium/auxiliary/pipe-loader/driinfo_gallium.h
 @@ -44,7 +44,7 @@ DRI_CONF_SECTION_DEBUG
@@ -644,34 +258,36 @@ index f764916b630..6b8b4a98848 100644
     DRI_CONF_TRANSCODE_ETC(false)
 -   DRI_CONF_TRANSCODE_ASTC(false)
 +   DRI_CONF_TRANSCODE_ASTC(true)
+    DRI_CONF_ALLOW_COMPRESSED_FALLBACK(true)
     DRI_CONF_FORCE_GL_VENDOR()
     DRI_CONF_FORCE_GL_RENDERER()
-    DRI_CONF_OVERRIDE_VRAM_SIZE()
 diff --git a/src/gallium/auxiliary/vl/vl_codec.c b/src/gallium/auxiliary/vl/vl_codec.c
-index b7876f6e645..3d2ac008f12 100644
+index b7876f6..4ec3792 100644
 --- a/src/gallium/auxiliary/vl/vl_codec.c
 +++ b/src/gallium/auxiliary/vl/vl_codec.c
-@@ -32,6 +32,7 @@ bool vl_codec_supported(struct pipe_screen *screen,
+@@ -32,7 +32,7 @@ bool vl_codec_supported(struct pipe_screen *screen,
                          enum pipe_video_profile profile,
                          bool encode)
  {
-+/*
-    static_assert(PIPE_VIDEO_PROFILE_MAX == 26, "Update table below when adding new video profiles");
+-   static_assert(PIPE_VIDEO_PROFILE_MAX == 26, "Update table below when adding new video profiles");
++   /* static_assert(PIPE_VIDEO_PROFILE_MAX == 26, "Update table below when adding new video profiles");
     if (profile == PIPE_VIDEO_PROFILE_AV1_MAIN) {
        if (encode) {
-@@ -70,6 +71,6 @@ bool vl_codec_supported(struct pipe_screen *screen,
+          if (!VIDEO_CODEC_AV1ENC)
+@@ -69,7 +69,7 @@ bool vl_codec_supported(struct pipe_screen *screen,
+       } else if (!VIDEO_CODEC_H265DEC) {
           return false;
        }
-    }
--
-+*/
+-   }
++   } */
+ 
     return screen->get_video_param(screen, profile, encode ? PIPE_VIDEO_ENTRYPOINT_ENCODE : PIPE_VIDEO_ENTRYPOINT_BITSTREAM, PIPE_VIDEO_CAP_SUPPORTED);
  }
 diff --git a/src/gallium/auxiliary/vl/vl_video_buffer.c b/src/gallium/auxiliary/vl/vl_video_buffer.c
-index 3c395fdb227..e74a0a6504c 100644
+index f03a82b..2970e3f 100644
 --- a/src/gallium/auxiliary/vl/vl_video_buffer.c
 +++ b/src/gallium/auxiliary/vl/vl_video_buffer.c
-@@ -215,6 +215,12 @@ vl_video_buffer_destroy(struct pipe_video_buffer *buffer)
+@@ -221,6 +221,12 @@ vl_video_buffer_destroy(struct pipe_video_buffer *buffer)
        pipe_sampler_view_reference(&buf->sampler_view_planes[i], NULL);
        pipe_sampler_view_reference(&buf->sampler_view_components[i], NULL);
        pipe_resource_reference(&buf->resources[i], NULL);
@@ -684,16 +300,15 @@ index 3c395fdb227..e74a0a6504c 100644
     }
  
     for (i = 0; i < VL_MAX_SURFACES; ++i)
-@@ -492,7 +498,7 @@ vl_video_buffer_create_ex2(struct pipe_context *pipe,
-       if (resources[i])
+@@ -498,6 +504,7 @@ vl_video_buffer_create_ex2(struct pipe_context *pipe,
           buffer->num_planes++;
     }
--
+ 
 +   buffer->resourceflag = 0;
     return &buffer->base;
  }
  
-@@ -543,3 +549,10 @@ vl_video_buffer_create_as_resource(struct pipe_context *pipe,
+@@ -549,3 +556,10 @@ vl_video_buffer_create_as_resource(struct pipe_context *pipe,
     vidtemplate.contiguous_planes = true;
     return vl_video_buffer_create_ex2(pipe, &vidtemplate, resources);
  }
@@ -704,8 +319,9 @@ index 3c395fdb227..e74a0a6504c 100644
 +    struct vl_video_buffer *newbuffer = (struct vl_video_buffer *)buffer;
 +    newbuffer->resourceflag = 1;
 +}
+\ No newline at end of file
 diff --git a/src/gallium/auxiliary/vl/vl_video_buffer.h b/src/gallium/auxiliary/vl/vl_video_buffer.h
-index 8363bc678ed..9291394c47b 100644
+index 8363bc6..9291394 100644
 --- a/src/gallium/auxiliary/vl/vl_video_buffer.h
 +++ b/src/gallium/auxiliary/vl/vl_video_buffer.h
 @@ -46,6 +46,7 @@ struct vl_video_buffer
@@ -727,47 +343,45 @@ index 8363bc678ed..9291394c47b 100644
   * get subformats for each plane
   */
 diff --git a/src/gallium/frontends/dri/dri2.c b/src/gallium/frontends/dri/dri2.c
-index 6bea1466a2e..16be16af5e9 100644
+index 18baf44..b64add8 100644
 --- a/src/gallium/frontends/dri/dri2.c
 +++ b/src/gallium/frontends/dri/dri2.c
-@@ -1834,6 +1834,19 @@ dri2_blit_image(__DRIcontext *context, __DRIimage *dst, __DRIimage *src,
+@@ -1796,6 +1796,17 @@ dri2_blit_image(struct dri_context *ctx, struct dri_image *dst, struct dri_image
     }
  }
  
 +void *
-+dri2_map_image_native(__DRIcontext *context, __DRIimage *image,
++dri2_map_image_native(struct dri_context *ctx, struct dri_image *image,
 +                int x0, int y0, int width, int height,
 +                unsigned int flags, int *stride, void **data)
 +{
-+    struct dri_context *ctx = dri_context(context);
 +    dri_image_fence_sync(ctx, image);
 +    struct pipe_resource *resource = image->texture;
 +    pipe_reference_described(NULL, &resource->reference, (debug_reference_descriptor)debug_describe_resource);
 +    return resource;
 +}
 +
-+
  void *
- dri2_map_image(__DRIcontext *context, __DRIimage *image,
+ dri2_map_image(struct dri_context *ctx, struct dri_image *image,
                  int x0, int y0, int width, int height,
 diff --git a/src/gallium/frontends/dri/dri_util.h b/src/gallium/frontends/dri/dri_util.h
-index 09ee4b6ba6e..0004c34295d 100644
+index 5730165..2a1943d 100644
 --- a/src/gallium/frontends/dri/dri_util.h
 +++ b/src/gallium/frontends/dri/dri_util.h
-@@ -270,6 +270,11 @@ PUBLIC void *
- dri2_map_image(__DRIcontext *context, __DRIimage *image,
-                 int x0, int y0, int width, int height,
-                 unsigned int flags, int *stride, void **data);
+@@ -273,6 +273,11 @@ PUBLIC void *
+ dri2_map_image(struct dri_context *ctx, struct dri_image *image,
+                int x0, int y0, int width, int height,
+                unsigned int flags, int *stride, void **data);
 +PUBLIC void *
-+dri2_map_image_native(__DRIcontext *context, __DRIimage *image,
++dri2_map_image_native(struct dri_context *ctx, struct dri_image *image,
 +                int x0, int y0, int width, int height,
 +                unsigned int flags, int *stride, void **data);
 +
  PUBLIC void
- dri2_unmap_image(__DRIcontext *context, __DRIimage *image, void *data);
+ dri2_unmap_image(struct dri_context *ctx, struct dri_image *image, void *data);
  PUBLIC bool
 diff --git a/src/gallium/frontends/va/config.c b/src/gallium/frontends/va/config.c
-index 37e7307c3a7..678c0023ce8 100644
+index 37e7307..678c002 100644
 --- a/src/gallium/frontends/va/config.c
 +++ b/src/gallium/frontends/va/config.c
 @@ -236,7 +236,7 @@ vlVaGetConfigAttributes(VADriverContextP ctx, VAProfile profile, VAEntrypoint en
@@ -789,7 +403,7 @@ index 37e7307c3a7..678c0023ce8 100644
           {
              int max_tile_rows = pscreen->get_video_param(pscreen, ProfileToPipe(profile),
 diff --git a/src/gallium/frontends/va/context.c b/src/gallium/frontends/va/context.c
-index c90aaf08a63..6c6cc8a9c91 100644
+index 8d8384b..07fb585 100644
 --- a/src/gallium/frontends/va/context.c
 +++ b/src/gallium/frontends/va/context.c
 @@ -106,7 +106,7 @@ static struct VADriverVTable vtable =
@@ -802,13 +416,13 @@ index c90aaf08a63..6c6cc8a9c91 100644
     &vlVaMapBuffer2,
  #endif
 diff --git a/src/gallium/frontends/va/image.c b/src/gallium/frontends/va/image.c
-index 658b1093331..62986a4b464 100644
+index 658b109..a3e28ed 100644
 --- a/src/gallium/frontends/va/image.c
 +++ b/src/gallium/frontends/va/image.c
-@@ -525,6 +525,41 @@ vlVaSetImagePalette(VADriverContextP ctx, VAImageID image, unsigned char *palett
- 
+@@ -526,6 +526,42 @@ vlVaSetImagePalette(VADriverContextP ctx, VAImageID image, unsigned char *palett
     return VA_STATUS_ERROR_UNIMPLEMENTED;
  }
+ 
 +static inline void u_copy_nv12_to_yv12_simd(void *const *destination_data,
 +		uint32_t const *destination_pitches,
 +		int src_plane, int src_field,
@@ -844,10 +458,11 @@ index 658b1093331..62986a4b464 100644
 +    }
 +#endif
 +}
- 
++
  VAStatus
  vlVaGetImage(VADriverContextP ctx, VASurfaceID surface, int x, int y,
-@@ -651,7 +686,7 @@ vlVaGetImage(VADriverContextP ctx, VASurfaceID surface, int x, int y,
+              unsigned int width, unsigned int height, VAImageID image)
+@@ -651,7 +687,7 @@ vlVaGetImage(VADriverContextP ctx, VASurfaceID surface, int x, int y,
           }
  
           if (i == 1 && convert) {
@@ -857,7 +472,7 @@ index 658b1093331..62986a4b464 100644
                 map, box.width, box.height);
           } else {
 diff --git a/src/gallium/frontends/va/meson.build b/src/gallium/frontends/va/meson.build
-index ff5e7995575..79362ea3026 100644
+index ff5e799..79362ea 100644
 --- a/src/gallium/frontends/va/meson.build
 +++ b/src/gallium/frontends/va/meson.build
 @@ -9,7 +9,7 @@ libva_st = static_library(
@@ -871,7 +486,7 @@ index ff5e7995575..79362ea3026 100644
    c_args : [
 diff --git a/src/gallium/frontends/va/nv12_to_yv12.S b/src/gallium/frontends/va/nv12_to_yv12.S
 new file mode 100644
-index 00000000000..edc2502cf94
+index 0000000..26d9370
 --- /dev/null
 +++ b/src/gallium/frontends/va/nv12_to_yv12.S
 @@ -0,0 +1,30 @@
@@ -905,14 +520,15 @@ index 00000000000..edc2502cf94
 +
 +
 +#endif
+\ No newline at end of file
 diff --git a/src/gallium/frontends/va/surface.c b/src/gallium/frontends/va/surface.c
-index 062b60bd544..d0cb1f22c67 100644
+index 5240c2d..f7b57c0 100644
 --- a/src/gallium/frontends/va/surface.c
 +++ b/src/gallium/frontends/va/surface.c
-@@ -903,7 +903,60 @@ fail:
-       pipe_resource_reference(&resources[i], NULL);
+@@ -857,6 +857,61 @@ fail:
     return result;
  }
+ 
 +static VAStatus
 +surface_from_external_memory_native(VADriverContextP ctx, vlVaSurface *surface,
 +                             VASurfaceAttribExternalBuffers *memory_attribute,
@@ -939,7 +555,7 @@ index 062b60bd544..d0cb1f22c67 100644
 +
 +   if (memory_attribute->num_planes > VL_NUM_COMPONENTS)
 +      return VA_STATUS_ERROR_INVALID_PARAMETER;
- 
++
 +   vl_get_video_buffer_formats(pscreen, templat->buffer_format, resource_formats);
 +
 +   unsigned long nativebuffer = memory_attribute->buffers[index];
@@ -967,10 +583,11 @@ index 062b60bd544..d0cb1f22c67 100644
 +   return result;
 +
 +}
++
  static VAStatus
  surface_from_prime_2(VADriverContextP ctx, vlVaSurface *surface,
                       VADRMPRIMESurfaceDescriptor *desc,
-@@ -1197,6 +1250,7 @@ vlVaCreateSurfaces2(VADriverContextP ctx, unsigned int format,
+@@ -1182,6 +1237,7 @@ vlVaCreateSurfaces2(VADriverContextP ctx, unsigned int format,
  #else
           case VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME:
           case VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2:
@@ -978,21 +595,19 @@ index 062b60bd544..d0cb1f22c67 100644
  #endif
              memory_type = attrib_list[i].value.value.i;
              break;
-@@ -1264,7 +1318,8 @@ vlVaCreateSurfaces2(VADriverContextP ctx, unsigned int format,
-             return VA_STATUS_ERROR_INVALID_PARAMETER;
+@@ -1236,6 +1292,7 @@ vlVaCreateSurfaces2(VADriverContextP ctx, unsigned int format,
           break;
  #else
--   case VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME:
-+	 case VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME:
-+	 case VA_SURFACE_ATTRIB_MEM_TYPE_KERNEL_DRM:
+    case VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME:
++	case VA_SURFACE_ATTRIB_MEM_TYPE_KERNEL_DRM:
        if (!memory_attribute)
           return VA_STATUS_ERROR_INVALID_PARAMETER;
        if (modifiers)
-@@ -1367,6 +1422,13 @@ vlVaCreateSurfaces2(VADriverContextP ctx, unsigned int format,
+@@ -1324,6 +1381,13 @@ vlVaCreateSurfaces2(VADriverContextP ctx, unsigned int format,
           if (vaStatus != VA_STATUS_SUCCESS)
              goto free_surf;
           break;
-+      
++     
 +      case VA_SURFACE_ATTRIB_MEM_TYPE_KERNEL_DRM:
 +         vaStatus = surface_from_external_memory_native(ctx, surf, memory_attribute, i, &templat);
 +         if (vaStatus != VA_STATUS_SUCCESS)
@@ -1003,10 +618,10 @@ index 062b60bd544..d0cb1f22c67 100644
        default:
           assert(0);
 diff --git a/src/gallium/frontends/va/va_private.h b/src/gallium/frontends/va/va_private.h
-index 917c13c6f1a..658b9561e54 100644
+index 2f2998a..beee0e5 100644
 --- a/src/gallium/frontends/va/va_private.h
 +++ b/src/gallium/frontends/va/va_private.h
-@@ -616,6 +616,8 @@ VAStatus vlVaHandleVAEncMiscParameterTypeMaxFrameSizeHEVC(vlVaContext *context,
+@@ -615,6 +615,8 @@ VAStatus vlVaHandleVAEncMiscParameterTypeMaxFrameSizeHEVC(vlVaContext *context,
  VAStatus vlVaHandleVAEncMiscParameterTypeHRDHEVC(vlVaContext *context, VAEncMiscParameterBuffer *buf);
  VAStatus vlVaHandleVAEncMiscParameterTypeTemporalLayerHEVC(vlVaContext *context, VAEncMiscParameterBuffer *buf);
  
@@ -1016,7 +631,7 @@ index 917c13c6f1a..658b9561e54 100644
  VAStatus vlVaHandleVAEncSequenceParameterBufferTypeAV1(vlVaDriver *drv, vlVaContext *context, vlVaBuffer *buf);
  VAStatus vlVaHandleVAEncPictureParameterBufferTypeAV1(vlVaDriver *drv, vlVaContext *context, vlVaBuffer *buf);
 diff --git a/src/gallium/targets/dri/dri.sym.in b/src/gallium/targets/dri/dri.sym.in
-index 0add030eccc..09ecf514159 100644
+index 0add030..09ecf51 100644
 --- a/src/gallium/targets/dri/dri.sym.in
 +++ b/src/gallium/targets/dri/dri.sym.in
 @@ -44,6 +44,7 @@
@@ -1028,10 +643,10 @@ index 0add030eccc..09ecf514159 100644
  		dri_query_dma_buf_formats;
  		dri_query_dma_buf_modifiers;
 diff --git a/src/gbm/backends/dri/gbm_dri.c b/src/gbm/backends/dri/gbm_dri.c
-index 4e6b2b5278d..5d148878987 100644
+index 33fc540..266482a 100644
 --- a/src/gbm/backends/dri/gbm_dri.c
 +++ b/src/gbm/backends/dri/gbm_dri.c
-@@ -1041,6 +1041,40 @@ gbm_dri_bo_map(struct gbm_bo *_bo,
+@@ -1045,6 +1045,40 @@ gbm_dri_bo_map(struct gbm_bo *_bo,
                                 map_data);
  }
  
@@ -1072,7 +687,7 @@ index 4e6b2b5278d..5d148878987 100644
  static void
  gbm_dri_bo_unmap(struct gbm_bo *_bo, void *map_data)
  {
-@@ -1166,6 +1200,7 @@ dri_device_create(int fd, uint32_t gbm_backend_version)
+@@ -1170,6 +1204,7 @@ dri_device_create(int fd, uint32_t gbm_backend_version)
     dri->base.v0.bo_create = gbm_dri_bo_create;
     dri->base.v0.bo_import = gbm_dri_bo_import;
     dri->base.v0.bo_map = gbm_dri_bo_map;
@@ -1081,7 +696,7 @@ index 4e6b2b5278d..5d148878987 100644
     dri->base.v0.is_format_supported = gbm_dri_is_format_supported;
     dri->base.v0.get_format_modifier_plane_count =
 diff --git a/src/gbm/main/backend.c b/src/gbm/main/backend.c
-index 321c7e10141..e9268decf67 100644
+index 321c7e1..e9268de 100644
 --- a/src/gbm/main/backend.c
 +++ b/src/gbm/main/backend.c
 @@ -110,7 +110,7 @@ load_backend_by_name(const char *name, int fd, bool warn_on_fail)
@@ -1094,18 +709,10 @@ index 321c7e10141..e9268decf67 100644
  
     if (!lib)
 diff --git a/src/gbm/main/gbm.c b/src/gbm/main/gbm.c
-index 599f7aae9b6..f824e2a12a3 100644
+index 599f7aa..85beba3 100644
 --- a/src/gbm/main/gbm.c
 +++ b/src/gbm/main/gbm.c
-@@ -44,6 +44,7 @@
- #include "gbm.h"
- #include "gbmint.h"
- #include "backend.h"
-+#include "log/log.h"
- 
- /** Returns the file description for the gbm device
-  *
-@@ -626,6 +627,21 @@ gbm_bo_map(struct gbm_bo *bo,
+@@ -626,6 +626,21 @@ gbm_bo_map(struct gbm_bo *bo,
                               flags, stride, map_data);
  }
  
@@ -1128,25 +735,26 @@ index 599f7aae9b6..f824e2a12a3 100644
   * Unmap a previously mapped region of a gbm buffer object
   *
 diff --git a/src/gbm/main/gbm.h b/src/gbm/main/gbm.h
-index 9c680f65b95..893a4128fef 100644
+index 9c680f6..d0f39d9 100644
 --- a/src/gbm/main/gbm.h
 +++ b/src/gbm/main/gbm.h
-@@ -437,6 +437,10 @@ void *
+@@ -437,7 +437,10 @@ void *
  gbm_bo_map(struct gbm_bo *bo,
             uint32_t x, uint32_t y, uint32_t width, uint32_t height,
             uint32_t flags, uint32_t *stride, void **map_data);
+-
 +void *
 +gbm_bo_map_native(struct gbm_bo *bo,
 +           uint32_t x, uint32_t y, uint32_t width, uint32_t height,
 +           uint32_t flags, uint32_t *stride, void **map_data);
- 
  void
  gbm_bo_unmap(struct gbm_bo *bo, void *map_data);
+ 
 diff --git a/src/gbm/main/gbm_backend_abi.h b/src/gbm/main/gbm_backend_abi.h
-index 222ce3404cb..1015707ba8a 100644
+index 222ce34..5f4618a 100644
 --- a/src/gbm/main/gbm_backend_abi.h
 +++ b/src/gbm/main/gbm_backend_abi.h
-@@ -130,6 +130,12 @@ struct gbm_device_v0 {
+@@ -130,6 +130,11 @@ struct gbm_device_v0 {
                                 uint32_t width, uint32_t height,
                                 uint32_t flags, uint32_t *stride,
                                 void **map_data);
@@ -1155,12 +763,11 @@ index 222ce3404cb..1015707ba8a 100644
 +                               uint32_t width, uint32_t height,
 +                               uint32_t flags, uint32_t *stride,
 +                               void **map_data);
-+
     void (*bo_unmap)(struct gbm_bo *bo, void *map_data);
     int (*bo_write)(struct gbm_bo *bo, const void *buf, size_t data);
     int (*bo_get_fd)(struct gbm_bo *bo);
 diff --git a/src/gbm/meson.build b/src/gbm/meson.build
-index eaed028d049..4fed2228c15 100644
+index eaed028..4fed222 100644
 --- a/src/gbm/meson.build
 +++ b/src/gbm/meson.build
 @@ -26,7 +26,7 @@ if with_platform_android and get_option('platform-sdk-version') >= 30
@@ -1173,10 +780,10 @@ index eaed028d049..4fed2228c15 100644
    include_directories : incs_gbm,
    c_args : [args_gbm],
 diff --git a/src/mapi/glapi/gen/gl_API.xml b/src/mapi/glapi/gen/gl_API.xml
-index 305c1fa558d..8e87b7a0526 100644
+index e356035..de7da84 100644
 --- a/src/mapi/glapi/gen/gl_API.xml
 +++ b/src/mapi/glapi/gen/gl_API.xml
-@@ -2196,6 +2196,20 @@
+@@ -2196,6 +2196,19 @@
          <glx rop="110" large="true"/>
      </function>
  
@@ -1193,24 +800,23 @@ index 305c1fa558d..8e87b7a0526 100644
 +        <param name="pixels" type="const GLvoid *" img_width="width" img_height="height" img_format="format" img_type="type" img_target="target" img_send_null="true" img_pad_dimensions="true"/>
 +    </function>
 +
-+
      <function name="TexEnvf" es1="1.0" deprecated="3.1" exec="dlist">
          <param name="target" type="GLenum"/>
          <param name="pname" type="GLenum"/>
 diff --git a/src/mapi/glapi/gen/static_data.py b/src/mapi/glapi/gen/static_data.py
-index 97b64d9157d..2db12152def 100644
+index 6bebde0..d73f7ae 100644
 --- a/src/mapi/glapi/gen/static_data.py
 +++ b/src/mapi/glapi/gen/static_data.py
-@@ -1709,6 +1709,7 @@ offsets = {
-     "TexStorageAttribs2DEXT": 1673,
-     "TexStorageAttribs3DEXT": 1674,
+@@ -1711,6 +1711,7 @@ offsets = {
      "FramebufferTextureMultiviewOVR": 1675,
-+    "nativeTexImage2D": 1677,
      "NamedFramebufferTextureMultiviewOVR": 1676,
+     "FramebufferTextureMultisampleMultiviewOVR": 1677,
++    "nativeTexImage2D": 1678,
  }
  
+ functions = [
 diff --git a/src/mesa/main/get.c b/src/mesa/main/get.c
-index 35b79b35828..c23c07c2aea 100644
+index 35b79b3..ad67ec5 100644
 --- a/src/mesa/main/get.c
 +++ b/src/mesa/main/get.c
 @@ -1160,7 +1160,7 @@ find_custom_value(struct gl_context *ctx, const struct value_desc *d, union valu
@@ -1227,39 +833,38 @@ index 35b79b35828..c23c07c2aea 100644
     void *p;
  
 +   if (pname == GL_MAX_VERTEX_UNIFORM_COMPONENTS) {
-+       *params = 1024;
-+       return;
++      *params = 1024;
++      return;
 +   }
     d = find_value("glGetIntegerv", pname, &p, &v);
     switch (d->type) {
     case TYPE_INVALID:
 diff --git a/src/mesa/main/getstring.c b/src/mesa/main/getstring.c
-index 45987488b84..49cfc6468e6 100644
+index 4598748..5fdd5fc 100644
 --- a/src/mesa/main/getstring.c
 +++ b/src/mesa/main/getstring.c
-@@ -39,6 +39,8 @@
+@@ -38,6 +38,7 @@
+ 
  #include "pipe/p_context.h"
  #include "pipe/p_screen.h"
- 
 +#include <cutils/properties.h>
-+
+ 
  /**
   * Return the string for a glGetString(GL_SHADING_LANGUAGE_VERSION) query.
-  */
-@@ -146,6 +148,11 @@ _mesa_GetString( GLenum name )
+@@ -146,6 +147,11 @@ _mesa_GetString( GLenum name )
           return (const GLubyte *) vendor;
        }
        case GL_RENDERER: {
-+	 const char* rendererPropName = "ro.hardware.gpurenderer";
-+	 static char rendererProp[PROPERTY_VALUE_MAX];
-+	 if (property_get(rendererPropName, rendererProp, NULL) > 0) {
-+	    return (const GLubyte *) rendererProp;
-+	 }
++         const char* rendererPropName = "ro.hardware.gpurenderer";
++         static char rendererProp[PROPERTY_VALUE_MAX];
++         if (property_get(rendererPropName, rendererProp, NULL) > 0) {
++            return (const GLubyte *) rendererProp;
++         }
           const GLubyte *str = (const GLubyte *)screen->get_name(screen);
           if (str)
              return str;
 diff --git a/src/mesa/main/teximage.c b/src/mesa/main/teximage.c
-index 0a728a13c63..6191c6fd67c 100644
+index 0a728a1..95e0d72 100644
 --- a/src/mesa/main/teximage.c
 +++ b/src/mesa/main/teximage.c
 @@ -3328,6 +3328,26 @@ teximage(struct gl_context *ctx, GLboolean compressed, GLuint dims,
@@ -1306,7 +911,7 @@ index 0a728a13c63..6191c6fd67c 100644
  
  static void
  teximage_no_error(struct gl_context *ctx, GLboolean compressed, GLuint dims,
-@@ -3414,6 +3444,18 @@ _mesa_TexImage2D( GLenum target, GLint level, GLint internalFormat,
+@@ -3414,6 +3444,17 @@ _mesa_TexImage2D( GLenum target, GLint level, GLint internalFormat,
                  border, format, type, 0, pixels);
  }
  
@@ -1321,11 +926,10 @@ index 0a728a13c63..6191c6fd67c 100644
 +                border, format, type, 0, pixels));
 +}
 +
-+
  void GLAPIENTRY
  _mesa_TextureImage2DEXT(GLuint texture, GLenum target, GLint level,
                        GLint internalFormat, GLsizei width, GLsizei height,
-@@ -3431,6 +3473,14 @@ _mesa_TextureImage2DEXT(GLuint texture, GLenum target, GLint level,
+@@ -3431,6 +3472,14 @@ _mesa_TextureImage2DEXT(GLuint texture, GLenum target, GLint level,
              width, height, 1, border, format, type, 0, pixels, false);
  }
  
@@ -1341,7 +945,7 @@ index 0a728a13c63..6191c6fd67c 100644
  _mesa_MultiTexImage2DEXT(GLenum texunit, GLenum target, GLint level,
                           GLint internalFormat, GLsizei width, GLsizei height,
 diff --git a/src/mesa/state_tracker/st_cb_texture.c b/src/mesa/state_tracker/st_cb_texture.c
-index 74dc1d94f0f..6f414c42641 100644
+index 74dc1d9..6f414c4 100644
 --- a/src/mesa/state_tracker/st_cb_texture.c
 +++ b/src/mesa/state_tracker/st_cb_texture.c
 @@ -2451,6 +2451,19 @@ st_try_pbo_compressed_texsubimage(struct gl_context *ctx,
@@ -1365,10 +969,10 @@ index 74dc1d94f0f..6f414c42641 100644
  st_CompressedTexSubImage(struct gl_context *ctx, GLuint dims,
                           struct gl_texture_image *texImage,
 diff --git a/src/mesa/state_tracker/st_cb_texture.h b/src/mesa/state_tracker/st_cb_texture.h
-index a2a14f2a9f7..6a9537c3076 100644
+index a2a14f2..cfe108d 100644
 --- a/src/mesa/state_tracker/st_cb_texture.h
 +++ b/src/mesa/state_tracker/st_cb_texture.h
-@@ -80,6 +80,11 @@ void st_TexImage(struct gl_context * ctx, GLuint dims,
+@@ -80,6 +80,10 @@ void st_TexImage(struct gl_context * ctx, GLuint dims,
                   struct gl_texture_image *texImage,
                   GLenum format, GLenum type, const void *pixels,
                   const struct gl_pixelstore_attrib *unpack);
@@ -1376,12 +980,11 @@ index a2a14f2a9f7..6a9537c3076 100644
 +                 struct gl_texture_image *texImage,
 +                 GLenum format, GLenum type, const void *pixels,
 +                 const struct gl_pixelstore_attrib *unpack);
-+
  void st_CompressedTexSubImage(struct gl_context *ctx, GLuint dims,
                                struct gl_texture_image *texImage,
                                GLint x, GLint y, GLint z,
 diff --git a/src/util/blake3/meson.build b/src/util/blake3/meson.build
-index 6b53daab6b3..454988566ca 100644
+index 6b53daa..4549885 100644
 --- a/src/util/blake3/meson.build
 +++ b/src/util/blake3/meson.build
 @@ -33,6 +33,8 @@ elif cpu_family == 'x86'
