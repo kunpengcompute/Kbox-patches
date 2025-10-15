@@ -40,13 +40,6 @@ function check_devices() {
     # 确定kernel版本
     local KERNEL_VERSION=$(uname -r)
 
-    # 检查ashmem device
-    if [ -z $(ls /dev | grep "ashmem") ]; then
-        echo "can not find ashmem device"
-        exit 1
-    fi
-
-    chmod 600 /dev/ashmem
     chmod 600 /dev/dri/*
     chmod 600 /dev/input
 

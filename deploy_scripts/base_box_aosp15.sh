@@ -565,7 +565,6 @@ function start_box() {
     else
         RUN_OPTION+=" --device=/dev/net/tun:/dev/net/tun:rwm "
     fi
-    RUN_OPTION+=" --device=/dev/ashmem:/dev/ashmem:rwm "
     RUN_OPTION+=" --device=/dev/fuse:/dev/fuse:rwm "
     RUN_OPTION+=" --device=/dev/uinput:/dev/uinput:rwm "
     if [ -c "/dev/ion" ]; then
@@ -849,17 +848,6 @@ function restart_box() {
         fi
         local cid=$($RUNTIME_CMD ps | grep -w " ${BOX_NAME}" | awk '{print $1}')
         local BINDER_MAJOR_ID=$(cat /proc/devices | grep binder | awk '{print $1}')
-        if [ $DEFAULT_RUNTIME == "docker" ]; then
-            # 赋予容器binder设备节点cgroup devices权限
-            echo "c $BINDER_MAJOR_ID:* rwm" >$(ls -d /sys/fs/cgroup/devices/docker/$cid*/devices.allow)
-            echo "c 13:* rwm" >$(ls -d /sys/fs/cgroup/devices/docker/$cid*/devices.allow)
-            echo 1 > /sys/fs/cgroup/cpuset/docker/$cid*/cgroup.clone_children
-        else
-            # 赋予容器binder设备节点cgroup devices权限
-            echo "c $BINDER_MAJOR_ID:* rwm" >$(ls -d /sys/fs/cgroup/devices/default/$cid*/devices.allow)
-            echo "c 13:* rwm" >$(ls -d /sys/fs/cgroup/devices/default/$cid*/devices.allow)
-            echo 1 > /sys/fs/cgroup/cpuset/default/$cid*/cgroup.clone_children
-        fi
 
         # 支持Android系统属性可定制
         # local.prop用于修改定制属性，但该文件不是一定存在，需要用户手动生成。
