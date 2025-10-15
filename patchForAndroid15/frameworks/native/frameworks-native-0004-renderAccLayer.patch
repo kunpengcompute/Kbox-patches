@@ -1,0 +1,34 @@
+diff --git a/opengl/libs/EGL/egl_layers.cpp b/opengl/libs/EGL/egl_layers.cpp
+index 9752e382d9..b97322bc5d 100644
+--- a/opengl/libs/EGL/egl_layers.cpp
++++ b/opengl/libs/EGL/egl_layers.cpp
+@@ -345,11 +345,9 @@ void LayerLoader::LoadLayers() {
+     // If no layers are specified, we're done
+     if (debug_layers.empty()) return;
+ 
+-    // Only enable the system search path for non-user builds
++    // enable the system search path for both non-user and user builds
+     std::string system_path;
+-    if (android::GraphicsEnv::getInstance().isDebuggable()) {
+-        system_path = kSystemLayerLibraryDir;
+-    }
++    system_path = kSystemLayerLibraryDir;
+ 
+     ALOGI("Debug layer list: %s", debug_layers.c_str());
+     std::vector<std::string> layers = android::base::Split(debug_layers, ":");
+diff --git a/opengl/libs/GLES_CM/gl.cpp b/opengl/libs/GLES_CM/gl.cpp
+index 64c0f97708..a06565cf3b 100644
+--- a/opengl/libs/GLES_CM/gl.cpp
++++ b/opengl/libs/GLES_CM/gl.cpp
+@@ -318,6 +318,11 @@ extern "C" {
+ extern "C" const GLubyte * __glGetString(GLenum name);
+ 
+ const GLubyte * glGetString(GLenum name) {
++    // 使用gles1.0版本的glGetstring的应用无法进入中间层mock，因此调用gles2.0的glGetString
++    if (name == GL_VENDOR || name == GL_RENDERER || name == GL_VERSION || name == GL_EXTENSIONS) {
++        egl_connection_t* const cnx = egl_get_connection();
++        return cnx->platform.glGetString(name);
++    }
+     const GLubyte * ret = egl_get_string_for_current_context(name);
+     if (ret == NULL) {
+         gl_hooks_t::gl_t const * const _c = &getGlThreadSpecific()->gl;
