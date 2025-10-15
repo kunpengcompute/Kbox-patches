@@ -159,11 +159,8 @@ function prepare_kbox_binary()
     cp ${BinaryPath}/vinput/bin/vinput ${TMP_PACKAGE_DIR}/system/vendor/bin/
     cp ${BinaryPath}/vinput/vinput.rc ${TMP_PACKAGE_DIR}/system/vendor/etc/init/vinput.rc
 
-    if [ -d ${BinaryPath}/RenderAccLayer ]; then
-        cp ${BinaryPath}/RenderAccLayer/lib/hw/RenderAccLayer.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
-        cp ${BinaryPath}/RenderAccLayer/lib64/hw/RenderAccLayer.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
-        cp ${BinaryPath}/RenderAccLayer/kbox_render_accelerating_configuration.xml ${TMP_PACKAGE_DIR}/system/vendor/etc/
-    fi
+    cp ${BinaryPath}/RenderAccLayer/lib/hw/RenderAccLayer.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
+    cp ${BinaryPath}/RenderAccLayer/lib64/hw/RenderAccLayer.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
 }
 
 function prepare_file_system()

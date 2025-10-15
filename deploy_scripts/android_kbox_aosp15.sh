@@ -421,21 +421,8 @@ function start_box_by_id() {
         echo -e "---------------------- done ----------------------\n"
     fi
     if [[ $ENABLE_RENDER_LAYER == "1" ]]; then
-        # 渲染中间层
-        local isEnabled=0;
-        docker exec -it ${CONTAINER_NAME} sh -c "chmod 777 -R /vendor/shader_cache/"
-        docker exec -it ${CONTAINER_NAME} sh -c "mkdir -p /data/local/debug/gles"
-        docker exec -it ${CONTAINER_NAME} sh -c "chmod 755 -R /data/local/debug/"
-        docker exec -it ${CONTAINER_NAME} sh -c "cp /system/vendor/etc/kbox_render_accelerating_configuration.xml /data/local/tmp" > /dev/null 2>&1 || isEnabled=1
-        docker exec -it ${CONTAINER_NAME} sh -c "cp /system/vendor/lib64/hw/RenderAccLayer.kbox.so /data/local/debug/gles" > /dev/null 2>&1
-        if [ $? -eq 0 ]; then
-            docker exec -it ${CONTAINER_NAME} sh -c "setprop debug.gles.layers RenderAccLayer.kbox.so"
-        else
-            isEnabled=1
-        fi
-        if [ $isEnabled -eq 1 ]; then
-            echo -e "\033[31mFailed to enabled render layer! kbox_render_accelerating_configuration.xml or RenderAccLayer.kbox.so may not exist\033[0m"
-        fi
+        # 渲染中间层，放在base_box.sh会set property失败
+        docker exec -it ${CONTAINER_NAME} sh -c "setprop debug.gles.layers RenderAccLayer.kbox.so"
     fi
 }
 
@@ -486,21 +473,13 @@ function main() {
             else
                 set +e
                 local MOUNT_DIR=${KBOX_MOUNT_MAP[TAG_NUMBER - 1]}
-                bash $CURRENT_DIR/base_box_aosp15.sh restart "kbox_$TAG_NUMBER" "$MOUNT_DIR" 3 ${ENABLE_HARD_DECODE}
+                bash $CURRENT_DIR/base_box_aosp15.sh restart "kbox_$TAG_NUMBER" "$MOUNT_DIR" 3 ${ENABLE_HARD_DECODE} $ENABLE_RENDER_LAYER
                 [ ${?} -eq 1 ] && continue
 
                 enable_netint "kbox_$TAG_NUMBER"
                 # 调整vinput设备权限
                 cid=$(docker ps | grep -w "kbox_$TAG_NUMBER" | awk '{print $1}')
                 echo "c 13:* rwm" >$(ls -d /sys/fs/cgroup/devices/docker/$cid*/devices.allow)
-                if [[ $ENABLE_RENDER_LAYER == "1" ]]; then
-                    docker exec -it "kbox_$TAG_NUMBER" sh -c "cp /system/vendor/lib64/hw/RenderAccLayer.kbox.so /data/local/debug/gles" > /dev/null 2>&1
-                    if [ $? -eq 0 ]; then
-                        docker exec -it "kbox_$TAG_NUMBER" sh -c "setprop debug.gles.layers RenderAccLayer.kbox.so"
-                    else
-                        echo -e "\033[31mFailed to enabled render layer! RenderAccLayer.kbox.so may not exist\033[0m"
-                    fi
-                fi
                 set -e
             fi
         done
