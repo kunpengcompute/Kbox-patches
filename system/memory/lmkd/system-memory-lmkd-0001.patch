@@ -1,0 +1,213 @@
+diff --git a/lmkd.cpp b/lmkd.cpp
+index 1030147..35a3e9e 100644
+--- a/lmkd.cpp
++++ b/lmkd.cpp
+@@ -32,6 +32,7 @@
+ #include <sys/syscall.h>
+ #include <sys/sysinfo.h>
+ #include <time.h>
++#include <ctime>
+ #include <unistd.h>
+ 
+ #include <algorithm>
+@@ -95,6 +96,10 @@ static inline void trace_kill_end() {}
+ #define PROC_STATUS_RSS_FIELD "VmRSS:"
+ #define PROC_STATUS_SWAP_FIELD "VmSwap:"
+ 
++#define CONTAINERID_PATH "/data/containerid"
++#define VMEMINFO_PATH "/sys/kernel/debug/gpu_statistics"
++#define PARSE_LINE_BREAK "\n"
++#define MEM_LIMT 40
+ #define PERCEPTIBLE_APP_ADJ 200
+ #define PREVIOUS_APP_ADJ 700
+ 
+@@ -562,6 +567,11 @@ static struct adjslot_list procadjslot_list[ADJTOSLOT_COUNT];
+ 
+ #define MAX_DISTINCT_OOM_ADJ 32
+ #define KILLCNT_INVALID_IDX 0xFF
++#define BUFFER_SIZE_128 128
++#define BUFFER_SIZE_256 256
++#define BUFFER_SIZE_13 13
++#define FCAST_SPACE 512
++
+ /*
+  * Because killcnt array is sparse a two-level indirection is used
+  * to keep the size small. killcnt_idx stores index of the element in
+@@ -584,6 +594,13 @@ static int clamp(int low, int high, int value) {
+     return std::max(std::min(value, high), low);
+ }
+ 
++static void close_fd(int &fd) {
++    if (fd > 0) {
++        close(fd);
++        fd = -1;
++    }
++}
++
+ static bool parse_int64(const char* str, int64_t* ret) {
+     char* endptr;
+     long long val = strtoll(str, &endptr, 10);
+@@ -3834,12 +3851,134 @@ static void call_handler(struct event_handler_info* handler_info,
+     watchdog.stop();
+ }
+ 
++//该接口非线程安全，不支持并发调用forecast_space提供给公用此函数读取文件的调用，自定义预估读取字节
++static char* read_file(int& file_fd, int forecast_space = 0) {
++    static ssize_t buf_size = PAGE_SIZE;
++    ssize_t size;
++    static char *new_buf, *buf = NULL;
++
++    if (buf == NULL && (buf = static_cast<char *>(malloc(buf_size))) == NULL) {
++        ALOGE("open vmem temp space fail");
++        return NULL;
++    }
++    while (true) {
++        size = read_all(file_fd, buf, forecast_space <= 0 ? buf_size - 1 : forecast_space - 1);
++        if (size < 0) {
++            ALOGE("Read vmemfile fail");
++            close_fd(file_fd);
++            free(buf);
++            buf = NULL;
++            return NULL;
++        }
++        //过量使用会进行减少内存
++        if (buf_size != PAGE_SIZE && (buf_size >= MEM_LIMT * size)) {
++            free(buf);
++            new_buf = NULL;
++            buf = NULL;
++            buf_size = PAGE_SIZE;
++            if ((buf = static_cast<char *>(malloc(buf_size))) == NULL) {
++                ALOGE("open vmem temp space fail");
++                return NULL;
++            }
++            continue;
++        }
++        if (size < buf_size - 1) {
++            break;
++        }
++        if ((new_buf = static_cast<char *>(realloc(buf, buf_size * 2))) == NULL) {
++            ALOGE("realloc fail!");
++            return NULL;
++        }
++        buf = new_buf;
++        buf_size *= 2;
++    }
++    return buf;
++}
++
++static void get_mem_info(char* m_buf, char* m_line) {
++    // 不采用strstr, 字符串匹配会带来性能损失，确定了需要的内容在1 2 3 15 16行。直接按需读取即可
++    char *line, *rest = NULL;
++    int line_count = 1;
++    line = strtok_r(m_buf, PARSE_LINE_BREAK, &rest);
++    while (line != NULL) {
++        if (line_count <= 3 || line_count == 15) {
++            snprintf(m_line + strlen(m_line), BUFFER_SIZE_256 - strlen(m_line) - 1, "%s|", line);
++        } else if (line_count == 16) {
++            snprintf(m_line + strlen(m_line), BUFFER_SIZE_256 - strlen(m_line) - 1, "%s", line);
++            break;
++        }
++        ++line_count;
++        line = strtok_r(NULL, PARSE_LINE_BREAK, &rest);
++    }
++}
++
++static void get_vmem_info(char* m_buf, char* m_line, const char* m_containerid) {
++    char *line, *rest = NULL;
++    line = strtok_r(m_buf, PARSE_LINE_BREAK, &rest);
++    while (line != NULL) {
++        if (strstr(line, m_containerid)) {
++            // 由于文件位数比较固定，直接读取26位后的数据
++            snprintf(m_line + strlen(m_line), BUFFER_SIZE_256 - strlen(m_line) - 1, "%s", line + 26);
++            break;
++        }
++        line = strtok_r(NULL, PARSE_LINE_BREAK, &rest);
++    }
++}
++
++static void print_meminfo(const char* m_file, const char* m_containerid = NULL) {
++    int file_fd = -1;
++    char* buf = NULL;
++    char mem_info_line[BUFFER_SIZE_256] = {0};
++
++    file_fd = open(m_file, O_RDONLY | O_CLOEXEC);
++    if (file_fd < 0) {
++        ALOGE("%s file open fail", m_file);
++    } else {
++        buf = m_containerid == NULL? read_file(file_fd, PAGE_SIZE) : read_file(file_fd);
++        if (buf == NULL) {
++            ALOGE("read %s file fail", m_file);
++        } else {
++            if (m_containerid == NULL) {
++                get_mem_info(buf, mem_info_line);
++                ALOGI("MemInfo:[%s]", mem_info_line);
++            } else {
++                get_vmem_info(buf, mem_info_line, m_containerid);
++                ALOGI("VMemInfo:[%s]", mem_info_line);
++            }
++        }
++    }
++    close_fd(file_fd);
++}
++
++static void get_containerdata(char* buf, const char* path, ssize_t bytes) {
++    // 确保container文件在读取前生成
++    int redo_time = 5;
++    int path_fd = -1;
++    while ((path_fd = open(path, O_RDONLY | O_CLOEXEC)) < 0 && --redo_time >= 0) {
++        sleep(1);
++    }
++    if (path_fd < 0) {
++        ALOGE("%s file open fail", path);
++    }
++    ssize_t bytes_read = read(path_fd, buf, bytes - 1);
++    if (bytes_read < 0) {
++        ALOGE("Read %s file fail", path);
++    }
++    close_fd(path_fd);
++}
++
+ static void mainloop(void) {
+     struct event_handler_info* handler_info;
+     struct polling_params poll_params;
+     struct timespec curr_tm;
+     struct epoll_event *evt;
+     long delay = -1;
++    long delayEpollTime = 20000;
++    int time_difference = property_get_int32("sys.lmk.time_difference", 30);
++    char container_id[BUFFER_SIZE_13] = {0};
++
++    get_containerdata(container_id, CONTAINERID_PATH, BUFFER_SIZE_13);
++    std::time_t time_temp = std::time(nullptr);
+ 
+     poll_params.poll_handler = NULL;
+     poll_params.paused_handler = NULL;
+@@ -3891,7 +4030,7 @@ static void mainloop(void) {
+                 }
+             } else {
+                 /* Wait for events with no timeout */
+-                nevents = epoll_wait(epollfd, events, maxevents, -1);
++                nevents = epoll_wait(epollfd, events, maxevents, delayEpollTime);
+             }
+         }
+ 
+@@ -3933,6 +4072,16 @@ static void mainloop(void) {
+                 call_handler(handler_info, &poll_params, evt->events);
+             }
+         }
++
++        std::time_t time_stamp = std::time(nullptr);
++        if (time_stamp - time_temp >= time_difference) {
++            if (property_get_int32("sys.lmk.memlog_activationflag", 1)) {
++                time_temp = time_stamp;
++                print_meminfo(MEMINFO_PATH);
++                print_meminfo(VMEMINFO_PATH, container_id);
++                time_difference = property_get_int32("sys.lmk.time_difference", 30);
++            }
++        }
+     }
+ }
+ 
+-- 
+2.34.1
+
