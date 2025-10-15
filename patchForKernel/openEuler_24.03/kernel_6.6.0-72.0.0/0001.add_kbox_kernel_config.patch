@@ -10,7 +10,6 @@ index a0bba8e54..ac3a7f4c7 100644
 +	bool "Kernel support for Kbox"
 +	select STAGING
 +	select ANDROID
-+	select ASHMEM
 +	select ANDROID_BINDER_IPC
 +	select ANDROID_BINDERFS
 +	select ANDROID_ALARM
