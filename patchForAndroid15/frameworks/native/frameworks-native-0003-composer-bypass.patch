@@ -1,0 +1,129 @@
+diff --git a/services/surfaceflinger/CompositionEngine/include/compositionengine/Output.h b/services/surfaceflinger/CompositionEngine/include/compositionengine/Output.h
+index 191d475e5d..b80b59b693 100644
+--- a/services/surfaceflinger/CompositionEngine/include/compositionengine/Output.h
++++ b/services/surfaceflinger/CompositionEngine/include/compositionengine/Output.h
+@@ -211,6 +211,7 @@ public:
+ 
+     // Sets a debug name for the output
+     virtual void setName(const std::string&) = 0;
++    virtual void setSingleLayerCount(int) = 0;
+ 
+     // Gets the current render color mode for the output
+     virtual DisplayColorProfile* getDisplayColorProfile() const = 0;
+diff --git a/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h b/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h
+index 9990a742db..62aab317ed 100644
+--- a/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h
++++ b/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h
+@@ -63,6 +63,7 @@ public:
+ 
+     const std::string& getName() const override;
+     void setName(const std::string&) override;
++    void setSingleLayerCount(int) override;
+ 
+     compositionengine::DisplayColorProfile* getDisplayColorProfile() const override;
+     void setDisplayColorProfile(std::unique_ptr<compositionengine::DisplayColorProfile>) override;
+@@ -192,6 +193,7 @@ private:
+ 
+     // Whether the content must be recomposed this frame.
+     bool mMustRecompose = false;
++    int32_t mSingleLayerCount = 0;
+ };
+ 
+ // This template factory function standardizes the implementation details of the
+diff --git a/services/surfaceflinger/CompositionEngine/src/Output.cpp b/services/surfaceflinger/CompositionEngine/src/Output.cpp
+index 2d8f98f2a4..46eb2c218e 100644
+--- a/services/surfaceflinger/CompositionEngine/src/Output.cpp
++++ b/services/surfaceflinger/CompositionEngine/src/Output.cpp
+@@ -53,6 +53,7 @@
+ #include <android-base/properties.h>
+ #include <ui/DebugUtils.h>
+ #include <ui/HdrCapabilities.h>
++#include <cutils/properties.h>
+ 
+ #include "TracedOrdinal.h"
+ 
+@@ -127,6 +128,10 @@ void Output::setName(const std::string& name) {
+                                : mName;
+ }
+ 
++void Output::setSingleLayerCount(int value) {
++    mSingleLayerCount = value;
++}
++
+ void Output::setCompositionEnabled(bool enabled) {
+     auto& outputState = editState();
+     if (outputState.isEnabled == enabled) {
+@@ -1350,6 +1355,18 @@ std::optional<base::unique_fd> Output::composeSurfaces(
+                    });
+ 
+     const nsecs_t renderEngineStart = systemTime();
++    char tempChar[PROPERTY_VALUE_MAX];
++    int bypassCompositionSwitch = property_get("ro.hardware.compositionBypass", tempChar, "0") > 0 ? std::atoi(tempChar) : 0;
++    int offset = property_get("ro.hardware.compositionBypass.offset", tempChar, "0") > 0 ? std::atoi(tempChar) : 0;
++    size_t layerCount = clientRenderEngineLayers.size();
++    if ((bypassCompositionSwitch == 1) && (layerCount == 1)) {
++        mSingleLayerCount++;
++        if (mSingleLayerCount > offset) {
++            return base::unique_fd(std::move(fd));
++        }
++    } else {
++        mSingleLayerCount = 0;
++    }
+     auto fenceResult = renderEngine
+                                .drawLayers(clientCompositionDisplay, clientRenderEngineLayers, tex,
+                                            std::move(fd))
+diff --git a/services/surfaceflinger/DisplayDevice.cpp b/services/surfaceflinger/DisplayDevice.cpp
+index 402a3d2e2f..5a87448cd0 100644
+--- a/services/surfaceflinger/DisplayDevice.cpp
++++ b/services/surfaceflinger/DisplayDevice.cpp
+@@ -132,6 +132,10 @@ void DisplayDevice::setDisplayName(const std::string& displayName) {
+     }
+ }
+ 
++void DisplayDevice::setSingleLayerCount(int value) {
++    mCompositionDisplay->setSingleLayerCount(value);
++}
++
+ auto DisplayDevice::getFrontEndInfo() const -> frontend::DisplayInfo {
+     gui::DisplayInfo info;
+     info.displayId = ui::LogicalDisplayId{static_cast<int32_t>(getLayerStack().id)};
+diff --git a/services/surfaceflinger/DisplayDevice.h b/services/surfaceflinger/DisplayDevice.h
+index 3e3f558cee..273f55f694 100644
+--- a/services/surfaceflinger/DisplayDevice.h
++++ b/services/surfaceflinger/DisplayDevice.h
+@@ -163,6 +163,7 @@ public:
+     const Rect bounds() const { return getBounds(); }
+ 
+     void setDisplayName(const std::string& displayName);
++    void setSingleLayerCount(int value);
+     const std::string& getDisplayName() const { return mDisplayName; }
+ 
+     surfaceflinger::frontend::DisplayInfo getFrontEndInfo() const;
+diff --git a/services/surfaceflinger/SurfaceFlinger.cpp b/services/surfaceflinger/SurfaceFlinger.cpp
+index b2f9f32acf..6195a724ee 100644
+--- a/services/surfaceflinger/SurfaceFlinger.cpp
++++ b/services/surfaceflinger/SurfaceFlinger.cpp
+@@ -2270,6 +2270,10 @@ void SurfaceFlinger::onComposerHalSeamlessPossible(hal::HWDisplayId) {
+ 
+ void SurfaceFlinger::onComposerHalRefresh(hal::HWDisplayId) {
+     Mutex::Autolock lock(mStateLock);
++
++    for (const auto& [token, display] : mDisplays) {
++        display->setSingleLayerCount(0);
++    }
+     scheduleComposite(FrameHint::kNone);
+ }
+ 
+diff --git a/services/surfaceflinger/tests/unittests/HWComposerTest.cpp b/services/surfaceflinger/tests/unittests/HWComposerTest.cpp
+index e0753a3cfb..6f9ee91b6b 100644
+--- a/services/surfaceflinger/tests/unittests/HWComposerTest.cpp
++++ b/services/surfaceflinger/tests/unittests/HWComposerTest.cpp
+@@ -475,7 +475,7 @@ TEST_F(HWComposerTest, onVsyncInvalid) {
+ struct MockHWC2ComposerCallback final : StrictMock<HWC2::ComposerCallback> {
+     MOCK_METHOD(void, onComposerHalHotplugEvent, (hal::HWDisplayId, DisplayHotplugEvent),
+                 (override));
+-    MOCK_METHOD1(onComposerHalRefresh, void(hal::HWDisplayId));
++    MOCK_METHOD1(, void(hal::HWDisplayId));
+     MOCK_METHOD3(onComposerHalVsync,
+                  void(hal::HWDisplayId, int64_t timestamp, std::optional<hal::VsyncPeriodNanos>));
+     MOCK_METHOD2(onComposerHalVsyncPeriodTimingChanged,
