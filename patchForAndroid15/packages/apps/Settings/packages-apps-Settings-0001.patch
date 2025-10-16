@@ -1,0 +1,43 @@
+diff --git a/AndroidManifest.xml b/AndroidManifest.xml
+index cc4d898403a..f33019d66cb 100644
+--- a/AndroidManifest.xml
++++ b/AndroidManifest.xml
+@@ -236,7 +236,6 @@
+             android:exported="true">
+             <intent-filter>
+                 <action android:name="android.intent.action.USER_INITIALIZE"/>
+-                <action android:name="android.intent.action.PRE_BOOT_COMPLETED"/>
+             </intent-filter>
+         </receiver>
+ 
+diff --git a/res/xml/connected_devices.xml b/res/xml/connected_devices.xml
+index 95aa8773c68..8b85f1e3627 100644
+--- a/res/xml/connected_devices.xml
++++ b/res/xml/connected_devices.xml
+@@ -90,14 +90,6 @@
+             settings:searchable="false" />
+     </PreferenceCategory>
+ 
+-    <Preference
+-        android:fragment="com.android.settings.connecteddevice.AdvancedConnectedDeviceDashboardFragment"
+-        android:key="connection_preferences"
+-        android:summary="@string/summary_placeholder"
+-        android:title="@string/connected_device_connections_title"
+-        settings:allowDividerAbove="true"
+-        settings:controller="com.android.settings.connecteddevice.AdvancedConnectedDeviceController" />
+-
+     <com.android.settingslib.widget.FooterPreference
+         android:key="discoverable_footer"
+         android:selectable="false"
+diff --git a/src/com/android/settings/sim/SimDialogActivity.java b/src/com/android/settings/sim/SimDialogActivity.java
+index 5512117f733..3133869b5d2 100644
+--- a/src/com/android/settings/sim/SimDialogActivity.java
++++ b/src/com/android/settings/sim/SimDialogActivity.java
+@@ -126,6 +126,7 @@ public class SimDialogActivity extends FragmentActivity {
+ 
+         if (dialogType == PICK_DISMISS) {
+             finishAndRemoveTask();
++            System.exit(0);
+             return;
+         }
+ 

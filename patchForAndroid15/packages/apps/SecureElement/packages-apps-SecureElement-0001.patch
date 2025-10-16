@@ -1,0 +1,13 @@
+diff --git a/AndroidManifest.xml b/AndroidManifest.xml
+index 33477eb..ae7da04 100755
+--- a/AndroidManifest.xml
++++ b/AndroidManifest.xml
+@@ -7,7 +7,7 @@
+     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"/>
+     <application android:name=".SEApplication"
+          android:label="SecureElementApplication"
+-         android:persistent="true"
++         android:persistent="false"
+          android:directBootAware="true"
+          android:memtagMode="async">
+         <service android:name=".SecureElementService"

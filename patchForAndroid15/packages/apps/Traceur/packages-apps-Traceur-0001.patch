@@ -1,0 +1,12 @@
+diff --git a/AndroidManifest.xml b/AndroidManifest.xml
+index b02b5c27..0c2fae49 100644
+--- a/AndroidManifest.xml
++++ b/AndroidManifest.xml
+@@ -136,7 +136,6 @@
+              android:permission="android.permission.DUMP"
+              android:exported="true">
+             <intent-filter android:priority="2147483647">
+-                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                 <action android:name="android.intent.action.USER_FOREGROUND"/>
+                 <action android:name="com.android.internal.intent.action.BUGREPORT_STARTED"/>
+             </intent-filter>

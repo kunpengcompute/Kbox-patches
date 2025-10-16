@@ -1,0 +1,12 @@
+diff --git a/daemon/main.cpp b/daemon/main.cpp
+index 019a310a..eb9c85b4 100644
+--- a/daemon/main.cpp
++++ b/daemon/main.cpp
+@@ -194,7 +194,6 @@ static void setup_adb(const std::vector<std::string>& addrs) {
+         port = DEFAULT_ADB_LOCAL_TRANSPORT_PORT;
+     }
+     LOG(INFO) << "Setup mdns on port= " << port;
+-    setup_mdns(port);
+ #endif
+     for (const auto& addr : addrs) {
+         LOG(INFO) << "adbd listening on " << addr;
