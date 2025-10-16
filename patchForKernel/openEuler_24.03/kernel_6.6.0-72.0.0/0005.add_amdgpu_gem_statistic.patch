@@ -1,0 +1,735 @@
+diff --git a/drivers/gpu/drm/Makefile b/drivers/gpu/drm/Makefile
+index b120267fb..41c1f2f88 100644
+--- a/drivers/gpu/drm/Makefile
++++ b/drivers/gpu/drm/Makefile
+@@ -138,6 +138,7 @@ obj-y			+= tests/
+ obj-$(CONFIG_DRM_MIPI_DBI) += drm_mipi_dbi.o
+ obj-$(CONFIG_DRM_MIPI_DSI) += drm_mipi_dsi.o
+ obj-y			+= arm/
++obj-y			+= statistics/
+ obj-y			+= display/
+ obj-$(CONFIG_DRM_TTM)	+= ttm/
+ obj-$(CONFIG_DRM_SCHED)	+= scheduler/
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
+index a1b15d0d6..5e8b0a6ad 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
+@@ -948,6 +948,179 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
+ }
+ 
+ #if defined(CONFIG_DEBUG_FS)
++
++char *get_task_cgroup_path(struct task_struct *task) {
++    struct cgroup_subsys_state *css_st;
++    struct cgroup *cgrp;
++    char *path = NULL;
++
++    rcu_read_lock();
++    path = kzalloc(PATH_MAX, GFP_KERNEL);
++    css_st = task_css(task, memory_cgrp_id);
++    if (css_st) {
++        cgrp = css_st->cgroup;
++        if (cgrp) {
++            cgroup_path(cgrp, path, PATH_MAX);
++        }
++    } else {
++        pr_err("Failed to get cgroup path for task\n");
++    }
++    rcu_read_unlock();
++    return path;
++}
++
++char *extract_container_id(const char *cgroup_path, char feature_code) {
++    char *container_id = NULL;
++    char *id_str = strrchr(cgroup_path, feature_code);
++    if (id_str) {
++        id_str++; 
++        // Extract 12 digits as container ID
++        container_id = kstrndup(id_str, 12, GFP_KERNEL);
++    }
++    return container_id;
++}
++
++struct container_mem_stats {
++	char container_id[128];
++	size_t total_vram;
++	size_t total_gtt;
++	struct list_head list;
++};
++
++struct gem_sizes {
++	size_t total;
++	size_t vram;
++	size_t gtt;
++	size_t cpu;
++	size_t others;
++};
++
++static LIST_HEAD(container_stats_list);
++
++static DEFINE_MUTEX(container_stats_mutex);
++
++static int amdgpu_debugfs_gem_bo_statistics(int id, void *ptr, void *data)
++{
++	struct drm_gem_object *gobj = ptr;
++	struct amdgpu_bo *bo = gem_to_amdgpu_bo(gobj);
++	struct gem_sizes *sizes = data;
++	struct dma_buf_attachment *attachment = READ_ONCE(bo->tbo.base.import_attach);
++	unsigned domain = amdgpu_mem_type_to_domain(bo->tbo.resource->mem_type);
++	unsigned long bo_size = amdgpu_bo_size(bo);
++
++	if (!attachment) {
++		switch (domain) {
++		case AMDGPU_GEM_DOMAIN_VRAM:
++			sizes->vram += bo_size;
++			break;
++		case AMDGPU_GEM_DOMAIN_GTT:
++			sizes->gtt += bo_size;
++			break;
++		case AMDGPU_GEM_DOMAIN_CPU:
++			sizes->cpu += bo_size;
++			break;
++		default:
++			sizes->others += bo_size;
++			break;
++		}
++		sizes->total += bo_size;
++	}
++	return 0;
++}
++
++static int amdgpu_debugfs_gem_statistics_show(struct seq_file *m, void *unused) 
++{
++	struct amdgpu_device *adev = m->private;
++	struct drm_device *dev = adev_to_drm(adev);
++	struct drm_file *file;
++	int r;
++
++	r = mutex_lock_interruptible(&dev->filelist_mutex);
++	if (r)
++		return r;
++
++	list_for_each_entry(file, &dev->filelist, lhead)
++	{
++		struct task_struct *taskp = NULL;
++		struct gem_sizes sizes;
++		char *cgroup_path = NULL;
++		char *container_id = NULL;
++		unsigned int cgroup_id = 0;
++		struct container_mem_stats *stats;
++		bool found = false;
++
++		sizes.vram = 0;
++		sizes.gtt = 0;
++		spin_lock(&file->table_lock);
++		idr_for_each(&file->object_idr, amdgpu_debugfs_gem_bo_statistics, &sizes);
++		spin_unlock(&file->table_lock);
++		if (!sizes.total)
++			continue;
++
++		rcu_read_lock();
++		taskp = pid_task(file->pid, PIDTYPE_PID);
++		if (!taskp) {
++			rcu_read_unlock();
++			continue;
++		}
++		task_lock(taskp);
++		cgroup_path = get_task_cgroup_path(taskp);
++		if (!cgroup_path) {
++			task_unlock(taskp);
++			rcu_read_unlock();
++			continue;
++		}
++		if (strstr(cgroup_path, "/docker/") || strstr(cgroup_path, "/kubepods/")) {
++            container_id = extract_container_id(cgroup_path, '/');
++        } else if (strstr(cgroup_path, "cri-containerd:")) { //k8s用systemd驱动管理资源控制器
++            container_id = extract_container_id(cgroup_path, ':');
++        }
++		if(container_id) {
++			mutex_lock(&container_stats_mutex);
++			list_for_each_entry(stats, &container_stats_list, list)
++			{
++				if (strcmp(stats->container_id, container_id) == 0)
++				{
++					stats->total_vram += sizes.vram;
++					stats->total_gtt += sizes.gtt;
++					found = true;
++					break;
++				}
++			}
++			if (!found) {
++				stats = kzalloc(sizeof(*stats), GFP_KERNEL);
++				if (stats) {
++					strncpy(stats->container_id, container_id, sizeof(stats->container_id));
++					stats->total_vram = sizes.vram;
++					stats->total_gtt = sizes.gtt;
++					list_add_tail(&stats->list, &container_stats_list);
++				}
++			}
++			mutex_unlock(&container_stats_mutex);
++			kfree(container_id);
++		}
++		kfree(cgroup_path);
++		task_unlock(taskp);
++		rcu_read_unlock();
++	}
++
++	struct list_head *pos;
++    struct list_head *q;
++
++	mutex_unlock(&dev->filelist_mutex);
++	mutex_lock(&container_stats_mutex);
++	if (!list_empty(&container_stats_list)) {
++		list_for_each_safe(pos, q, &container_stats_list) {
++			struct container_mem_stats *tmp = list_entry(pos, struct container_mem_stats, list);
++			seq_printf(m,"container_id:%s vram:%zu gtt:%zu\n", tmp->container_id, tmp->total_vram, tmp->total_gtt);
++			list_del(&tmp->list);
++            kfree(tmp);
++		}
++	}
++	mutex_unlock(&container_stats_mutex);
++	return 0;
++}
++
+ static int amdgpu_debugfs_gem_info_show(struct seq_file *m, void *unused)
+ {
+ 	struct amdgpu_device *adev = m->private;
+@@ -993,6 +1166,8 @@ static int amdgpu_debugfs_gem_info_show(struct seq_file *m, void *unused)
+ 
+ DEFINE_SHOW_ATTRIBUTE(amdgpu_debugfs_gem_info);
+ 
++DEFINE_SHOW_ATTRIBUTE(amdgpu_debugfs_gem_statistics);
++
+ #endif
+ 
+ void amdgpu_debugfs_gem_init(struct amdgpu_device *adev)
+@@ -1003,5 +1178,7 @@ void amdgpu_debugfs_gem_init(struct amdgpu_device *adev)
+ 
+ 	debugfs_create_file("amdgpu_gem_info", 0444, root, adev,
+ 			    &amdgpu_debugfs_gem_info_fops);
++	debugfs_create_file("amdgpu_gem_statistics", 0444, root, adev,
++			    &amdgpu_debugfs_gem_statistics_fops);
+ #endif
+ }
+diff --git a/drivers/gpu/drm/statistics/Makefile b/drivers/gpu/drm/statistics/Makefile
+new file mode 100644
+index 000000000..2175036af
+--- /dev/null
++++ b/drivers/gpu/drm/statistics/Makefile
+@@ -0,0 +1 @@
++obj-y += amdgpu_statistics.o
+\ No newline at end of file
+diff --git a/drivers/gpu/drm/statistics/amdgpu_statistics.c b/drivers/gpu/drm/statistics/amdgpu_statistics.c
+new file mode 100644
+index 000000000..2ab7c7b11
+--- /dev/null
++++ b/drivers/gpu/drm/statistics/amdgpu_statistics.c
+@@ -0,0 +1,504 @@
++#include <linux/fs.h>
++#include <linux/uio.h>
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/debugfs.h>
++#include <linux/seq_file.h>
++#include <linux/kfifo.h>
++#include <linux/hrtimer.h>
++#include <linux/kobject.h>
++#include <linux/sysfs.h>
++#include <linux/slab.h>
++#include <linux/namei.h>
++#include <linux/cgroup.h>
++#include <linux/sched.h> 
++#include <linux/pci.h>
++#include <linux/debugfs.h>
++#include <linux/rcupdate.h>
++
++#define VM_VENDOR_ID 0x1f4f
++#define AMD_VENDOR_ID 0x1002
++#define MAX_FIELDS_LENGTH 64
++#define VM_DEBUGFS_FILED_COUNT 7 // 瀚博显存统计节点有效的字段数
++#define K8S_CONTAINER_FEATURE_CODE "cri-containerd:"
++#define MAX_RECORD_LENGTH 64
++#define VM_DEBUGFS_PATH "/sys/kernel/debug/va/gpu0%d/gpu_mem_stats"
++#define AMD_DEBUGFS_FMT "/sys/kernel/debug/dri/%d/amdgpu_gem_statistics"
++
++static bool amd_vendor = false;
++static bool vm_vendor = false;
++
++static int vm_node_count = 0;
++
++struct debugfs_cache {
++    char *data;
++    size_t size;
++};
++
++static struct debugfs_cache __rcu *cache[2] = {NULL, NULL};
++static atomic_t active_idx = ATOMIC_INIT(0);
++
++static struct hrtimer update_timer;
++static ktime_t update_interval;
++
++static struct workqueue_struct *update_workqueue;
++static struct work_struct update_work;
++
++struct dentry *statistics_node;
++struct dentry *gpu_statistics_dir;
++
++char *get_task_cgroup_path(struct task_struct *task) {
++    struct cgroup_subsys_state *css_st;
++    struct cgroup *cgrp;
++    char *path = NULL;
++
++    rcu_read_lock();
++    path = kzalloc(PATH_MAX, GFP_KERNEL);
++    css_st = task_css(task, memory_cgrp_id);
++    if (css_st) {
++        cgrp = css_st->cgroup;
++        if (cgrp) {
++            cgroup_path(cgrp, path, PATH_MAX);
++        }
++    } else {
++        pr_err("Failed to get cgroup path for task\n");
++    }
++    rcu_read_unlock();
++    return path;
++}
++
++char *extract_container_id(const char *cgroup_path, char feature_code) {
++    char *container_id = NULL;
++    char *id_str = strrchr(cgroup_path, feature_code);
++    if (id_str) {
++        id_str++; 
++        // Extract 12 digits as container ID
++        container_id = kstrndup(id_str, 12, GFP_KERNEL);
++    }
++    return container_id;
++}
++
++/* 
++ * To implement the method for reading debugfs nodes, the 
++ * kernel_read function requires the debugfs node to 
++ * implement the read_iter method, but the corresponding 
++ * node lacks this method.
++ */ 
++static ssize_t debugfs_read(struct file *file, void *buf, size_t count, loff_t *pos) {
++    struct kvec iov = {
++        .iov_base       = buf,
++        .iov_len        = min_t(size_t, count, MAX_RW_COUNT),
++    };
++    struct kiocb kiocb;
++    struct iov_iter iter;
++    ssize_t ret;
++
++    init_sync_kiocb(&kiocb, file);
++    kiocb.ki_pos = pos ? *pos : 0;
++    iov_iter_kvec(&iter, READ, &iov, 1, iov.iov_len);
++    ret = seq_read_iter(&kiocb, &iter);
++    if (ret > 0 && pos) {
++        *pos = kiocb.ki_pos;
++    }
++    return ret;
++}
++
++static char *read_debugfs_to_buffer(char *path, int node) {
++    struct file *filp = NULL;
++    loff_t pos = 0;
++    ssize_t buffer_size = PAGE_SIZE;
++    ssize_t ret;
++    char *buf = NULL;
++    char *new_buf = NULL;
++
++    char filename[100];
++
++    snprintf(filename, 100, path, node);
++    filp = filp_open(filename, O_RDONLY, 0);
++    if (IS_ERR(filp)) {
++        return NULL;
++    }
++
++    buf = kmalloc(buffer_size, GFP_KERNEL);
++    if (!buf) {
++        pr_err("Failed to alloc buffer\n");
++        goto err_handle;
++    }
++
++    while (true) {
++        ret = debugfs_read(filp, buf, buffer_size - 1, &pos);
++        if (ret < 0) {
++            pr_err("Failed to read file: %zd\n", ret);
++            goto err_handle;
++        } else if (ret == 0) {
++            break;
++        }
++
++        if (ret < buffer_size - 1) {
++            break;
++        }
++
++        buffer_size *= 2;
++        pos = 0;
++        new_buf = krealloc(buf, buffer_size, GFP_KERNEL);
++        if (!new_buf) {
++            pr_err("Failed to realloc buffer\n");
++            goto err_handle;
++        }
++        buf = new_buf;
++    }
++
++    buf[ret] = '\0';
++    filp_close(filp, NULL);
++    return buf;
++
++err_handle:
++    kfree(buf);
++    if (filp) {
++      filp_close(filp, NULL);
++    }
++    return NULL;
++}
++
++struct vm_info_t {
++    int pid;
++    int used_size;
++};
++
++struct vm_statistic_t {
++	char container_id[128];
++	size_t total_vram;
++	struct list_head list;
++};
++
++static int container_num;
++
++static LIST_HEAD(vm_container_stats_list);
++
++static DEFINE_MUTEX(vm_container_stats_mutex);
++
++static bool is_contain_vm_statistic(const char *str) {
++    if (str == NULL) {
++        return false;
++    }
++    return strstr(str, "PID") && strstr(str, "PhoneID") && strstr(str, "VPID");
++}
++
++static int read_to_vm_list(char *read_buf) {
++    char *line;
++    char *token;
++    struct vm_info_t vm_info;
++    char *remaining = read_buf;
++    bool haved_vm_statistic = false;
++
++    if (!read_buf) {
++        return -EINVAL;
++    }
++
++    while ((line = strsep(&remaining, "\n")) != NULL) {
++        struct pid *pid_struct = NULL;
++        char *container_id = NULL;
++        struct task_struct *task;
++        char *cgroup_path = NULL;
++        struct vm_statistic_t *vm_statistic;
++        bool found = false;
++        int field_count = 0;
++        char *line_remaining = line;
++
++        if (is_contain_vm_statistic(line)) {
++            haved_vm_statistic = true;
++            continue;
++        }
++
++        if (!haved_vm_statistic) {
++            continue;
++        }
++
++        while ((token = strsep(&line_remaining, " \t")) != NULL) {
++            if (!token || strlen(token) == 0) {
++                continue;
++            }
++
++            switch (field_count) {
++                case 0:
++                    kstrtoint(token, 10, &vm_info.pid);
++                    break;
++                case 6:
++                    kstrtoint(token, 10, &vm_info.used_size);
++                    break;
++            }
++            field_count++;
++        }
++
++        if (field_count != VM_DEBUGFS_FILED_COUNT) {
++            continue;
++        }
++
++        pid_struct = find_vpid(vm_info.pid);
++        if (!pid_struct) {
++            pr_err("Could not find pid structure for PID %d\n", vm_info.pid);
++            continue;
++        }
++        get_pid(pid_struct);
++
++        rcu_read_lock();
++        task = pid_task(pid_struct, PIDTYPE_PID);
++        if (!task) {
++            rcu_read_unlock();
++            put_pid(pid_struct);
++            continue;
++        }
++        task_lock(task);
++        cgroup_path = get_task_cgroup_path(task);
++        if (!cgroup_path) {
++            task_unlock(task);
++            rcu_read_unlock();
++            put_pid(pid_struct);
++            continue;
++        }
++        if (strstr(cgroup_path, "/docker/") || strstr(cgroup_path, "/kubepods/")) {
++            container_id = extract_container_id(cgroup_path, '/');
++        } else if (strstr(cgroup_path, K8S_CONTAINER_FEATURE_CODE)) { //k8s用systemd驱动管理资源控制器
++            container_id = extract_container_id(cgroup_path, ':');
++        }
++        if (container_id) {
++            mutex_lock(&vm_container_stats_mutex);
++            list_for_each_entry(vm_statistic, &vm_container_stats_list, list) {
++                if (strcmp(vm_statistic->container_id, container_id) == 0) {
++                    vm_statistic->total_vram += vm_info.used_size;
++                    found = true;
++                    break;
++                }
++            }
++            if (!found) {
++                vm_statistic = kzalloc(sizeof(struct vm_statistic_t), GFP_KERNEL);
++                if (vm_statistic) {
++                    strlcpy(vm_statistic->container_id, container_id, sizeof(vm_statistic->container_id));
++                    vm_statistic->total_vram = vm_info.used_size;
++                    list_add_tail(&vm_statistic->list, &vm_container_stats_list);
++                    container_num++;
++                } else {
++                    pr_err("Failed to allocate memory for vm_statistic\n");
++                }
++            }
++            mutex_unlock(&vm_container_stats_mutex);
++            kfree(container_id);
++        }
++        kfree(cgroup_path);
++        task_unlock(task);
++        rcu_read_unlock();
++        put_pid(pid_struct);
++        
++    }
++
++    return 0;
++}
++
++// 定时器回调函数
++static enum hrtimer_restart update_timer_callback(struct hrtimer *timer) {
++    queue_work(update_workqueue, &update_work);
++
++    // 重新启动定时器
++    hrtimer_forward_now(&update_timer, update_interval);
++    return HRTIMER_RESTART;
++}
++
++static void generate_data_amd(struct debugfs_cache *cache)
++{
++    char *buf1 = NULL, *buf2 = NULL;
++    ssize_t ret1, ret2;
++    ssize_t ret = 0;
++
++    buf1 = read_debugfs_to_buffer(AMD_DEBUGFS_FMT, 1);
++    if (!buf1) {
++        ret1 = 0;
++    } else {
++        ret1 = strlen(buf1);
++    }
++
++    buf2 = read_debugfs_to_buffer(AMD_DEBUGFS_FMT, 2);
++    if (!buf2) {
++        ret2 = 0;
++    } else {
++        ret2 = strlen(buf2);
++    }
++
++    ret = ret1 + ret2;
++    if (ret == 0) {
++        cache->data = NULL;
++        cache->size = 0;
++        return;
++    }
++    cache->data = kmalloc(ret + 1, GFP_KERNEL);
++    if (ret1 != 0) {
++        memcpy(cache->data, buf1, ret1);
++        kfree(buf1);
++    }
++    if (ret2 != 0) {
++        memcpy(cache->data + ret1, buf2, ret2);
++        kfree(buf2);
++    }
++    cache->data[ret] = '\0';
++    cache->size = ret;
++}
++
++static void generate_data_dc(struct debugfs_cache *cache) {
++    struct vm_statistic_t *vm_statistic;
++    int i;
++    char tmp_buf[256];
++    int pos = 0;
++    
++    mutex_lock(&vm_container_stats_mutex);
++    while (!list_empty(&vm_container_stats_list)) {
++        vm_statistic = list_first_entry(&vm_container_stats_list, struct vm_statistic_t, list);
++        list_del(&vm_statistic->list);
++        kfree(vm_statistic);
++    }
++    container_num = 0;
++    mutex_unlock(&vm_container_stats_mutex);
++    
++    for (i = 0; i < vm_node_count; i++) {
++        char *read_buf = read_debugfs_to_buffer(VM_DEBUGFS_PATH, i);
++        if (read_buf) {
++            read_to_vm_list(read_buf);
++            kfree(read_buf);
++        } else {
++            break;
++        }
++    }
++
++    if (container_num == 0) {
++        cache->data = NULL;
++        cache->size = 0;
++        return;
++    }
++
++    cache->data = kmalloc(MAX_RECORD_LENGTH * container_num + 1, GFP_KERNEL);
++    mutex_lock(&vm_container_stats_mutex);
++    list_for_each_entry(vm_statistic, &vm_container_stats_list, list) {
++        int len = snprintf(tmp_buf, sizeof(tmp_buf), "container_id:%s vram:%zu\n",
++                           vm_statistic->container_id, vm_statistic->total_vram);
++        int bytes_to_copy = min(len, MAX_RECORD_LENGTH);
++        memcpy(cache->data + pos, tmp_buf, bytes_to_copy);
++        pos += bytes_to_copy;
++    }
++    cache->size = pos;
++    mutex_unlock(&vm_container_stats_mutex);
++}
++
++static void update_cache(struct work_struct *work)
++{
++    struct debugfs_cache *new_cache = kmalloc(sizeof(*new_cache), GFP_KERNEL);
++    int new_idx = atomic_read(&active_idx) ^ 1;
++
++    if (amd_vendor) {
++        generate_data_amd(new_cache);
++    } else {
++        generate_data_dc(new_cache);
++    }
++    
++    rcu_assign_pointer(cache[new_idx], new_cache);
++    atomic_set(&active_idx, new_idx);
++    
++    synchronize_rcu();
++    struct debugfs_cache *old_cache = rcu_dereference_raw(cache[new_idx ^ 1]);
++    rcu_assign_pointer(cache[new_idx ^ 1], NULL); // 将旧缓存指针置空
++    if (old_cache) {
++        if (old_cache->data) {
++            kfree(old_cache->data);
++        }
++        kfree(old_cache); // 释放旧缓存
++    }
++}
++
++static ssize_t debugfs_read_vm_data(struct file *file, char __user *buf,
++                          size_t len, loff_t *ppos)
++{
++    struct debugfs_cache *c;
++    int idx = atomic_read(&active_idx);
++    ssize_t ret = 0;
++
++    rcu_read_lock();
++    c = rcu_dereference(cache[idx]);
++    
++    if (!c || *ppos >= c->size) {
++        rcu_read_unlock();
++        return 0;
++    }
++
++    len = min_t(size_t, len, c->size - *ppos);
++    if (copy_to_user(buf, c->data + *ppos, len)) {
++        ret = -EFAULT;
++    } else {
++        *ppos += len;
++        ret = len;
++    }
++    
++    rcu_read_unlock();
++    return ret;
++}
++
++static const struct file_operations debugfs_fops = {
++    .read = debugfs_read_vm_data,
++    .mmap = NULL
++};
++
++static int __init amd_module_init(void) {
++    struct pci_dev *pdev = NULL;
++    for_each_pci_dev(pdev) {
++        unsigned short vendor_id = pdev->vendor;
++        if (vendor_id == VM_VENDOR_ID) {
++            vm_vendor = true;
++            vm_node_count++;
++        }
++        if (vendor_id == AMD_VENDOR_ID) {
++            amd_vendor = true;
++        }
++    }
++
++    if (!amd_vendor && !vm_vendor) {
++        return 0;
++    }
++    statistics_node = debugfs_create_file("gpu_statistics", 0444, NULL, NULL, &debugfs_fops);
++    if(!statistics_node) {
++        pr_err("Failed to created gpu_statistics file");
++        return -ENOMEM;
++    }
++    update_workqueue = alloc_workqueue("update_workqueue", 0, 0);
++    INIT_WORK(&update_work, update_cache);
++        
++    hrtimer_init(&update_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
++    update_timer.function = update_timer_callback;
++    update_interval = ktime_set(5, 0);
++    hrtimer_start(&update_timer, update_interval, HRTIMER_MODE_REL);
++
++    return 0;
++}
++
++static void __exit amd_module_exit(void) {
++    if (!amd_vendor && !vm_vendor) {
++        return;
++    }
++    hrtimer_cancel(&update_timer);
++    flush_workqueue(update_workqueue); // 等待工作队列完成
++    destroy_workqueue(update_workqueue);
++    synchronize_rcu();
++    debugfs_remove(statistics_node);
++    if (cache[0]) {
++        if (cache[0]->data) {
++            kfree(cache[0]->data);
++        }
++        kfree(cache[0]);
++    }
++    if (cache[1]) {
++        if (cache[1]->data) {
++            kfree(cache[1]->data);
++        }
++        kfree(cache[1]);
++    }
++}
++
++module_init(amd_module_init);
++module_exit(amd_module_exit);
++
++MODULE_LICENSE("GPL");
+\ No newline at end of file
+-- 
+2.43.0
+
