@@ -1,0 +1,17 @@
+diff --git a/core/java/com/android/internal/os/PowerStats.java b/core/java/com/android/internal/os/PowerStats.java
+index aafef6c8b5fd..b5b5ef97423e 100644
+--- a/core/java/com/android/internal/os/PowerStats.java
++++ b/core/java/com/android/internal/os/PowerStats.java
+@@ -147,9 +147,10 @@ public final class PowerStats {
+                 int statsArrayLength, @Nullable SparseArray<String> stateLabels,
+                 int stateStatsArrayLength, int uidStatsArrayLength,
+                 @NonNull PersistableBundle extras) {
+-            if (statsArrayLength > MAX_STATS_ARRAY_LENGTH) {
++            // KBOX_HACK: 此处由于容器能看到整机的cpu核数，导致获取到的length在920B上为320，超过255的上限。因此改为512
++            if (statsArrayLength > 512) {
+                 throw new IllegalArgumentException(
+-                        "statsArrayLength is too high. Max = " + MAX_STATS_ARRAY_LENGTH);
++                        "statsArrayLength is too high. Max = " + 512);
+             }
+             if (stateStatsArrayLength > MAX_STATE_STATS_ARRAY_LENGTH) {
+                 throw new IllegalArgumentException(
