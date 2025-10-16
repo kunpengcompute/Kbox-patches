@@ -767,7 +767,7 @@ function start_box() {
     # 部署渲染中间层
     if [[ $ENABLE_RENDER_LAYER == "1" ]]; then
         # 渲染中间层
-        $RUNTIME_CMD exec -it ${BOX_NAME} sh -c "if [ -d /vendor/shader_cache/ ]; then chmod 755 -R /vendor/shader_cache/; fi"
+        $RUNTIME_CMD exec -it ${BOX_NAME} sh -c "if [ -d /vendor/shader_cache/ ]; then chmod 757 -R /vendor/shader_cache/; fi"
         $RUNTIME_CMD exec -it ${BOX_NAME} sh -c "mkdir -p /data/local/debug/gles"
         $RUNTIME_CMD exec -it ${BOX_NAME} sh -c "chmod 755 -R /data/local/debug/"
         $RUNTIME_CMD exec -it ${BOX_NAME} sh -c "mkdir -p /data/local/tmp"
