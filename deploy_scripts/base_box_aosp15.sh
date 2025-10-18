@@ -30,6 +30,9 @@ function check_environment() {
     if [ x"$VENDOR_ID" == x"0x48" ] || [ x"$VENDOR_ID" == x"HiSilicon" ]; then
 	    check_exagear
     fi
+
+    # 清理/dev/目录下的全部loop device节点，并在/dev/loop_device/目录下提前生成足够数量的设备节点
+    prepare_loop_device
 }
 
 function check_exagear() {
@@ -73,6 +76,50 @@ function check_exagear() {
             echo "No tango32!"
             exit 1
         fi
+    fi
+}
+
+function prepare_loop_device() {
+    # 清空/dev/目录下现有的loop device
+    for dev in /dev/loop[0-9]*; do
+        # 不删除loop device软链接
+        if [ -L "$dev" ]; then
+            continue
+        fi
+
+        if [ -b "$dev" ]; then
+            echo "Removing $dev"
+            rm -f "$dev"
+        fi
+    done
+
+    local TARGET_DIR="/dev/loop_device"
+    local LOOP_NUM=20000
+
+    mkdir -p "$TARGET_DIR"
+
+    # 统计已有loop device节点数量
+    count=$(ls -1 "$TARGET_DIR"/loop* 2>/dev/null | wc -l)
+    # 如果少于预期节点个数LOOP_NUM，则补齐
+    if [ "$count" -lt $LOOP_NUM ]; then
+        echo "Creating loop device... This process will take about 1 min."
+
+        for i in $(seq 0 $((LOOP_NUM - 1))); do
+            local guest_node="$TARGET_DIR/loop$i"
+            local host_node="/dev/loop$i"
+
+            if [ ! -e "$guest_node" ]; then
+                mknod -m 0666 "$guest_node" b 7 $i
+            fi
+
+            if [ ! -e "$host_node" ]; then
+                ln -s "$guest_node" "$host_node"
+            fi
+        done
+
+        echo "Loop device created successfully."
+    else
+        echo "Skip creating loop device."
     fi
 }
 
@@ -411,30 +458,6 @@ function check_key_process() {
         return 1
     fi
 }
-# 自动选择回环设备节点
-function chose_loop_device() {
-    TARGET_LOOPS=39
-    MAPPED_LOOPS=0
-    num=$(echo "$1" | cut -d '_' -f 3)
-    CURRENT_LOOP=$((num * 39))
-    while [ $MAPPED_LOOPS -lt $TARGET_LOOPS ]; do
-        # 获取已被占用的loop设备列表（每次循环更新，避免遗漏新占用的设备）
-        OCCUPIED_LOOPS=$(losetup -a | grep -oP '/dev/loop\K[0-9]+' | sort -n)
-        # 检查当前loop设备
-        # 检查是否已被占用
-        if ! echo "$OCCUPIED_LOOPS" | grep -q "^$CURRENT_LOOP$"; then
-            # 检查设备节点是否存在
-            if [ ! -e "/dev/loop$CURRENT_LOOP" ]; then
-                mknod -m 0660 "/dev/loop$CURRENT_LOOP" b 7 $CURRENT_LOOP
-            fi
-            # 添加到映射选项
-            RUN_OPTION+=" --device=/dev/loop$CURRENT_LOOP:/dev/loop$CURRENT_LOOP"
-            MAPPED_LOOPS=$((MAPPED_LOOPS + 1))
-        fi
-        # 移动到下一个loop设备
-        CURRENT_LOOP=$((CURRENT_LOOP + 1))
-    done
-}
 
 function create_app_shader_filesystem()
 {
@@ -617,7 +640,6 @@ function start_box() {
     fi
     RUN_OPTION+=" -td "
     RUN_OPTION+=" --hostname=${BOX_NAME} "
-    #RUN_OPTION+=" --cap-add=CAP_MKNOD "
     RUN_OPTION+=" --cap-add=SETPCAP "
     RUN_OPTION+=" --cap-add=AUDIT_WRITE "
     RUN_OPTION+=" --cap-add=SYS_CHROOT "
@@ -645,15 +667,13 @@ function start_box() {
     RUN_OPTION+=" --security-opt="apparmor:unconfined" "
     RUN_OPTION+=" --security-opt="seccomp:unconfined" "
     RUN_OPTION+=" --device=/dev/loop-control:/dev/loop-control "
-    RUN_OPTION+=" --device=/dev/loop0:/dev/loop0  "
+    RUN_OPTION+=" --volume=/dev/loop_device:/dev/loop_device:rw "
     RUN_OPTION+=" --name ${BOX_NAME} "
     RUN_OPTION+=" -v /sys:/sys "
     RUN_OPTION+=" -e CONTAINER_NAME=${BOX_NAME} "
     RUN_OPTION+=" -e PATH=/system/bin:/system/xbin "
     RUN_OPTION+=" --cidfile ${HOOK_PATH}/${BOX_NAME}/container_id.cid "
     RUN_OPTION+=" --cpu-shares=$(lscpu | grep -w "CPU(s)" | head -n 1 | awk '{print $2}') "
-
-    chose_loop_device ${BOX_NAME}
 
     local CPU NUMA TEMP
     for CPU in ${CPUS[@]}; do
@@ -739,7 +759,7 @@ function start_box() {
         EXTRA_RUN_OPTION=${EXTRA_RUN_OPTION% *}
     fi
     RUN_OPTION+=" $EXTRA_RUN_OPTION "
-    $RUNTIME_CMD run $RUN_OPTION --device-cgroup-rule "c *:* rwm" $IMAGE_NAME /init 
+    $RUNTIME_CMD run $RUN_OPTION --device-cgroup-rule "c *:* rwm" --device-cgroup-rule "b 7:* rwm" $IMAGE_NAME /init 
 
     if [ $DEFAULT_RUNTIME == "containerd" ]; then
         $RUNTIME_CMD exec -i ${BOX_NAME} ln -s /dev/net/tun /dev/tun
@@ -947,8 +967,6 @@ function restart_box() {
         local should_restart=0 # 0为不应该再重启，1为需要再次重启
         $RUNTIME_CMD stop -t 0 ${BOX_NAME}
         echo "${BOX_NAME} begins restarting the $i times!"
-	RUN_OPTION+=""
-        chose_loop_device ${BOX_NAME}
         $RUNTIME_CMD start ${BOX_NAME}
 
         if [ $DEFAULT_RUNTIME == "containerd" ]; then
