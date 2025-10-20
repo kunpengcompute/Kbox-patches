@@ -1,0 +1,35 @@
+diff --git a/apexd/apexd_loop.cpp b/apexd/apexd_loop.cpp
+index 49f32869..13d461fe 100644
+--- a/apexd/apexd_loop.cpp
++++ b/apexd/apexd_loop.cpp
+@@ -283,6 +283,10 @@ Result<void> PreAllocateLoopDevices(size_t num) {
+     return ErrnoError() << "Failed to open loop-control";
+   }
+ 
++  // **KBOX_HACKED**
++  // Skip allocating loop devices.
++  // We have created enough loop devices at host in advanced.
++#if 0
+   int new_allocations = 0;  // for logging purpose
+ 
+   // Assumption: loop device ID [0..num) is valid.
+@@ -322,6 +326,7 @@ Result<void> PreAllocateLoopDevices(size_t num) {
+             << " idle loopback devices that were "
+             << "pre-allocated by kernel. Allocated " << new_allocations
+             << " more.";
++#endif
+   return {};
+ }
+ 
+@@ -440,7 +445,7 @@ Result<void> ConfigureLoopDevice(const int device_fd, const std::string& target,
+ Result<LoopbackDeviceUniqueFd> WaitForDevice(int num) {
+   const std::vector<std::string> candidate_devices = {
+       StringPrintf("/dev/block/loop%d", num),
+-      StringPrintf("/dev/loop%d", num),
++      StringPrintf("/dev/loop_device/loop%d", num),
+   };
+ 
+   // apexd-bootstrap runs in parallel with ueventd to optimize boot time. In
+-- 
+2.34.1
+

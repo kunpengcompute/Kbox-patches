@@ -1,8 +1,8 @@
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index a0bba8e54..ac3a7f4c7 100644
+index 9da9d58f1..8bda0bc4c 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -1394,6 +1394,22 @@ config ARM64_ILP32
+@@ -1828,6 +1828,23 @@ config ARM64_ILP32
  	  is an ABI where long and pointers are 32bits but it uses the AARCH64
  	  instruction set.
  
@@ -10,8 +10,10 @@ index a0bba8e54..ac3a7f4c7 100644
 +	bool "Kernel support for Kbox"
 +	select STAGING
 +	select ANDROID
++	select MEMFD_CREATE
 +	select ANDROID_BINDER_IPC
 +	select ANDROID_BINDERFS
++	select PID_MAX_PER_NAMESPACE
 +	select ANDROID_ALARM
 +	select ANON_VMA_NAME
 +	select TANGO32
@@ -25,5 +27,5 @@ index a0bba8e54..ac3a7f4c7 100644
  	bool "Kernel support for 32-bit EL0"
  	depends on ARM64_4K_PAGES || EXPERT
 -- 
-2.33.0
+2.43.0
 
