@@ -1,0 +1,89 @@
+diff --git a/drivers/Makefile b/drivers/Makefile
+index 3955e605df14..98ce47b9821f 100644
+--- a/drivers/Makefile
++++ b/drivers/Makefile
+@@ -195,6 +195,7 @@ obj-$(CONFIG_GNSS)		+= gnss/
+ obj-$(CONFIG_INTERCONNECT)	+= interconnect/
+ obj-$(CONFIG_COUNTER)		+= counter/
+ obj-$(CONFIG_MOST)		+= most/
+ obj-$(CONFIG_TANGO32)  += tango32-module/
++obj-y                                  += kbox/
+ obj-$(CONFIG_PECI)		+= peci/
+ obj-$(CONFIG_HTE)		+= hte/
+ obj-$(CONFIG_DRM_ACCEL)		+= accel/
+diff --git a/drivers/kbox/Makefile b/drivers/kbox/Makefile
+new file mode 100644
+index 000000000000..6c583fa54470
+--- /dev/null
++++ b/drivers/kbox/Makefile
+@@ -0,0 +1 @@
++obj-y += kbox_kernel_switch.o
+diff --git a/drivers/kbox/kbox_kernel_switch.c b/drivers/kbox/kbox_kernel_switch.c
+new file mode 100644
+index 000000000000..7c6ae4950e7d
+--- /dev/null
++++ b/drivers/kbox/kbox_kernel_switch.c
+@@ -0,0 +1,50 @@
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/init.h>
++#include <linux/kobject.h>
++#include <linux/sysfs.h>
++#include <linux/kbox_kernel_switch.h>
++
++bool kbox_enable = false;
++
++static ssize_t switch_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf) {
++    return sprintf(buf, "%d\n", kbox_enable);
++}
++
++static ssize_t switch_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count) {
++    ssize_t ret;
++    ret = kstrtobool(buf, &kbox_enable);
++    if (ret < 0) {
++    	return ret;
++    }
++
++    return count;
++}
++
++static struct kobj_attribute switch_attribute = __ATTR(kbox_enable, 0644, switch_show, switch_store);
++
++static struct kobject *kbox_kobj;
++
++static int __init switch_init(void) {
++    int error = 0;
++    kbox_kobj = kobject_create_and_add("kbox", kernel_kobj);
++    if (!kbox_kobj) {
++        return -ENOMEM;
++    }
++
++    error = sysfs_create_file(kbox_kobj, &switch_attribute.attr);
++    if (error) {
++        kobject_put(kbox_kobj);
++    }
++
++    return error;
++}
++
++static void __exit switch_exit(void) {
++    kobject_put(kbox_kobj);
++}
++
++
++module_init(switch_init);
++module_exit(switch_exit);
++MODULE_LICENSE("GPL");
+diff --git a/include/linux/kbox_kernel_switch.h b/include/linux/kbox_kernel_switch.h
+new file mode 100644
+index 000000000000..e2711ba6f0ba
+--- /dev/null
++++ b/include/linux/kbox_kernel_switch.h
+@@ -0,0 +1,7 @@
++// kbox_kernel_switch.h
++#ifndef KBOX_KERNEL_SWITCH_H
++#define KBOX_KERNEL_SWITCH_H
++
++extern bool kbox_enable;
++
++#endif // KBOX_KERNEL_SWITCH_H

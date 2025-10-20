@@ -1,0 +1,63 @@
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index abe236201e68..59630a62e4e8 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -1114,6 +1114,8 @@ static inline void mem_cgroup_unlock_pages(void)
+ 	rcu_read_unlock();
+ }
+ 
++unsigned long memcg_page_state(struct mem_cgroup *memcg, int idx);
++
+ /* idx can be of type enum memcg_stat_item or node_stat_item */
+ static inline void mod_memcg_state(struct mem_cgroup *memcg,
+ 				   int idx, int val)
+diff --git a/kernel/sys.c b/kernel/sys.c
+old mode 100644
+new mode 100755
+index 44b575990333..1c24475353a6
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -72,6 +72,7 @@
+ #include <generated/utsrelease.h>
+ 
+ #include <linux/uaccess.h>
++#include <linux/kbox_kernel_switch.h>
+ #include <asm/io.h>
+ #include <asm/unistd.h>
+ 
+@@ -2767,6 +2768,20 @@ SYSCALL_DEFINE3(getcpu, unsigned __user *, cpup, unsigned __user *, nodep,
+ 	return err ? -EFAULT : 0;
+ }
+ 
++static void si_meminfo_cgroup(struct sysinfo *val)
++{
++        struct mem_cgroup *memcg = mem_cgroup_from_task(current);
++
++        val->totalram = memcg->memory.max;
++        val->sharedram = memcg_page_state(memcg, NR_SHMEM);
++        val->freeram = val->totalram - page_counter_read(&memcg->memory);
++        val->bufferram = memcg_page_state(memcg, NR_FILE_PAGES);
++        val->totalhigh = totalhigh_pages();
++        val->freehigh = nr_free_highpages();
++        val->mem_unit = PAGE_SIZE;
++}
++
++
+ /**
+  * do_sysinfo - fill in sysinfo struct
+  * @info: pointer to buffer to fill
+@@ -2787,7 +2802,14 @@ static int do_sysinfo(struct sysinfo *info)
+ 
+ 	info->procs = nr_threads;
+ 
++if (kbox_enable) {
++	if(mem_cgroup_from_task(current)->memory.max == PAGE_COUNTER_MAX)
++		si_meminfo(info);
++	else
++		si_meminfo_cgroup(info);
++} else {
+ 	si_meminfo(info);
++}
+ 	si_swapinfo(info);
+ 
+ 	/*
