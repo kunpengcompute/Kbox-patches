@@ -1,0 +1,24 @@
+diff --git a/core/main.mk b/core/main.mk
+index e5f5b9d2c6..af824bbbc9 100644
+--- a/core/main.mk
++++ b/core/main.mk
+@@ -1020,6 +1020,7 @@ define product-installed-modules
+   $(eval ### Filter out the overridden packages and executables before doing expansion) \
+   $(eval _pif_overrides := $(call module-overrides,$(_pif_modules))) \
+   $(eval _pif_modules := $(filter-out $(_pif_overrides), $(_pif_modules))) \
++  $(eval _pif_modules := $(filter-out $(PRODUCT_DEL_PACKAGES), $(_pif_modules))) \
+   $(eval ### Resolve the :32 :64 module name) \
+   $(eval _pif_modules := $(sort $(call resolve-bitness-for-modules,TARGET,$(_pif_modules)))) \
+   $(call expand-required-modules,_pif_modules,$(_pif_modules),$(_pif_overrides)) \
+diff --git a/core/product.mk b/core/product.mk
+index b07e6e0dc4..0348ee114a 100644
+--- a/core/product.mk
++++ b/core/product.mk
+@@ -45,6 +45,7 @@ _product_single_value_vars += PRODUCT_AAPT_PREF_CONFIG
+ _product_list_vars += PRODUCT_AAPT_PREBUILT_DPI
+ _product_list_vars += PRODUCT_HOST_PACKAGES
+ _product_list_vars += PRODUCT_PACKAGES
++_product_list_vars += PRODUCT_DEL_PACKAGES
+ _product_list_vars += PRODUCT_PACKAGES_DEBUG
+ _product_list_vars += PRODUCT_PACKAGES_DEBUG_ASAN
+ _product_list_vars += PRODUCT_PACKAGES_ARM64

@@ -1,0 +1,12 @@
+diff --git a/data/etc/handheld_core_hardware.xml b/data/etc/handheld_core_hardware.xml
+index 5df81d3f..23c5bd88 100644
+--- a/data/etc/handheld_core_hardware.xml
++++ b/data/etc/handheld_core_hardware.xml
+@@ -72,7 +72,6 @@
+     <feature name="android.software.home_screen" />
+     <feature name="android.software.input_methods" />
+     <feature name="android.software.midi" />
+-    <feature name="android.software.print" />
+     <feature name="android.software.cant_save_state" />
+     <feature name="android.software.secure_lock_screen" />
+     <feature name="android.software.companion_device_setup" />
