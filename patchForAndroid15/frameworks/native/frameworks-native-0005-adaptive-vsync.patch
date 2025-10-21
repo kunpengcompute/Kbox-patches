@@ -1,0 +1,290 @@
+diff --git a/services/surfaceflinger/Layer.cpp b/services/surfaceflinger/Layer.cpp
+index dcb0812b67..2179f1ec8b 100644
+--- a/services/surfaceflinger/Layer.cpp
++++ b/services/surfaceflinger/Layer.cpp
+@@ -1465,6 +1465,18 @@ bool Layer::latchBufferImpl(bool& recomputeVisibleRegions, nsecs_t latchTime, bo
+         return refreshRequired;
+     }
+ 
++    if (mFlinger->isEnableAdaptiveVsync()) {
++        auto start = std::chrono::steady_clock::now();
++        while (!fenceHasSignaled()) {
++            auto current = std::chrono::steady_clock::now();
++            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(current - start).count();
++            if (duration > 10) {
++                break;
++            }
++            std::this_thread::sleep_for(std::chrono::milliseconds(1));
++        }
++    }
++
+     // If the head buffer's acquire fence hasn't signaled yet, return and
+     // try again later
+     if (!fenceHasSignaled()) {
+diff --git a/services/surfaceflinger/Scheduler/MessageQueue.cpp b/services/surfaceflinger/Scheduler/MessageQueue.cpp
+index 2e1f938126..97b3dcfebf 100644
+--- a/services/surfaceflinger/Scheduler/MessageQueue.cpp
++++ b/services/surfaceflinger/Scheduler/MessageQueue.cpp
+@@ -57,6 +57,27 @@ MessageQueue::MessageQueue(ICompositor& compositor, sp<Handler> handler)
+         mHandler(std::move(handler)) {}
+ 
+ void MessageQueue::vsyncCallback(nsecs_t vsyncTime, nsecs_t targetWakeupTime, nsecs_t readyTime) {
++    if (misAdaptiveVsyncEnable) {
++        return;
++    }
++    SFTRACE_CALL();
++    // Trace VSYNC-sf
++    mVsync.value = (mVsync.value + 1) % 2;
++
++    const auto expectedVsyncTime = TimePoint::fromNs(vsyncTime);
++    {
++        std::lock_guard lock(mVsync.mutex);
++        mVsync.lastCallbackTime = expectedVsyncTime;
++        mVsync.scheduledFrameTimeOpt.reset();
++    }
++
++    const auto vsyncId = VsyncId{mVsync.tokenManager->generateTokenForPredictions(
++            {targetWakeupTime, readyTime, vsyncTime})};
++
++    mHandler->dispatchFrame(vsyncId, expectedVsyncTime);
++}
++
++void MessageQueue::triggerVsyncCallback(nsecs_t vsyncTime, nsecs_t targetWakeupTime, nsecs_t readyTime) {
+     SFTRACE_CALL();
+     // Trace VSYNC-sf
+     mVsync.value = (mVsync.value + 1) % 2;
+@@ -74,6 +95,10 @@ void MessageQueue::vsyncCallback(nsecs_t vsyncTime, nsecs_t targetWakeupTime, ns
+     mHandler->dispatchFrame(vsyncId, expectedVsyncTime);
+ }
+ 
++void MessageQueue::setAdaptiveVysncFlag(bool flag) {
++    misAdaptiveVsyncEnable = flag;
++}
++
+ void MessageQueue::initVsyncInternal(std::shared_ptr<scheduler::VSyncDispatch> dispatch,
+                                      frametimeline::TokenManager& tokenManager,
+                                      std::chrono::nanoseconds workDuration) {
+diff --git a/services/surfaceflinger/Scheduler/MessageQueue.h b/services/surfaceflinger/Scheduler/MessageQueue.h
+index ba1efbe58f..bc6827cf4f 100644
+--- a/services/surfaceflinger/Scheduler/MessageQueue.h
++++ b/services/surfaceflinger/Scheduler/MessageQueue.h
+@@ -107,6 +107,9 @@ protected:
+     MessageQueue(ICompositor&, sp<Handler>);
+ 
+     void vsyncCallback(nsecs_t vsyncTime, nsecs_t targetWakeupTime, nsecs_t readyTime);
++    void triggerVsyncCallback(nsecs_t vsyncTime, nsecs_t targetWakeupTime, nsecs_t readyTime);
++    void setAdaptiveVysncFlag(bool flag);
++    bool misAdaptiveVsyncEnable = false;
+ 
+     void onNewVsyncSchedule(std::shared_ptr<scheduler::VSyncDispatch>) EXCLUDES(mVsync.mutex);
+ 
+diff --git a/services/surfaceflinger/Scheduler/Scheduler.cpp b/services/surfaceflinger/Scheduler/Scheduler.cpp
+index 5e131548aa..57390476a0 100644
+--- a/services/surfaceflinger/Scheduler/Scheduler.cpp
++++ b/services/surfaceflinger/Scheduler/Scheduler.cpp
+@@ -57,8 +57,58 @@
+ #include "VsyncConfiguration.h"
+ #include "VsyncController.h"
+ #include "VsyncSchedule.h"
++#include <cutils/properties.h>
++#include <dlfcn.h>
+ 
+ namespace android::scheduler {
++#define RENDERACC_SO_PATH "/system/lib64/AdaptiveVsync.kbox.so"
++void Scheduler::RenderAccInitialize() {
++    char value[PROPERTY_VALUE_MAX];
++    property_get("ro.vmi.adaptive.vsync", value, "0");
++    adaptiveVsyncFlag = (atoi(value) == 1);
++    ALOGI_IF(adaptiveVsyncFlag, "Scheduler Enabling adaptive vsync.");
++
++    if (adaptiveVsyncFlag) {
++        void *renderAcclibHdl = dlopen(RENDERACC_SO_PATH, RTLD_LAZY);
++        if (renderAcclibHdl == nullptr) {
++            ALOGE("AdaptiveVsync: open AdaptiveVsync.kbox.so failed. path %s, error %s", RENDERACC_SO_PATH,dlerror());
++        }
++
++        renderAccInitialize = reinterpret_cast<RenderAccInitializeProxy>(dlsym(renderAcclibHdl, "AdaptiveVsyncInit"));
++        if (renderAccInitialize == nullptr) {
++            ALOGE("AdaptiveVsync: Get RenderAccInitializeProxy function fail, error: %s", dlerror());
++        }
++
++        renderAccDeinit = reinterpret_cast<RenderAccDeinitProxy>(dlsym(renderAcclibHdl, "AdaptiveVsyncDeinit"));
++        if (renderAccDeinit == nullptr) {
++            ALOGE("AdaptiveVsync: Get RenderAccDeinitProxy function fail, error: %s", dlerror());
++        }
++
++        renderAccProc = reinterpret_cast<RenderAccProcProxy>(dlsym(renderAcclibHdl, "AdaptiveVsyncOnVsync"));
++        if (renderAccProc == nullptr) {
++            ALOGE("AdaptiveVsync: Get RenderAccProcProxy function fail, error: %s", dlerror());
++        }
++
++        if ((renderAccInitialize == nullptr) || (renderAccDeinit == nullptr) || (renderAccProc == nullptr)) {
++            renderAccInitialize = nullptr;
++            renderAccDeinit = nullptr;
++            renderAccProc = nullptr;
++            dlclose(renderAcclibHdl);
++            return;
++        }
++
++        data = renderAccInitialize();
++        if (data == nullptr) {
++            ALOGE("AdaptiveVsync: RenderAccInitialize fail.");
++            renderAccInitialize = nullptr;
++            renderAccDeinit = nullptr;
++            renderAccProc = nullptr;
++            dlclose(renderAcclibHdl);
++        } else {
++            ALOGI("AdaptiveVsync: RenderAccInitialize success.");
++        }
++    }
++}
+ 
+ Scheduler::Scheduler(ICompositor& compositor, ISchedulerCallback& callback, FeatureFlags features,
+                      surfaceflinger::Factory& factory, Fps activeRefreshRate, TimeStats& timeStats)
+@@ -67,9 +117,23 @@ Scheduler::Scheduler(ICompositor& compositor, ISchedulerCallback& callback, Feat
+         mVsyncConfiguration(factory.createVsyncConfiguration(activeRefreshRate)),
+         mVsyncModulator(sp<VsyncModulator>::make(mVsyncConfiguration->getCurrentConfigs())),
+         mRefreshRateStats(std::make_unique<RefreshRateStats>(timeStats, activeRefreshRate)),
+-        mSchedulerCallback(callback) {}
++        mSchedulerCallback(callback) {
++        RenderAccInitialize();
++    }
+ 
+ Scheduler::~Scheduler() {
++    if (renderAcclibHdl) {
++        renderAccDeinit(data);
++        data = nullptr;
++
++        renderAccInitialize = nullptr;
++        renderAccDeinit = nullptr;
++        renderAccProc = nullptr;
++
++        dlclose(renderAcclibHdl);
++        renderAcclibHdl = nullptr;
++    }
++
+     // MessageQueue depends on VsyncSchedule, so first destroy it.
+     // Otherwise, MessageQueue will get destroyed after Scheduler's dtor,
+     // which will cause a use-after-free issue.
+@@ -509,6 +573,16 @@ void Scheduler::setVsyncConfig(const VsyncConfig& config, Period vsyncPeriod) {
+     setDuration(config.sfWorkDuration);
+ }
+ 
++void Scheduler::schedulerTriggerVsync(nsecs_t vsyncTime) {
++    if (adaptiveVsyncFlag && renderAccProc && data) {
++        renderAccProc(data, Scheduler::CallOnVsync, static_cast<void *>(this), vsyncTime);
++    }
++}
++
++void Scheduler::schedulerSetAdaptiveVysncFlag(bool flag) {
++    setAdaptiveVysncFlag(flag);
++}
++
+ void Scheduler::enableHardwareVsync(PhysicalDisplayId id) {
+     auto schedule = getVsyncSchedule(id);
+     LOG_ALWAYS_FATAL_IF(!schedule);
+diff --git a/services/surfaceflinger/Scheduler/Scheduler.h b/services/surfaceflinger/Scheduler/Scheduler.h
+index ab622e93bd..c601f65805 100644
+--- a/services/surfaceflinger/Scheduler/Scheduler.h
++++ b/services/surfaceflinger/Scheduler/Scheduler.h
+@@ -338,6 +338,9 @@ public:
+         schedule->setVsyncPeriod(vsyncPeriod);
+     }
+ 
++    void schedulerTriggerVsync(nsecs_t vsyncTime);
++    void schedulerSetAdaptiveVysncFlag(bool flag);
++
+ private:
+     friend class TestableScheduler;
+ 
+@@ -603,6 +606,26 @@ private:
+ 
+     FrameRateOverrideMappings mFrameRateOverrideMappings;
+     SmallAreaDetectionAllowMappings mSmallAreaDetectionAllowMappings;
++
++    void RenderAccInitialize();
++    using OnVsyncProxy = void (*)(void *obj, nsecs_t timestamp, nsecs_t expectedVSyncTimestamp);
++    static void CallOnVsync(void *obj, nsecs_t timestamp, nsecs_t expectedVSyncTimestamp) {
++        (void)expectedVSyncTimestamp;
++        static_cast<Scheduler *>(obj)->triggerVsyncCallback(timestamp, timestamp, timestamp);
++    };
++
++    using RenderAccInitializeProxy = void * (*)();
++    using RenderAccDeinitProxy = void (*)(void *ptr);
++    using RenderAccProcProxy = void (*)(void *ptr, OnVsyncProxy, void *obj, int64_t timestamp);
++
++    bool adaptiveVsyncFlag = false;
++    void *renderAcclibHdl = nullptr;
++    void *data = nullptr;
++
++    RenderAccInitializeProxy renderAccInitialize = nullptr;
++    RenderAccDeinitProxy renderAccDeinit = nullptr;
++    RenderAccProcProxy renderAccProc = nullptr;
++
+ };
+ 
+ } // namespace scheduler
+diff --git a/services/surfaceflinger/SurfaceFlinger.cpp b/services/surfaceflinger/SurfaceFlinger.cpp
+index 6195a724ee..0081b22640 100644
+--- a/services/surfaceflinger/SurfaceFlinger.cpp
++++ b/services/surfaceflinger/SurfaceFlinger.cpp
+@@ -533,6 +533,9 @@ SurfaceFlinger::SurfaceFlinger(Factory& factory) : SurfaceFlinger(factory, SkipI
+ 
+     // These are set by the HWC implementation to indicate that they will use the workarounds.
+     mIsHdcpViaNegVsync = base::GetBoolProperty("debug.sf.hwc_hdcp_via_neg_vsync"s, false);
++
++    misEnableAdaptiveVsync = base::GetBoolProperty("ro.vmi.adaptive.vsync"s, false);
++    ALOGI_IF(misEnableAdaptiveVsync, "Enabling adaptive vsync.");
+ }
+ 
+ LatchUnsignaledConfig SurfaceFlinger::getLatchUnsignaledConfig() {
+@@ -4825,10 +4828,28 @@ status_t SurfaceFlinger::setTransactionState(
+             scheduleNotifyExpectedPresentHint(displayId, VsyncId{frameTimelineInfo.vsyncId});
+         }
+     }
++
++    bool isEnableAdaptiveVsyncFlag = isEnableAdaptiveVsync();
++    mScheduler->schedulerSetAdaptiveVysncFlag(isEnableAdaptiveVsyncFlag);
++
+     setTransactionFlags(eTransactionFlushNeeded, schedule, applyToken, frameHint);
++
++    if (isEnableAdaptiveVsyncFlag) {
++        nsecs_t now = systemTime();
++        scheduleComposite(FrameHint::kNone);
++        mScheduler->schedulerTriggerVsync(now);
++    }
+     return NO_ERROR;
+ }
+ 
++bool SurfaceFlinger::isEnableAdaptiveVsync() const 
++{
++    char value[PROPERTY_VALUE_MAX];
++    property_get("vmi.enable.adaptive.vsync", value, "1");
++    bool isEnableAdaptiveVsync = atoi(value);
++    return (isEnableAdaptiveVsync && misEnableAdaptiveVsync);
++}
++
+ bool SurfaceFlinger::applyTransactionState(const FrameTimelineInfo& frameTimelineInfo,
+                                            std::vector<ResolvedComposerState>& states,
+                                            Vector<DisplayState>& displays, uint32_t flags,
+diff --git a/services/surfaceflinger/SurfaceFlinger.h b/services/surfaceflinger/SurfaceFlinger.h
+index 3eb72cc4c0..1068e8b30a 100644
+--- a/services/surfaceflinger/SurfaceFlinger.h
++++ b/services/surfaceflinger/SurfaceFlinger.h
+@@ -363,6 +363,8 @@ protected:
+         return width > mMaxRenderTargetSize || height > mMaxRenderTargetSize;
+     }
+ 
++    bool isEnableAdaptiveVsync() const;
++
+ private:
+     friend class BufferLayer;
+     friend class Client;
+@@ -1475,6 +1477,7 @@ private:
+     void sfdo_scheduleComposite();
+     void sfdo_scheduleCommit();
+     void sfdo_forceClientComposition(bool enabled);
++    bool misEnableAdaptiveVsync = false;
+ };
+ 
+ class SurfaceComposerAIDL : public gui::BnSurfaceComposer {
