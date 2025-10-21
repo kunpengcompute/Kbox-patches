@@ -464,6 +464,11 @@ function start_box() {
     done
 
     ########################## 3.环境初始化 ##########################
+    local KBOX_SWITCH="/sys/kernel/kbox/kbox_enable"
+    if [ -f "$KBOX_SWITCH" ] && [ "$(cat "$KBOX_SWITCH")" = "0" ]; then
+	    echo "1" > "$KBOX_SWITCH"
+    fi
+
     if [ $DEFAULT_RUNTIME == "docker" ]; then
         CONTAINER_DATA_PATH="/var/lib/docker"
     else
