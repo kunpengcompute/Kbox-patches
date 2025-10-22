@@ -174,10 +174,21 @@ index e06a64593..8485b3dc1 100644
      // execv() only returns if an error happened, in which case we
      // panic and never fall through this conditional.
 diff --git a/init/init.cpp b/init/init.cpp
-index 6c8089926..36fa8e4b7 100644
+index 6c8089926..e0b69a727 100644
 --- a/init/init.cpp
 +++ b/init/init.cpp
-@@ -937,7 +937,7 @@ int SecondStageMain(int argc, char** argv) {
+@@ -849,6 +849,10 @@ static void MountExtraFilesystems() {
+     // /linkerconfig is used to keep generated linker configuration
+     CHECKCALL(mount("tmpfs", "/linkerconfig", "tmpfs", MS_NOEXEC | MS_NOSUID | MS_NODEV,
+                     "mode=0755,uid=0,gid=0"));
++
++    // /sys/devices/system/cpu cpumock目录挂载
++    CHECKCALL(mount("/data/local/cpu", "/sys/devices/system/cpu", "", MS_BIND, nullptr));
++
+ #undef CHECKCALL
+ }
+ 
+@@ -937,7 +941,7 @@ int SecondStageMain(int argc, char** argv) {
      trigger_shutdown = [](const std::string& command) { shutdown_state.TriggerShutdown(command); };
  
      SetStdioToDevNull(argv);
