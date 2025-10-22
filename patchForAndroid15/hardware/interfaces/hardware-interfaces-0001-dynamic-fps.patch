@@ -1,14 +1,11 @@
 diff --git a/graphics/composer/2.1/utils/hwc2on1adapter/HWC2On1Adapter.cpp b/graphics/composer/2.1/utils/hwc2on1adapter/HWC2On1Adapter.cpp
-index 37021716c3..fc737aaa17 100644
+index 37021716c3..b968e1dbd7 100644
 --- a/graphics/composer/2.1/utils/hwc2on1adapter/HWC2On1Adapter.cpp
 +++ b/graphics/composer/2.1/utils/hwc2on1adapter/HWC2On1Adapter.cpp
-@@ -2581,7 +2581,23 @@ void HWC2On1Adapter::hwc1Vsync(int hwc1DisplayId, int64_t timestamp) {
- }
- 
+@@ -2583,6 +2583,22 @@ void HWC2On1Adapter::hwc1Vsync(int hwc1DisplayId, int64_t timestamp) {
  void HWC2On1Adapter::hwc1Hotplug(int hwc1DisplayId, int connected) {
--    ALOGV("Received hwc1Hotplug(%d, %d)", hwc1DisplayId, connected);
-+    ALOGE("maoyue: Received hwc1Hotplug(%d, %d)", hwc1DisplayId, connected);
-+
+     ALOGV("Received hwc1Hotplug(%d, %d)", hwc1DisplayId, connected);
+ 
 +    if (hwc1DisplayId == HWC_DISPLAY_KBOX) {
 +        if (mCallbacks.count(Callback::Hotplug) == 0) {
 +            ALOGE("no hotplug callback registered");
@@ -24,6 +21,7 @@ index 37021716c3..fc737aaa17 100644
 +        hotplug(callbackInfo.data, displayId, static_cast<int32_t>(hwc2Connected));
 +        return;
 +    }
- 
++
      if (hwc1DisplayId != HWC_DISPLAY_EXTERNAL) {
          ALOGE("hwc1Hotplug: Received hotplug for non-external display");
+         return;
