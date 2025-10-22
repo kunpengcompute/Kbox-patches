@@ -231,7 +231,7 @@ function mock_cpu() {
         mount --bind ${CPU_PATH}/cpufreq/cpuidle ${CPU_PATH}/cpu$i/cpuidle
     done
 
-    RUN_OPTION+="--volume=/var/lib/kbox/cpus/${BOX_NAME}/cpu:/sys/devices/system/cpu:ro"
+    RUN_OPTION+="--volume=/var/lib/kbox/cpus/${BOX_NAME}/cpu:/data/local/cpu:ro"
 }
 
 # 供电模拟：USB供电，未充电状态
