@@ -33,6 +33,11 @@ function check_environment() {
 
     # 清理/dev/目录下的全部loop device节点，并在/dev/loop_device/目录下提前生成足够数量的设备节点
     prepare_loop_device
+
+    # 检查必要的环境配置
+    check_selinux
+    check_max_user_instances
+    check_cgroup_v2
 }
 
 function check_exagear() {
@@ -120,6 +125,29 @@ function prepare_loop_device() {
         echo "Loop device created successfully."
     else
         echo "Skip creating loop device."
+    fi
+}
+
+function check_selinux() {
+    local SELINUX_STATUS=$(getenforce)
+    if [ "$SELINUX_STATUS" != "Disabled" ]; then
+        echo "SELinux is not disabled! Please check! Current status: $SELINUX_STATUS"
+        exit 1
+    fi
+}
+
+function check_max_user_instances() {
+    local TARGET_VALUE=8192
+    local CURRENT_VALUE=$(cat /proc/sys/fs/inotify/max_user_instances)
+    if [ "$CURRENT_VALUE" -ne "$TARGET_VALUE" ]; then
+        echo "Set fs.inotify.max_user_instances to $TARGET_VALUE"
+        sysctl -w fs.inotify.max_user_instances=$TARGET_VALUE > /dev/null 2>&1
+    fi
+}
+
+function check_cgroup_v2() {
+    if ! mount | grep -q "cgroup2 on /sys/fs/cgroup"; then
+        echo "WARNING: cgroup v2 is disabled, which may lead to functional issues."
     fi
 }
 
