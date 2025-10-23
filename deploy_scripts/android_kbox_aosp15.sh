@@ -172,6 +172,43 @@ function get_closest_numas() {
     done
 }
 
+function wait_async_cmd() {
+    eval $1
+    local pid=$(jobs -rp)
+    local count_time=0
+    while true; do
+        local count=$(jobs -rp | wc -l)
+        if [ ${count} -eq 0 ]; then
+            wait ${pid}
+            return "$?"
+        fi
+
+        if [ ${count_time} -gt 8 ]; then
+            kill -9 ${pid}
+            return 255
+        fi
+
+        sleep 0.5
+        count_time=$((count_time + 1))
+    done
+}
+
+function wait_cmd() {
+    local count_time=0
+    while true; do
+        wait_async_cmd "$1"
+        local result=$?
+        if [ "${result}" != "255" ]; then
+            return ${result}
+        fi
+
+        if [ ${count_time} -gt 3 ]; then
+            return 255
+        fi
+        count_time=$((count_time + 1))
+    done
+}
+
 function wait_container_ready() {
     local KBOX_NAME=$1
     local starttime=$(date +'%Y-%m-%d %H:%M:%S')
@@ -183,15 +220,16 @@ function wait_container_ready() {
         set +e
         while true; do
             local cmd="docker exec -i $1 getprop sys.boot_completed | grep 1 &"
-            local result=$(bash $CURRENT_DIR/base_box_aosp15.sh wait_async_cmd "${cmd}" 2> /dev/null)
-            if [ "${result}" == "1" ]; then
+            wait_cmd "${cmd}" >/dev/null 2>&1
+            local result=$?
+            if [ "${result}" == "0" ]; then
                 bash $CURRENT_DIR/base_box_aosp15.sh chk_key_process ${CONTAINER_NAME}
                 [ ${?} -ne 0 ] && has_restart=1 && bash $CURRENT_DIR/base_box_aosp15.sh restart "${CONTAINER_NAME}" "$MOUNT_DIR" 2
                 [ ${?} -eq 1 ] && [ $has_restart -eq 1 ] && echo "${KBOX_NAME} started failed at $(date +'%Y-%m-%d %H:%M:%S')!" && res=1 && break
 
                 echo "${KBOX_NAME} started successfully at $(date +'%Y-%m-%d %H:%M:%S')!"
                 break
-            elif [ "${result}" == "-1" ]; then
+            elif [ "${result}" == "255" ]; then
                 echo "${KBOX_NAME} wait_async_cmd timeout, exit and continue!"
             fi
             # 200秒未成功启动超时跳过
