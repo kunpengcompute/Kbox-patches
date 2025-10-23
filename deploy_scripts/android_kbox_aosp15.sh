@@ -172,6 +172,43 @@ function get_closest_numas() {
     done
 }
 
+function wait_async_cmd() {
+    eval $1
+    local pid=$(jobs -rp)
+    local count_time=0
+    while true; do
+        local count=$(jobs -rp | wc -l)
+        if [ ${count} -eq 0 ]; then
+            wait ${pid}
+            return "$?"
+        fi
+
+        if [ ${count_time} -gt 8 ]; then
+            kill -9 ${pid}
+            return 255
+        fi
+
+        sleep 0.5
+        count_time=$((count_time + 1))
+    done
+}
+
+function wait_cmd() {
+    local count_time=0
+    while true; do
+        wait_async_cmd "$1"
+        local result=$?
+        if [ "${result}" != "255" ]; then
+            return ${result}
+        fi
+
+        if [ ${count_time} -gt 3 ]; then
+            return 255
+        fi
+        count_time=$((count_time + 1))
+    done
+}
+
 function wait_container_ready() {
     local KBOX_NAME=$1
     local starttime=$(date +'%Y-%m-%d %H:%M:%S')
@@ -183,15 +220,16 @@ function wait_container_ready() {
         set +e
         while true; do
             local cmd="docker exec -i $1 getprop sys.boot_completed | grep 1 &"
-            local result=$(bash $CURRENT_DIR/base_box_aosp15.sh wait_async_cmd "${cmd}" 2> /dev/null)
-            if [ "${result}" == "1" ]; then
+            wait_cmd "${cmd}" >/dev/null 2>&1
+            local result=$?
+            if [ "${result}" == "0" ]; then
                 bash $CURRENT_DIR/base_box_aosp15.sh chk_key_process ${CONTAINER_NAME}
                 [ ${?} -ne 0 ] && has_restart=1 && bash $CURRENT_DIR/base_box_aosp15.sh restart "${CONTAINER_NAME}" "$MOUNT_DIR" 2
                 [ ${?} -eq 1 ] && [ $has_restart -eq 1 ] && echo "${KBOX_NAME} started failed at $(date +'%Y-%m-%d %H:%M:%S')!" && res=1 && break
 
                 echo "${KBOX_NAME} started successfully at $(date +'%Y-%m-%d %H:%M:%S')!"
                 break
-            elif [ "${result}" == "-1" ]; then
+            elif [ "${result}" == "255" ]; then
                 echo "${KBOX_NAME} wait_async_cmd timeout, exit and continue!"
             fi
             # 200秒未成功启动超时跳过
@@ -215,11 +253,11 @@ function wait_container_ready() {
 function disable_ipv6_icmp() {
     # 更改容器内部accept_redirects参数配置，禁止ipv6的icmp重定向功能
     KBOX_NAME=$1
+    trap 'rm -f "$temp"' EXIT
     temp=$(mktemp)
     echo 0 > $temp
     pid=$(docker inspect ${KBOX_NAME} | grep Pid | awk -F, '{print $1}' | sed -n '1p' | awk '{print $2}')
     nsenter -n -t ${pid} cp $temp /proc/sys/net/ipv6/conf/all/accept_redirects
-    rm $temp
 }
 
 function check_encode_card()
@@ -259,8 +297,8 @@ function enable_hard_decoder() {
     if [ $ENABLE_HARD_DECODE -ne 1 ];then
         docker cp ${container_name}:/system/vendor/etc/media_codecs.xml .
         sed -i '81,100d' media_codecs.xml    #删除当前xml文件中关于解码器相关配置
+        chmod 644 media_codecs.xml
         docker cp ./media_codecs.xml ${container_name}:/system/vendor/etc/
-        docker exec -itd ${container_name} chmod 644 /system/vendor/etc/media_codecs.xml
         return
     fi
     echo "enable hard decoder done"
@@ -404,10 +442,6 @@ function start_box_by_id() {
 
     enable_hard_decoder $TAG_NUMBER
 
-    # 调整vinput设备权限
-    cid=$(docker ps | grep -w ${CONTAINER_NAME} | awk '{print $1}')
-    echo "c 13:* rwm" >$(ls -d /sys/fs/cgroup/devices/docker/$cid*/devices.allow)
-
     if [ -n "$(docker ps -a --format {{.Names}} | grep "$CONTAINER_NAME$")" ]; then
         # 等待容器启动
         wait_container_ready ${CONTAINER_NAME}
@@ -477,9 +511,6 @@ function main() {
                 [ ${?} -eq 1 ] && continue
 
                 enable_netint "kbox_$TAG_NUMBER"
-                # 调整vinput设备权限
-                cid=$(docker ps | grep -w "kbox_$TAG_NUMBER" | awk '{print $1}')
-                echo "c 13:* rwm" >$(ls -d /sys/fs/cgroup/devices/docker/$cid*/devices.allow)
                 set -e
             fi
         done
