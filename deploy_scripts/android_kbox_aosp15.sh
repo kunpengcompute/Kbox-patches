@@ -253,11 +253,11 @@ function wait_container_ready() {
 function disable_ipv6_icmp() {
     # 更改容器内部accept_redirects参数配置，禁止ipv6的icmp重定向功能
     KBOX_NAME=$1
+    trap 'rm -f "$temp"' EXIT
     temp=$(mktemp)
     echo 0 > $temp
     pid=$(docker inspect ${KBOX_NAME} | grep Pid | awk -F, '{print $1}' | sed -n '1p' | awk '{print $2}')
     nsenter -n -t ${pid} cp $temp /proc/sys/net/ipv6/conf/all/accept_redirects
-    rm $temp
 }
 
 function check_encode_card()
@@ -297,8 +297,8 @@ function enable_hard_decoder() {
     if [ $ENABLE_HARD_DECODE -ne 1 ];then
         docker cp ${container_name}:/system/vendor/etc/media_codecs.xml .
         sed -i '81,100d' media_codecs.xml    #删除当前xml文件中关于解码器相关配置
+        chmod 644 media_codecs.xml
         docker cp ./media_codecs.xml ${container_name}:/system/vendor/etc/
-        docker exec -itd ${container_name} chmod 644 /system/vendor/etc/media_codecs.xml
         return
     fi
     echo "enable hard decoder done"
@@ -442,10 +442,6 @@ function start_box_by_id() {
 
     enable_hard_decoder $TAG_NUMBER
 
-    # 调整vinput设备权限
-    cid=$(docker ps | grep -w ${CONTAINER_NAME} | awk '{print $1}')
-    echo "c 13:* rwm" >$(ls -d /sys/fs/cgroup/devices/docker/$cid*/devices.allow)
-
     if [ -n "$(docker ps -a --format {{.Names}} | grep "$CONTAINER_NAME$")" ]; then
         # 等待容器启动
         wait_container_ready ${CONTAINER_NAME}
@@ -515,9 +511,6 @@ function main() {
                 [ ${?} -eq 1 ] && continue
 
                 enable_netint "kbox_$TAG_NUMBER"
-                # 调整vinput设备权限
-                cid=$(docker ps | grep -w "kbox_$TAG_NUMBER" | awk '{print $1}')
-                echo "c 13:* rwm" >$(ls -d /sys/fs/cgroup/devices/docker/$cid*/devices.allow)
                 set -e
             fi
         done
