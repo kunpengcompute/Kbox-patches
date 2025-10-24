@@ -85,10 +85,10 @@ index 881d6789b2..786c889664 100644
      // Disable hardware VSYNCs. If `disallow` is true, future calls to
      // enableHardwareVsync are ineffective until isHardwareVsyncAllowed is
 diff --git a/services/surfaceflinger/SurfaceFlinger.cpp b/services/surfaceflinger/SurfaceFlinger.cpp
-index 65a0ed3065..d20e6bef90 100644
+index 0fd9262b3b..6e612e564c 100644
 --- a/services/surfaceflinger/SurfaceFlinger.cpp
 +++ b/services/surfaceflinger/SurfaceFlinger.cpp
-@@ -2196,12 +2196,43 @@ void SurfaceFlinger::onComposerHalVsync(hal::HWDisplayId hwcDisplayId, int64_t t
+@@ -2196,12 +2196,44 @@ void SurfaceFlinger::onComposerHalVsync(hal::HWDisplayId hwcDisplayId, int64_t t
      }
  }
  
@@ -118,6 +118,7 @@ index 65a0ed3065..d20e6bef90 100644
 +
 +            nsecs_t period = getPeriodFromProp("ro.hardware.fps");
 +            const auto defaultDisplayId = getDefaultDisplayDeviceLocked()->getPhysicalId();
++            FTL_FAKE_GUARD(kMainThreadContext, mScheduler->disableHardwareVsync(defaultDisplayId, true));
 +
 +            if (connection == hal::Connection::CONNECTED) {
 +                mScheduler->setVsyncPeriod(defaultDisplayId, period);
