@@ -1,3 +1,6 @@
+diff --git a/frameworks-native-0005-adaptive-vsync.patch b/frameworks-native-0005-adaptive-vsync.patch
+deleted file mode 100644
+index e69de29bb2..0000000000
 diff --git a/services/surfaceflinger/Layer.cpp b/services/surfaceflinger/Layer.cpp
 index dcb0812b67..2179f1ec8b 100644
 --- a/services/surfaceflinger/Layer.cpp
@@ -21,6 +24,43 @@ index dcb0812b67..2179f1ec8b 100644
      // If the head buffer's acquire fence hasn't signaled yet, return and
      // try again later
      if (!fenceHasSignaled()) {
+diff --git a/services/surfaceflinger/Scheduler/EventThread.cpp b/services/surfaceflinger/Scheduler/EventThread.cpp
+index 218c56ef3d..505fef1a5d 100644
+--- a/services/surfaceflinger/Scheduler/EventThread.cpp
++++ b/services/surfaceflinger/Scheduler/EventThread.cpp
+@@ -424,6 +424,8 @@ void EventThread::onVsync(nsecs_t vsyncTime, nsecs_t wakeupTime, nsecs_t readyTi
+     std::lock_guard<std::mutex> lock(mMutex);
+     mLastVsyncCallbackTime = TimePoint::fromNs(vsyncTime);
+ 
++    mCallback.notifyAppVsync(mThreadName);
++
+     LOG_FATAL_IF(!mVSyncState);
+     mVsyncTracer = (mVsyncTracer + 1) % 2;
+     mPendingEvents.push_back(makeVSync(mVSyncState->displayId, wakeupTime, ++mVSyncState->count,
+diff --git a/services/surfaceflinger/Scheduler/EventThread.h b/services/surfaceflinger/Scheduler/EventThread.h
+index bbe4f9d899..d9df3e7655 100644
+--- a/services/surfaceflinger/Scheduler/EventThread.h
++++ b/services/surfaceflinger/Scheduler/EventThread.h
+@@ -143,6 +143,7 @@ struct IEventThreadCallback {
+     virtual Period getVsyncPeriod(uid_t) = 0;
+     virtual void resync() = 0;
+     virtual void onExpectedPresentTimePosted(TimePoint) = 0;
++    virtual void notifyAppVsync(const char* const name) = 0;
+ };
+ 
+ namespace impl {
+diff --git a/services/surfaceflinger/Scheduler/ISchedulerCallback.h b/services/surfaceflinger/Scheduler/ISchedulerCallback.h
+index 2b9e88c22a..62f4e27c7f 100644
+--- a/services/surfaceflinger/Scheduler/ISchedulerCallback.h
++++ b/services/surfaceflinger/Scheduler/ISchedulerCallback.h
+@@ -33,6 +33,7 @@ struct ISchedulerCallback {
+                                              Fps renderRate) = 0;
+     virtual void onCommitNotComposited(PhysicalDisplayId pacesetterDisplayId) = 0;
+     virtual void vrrDisplayIdle(bool idle) = 0;
++    virtual void notifyAppVsync(const char* const name) = 0;
+ 
+ protected:
+     ~ISchedulerCallback() = default;
 diff --git a/services/surfaceflinger/Scheduler/MessageQueue.cpp b/services/surfaceflinger/Scheduler/MessageQueue.cpp
 index 2e1f938126..97b3dcfebf 100644
 --- a/services/surfaceflinger/Scheduler/MessageQueue.cpp
@@ -79,10 +119,10 @@ index ba1efbe58f..bc6827cf4f 100644
      void onNewVsyncSchedule(std::shared_ptr<scheduler::VSyncDispatch>) EXCLUDES(mVsync.mutex);
  
 diff --git a/services/surfaceflinger/Scheduler/Scheduler.cpp b/services/surfaceflinger/Scheduler/Scheduler.cpp
-index 5e131548aa..57390476a0 100644
+index 5e131548aa..cbe3313c2c 100644
 --- a/services/surfaceflinger/Scheduler/Scheduler.cpp
 +++ b/services/surfaceflinger/Scheduler/Scheduler.cpp
-@@ -57,8 +57,58 @@
+@@ -57,8 +57,72 @@
  #include "VsyncConfiguration.h"
  #include "VsyncController.h"
  #include "VsyncSchedule.h"
@@ -112,15 +152,27 @@ index 5e131548aa..57390476a0 100644
 +        if (renderAccDeinit == nullptr) {
 +            ALOGE("AdaptiveVsync: Get RenderAccDeinitProxy function fail, error: %s", dlerror());
 +        }
++        
++        renderAccJudge = reinterpret_cast<RenderAccJudgeProxy>(dlsym(renderAcclibHdl, "IsCloseAdaptiveVsync"));
++        if (renderAccJudge == nullptr) {
++            ALOGE("AdaptiveVsync: Get RenderAccJudgeProxy function fail, error: %s", dlerror());
++        }
++        
++        renderAccQueueBuffer = reinterpret_cast<RenderAccQueueBufferProxy>(dlsym(renderAcclibHdl, "AdaptiveVsyncOnQueueBuffer"));
++        if (renderAccQueueBuffer == nullptr) {
++            ALOGE("AdaptiveVsync: Get RenderAccQueueBufferProxy function fail, error: %s", dlerror());
++        }
 +
 +        renderAccProc = reinterpret_cast<RenderAccProcProxy>(dlsym(renderAcclibHdl, "AdaptiveVsyncOnVsync"));
 +        if (renderAccProc == nullptr) {
 +            ALOGE("AdaptiveVsync: Get RenderAccProcProxy function fail, error: %s", dlerror());
 +        }
 +
-+        if ((renderAccInitialize == nullptr) || (renderAccDeinit == nullptr) || (renderAccProc == nullptr)) {
++        if ((renderAccInitialize == nullptr) || (renderAccDeinit == nullptr) || (renderAccJudge == nullptr) || (renderAccQueueBuffer == nullptr) || (renderAccProc == nullptr)) {
 +            renderAccInitialize = nullptr;
 +            renderAccDeinit = nullptr;
++            renderAccJudge = nullptr;
++            renderAccQueueBuffer = nullptr;
 +            renderAccProc = nullptr;
 +            dlclose(renderAcclibHdl);
 +            return;
@@ -131,6 +183,8 @@ index 5e131548aa..57390476a0 100644
 +            ALOGE("AdaptiveVsync: RenderAccInitialize fail.");
 +            renderAccInitialize = nullptr;
 +            renderAccDeinit = nullptr;
++            renderAccJudge = nullptr;
++            renderAccQueueBuffer = nullptr;
 +            renderAccProc = nullptr;
 +            dlclose(renderAcclibHdl);
 +        } else {
@@ -141,7 +195,7 @@ index 5e131548aa..57390476a0 100644
  
  Scheduler::Scheduler(ICompositor& compositor, ISchedulerCallback& callback, FeatureFlags features,
                       surfaceflinger::Factory& factory, Fps activeRefreshRate, TimeStats& timeStats)
-@@ -67,9 +117,23 @@ Scheduler::Scheduler(ICompositor& compositor, ISchedulerCallback& callback, Feat
+@@ -67,9 +131,25 @@ Scheduler::Scheduler(ICompositor& compositor, ISchedulerCallback& callback, Feat
          mVsyncConfiguration(factory.createVsyncConfiguration(activeRefreshRate)),
          mVsyncModulator(sp<VsyncModulator>::make(mVsyncConfiguration->getCurrentConfigs())),
          mRefreshRateStats(std::make_unique<RefreshRateStats>(timeStats, activeRefreshRate)),
@@ -157,6 +211,8 @@ index 5e131548aa..57390476a0 100644
 +
 +        renderAccInitialize = nullptr;
 +        renderAccDeinit = nullptr;
++        renderAccJudge = nullptr;
++        renderAccQueueBuffer = nullptr;
 +        renderAccProc = nullptr;
 +
 +        dlclose(renderAcclibHdl);
@@ -166,7 +222,7 @@ index 5e131548aa..57390476a0 100644
      // MessageQueue depends on VsyncSchedule, so first destroy it.
      // Otherwise, MessageQueue will get destroyed after Scheduler's dtor,
      // which will cause a use-after-free issue.
-@@ -509,6 +573,16 @@ void Scheduler::setVsyncConfig(const VsyncConfig& config, Period vsyncPeriod) {
+@@ -509,6 +589,27 @@ void Scheduler::setVsyncConfig(const VsyncConfig& config, Period vsyncPeriod) {
      setDuration(config.sfWorkDuration);
  }
  
@@ -177,14 +233,25 @@ index 5e131548aa..57390476a0 100644
 +}
 +
 +void Scheduler::schedulerSetAdaptiveVysncFlag(bool flag) {
++    if (adaptiveVsyncFlag && renderAccQueueBuffer && data) {
++        renderAccQueueBuffer(data);
++    }
 +    setAdaptiveVysncFlag(flag);
++}
++
++void Scheduler::notifyAppVsync(const char* const name) {
++    if (adaptiveVsyncFlag && strcmp(name, "app") == 0 && renderAccJudge && data) {
++        nsecs_t now = systemTime(SYSTEM_TIME_MONOTONIC);
++        renderAccJudge(data, now);
++        scheduleFrame();
++    }
 +}
 +
  void Scheduler::enableHardwareVsync(PhysicalDisplayId id) {
      auto schedule = getVsyncSchedule(id);
      LOG_ALWAYS_FATAL_IF(!schedule);
 diff --git a/services/surfaceflinger/Scheduler/Scheduler.h b/services/surfaceflinger/Scheduler/Scheduler.h
-index ab622e93bd..c601f65805 100644
+index ab622e93bd..448ac84837 100644
 --- a/services/surfaceflinger/Scheduler/Scheduler.h
 +++ b/services/surfaceflinger/Scheduler/Scheduler.h
 @@ -338,6 +338,9 @@ public:
@@ -197,7 +264,15 @@ index ab622e93bd..c601f65805 100644
  private:
      friend class TestableScheduler;
  
-@@ -603,6 +606,26 @@ private:
+@@ -467,6 +470,7 @@ private:
+     Period getVsyncPeriod(uid_t) override EXCLUDES(mDisplayLock);
+     void resync() override EXCLUDES(mDisplayLock);
+     void onExpectedPresentTimePosted(TimePoint expectedPresentTime) override EXCLUDES(mDisplayLock);
++    void notifyAppVsync(const char* const name) override;
+ 
+     std::unique_ptr<EventThread> mRenderEventThread;
+     std::unique_ptr<EventThread> mLastCompositeEventThread;
+@@ -603,6 +607,29 @@ private:
  
      FrameRateOverrideMappings mFrameRateOverrideMappings;
      SmallAreaDetectionAllowMappings mSmallAreaDetectionAllowMappings;
@@ -211,21 +286,36 @@ index ab622e93bd..c601f65805 100644
 +
 +    using RenderAccInitializeProxy = void * (*)();
 +    using RenderAccDeinitProxy = void (*)(void *ptr);
++    using RenderAccJudgeProxy = void (*)(void *ptr, int64_t now);
++    using RenderAccQueueBufferProxy = void (*)(void *ptr);
 +    using RenderAccProcProxy = void (*)(void *ptr, OnVsyncProxy, void *obj, int64_t timestamp);
 +
 +    bool adaptiveVsyncFlag = false;
 +    void *renderAcclibHdl = nullptr;
 +    void *data = nullptr;
 +
-+    RenderAccInitializeProxy renderAccInitialize = nullptr;
-+    RenderAccDeinitProxy renderAccDeinit = nullptr;
-+    RenderAccProcProxy renderAccProc = nullptr;
-+
++    RenderAccInitializeProxy  renderAccInitialize = nullptr;
++    RenderAccDeinitProxy      renderAccDeinit = nullptr;
++    RenderAccJudgeProxy       renderAccJudge = nullptr;
++    RenderAccQueueBufferProxy renderAccQueueBuffer = nullptr;
++    RenderAccProcProxy        renderAccProc = nullptr;
  };
  
  } // namespace scheduler
+diff --git a/services/surfaceflinger/Scheduler/VSyncDispatchTimerQueue.cpp b/services/surfaceflinger/Scheduler/VSyncDispatchTimerQueue.cpp
+index 1925f1165c..65353a5cc3 100644
+--- a/services/surfaceflinger/Scheduler/VSyncDispatchTimerQueue.cpp
++++ b/services/surfaceflinger/Scheduler/VSyncDispatchTimerQueue.cpp
+@@ -28,6 +28,7 @@
+ #include <common/FlagManager.h>
+ #include "VSyncDispatchTimerQueue.h"
+ #include "VSyncTracker.h"
++#include <utils/CallStack.h>
+ 
+ #undef LOG_TAG
+ #define LOG_TAG "VSyncDispatch"
 diff --git a/services/surfaceflinger/SurfaceFlinger.cpp b/services/surfaceflinger/SurfaceFlinger.cpp
-index 6195a724ee..0081b22640 100644
+index 6195a724ee..556213b33f 100644
 --- a/services/surfaceflinger/SurfaceFlinger.cpp
 +++ b/services/surfaceflinger/SurfaceFlinger.cpp
 @@ -533,6 +533,9 @@ SurfaceFlinger::SurfaceFlinger(Factory& factory) : SurfaceFlinger(factory, SkipI
@@ -238,7 +328,7 @@ index 6195a724ee..0081b22640 100644
  }
  
  LatchUnsignaledConfig SurfaceFlinger::getLatchUnsignaledConfig() {
-@@ -4825,10 +4828,28 @@ status_t SurfaceFlinger::setTransactionState(
+@@ -4825,10 +4828,32 @@ status_t SurfaceFlinger::setTransactionState(
              scheduleNotifyExpectedPresentHint(displayId, VsyncId{frameTimelineInfo.vsyncId});
          }
      }
@@ -264,11 +354,15 @@ index 6195a724ee..0081b22640 100644
 +    return (isEnableAdaptiveVsync && misEnableAdaptiveVsync);
 +}
 +
++void SurfaceFlinger::notifyAppVsync(const char* const name) {
++    (void)name;
++}
++
  bool SurfaceFlinger::applyTransactionState(const FrameTimelineInfo& frameTimelineInfo,
                                             std::vector<ResolvedComposerState>& states,
                                             Vector<DisplayState>& displays, uint32_t flags,
 diff --git a/services/surfaceflinger/SurfaceFlinger.h b/services/surfaceflinger/SurfaceFlinger.h
-index 3eb72cc4c0..1068e8b30a 100644
+index 3eb72cc4c0..162739ea3c 100644
 --- a/services/surfaceflinger/SurfaceFlinger.h
 +++ b/services/surfaceflinger/SurfaceFlinger.h
 @@ -363,6 +363,8 @@ protected:
@@ -280,7 +374,15 @@ index 3eb72cc4c0..1068e8b30a 100644
  private:
      friend class BufferLayer;
      friend class Client;
-@@ -1475,6 +1477,7 @@ private:
+@@ -694,6 +696,7 @@ private:
+     void onCommitNotComposited(PhysicalDisplayId pacesetterDisplayId) override
+             REQUIRES(kMainThreadContext);
+     void vrrDisplayIdle(bool idle) override;
++    void notifyAppVsync(const char* const name) override;
+ 
+     // ICEPowerCallback overrides:
+     void notifyCpuLoadUp() override;
+@@ -1475,6 +1478,7 @@ private:
      void sfdo_scheduleComposite();
      void sfdo_scheduleCommit();
      void sfdo_forceClientComposition(bool enabled);
