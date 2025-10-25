@@ -455,8 +455,7 @@ function start_box_by_id() {
         echo -e "---------------------- done ----------------------\n"
     fi
     if [[ $ENABLE_RENDER_LAYER == "1" ]]; then
-        # 渲染中间层，放在base_box.sh会set property失败
-        docker exec -it ${CONTAINER_NAME} sh -c "setprop debug.gles.layers RenderAccLayer.kbox.so"
+        bash $CURRENT_DIR/base_box_aosp15.sh deploy_render_layer ${CONTAINER_NAME}
     fi
 }
 
