@@ -174,10 +174,78 @@ index e06a64593..8485b3dc1 100644
      // execv() only returns if an error happened, in which case we
      // panic and never fall through this conditional.
 diff --git a/init/init.cpp b/init/init.cpp
-index 6c8089926..e0b69a727 100644
+index 6c8089926..482d30137 100644
 --- a/init/init.cpp
 +++ b/init/init.cpp
-@@ -849,6 +849,10 @@ static void MountExtraFilesystems() {
+@@ -41,6 +41,7 @@
+ #include <optional>
+ #include <thread>
+ #include <vector>
++#include <string>
+ 
+ #include <android-base/chrono_utils.h>
+ #include <android-base/file.h>
+@@ -109,6 +110,9 @@ using android::base::unique_fd;
+ using android::fs_mgr::AvbHandle;
+ using android::snapshot::SnapshotManager;
+ 
++#define CPUINFO_PATH "/proc/cpuinfo"
++#define CPUTMP_PATH "/system/cpuinfo_tmp"
++
+ namespace android {
+ namespace init {
+ 
+@@ -832,6 +836,49 @@ static void UmountSecondStageRes() {
+     }
+ }
+ 
++static int PrepareFile() {
++    std::ifstream sourceFile(CPUINFO_PATH);
++
++    if (!sourceFile.is_open()) {
++        LOG(ERROR) << "can not open file: " << CPUINFO_PATH;
++        return -1;
++    }
++
++    std::ofstream destFile(CPUTMP_PATH);
++    if (!destFile.is_open()) {
++        sourceFile.close();
++        LOG(ERROR) << "can not create tmp file: " << CPUTMP_PATH;
++        return -1;
++    }
++
++    std::string line;
++    int oneCpuInfoStep = 0;
++    int totalLine = 0;
++    int currentLine = 0;
++
++    while (std::getline(sourceFile, line)) {
++        oneCpuInfoStep++;
++        destFile << line << std::endl;
++        if (line.empty()) {
++            break;
++        }
++    }
++
++    totalLine = oneCpuInfoStep * 7 - 1;
++    while (std::getline(sourceFile, line)) {
++        currentLine++;
++        if (currentLine >= 1 && currentLine <= totalLine) {
++            destFile << line << std::endl;
++            continue;
++        }
++        break;
++    }
++
++    sourceFile.close();
++    destFile.close();
++    return 0;
++}
++
+ static void MountExtraFilesystems() {
+ #define CHECKCALL(x) \
+     if ((x) != 0) PLOG(FATAL) << #x " failed.";
+@@ -849,6 +896,14 @@ static void MountExtraFilesystems() {
      // /linkerconfig is used to keep generated linker configuration
      CHECKCALL(mount("tmpfs", "/linkerconfig", "tmpfs", MS_NOEXEC | MS_NOSUID | MS_NODEV,
                      "mode=0755,uid=0,gid=0"));
@@ -185,10 +253,14 @@ index 6c8089926..e0b69a727 100644
 +    // /sys/devices/system/cpu cpumock目录挂载
 +    CHECKCALL(mount("/data/local/cpu", "/sys/devices/system/cpu", "", MS_BIND, nullptr));
 +
++    // cpuinfo修改挂载
++    CHECKCALL(PrepareFile());
++    CHECKCALL(mount(CPUTMP_PATH, CPUINFO_PATH, "", MS_BIND, nullptr));
++
  #undef CHECKCALL
  }
  
-@@ -937,7 +941,7 @@ int SecondStageMain(int argc, char** argv) {
+@@ -937,7 +992,7 @@ int SecondStageMain(int argc, char** argv) {
      trigger_shutdown = [](const std::string& command) { shutdown_state.TriggerShutdown(command); };
  
      SetStdioToDevNull(argv);
