@@ -816,21 +816,31 @@ function start_box() {
         $RUNTIME_CMD cp build.prop_${BOX_NAME} ${BOX_NAME}:/system/vendor/build.prop
         rm -rf ./build.prop_${BOX_NAME}
     fi
+}
 
-    # 部署渲染中间层
-    if [[ $ENABLE_RENDER_LAYER == "1" ]]; then
-        # 渲染中间层
-        $RUNTIME_CMD exec -it ${BOX_NAME} sh -c "if [ -d /vendor/shader_cache/ ]; then chmod 757 -R /vendor/shader_cache/; fi"
-        $RUNTIME_CMD exec -it ${BOX_NAME} sh -c "mkdir -p /data/local/debug/gles"
-        $RUNTIME_CMD exec -it ${BOX_NAME} sh -c "chmod 755 -R /data/local/debug/"
-        $RUNTIME_CMD exec -it ${BOX_NAME} sh -c "mkdir -p /data/local/tmp"
-        if [ -e "kbox_render_accelerating_configuration.xml" ]; then
-            $RUNTIME_CMD cp kbox_render_accelerating_configuration.xml ${BOX_NAME}:/data/local/tmp
-        fi
-        $RUNTIME_CMD exec -it ${BOX_NAME} sh -c "cp /system/vendor/lib64/hw/RenderAccLayer.kbox.so /data/local/debug/gles"
-        if [ $? -ne 0 ]; then
-            echo -e "\033[31mFailed to enabled render layer! RenderAccLayer.kbox.so may not exist\033[0m"
-        fi
+function deploy_render_layer() {
+    local BOX_NAME=$1
+    if [ ! -e "kbox_render_accelerating_configuration.xml" ]; then
+        return
+    fi
+    local cmds=(
+        "$RUNTIME_CMD exec -it ${BOX_NAME} chmod 757 -R /vendor/shader_cache/"
+        "$RUNTIME_CMD exec -it ${BOX_NAME} mkdir -p /data/local/debug/gles"
+        "$RUNTIME_CMD exec -it ${BOX_NAME} chmod 755 -R /data/local/debug/"
+        "$RUNTIME_CMD exec -it ${BOX_NAME} mkdir -p /data/local/tmp"
+        "$RUNTIME_CMD cp kbox_render_accelerating_configuration.xml ${BOX_NAME}:/data/local/tmp"
+        "$RUNTIME_CMD exec -it ${BOX_NAME} cp /system/vendor/lib64/hw/RenderAccLayer.kbox.so /data/local/debug/gles"
+        "$RUNTIME_CMD exec -it ${BOX_NAME} setprop debug.gles.layers RenderAccLayer.kbox.so"
+    )
+    local failed=0
+    for cmd in "${cmds[@]}"
+    do
+        $cmd || { echo -e "\033[31m Failed to Run command \"$cmd\" \033[0m"; failed=1; }
+    done
+    if [ $failed -eq 1 ]; then
+        echo -e "\033[31mFailed to enabled render layer!\033[0m"
+    else
+        echo -e "\033[36mSuccessful to enabled render layer!\033[0m"
     fi
 }
 
@@ -1076,7 +1086,7 @@ function restart_box() {
     done
 
     if [[ $ENABLE_RENDER_LAYER == "1" ]]; then
-            docker exec -it "${BOX_NAME}" sh -c "setprop debug.gles.layers RenderAccLayer.kbox.so"
+        docker exec -it "${BOX_NAME}" sh -c "setprop debug.gles.layers RenderAccLayer.kbox.so"
     fi
 }
 
@@ -1088,5 +1098,6 @@ case $CMD in
     restart)     restart_box "$@";;
     wait_async_cmd) wait_async_cmd "$@";;
     chk_key_process) check_key_process "$@";;
+    deploy_render_layer) deploy_render_layer "$@";;
     *)          echo "command must be \"start\", \"delete\", \"restart\", \"wait_async_cmd\" or \"chk_key_process\"";;
 esac
