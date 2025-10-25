@@ -824,7 +824,6 @@ function deploy_render_layer() {
         return
     fi
     local cmds=(
-        "$RUNTIME_CMD exec -it ${BOX_NAME} chmod 757 -R /vendor/shader_cache/"
         "$RUNTIME_CMD exec -it ${BOX_NAME} mkdir -p /data/local/debug/gles"
         "$RUNTIME_CMD exec -it ${BOX_NAME} chmod 755 -R /data/local/debug/"
         "$RUNTIME_CMD exec -it ${BOX_NAME} mkdir -p /data/local/tmp"
@@ -842,6 +841,7 @@ function deploy_render_layer() {
     else
         echo -e "\033[36mSuccessful to enabled render layer!\033[0m"
     fi
+    $RUNTIME_CMD exec -it ${BOX_NAME} sh -c "if [ -d /vendor/shader_cache/ ]; then chmod 757 -R /vendor/shader_cache/; fi"
 }
 
 function delete_box() {
