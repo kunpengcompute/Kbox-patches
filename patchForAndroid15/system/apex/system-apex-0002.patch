@@ -1,0 +1,13 @@
+diff --git a/apexd/apexd_loop.cpp b/apexd/apexd_loop.cpp
+index 13d461fe..06165bfb 100644
+--- a/apexd/apexd_loop.cpp
++++ b/apexd/apexd_loop.cpp
+@@ -555,7 +555,7 @@ Result<LoopbackDeviceUniqueFd> CreateAndConfigureLoopDevice(
+ 
+   Result<void> read_ahead_status = ConfigureReadAhead(loop_device->name);
+   if (!read_ahead_status.ok()) {
+-    return read_ahead_status.error();
++    LOG(WARNING) << read_ahead_status.error();
+   }
+ 
+   return loop_device;
