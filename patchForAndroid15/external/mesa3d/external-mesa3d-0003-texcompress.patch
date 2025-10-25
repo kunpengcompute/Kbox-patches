@@ -70,7 +70,7 @@ index 34c23a81d0d..a1f3205c2c7 100644
     VkResult result = VK_SUCCESS;
     VkPipeline *pipeline;
 diff --git a/src/amd/vulkan/meta/radv_meta_copy.c b/src/amd/vulkan/meta/radv_meta_copy.c
-index 79fa24e205e..7043214878b 100644
+index 79fa24e205e..38c83efb34a 100644
 --- a/src/amd/vulkan/meta/radv_meta_copy.c
 +++ b/src/amd/vulkan/meta/radv_meta_copy.c
 @@ -9,6 +9,11 @@
@@ -337,7 +337,7 @@ index 79fa24e205e..7043214878b 100644
        .pitch = buf_layout.row_stride_B / buf_layout.element_size_B,
     };
  
-@@ -207,12 +428,40 @@ copy_buffer_to_image(struct radv_cmd_buffer *cmd_buffer, struct radv_buffer *buf
+@@ -207,12 +428,37 @@ copy_buffer_to_image(struct radv_cmd_buffer *cmd_buffer, struct radv_buffer *buf
         * re-binding it to different backing memory.
         */
        buf_bsurf.offset += buf_layout.image_stride_B;
@@ -354,9 +354,6 @@ index 79fa24e205e..7043214878b 100644
           slice_array++;
     }
 +   pSrcData = NULL;
-+   if (image->isNeedSoftDecode || image->isNeedSoftEncode) {
-+      device->ws->buffer_unmap(device->ws, buffer->bo, false);
-+   }
 +   VkMemoryUnmapInfoKHR pMemoryUnmapInfo = {
 +      .sType = VK_STRUCTURE_TYPE_MEMORY_UNMAP_INFO_KHR,
 +      .pNext = NULL,
