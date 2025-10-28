@@ -251,11 +251,11 @@ index 6c8089926..482d30137 100644
                      "mode=0755,uid=0,gid=0"));
 +
 +    // /sys/devices/system/cpu cpumock目录挂载
-+    CHECKCALL(mount("/data/local/cpu", "/sys/devices/system/cpu", "", MS_BIND, nullptr));
++    (mount("/data/local/cpu", "/sys/devices/system/cpu", "", MS_BIND, nullptr));
 +
 +    // cpuinfo修改挂载
-+    CHECKCALL(PrepareFile());
-+    CHECKCALL(mount(CPUTMP_PATH, CPUINFO_PATH, "", MS_BIND, nullptr));
++    (PrepareFile());
++    (mount(CPUTMP_PATH, CPUINFO_PATH, "", MS_BIND, nullptr));
 +
  #undef CHECKCALL
  }
