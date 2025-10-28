@@ -788,6 +788,11 @@ check_wait_cmd_result() {
 }
 
 function restart_box() {
+    local KBOX_SWITCH="/sys/kernel/kbox/kbox_enable"
+    if [ -f "$KBOX_SWITCH" ] && [ "$(cat "$KBOX_SWITCH")" = "0" ]; then
+        echo "1" > "$KBOX_SWITCH"
+    fi
+    
     local BOX_NAME=$1
     local USER_DATA_PATH=$2
 
