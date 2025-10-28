@@ -140,8 +140,8 @@ index a1b15d0d6..5e8b0a6ad 100644
 +			rcu_read_unlock();
 +			continue;
 +		}
-+		if (strstr(cgroup_path, "/docker/") || strstr(cgroup_path, "/kubepods/")) {
-+            container_id = extract_container_id(cgroup_path, '/');
++		if (strstr(cgroup_path, "/docker-") || strstr(cgroup_path, "/kubepods/")) {
++            container_id = extract_container_id(cgroup_path, '-');
 +        } else if (strstr(cgroup_path, "cri-containerd:")) { //k8s用systemd驱动管理资源控制器
 +            container_id = extract_container_id(cgroup_path, ':');
 +        }
@@ -483,8 +483,8 @@ index 000000000..2ab7c7b11
 +            put_pid(pid_struct);
 +            continue;
 +        }
-+        if (strstr(cgroup_path, "/docker/") || strstr(cgroup_path, "/kubepods/")) {
-+            container_id = extract_container_id(cgroup_path, '/');
++        if (strstr(cgroup_path, "/docker-") || strstr(cgroup_path, "/kubepods/")) {
++            container_id = extract_container_id(cgroup_path, '-');
 +        } else if (strstr(cgroup_path, K8S_CONTAINER_FEATURE_CODE)) { //k8s用systemd驱动管理资源控制器
 +            container_id = extract_container_id(cgroup_path, ':');
 +        }
