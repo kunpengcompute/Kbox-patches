@@ -816,6 +816,11 @@ function start_box() {
         $RUNTIME_CMD cp build.prop_${BOX_NAME} ${BOX_NAME}:/system/vendor/build.prop
         rm -rf ./build.prop_${BOX_NAME}
     fi
+
+    container_id=$($RUNTIME_CMD ps --filter "name=$BOX_NAME" --format "{{.ID}}")
+    echo $container_id > $THISDIR/containerid_${BOX_NAME}
+    $RUNTIME_CMD cp $THISDIR/containerid_${BOX_NAME} ${BOX_NAME}:/data/containerid
+    rm -f $THISDIR/containerid_${BOX_NAME}
 }
 
 function deploy_render_layer() {
