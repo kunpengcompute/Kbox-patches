@@ -34,6 +34,19 @@ index 1b78c8f1..7a0c5dce 100644
  		return sehandle;
  }
  
+diff --git a/libselinux/src/android/android_device.c b/libselinux/src/android/android_device.c
+index 9339e8ab..8d25d6ea 100644
+--- a/libselinux/src/android/android_device.c
++++ b/libselinux/src/android/android_device.c
+@@ -458,7 +458,7 @@ static int selinux_android_restorecon_common(const char* pathname_orig,
+ 	}
+ 
+ 	if (is_selinux_enabled() <= 0) {
+-		selinux_log(SELINUX_WARNING, "SELinux: SELinux is disabled, skipping restorecon");
++		// selinux_log(SELINUX_WARNING, "SELinux: SELinux is disabled, skipping restorecon");
+ 		return 0;
+ 	}
+ 
 diff --git a/libselinux/src/checkAccess.c b/libselinux/src/checkAccess.c
 index 022cd6b5..3abc09a5 100644
 --- a/libselinux/src/checkAccess.c

@@ -174,7 +174,7 @@ index e06a64593..8485b3dc1 100644
      // execv() only returns if an error happened, in which case we
      // panic and never fall through this conditional.
 diff --git a/init/init.cpp b/init/init.cpp
-index 6c8089926..482d30137 100644
+index 6c8089926..29c252fbd 100644
 --- a/init/init.cpp
 +++ b/init/init.cpp
 @@ -41,6 +41,7 @@
@@ -260,7 +260,7 @@ index 6c8089926..482d30137 100644
  #undef CHECKCALL
  }
  
-@@ -937,7 +992,7 @@ int SecondStageMain(int argc, char** argv) {
+@@ -937,10 +992,10 @@ int SecondStageMain(int argc, char** argv) {
      trigger_shutdown = [](const std::string& command) { shutdown_state.TriggerShutdown(command); };
  
      SetStdioToDevNull(argv);
@@ -268,7 +268,22 @@ index 6c8089926..482d30137 100644
 +    // InitKernelLogging(argv);
      LOG(INFO) << "init second stage started!";
  
-     SelinuxSetupKernelLogging();
+-    SelinuxSetupKernelLogging();
++    // SelinuxSetupKernelLogging();
+ 
+     // Update $PATH in the case the second stage init is newer than first stage init, where it is
+     // first set.
+@@ -997,8 +1052,8 @@ int SecondStageMain(int argc, char** argv) {
+     MountExtraFilesystems();
+ 
+     // Now set up SELinux for second stage.
+-    SelabelInitialize();
+-    SelinuxRestoreContext();
++    // SelabelInitialize();
++    // SelinuxRestoreContext();
+ 
+     Epoll epoll;
+     if (auto result = epoll.Open(); !result.ok()) {
 diff --git a/init/ipconfigstore/Android.bp b/init/ipconfigstore/Android.bp
 new file mode 100644
 index 000000000..34ed932dd
@@ -577,7 +592,7 @@ index f2606e3c5..62f9c34ad 100644
      });
  }
 diff --git a/init/selinux.cpp b/init/selinux.cpp
-index 01af2b64d..faa048d54 100644
+index 01af2b64d..8c49f9e4a 100644
 --- a/init/selinux.cpp
 +++ b/init/selinux.cpp
 @@ -106,6 +106,7 @@ EnforcingStatus StatusFromProperty() {
@@ -588,7 +603,15 @@ index 01af2b64d..faa048d54 100644
      if (ALLOW_PERMISSIVE_SELINUX) {
          return StatusFromProperty() == SELINUX_ENFORCING;
      }
-@@ -693,7 +694,7 @@ int SetupSelinux(char** argv) {
+@@ -686,14 +687,14 @@ void LoadSelinuxPolicyAndroid() {
+ 
+ int SetupSelinux(char** argv) {
+     SetStdioToDevNull(argv);
+-    InitKernelLogging(argv);
++    // InitKernelLogging(argv);
+ 
+     if (REBOOT_BOOTLOADER_ON_PANIC) {
+         InstallRebootSignalHandlers();
      }
  
      boot_clock::time_point start_time = boot_clock::now();

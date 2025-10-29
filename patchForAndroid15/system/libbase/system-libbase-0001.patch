@@ -16,3 +16,16 @@ index b9ee402..ef996c3 100644
  // bionic and glibc both have TEMP_FAILURE_RETRY, but eg Mac OS' libc doesn't.
  #ifndef TEMP_FAILURE_RETRY
  #define TEMP_FAILURE_RETRY(exp)            \
+diff --git a/logging.cpp b/logging.cpp
+index 51f0ef9..0fe7421 100644
+--- a/logging.cpp
++++ b/logging.cpp
+@@ -237,6 +237,8 @@ static LogSeverity gMinimumLogSeverity = INFO;
+ #if defined(__linux__)
+ static void KernelLogLine(const char* msg, int length, android::base::LogSeverity severity,
+                           const char* tag) {
++  kbox_hack();
++  
+   // clang-format off
+   static constexpr int kLogSeverityToKernelLogLevel[] = {
+       [android::base::VERBOSE] = 7,              // KERN_DEBUG (there is no verbose kernel log
