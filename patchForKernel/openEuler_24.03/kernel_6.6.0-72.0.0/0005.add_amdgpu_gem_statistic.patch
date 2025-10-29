@@ -11,10 +11,10 @@ index b120267fb..41c1f2f88 100644
  obj-$(CONFIG_DRM_TTM)	+= ttm/
  obj-$(CONFIG_DRM_SCHED)	+= scheduler/
 diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
-index a1b15d0d6..5e8b0a6ad 100644
+index a1b15d0d6..d6dac1253 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
 +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
-@@ -948,6 +948,179 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
+@@ -948,6 +948,184 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
  }
  
  #if defined(CONFIG_DEBUG_FS)
@@ -73,6 +73,11 @@ index a1b15d0d6..5e8b0a6ad 100644
 +{
 +	struct drm_gem_object *gobj = ptr;
 +	struct amdgpu_bo *bo = gem_to_amdgpu_bo(gobj);
++	if (!bo->tbo.resource) {
++		printk("amdgpu_debugfs_gem_bo_statistics: bo->tbo.resource is null\n");
++		return 0;
++	}
++
 +	struct gem_sizes *sizes = data;
 +	struct dma_buf_attachment *attachment = READ_ONCE(bo->tbo.base.import_attach);
 +	unsigned domain = amdgpu_mem_type_to_domain(bo->tbo.resource->mem_type);
@@ -194,7 +199,7 @@ index a1b15d0d6..5e8b0a6ad 100644
  static int amdgpu_debugfs_gem_info_show(struct seq_file *m, void *unused)
  {
  	struct amdgpu_device *adev = m->private;
-@@ -993,6 +1166,8 @@ static int amdgpu_debugfs_gem_info_show(struct seq_file *m, void *unused)
+@@ -993,6 +1171,8 @@ static int amdgpu_debugfs_gem_info_show(struct seq_file *m, void *unused)
  
  DEFINE_SHOW_ATTRIBUTE(amdgpu_debugfs_gem_info);
  
@@ -203,7 +208,7 @@ index a1b15d0d6..5e8b0a6ad 100644
  #endif
  
  void amdgpu_debugfs_gem_init(struct amdgpu_device *adev)
-@@ -1003,5 +1178,7 @@ void amdgpu_debugfs_gem_init(struct amdgpu_device *adev)
+@@ -1003,5 +1183,7 @@ void amdgpu_debugfs_gem_init(struct amdgpu_device *adev)
  
  	debugfs_create_file("amdgpu_gem_info", 0444, root, adev,
  			    &amdgpu_debugfs_gem_info_fops);
@@ -221,7 +226,7 @@ index 000000000..2175036af
 \ No newline at end of file
 diff --git a/drivers/gpu/drm/statistics/amdgpu_statistics.c b/drivers/gpu/drm/statistics/amdgpu_statistics.c
 new file mode 100644
-index 000000000..2ab7c7b11
+index 000000000..edfe6dd8b
 --- /dev/null
 +++ b/drivers/gpu/drm/statistics/amdgpu_statistics.c
 @@ -0,0 +1,504 @@
@@ -730,6 +735,3 @@ index 000000000..2ab7c7b11
 +
 +MODULE_LICENSE("GPL");
 \ No newline at end of file
--- 
-2.43.0
-
