@@ -610,10 +610,10 @@ function start_box() {
     RUN_OPTION+=" --volume=$(get_lxcfs_path)/proc/swaps:/proc/swaps:ro "
     RUN_OPTION+=" --volume=$(get_lxcfs_path)/proc/uptime:/proc/uptime:ro "
     RUN_OPTION+=" --volume=$KBOX_DATA_PATH/storage_size:/storage_size:rw "
-    if [ -f default.prop_$BOX_NAME ]; then
+    if [ -f $THISDIR/default.prop_$BOX_NAME ]; then
         RUN_OPTION+=" --volume=$THISDIR/default.prop_$BOX_NAME:/kbox_prop/default.prop:rw "
     fi
-    if [ -f build.prop ]; then
+    if [ -f $THISDIR/build.prop ]; then
         RUN_OPTION+=" --volume=$THISDIR/build.prop:/kbox_prop/build.prop:rw "
     fi
     if [[ $ENABLE_RENDER_LAYER == "1" ]]; then
