@@ -1,8 +1,16 @@
 diff --git a/AndroidManifest.xml b/AndroidManifest.xml
-index cc4d898403a..f33019d66cb 100644
+index cc4d898403a..211404cfc46 100644
 --- a/AndroidManifest.xml
 +++ b/AndroidManifest.xml
-@@ -236,7 +236,6 @@
+@@ -92,7 +92,6 @@
+     <uses-permission android:name="android.permission.SUGGEST_MANUAL_TIME_AND_ZONE" />
+     <uses-permission android:name="android.permission.ACCESS_NOTIFICATIONS" />
+     <uses-permission android:name="android.permission.REBOOT" />
+-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+     <uses-permission android:name="android.permission.MANAGE_DEVICE_ADMINS" />
+     <uses-permission android:name="android.permission.READ_SEARCH_INDEXABLES" />
+     <uses-permission android:name="android.permission.BIND_SETTINGS_SUGGESTIONS_SERVICE" />
+@@ -236,7 +235,6 @@
              android:exported="true">
              <intent-filter>
                  <action android:name="android.intent.action.USER_INITIALIZE"/>
@@ -10,6 +18,97 @@ index cc4d898403a..f33019d66cb 100644
              </intent-filter>
          </receiver>
  
+@@ -244,9 +242,6 @@
+             android:name=".development.Enable16KBootReceiver"
+             android:enabled="true"
+             android:exported="false">
+-            <intent-filter>
+-                <action android:name="android.intent.action.BOOT_COMPLETED" />
+-            </intent-filter>
+         </receiver>
+ 
+         <service
+@@ -3447,7 +3442,6 @@
+             android:exported="true"
+             android:permission="com.android.settings.BATTERY_DATA">
+             <intent-filter>
+-                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                 <action android:name="com.google.android.setupwizard.SETUP_WIZARD_FINISHED"/>
+                 <action android:name="com.android.settings.battery.action.PERIODIC_JOB_RECHECK"/>
+                 <action android:name="android.intent.action.TIME_SET"/>
+@@ -3458,9 +3452,6 @@
+         <receiver
+             android:name=".fuelgauge.BatterySettingsMigrateChecker"
+             android:exported="true">
+-            <intent-filter>
+-                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+-            </intent-filter>
+         </receiver>
+ 
+         <receiver
+@@ -4093,11 +4084,8 @@
+         </receiver>
+ 
+         <receiver android:name=".sim.SimSelectNotification"
+-            android:exported="true">
+-            <intent-filter>
+-                <action android:name="android.telephony.action.PRIMARY_SUBSCRIPTION_LIST_CHANGED"/>
+-                <action android:name="android.settings.ENABLE_MMS_DATA_REQUEST"/>
+-            </intent-filter>
++            android:exported="true"
++            android:enabled="false">
+         </receiver>
+ 
+         <service android:name=".sim.PrimarySubscriptionListChangedService"
+@@ -5099,9 +5087,6 @@
+         <receiver
+             android:name=".sim.receivers.SimSlotChangeReceiver"
+             android:exported="true">
+-            <intent-filter>
+-                <action android:name="android.telephony.action.SIM_SLOT_STATUS_CHANGED" />
+-            </intent-filter>
+         </receiver>
+ 
+         <service android:name=".sim.receivers.SimSlotChangeService"
+@@ -5110,9 +5095,6 @@
+         <receiver
+             android:name=".sim.receivers.SimCompleteBootReceiver"
+             android:exported="true">
+-            <intent-filter>
+-                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+-            </intent-filter>
+         </receiver>
+ 
+         <activity
+@@ -5188,7 +5170,6 @@
+                   android:exported="true">
+             <intent-filter>
+                 <action android:name="android.safetycenter.action.REFRESH_SAFETY_SOURCES"/>
+-                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+             </intent-filter>
+         </receiver>
+ 
+@@ -5267,10 +5248,6 @@
+ 
+         <receiver android:name=".privatespace.PrivateSpaceBroadcastReceiver"
+             android:exported="true">
+-            <intent-filter>
+-                <action android:name="android.intent.action.PRE_BOOT_COMPLETED"/>
+-                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+-            </intent-filter>
+         </receiver>
+ 
+         <activity-alias android:name="UsageStatsActivity"
+@@ -5365,9 +5342,6 @@
+         <receiver
+             android:name=".shortcut.ShortcutsUpdateReceiver"
+             android:exported="true">
+-            <intent-filter>
+-                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+-            </intent-filter>
+         </receiver>
+ 
+         <!-- This is the longest AndroidManifest.xml ever. -->
 diff --git a/res/xml/connected_devices.xml b/res/xml/connected_devices.xml
 index 95aa8773c68..8b85f1e3627 100644
 --- a/res/xml/connected_devices.xml
@@ -29,6 +128,18 @@ index 95aa8773c68..8b85f1e3627 100644
      <com.android.settingslib.widget.FooterPreference
          android:key="discoverable_footer"
          android:selectable="false"
+diff --git a/src/com/android/settings/FallbackHome.java b/src/com/android/settings/FallbackHome.java
+index d62b6c2cf19..204d0d6b37a 100644
+--- a/src/com/android/settings/FallbackHome.java
++++ b/src/com/android/settings/FallbackHome.java
+@@ -135,6 +135,7 @@ public class FallbackHome extends Activity {
+         @Override
+         public void onReceive(Context context, Intent intent) {
+             maybeFinish();
++            System.exit(0);
+         }
+     };
+ 
 diff --git a/src/com/android/settings/sim/SimDialogActivity.java b/src/com/android/settings/sim/SimDialogActivity.java
 index 5512117f733..3133869b5d2 100644
 --- a/src/com/android/settings/sim/SimDialogActivity.java
