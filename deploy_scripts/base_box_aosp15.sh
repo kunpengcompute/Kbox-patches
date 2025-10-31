@@ -32,7 +32,9 @@ function check_environment() {
     fi
 
     # 清理/dev/目录下的全部loop device节点，并在/dev/loop_device/目录下提前生成足够数量的设备节点
-    prepare_loop_device
+    if [ $1 == "start_box" ] || [ $1 == "restart_box" ]; then
+        prepare_loop_device
+    fi
 
     # 检查必要的环境配置
     check_selinux
@@ -456,7 +458,7 @@ function check_paras() {
 function check_key_process() {
     # 检查关键进程是否存在
     local process_name=(system_server zygote zygote64 surfaceflinger)
-    local cmd="$RUNTIME_CMD exec -i $1 ps -A | egrep -w 'system_server|zygote|zygote64|surfaceflinger' &"
+    local cmd="$RUNTIME_CMD exec -i $1 ps -A | grep -Ew 'system_server|zygote|zygote64|surfaceflinger' &"
     local result=$(wait_cmd "${cmd}")
     check_wait_cmd_result "${cmd}" "${result}"
     local val
@@ -1100,7 +1102,7 @@ function restart_box() {
     fi
 }
 
-check_environment
+check_environment $1
 CMD=$1; shift
 case $CMD in
     start)       start_box   "$@";;
