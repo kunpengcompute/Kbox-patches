@@ -8,7 +8,6 @@ device-google-cuttlefish-0001.patch
 external-libdrm-0001.patch
 external-libva-0001.patch
 external-llvm70-0001.patch
-external-mesa-0001.patch
 external-minijail-0001.patch
 external-selinux-0001.patch
 frameworks-av-0001.patch
