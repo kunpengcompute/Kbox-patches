@@ -5,14 +5,14 @@
           1）GL_EXTENSION_MOCK value为1是在系统的extension上追加，0为去除系统默认的extension
      3. shaderCahce功能配置说明：
           1）系统通用配置禁止使能shadercache
-          2）SHADER_CACHE_MODE选项表示shader的读写模式 0:CLOSED, 1: READONLY, 2: READWRITE, 3:DEFAULT
+          2）SHADER_CACHE_MODE选项表示shader的读写模式 0:CLOSED, 1: READONLY, 2: READWRITE
           3）SHADER_CACHE_DIR_SIZE选项表示shader可存储的大小，单位 MB，取值：64 128 256 512 1024
           4）使能shadercache功能，gpumock会自动使能
      4. 具体应用配置示例
      <Application name="process_name" isEnable="false">
           <feature name="kbox.render.accelerating.shaderCache"  isEnable="false">
                <GL_SHADER_CACHE>
-                    <param name="SHADER_CACHE_MODE" value="3"/>
+                    <param name="SHADER_CACHE_MODE" value="0"/>
                     <param name="SHADER_CACHE_DIR_SIZE" value="200"/>
                </GL_SHADER_CACHE>
           </feature>
@@ -48,7 +48,7 @@
      <Application name="com.miHoYo.Yuanshen" isEnable="false">
           <feature name="kbox.render.accelerating.shaderCache"  isEnable="false">
                <GL_SHADER_CACHE>
-                    <param name="SHADER_CACHE_MODE" value="3"/>
+                    <param name="SHADER_CACHE_MODE" value="0"/>
                     <param name="SHADER_CACHE_DIR_SIZE" value="256"/>
                </GL_SHADER_CACHE>
           </feature>
@@ -57,7 +57,7 @@
      <Application name="com.miHoYo.enterprise.NGHSoDBak" isEnable="false">
           <feature name="kbox.render.accelerating.shaderCache"  isEnable="false">
                <GL_SHADER_CACHE>
-                    <param name="SHADER_CACHE_MODE" value="3"/>
+                    <param name="SHADER_CACHE_MODE" value="0"/>
                     <param name="SHADER_CACHE_DIR_SIZE" value="256"/>
                </GL_SHADER_CACHE>
           </feature>
