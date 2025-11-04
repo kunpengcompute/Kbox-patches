@@ -765,11 +765,7 @@ function start_box() {
     RUN_OPTION+=" --volume=$KBOX_DATA_PATH/data:/data:rw "
     RUN_OPTION+=" --volume=$INPUT_EVENT_PATH/event0:/dev/input/event0:rw "
     RUN_OPTION+=" --volume=$INPUT_EVENT_PATH/event1:/dev/input/event1:rw "
-    RUN_OPTION+=" --volume=$(get_lxcfs_path)/proc/diskstats:/proc/diskstats:ro "
-    RUN_OPTION+=" --volume=$(get_lxcfs_path)/proc/meminfo:/proc/meminfo:ro "
-    RUN_OPTION+=" --volume=$(get_lxcfs_path)/proc/stat:/proc/stat:ro "
-    RUN_OPTION+=" --volume=$(get_lxcfs_path)/proc/swaps:/proc/swaps:ro "
-    RUN_OPTION+=" --volume=$(get_lxcfs_path)/proc/uptime:/proc/uptime:ro "
+    RUN_OPTION+=" --volume=$(get_lxcfs_path)/proc:/lxcfs-proc:ro "
     RUN_OPTION+=" --volume=$KBOX_DATA_PATH/storage_size:/storage_size:rw "
     if [ -f $THISDIR/default.prop_$BOX_NAME ]; then
         RUN_OPTION+=" --volume=$THISDIR/default.prop_$BOX_NAME:/kbox_prop/default.prop:rw "
