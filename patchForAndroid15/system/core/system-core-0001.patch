@@ -174,7 +174,7 @@ index e06a64593..8485b3dc1 100644
      // execv() only returns if an error happened, in which case we
      // panic and never fall through this conditional.
 diff --git a/init/init.cpp b/init/init.cpp
-index 6c8089926..29c252fbd 100644
+index 6c8089926..6916d3f38 100644
 --- a/init/init.cpp
 +++ b/init/init.cpp
 @@ -41,6 +41,7 @@
@@ -195,7 +195,17 @@ index 6c8089926..29c252fbd 100644
  namespace android {
  namespace init {
  
-@@ -832,6 +836,49 @@ static void UmountSecondStageRes() {
+@@ -364,7 +368,8 @@ void PropertyChanged(const std::string& name, const std::string& value) {
+     // In non-thermal-shutdown case, 'shutdown' trigger will be fired to let device specific
+     // commands to be executed.
+     if (name == "sys.powerctl") {
+-        trigger_shutdown(value);
++        // trigger_shutdown(value);
++        LOG(INFO) << "kbox don't reboot";
+     }
+ 
+     if (property_triggers_enabled) {
+@@ -832,6 +837,49 @@ static void UmountSecondStageRes() {
      }
  }
  
@@ -245,7 +255,7 @@ index 6c8089926..29c252fbd 100644
  static void MountExtraFilesystems() {
  #define CHECKCALL(x) \
      if ((x) != 0) PLOG(FATAL) << #x " failed.";
-@@ -849,6 +896,14 @@ static void MountExtraFilesystems() {
+@@ -849,6 +897,14 @@ static void MountExtraFilesystems() {
      // /linkerconfig is used to keep generated linker configuration
      CHECKCALL(mount("tmpfs", "/linkerconfig", "tmpfs", MS_NOEXEC | MS_NOSUID | MS_NODEV,
                      "mode=0755,uid=0,gid=0"));
@@ -260,7 +270,7 @@ index 6c8089926..29c252fbd 100644
  #undef CHECKCALL
  }
  
-@@ -937,10 +992,10 @@ int SecondStageMain(int argc, char** argv) {
+@@ -937,10 +993,10 @@ int SecondStageMain(int argc, char** argv) {
      trigger_shutdown = [](const std::string& command) { shutdown_state.TriggerShutdown(command); };
  
      SetStdioToDevNull(argv);
@@ -273,7 +283,7 @@ index 6c8089926..29c252fbd 100644
  
      // Update $PATH in the case the second stage init is newer than first stage init, where it is
      // first set.
-@@ -997,8 +1052,8 @@ int SecondStageMain(int argc, char** argv) {
+@@ -997,8 +1053,8 @@ int SecondStageMain(int argc, char** argv) {
      MountExtraFilesystems();
  
      // Now set up SELinux for second stage.
@@ -653,6 +663,23 @@ index 6a095fb7b..8166f4461 100644
      if (IsMicrodroid()) {
          LOG(INFO) << "Not using subcontext for microdroid";
          return;
+diff --git a/libcutils/android_reboot.cpp b/libcutils/android_reboot.cpp
+index e0def711d..b50b7f896 100644
+--- a/libcutils/android_reboot.cpp
++++ b/libcutils/android_reboot.cpp
+@@ -23,7 +23,12 @@
+ 
+ #define TAG "android_reboot"
+ 
++#ifndef kbox_hack_p
++#define kbox_hack_p(p) if (true) return p
++#endif
++
+ int android_reboot(unsigned cmd, int /*flags*/, const char* arg) {
++    kbox_hack_p(0);
+     int ret;
+     const char* restart_cmd = NULL;
+     char* prop_value;
 diff --git a/libprocessgroup/processgroup.cpp b/libprocessgroup/processgroup.cpp
 index 83a2258bf..37bf761d0 100644
 --- a/libprocessgroup/processgroup.cpp
