@@ -11,7 +11,7 @@ index b120267fb..41c1f2f88 100644
  obj-$(CONFIG_DRM_TTM)	+= ttm/
  obj-$(CONFIG_DRM_SCHED)	+= scheduler/
 diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
-index a1b15d0d6..d6dac1253 100644
+index a1b15d0d6..bdc27a12b 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
 +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
 @@ -948,6 +948,184 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
@@ -146,9 +146,9 @@ index a1b15d0d6..d6dac1253 100644
 +			continue;
 +		}
 +		if (strstr(cgroup_path, "/docker-") || strstr(cgroup_path, "/kubepods/")) {
-+            container_id = extract_container_id(cgroup_path, '-');
++			container_id = extract_container_id(cgroup_path, '-');
 +        } else if (strstr(cgroup_path, "cri-containerd:")) { //k8s用systemd驱动管理资源控制器
-+            container_id = extract_container_id(cgroup_path, ':');
++			container_id = extract_container_id(cgroup_path, ':');
 +        }
 +		if(container_id) {
 +			mutex_lock(&container_stats_mutex);
@@ -180,16 +180,16 @@ index a1b15d0d6..d6dac1253 100644
 +	}
 +
 +	struct list_head *pos;
-+    struct list_head *q;
++	struct list_head *q;
 +
 +	mutex_unlock(&dev->filelist_mutex);
 +	mutex_lock(&container_stats_mutex);
 +	if (!list_empty(&container_stats_list)) {
 +		list_for_each_safe(pos, q, &container_stats_list) {
 +			struct container_mem_stats *tmp = list_entry(pos, struct container_mem_stats, list);
-+			seq_printf(m,"container_id:%s vram:%zu gtt:%zu\n", tmp->container_id, tmp->total_vram, tmp->total_gtt);
++			seq_printf(m,"container_id:%s vram:%zu byte gtt:%zu byte\n", tmp->container_id, tmp->total_vram, tmp->total_gtt);
 +			list_del(&tmp->list);
-+            kfree(tmp);
++			kfree(tmp);
 +		}
 +	}
 +	mutex_unlock(&container_stats_mutex);
@@ -226,10 +226,10 @@ index 000000000..2175036af
 \ No newline at end of file
 diff --git a/drivers/gpu/drm/statistics/amdgpu_statistics.c b/drivers/gpu/drm/statistics/amdgpu_statistics.c
 new file mode 100644
-index 000000000..edfe6dd8b
+index 000000000..7de80a91c
 --- /dev/null
 +++ b/drivers/gpu/drm/statistics/amdgpu_statistics.c
-@@ -0,0 +1,504 @@
+@@ -0,0 +1,531 @@
 +#include <linux/fs.h>
 +#include <linux/uio.h>
 +#include <linux/module.h>
@@ -254,13 +254,14 @@ index 000000000..edfe6dd8b
 +#define VM_DEBUGFS_FILED_COUNT 7 // 瀚博显存统计节点有效的字段数
 +#define K8S_CONTAINER_FEATURE_CODE "cri-containerd:"
 +#define MAX_RECORD_LENGTH 64
-+#define VM_DEBUGFS_PATH "/sys/kernel/debug/va/gpu0%d/gpu_mem_stats"
++#define VM_DEBUGFS_PATH "/sys/kernel/debug/va/gpu%02d/gpu_mem_stats"
 +#define AMD_DEBUGFS_FMT "/sys/kernel/debug/dri/%d/amdgpu_gem_statistics"
 +
 +static bool amd_vendor = false;
 +static bool vm_vendor = false;
 +
 +static int vm_node_count = 0;
++static int amd_node_count = 0;
 +
 +struct debugfs_cache {
 +    char *data;
@@ -537,41 +538,55 @@ index 000000000..edfe6dd8b
 +
 +static void generate_data_amd(struct debugfs_cache *cache)
 +{
-+    char *buf1 = NULL, *buf2 = NULL;
-+    ssize_t ret1, ret2;
-+    ssize_t ret = 0;
++    char **str_array = NULL;
++    ssize_t total_len = 0;
++    int amd_num = amd_node_count / 4;
++    int i;
 +
-+    buf1 = read_debugfs_to_buffer(AMD_DEBUGFS_FMT, 1);
-+    if (!buf1) {
-+        ret1 = 0;
-+    } else {
-+        ret1 = strlen(buf1);
++    if (amd_num == 0) {
++        goto empty_handle;
 +    }
 +
-+    buf2 = read_debugfs_to_buffer(AMD_DEBUGFS_FMT, 2);
-+    if (!buf2) {
-+        ret2 = 0;
-+    } else {
-+        ret2 = strlen(buf2);
++    str_array = kmalloc(sizeof(char *) * amd_num, GFP_KERNEL);
++    if (!str_array) {
++        pr_err("Failed to allocate memory for string array\n");
++        goto empty_handle;
 +    }
++    for (i = 0; i < amd_num; i++) {
++        str_array[i] = read_debugfs_to_buffer(AMD_DEBUGFS_FMT, i + 1); //AMD的节点从1开始
++        if (str_array[i]) {
++            total_len += strlen(str_array[i]);
++        }
++    }
++    if (total_len == 0) {
++        goto empty_handle;
++    }
++    cache->data = kmalloc(total_len + 1, GFP_KERNEL);
++    if (!cache->data) {
++        pr_err("Failed to allocate memory for cache data\n");
++        goto free_str_array;
++    }
++    cache->data[0] = '\0';
++    for (i = 0; i < amd_num; i++) {
++        if (str_array[i]) {
++            strcat(cache->data, str_array[i]);
++            kfree(str_array[i]);
++        }
++    }
++    cache->size = total_len;
++    kfree(str_array);
++    return;
 +
-+    ret = ret1 + ret2;
-+    if (ret == 0) {
-+        cache->data = NULL;
-+        cache->size = 0;
-+        return;
++free_str_array:
++    for (i = 0; i <= amd_num; i++) {
++        if (str_array[i]) {
++            kfree(str_array[i]);
++        }
 +    }
-+    cache->data = kmalloc(ret + 1, GFP_KERNEL);
-+    if (ret1 != 0) {
-+        memcpy(cache->data, buf1, ret1);
-+        kfree(buf1);
-+    }
-+    if (ret2 != 0) {
-+        memcpy(cache->data + ret1, buf2, ret2);
-+        kfree(buf2);
-+    }
-+    cache->data[ret] = '\0';
-+    cache->size = ret;
++    kfree(str_array);
++empty_handle:
++    cache->data = NULL;
++    cache->size = 0;
 +}
 +
 +static void generate_data_dc(struct debugfs_cache *cache) {
@@ -600,15 +615,17 @@ index 000000000..edfe6dd8b
 +    }
 +
 +    if (container_num == 0) {
-+        cache->data = NULL;
-+        cache->size = 0;
-+        return;
++        goto empty_handle;
 +    }
 +
 +    cache->data = kmalloc(MAX_RECORD_LENGTH * container_num + 1, GFP_KERNEL);
++    if (!cache->data) {
++        pr_err("Failed to allocate memory for cache data\n");
++        goto empty_handle;
++    }
 +    mutex_lock(&vm_container_stats_mutex);
 +    list_for_each_entry(vm_statistic, &vm_container_stats_list, list) {
-+        int len = snprintf(tmp_buf, sizeof(tmp_buf), "container_id:%s vram:%zu\n",
++        int len = snprintf(tmp_buf, sizeof(tmp_buf), "container_id:%s vram:%zu byte\n",
 +                           vm_statistic->container_id, vm_statistic->total_vram);
 +        int bytes_to_copy = min(len, MAX_RECORD_LENGTH);
 +        memcpy(cache->data + pos, tmp_buf, bytes_to_copy);
@@ -616,11 +633,20 @@ index 000000000..edfe6dd8b
 +    }
 +    cache->size = pos;
 +    mutex_unlock(&vm_container_stats_mutex);
++    return;
++
++empty_handle:
++    cache->data = NULL;
++    cache->size = 0;
 +}
 +
 +static void update_cache(struct work_struct *work)
 +{
 +    struct debugfs_cache *new_cache = kmalloc(sizeof(*new_cache), GFP_KERNEL);
++    if (!new_cache) {
++        pr_err("Failed to allocate memory for cache\n");
++        return;
++    }
 +    int new_idx = atomic_read(&active_idx) ^ 1;
 +
 +    if (amd_vendor) {
@@ -685,6 +711,7 @@ index 000000000..edfe6dd8b
 +        }
 +        if (vendor_id == AMD_VENDOR_ID) {
 +            amd_vendor = true;
++            amd_node_count++;
 +        }
 +    }
 +
@@ -735,3 +762,6 @@ index 000000000..edfe6dd8b
 +
 +MODULE_LICENSE("GPL");
 \ No newline at end of file
+-- 
+2.34.1
+
