@@ -517,7 +517,7 @@ function main() {
                 local MOUNT_DIR=${KBOX_MOUNT_MAP[TAG_NUMBER - 1]}
                 bash $CURRENT_DIR/base_box_aosp15.sh restart "kbox_$TAG_NUMBER" "$MOUNT_DIR" 3 ${ENABLE_HARD_DECODE} $ENABLE_RENDER_LAYER
                 [ ${?} -eq 1 ] && continue
-		mount_lxcfs "kbox_$TAG_NUMBER"
+                mount_lxcfs "kbox_$TAG_NUMBER"
                 enable_netint "kbox_$TAG_NUMBER"
                 set -e
             fi
