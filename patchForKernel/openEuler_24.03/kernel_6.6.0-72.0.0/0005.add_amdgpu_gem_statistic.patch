@@ -11,10 +11,10 @@ index b120267fb..41c1f2f88 100644
  obj-$(CONFIG_DRM_TTM)	+= ttm/
  obj-$(CONFIG_DRM_SCHED)	+= scheduler/
 diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
-index a1b15d0d6..bdc27a12b 100644
+index a1b15d0d6..8b42139be 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
 +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
-@@ -948,6 +948,184 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
+@@ -948,6 +948,218 @@ int amdgpu_mode_dumb_create(struct drm_file *file_priv,
  }
  
  #if defined(CONFIG_DEBUG_FS)
@@ -48,6 +48,38 @@ index a1b15d0d6..bdc27a12b 100644
 +        container_id = kstrndup(id_str, 12, GFP_KERNEL);
 +    }
 +    return container_id;
++}
++
++char *extract_container_id_k8s(const char *cgroup_path, const char* feature_code) {
++	const char *id_str = NULL;
++	char *container_id = NULL;
++	int delim_count = 0;
++	size_t length = 0;
++
++	if (!cgroup_path) return NULL;
++
++    id_str = strstr(cgroup_path, feature_code);
++    if (id_str == NULL) return NULL;
++
++    id_str += strlen(feature_code);
++
++    // Find the next level directory
++    while (*id_str != '/' && *id_str != '\0') {
++        id_str++;
++    }
++
++    if (*id_str == '\0') return NULL;
++
++    // skip '/'
++    while (*id_str == '/') {
++        id_str++;
++    }
++
++	length = strlen(id_str);
++	if (length < 12) return NULL;
++
++	container_id = kstrndup(id_str, 12, GFP_KERNEL);
++	return container_id;
 +}
 +
 +struct container_mem_stats {
@@ -145,8 +177,10 @@ index a1b15d0d6..bdc27a12b 100644
 +			rcu_read_unlock();
 +			continue;
 +		}
-+		if (strstr(cgroup_path, "/docker-") || strstr(cgroup_path, "/kubepods/")) {
++		if (strstr(cgroup_path, "/docker-")) {
 +			container_id = extract_container_id(cgroup_path, '-');
++        } else if (strstr(cgroup_path, "/kubepods/")) {
++			container_id = extract_container_id_k8s(cgroup_path, "/pod");
 +        } else if (strstr(cgroup_path, "cri-containerd:")) { //k8s用systemd驱动管理资源控制器
 +			container_id = extract_container_id(cgroup_path, ':');
 +        }
@@ -199,7 +233,7 @@ index a1b15d0d6..bdc27a12b 100644
  static int amdgpu_debugfs_gem_info_show(struct seq_file *m, void *unused)
  {
  	struct amdgpu_device *adev = m->private;
-@@ -993,6 +1171,8 @@ static int amdgpu_debugfs_gem_info_show(struct seq_file *m, void *unused)
+@@ -993,6 +1205,8 @@ static int amdgpu_debugfs_gem_info_show(struct seq_file *m, void *unused)
  
  DEFINE_SHOW_ATTRIBUTE(amdgpu_debugfs_gem_info);
  
@@ -208,7 +242,7 @@ index a1b15d0d6..bdc27a12b 100644
  #endif
  
  void amdgpu_debugfs_gem_init(struct amdgpu_device *adev)
-@@ -1003,5 +1183,7 @@ void amdgpu_debugfs_gem_init(struct amdgpu_device *adev)
+@@ -1003,5 +1217,7 @@ void amdgpu_debugfs_gem_init(struct amdgpu_device *adev)
  
  	debugfs_create_file("amdgpu_gem_info", 0444, root, adev,
  			    &amdgpu_debugfs_gem_info_fops);
@@ -226,10 +260,10 @@ index 000000000..2175036af
 \ No newline at end of file
 diff --git a/drivers/gpu/drm/statistics/amdgpu_statistics.c b/drivers/gpu/drm/statistics/amdgpu_statistics.c
 new file mode 100644
-index 000000000..7de80a91c
+index 000000000..bb3c7ea28
 --- /dev/null
 +++ b/drivers/gpu/drm/statistics/amdgpu_statistics.c
-@@ -0,0 +1,531 @@
+@@ -0,0 +1,566 @@
 +#include <linux/fs.h>
 +#include <linux/uio.h>
 +#include <linux/module.h>
@@ -309,6 +343,38 @@ index 000000000..7de80a91c
 +        container_id = kstrndup(id_str, 12, GFP_KERNEL);
 +    }
 +    return container_id;
++}
++
++char *extract_container_id_k8s(const char *cgroup_path, const char* feature_code) {
++	const char *id_str = NULL;
++	char *container_id = NULL;
++	int delim_count = 0;
++	size_t length = 0;
++
++	if (!cgroup_path) return NULL;
++
++    id_str = strstr(cgroup_path, feature_code);
++    if (id_str == NULL) return NULL;
++
++    id_str += strlen(feature_code);
++
++    // Find the next level directory
++    while (*id_str != '/' && *id_str != '\0') {
++        id_str++;
++    }
++
++    if (*id_str == '\0') return NULL;
++
++    // skip '/'
++    while (*id_str == '/') {
++        id_str++;
++    }
++
++	length = strlen(id_str);
++	if (length < 12) return NULL;
++
++	container_id = kstrndup(id_str, 12, GFP_KERNEL);
++	return container_id;
 +}
 +
 +/* 
@@ -489,11 +555,14 @@ index 000000000..7de80a91c
 +            put_pid(pid_struct);
 +            continue;
 +        }
-+        if (strstr(cgroup_path, "/docker-") || strstr(cgroup_path, "/kubepods/")) {
++        if (strstr(cgroup_path, "/docker-")) {
 +            container_id = extract_container_id(cgroup_path, '-');
++        } else if (strstr(cgroup_path, "/kubepods/")) {
++            container_id = extract_container_id_k8s(cgroup_path, "/pod");
 +        } else if (strstr(cgroup_path, K8S_CONTAINER_FEATURE_CODE)) { //k8s用systemd驱动管理资源控制器
 +            container_id = extract_container_id(cgroup_path, ':');
-+        }
++        } 
++
 +        if (container_id) {
 +            mutex_lock(&vm_container_stats_mutex);
 +            list_for_each_entry(vm_statistic, &vm_container_stats_list, list) {
@@ -762,6 +831,3 @@ index 000000000..7de80a91c
 +
 +MODULE_LICENSE("GPL");
 \ No newline at end of file
--- 
-2.34.1
-
