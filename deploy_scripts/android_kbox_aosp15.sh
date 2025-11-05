@@ -250,6 +250,14 @@ function wait_container_ready() {
     return $res
 }
 
+function mount_lxcfs(){
+    docker exec -it $1 mount --bind /lxcfs-proc/meminfo /proc/meminfo
+    docker exec -it $1 mount --bind /lxcfs-proc/diskstats /proc/diskstats
+    docker exec -it $1 mount --bind /lxcfs-proc/stat /proc/stat
+    docker exec -it $1 mount --bind /lxcfs-proc/swaps /proc/swaps
+    docker exec -it $1 mount --bind /lxcfs-proc/uptime /proc/uptime
+}
+
 function disable_ipv6_icmp() {
     # 更改容器内部accept_redirects参数配置，禁止ipv6的icmp重定向功能
     KBOX_NAME=$1
@@ -454,6 +462,7 @@ function start_box_by_id() {
         disable_ipv6_icmp ${CONTAINER_NAME}
         echo -e "---------------------- done ----------------------\n"
     fi
+    mount_lxcfs ${CONTAINER_NAME}
     if [[ $ENABLE_RENDER_LAYER == "1" ]]; then
         bash $CURRENT_DIR/base_box_aosp15.sh deploy_render_layer ${CONTAINER_NAME}
     fi
@@ -508,7 +517,7 @@ function main() {
                 local MOUNT_DIR=${KBOX_MOUNT_MAP[TAG_NUMBER - 1]}
                 bash $CURRENT_DIR/base_box_aosp15.sh restart "kbox_$TAG_NUMBER" "$MOUNT_DIR" 3 ${ENABLE_HARD_DECODE} $ENABLE_RENDER_LAYER
                 [ ${?} -eq 1 ] && continue
-
+		mount_lxcfs "kbox_$TAG_NUMBER"
                 enable_netint "kbox_$TAG_NUMBER"
                 set -e
             fi
