@@ -255,13 +255,18 @@ index 6c8089926..6916d3f38 100644
  static void MountExtraFilesystems() {
  #define CHECKCALL(x) \
      if ((x) != 0) PLOG(FATAL) << #x " failed.";
-@@ -849,6 +897,14 @@ static void MountExtraFilesystems() {
+@@ -849,6 +897,19 @@ static void MountExtraFilesystems() {
      // /linkerconfig is used to keep generated linker configuration
      CHECKCALL(mount("tmpfs", "/linkerconfig", "tmpfs", MS_NOEXEC | MS_NOSUID | MS_NODEV,
                      "mode=0755,uid=0,gid=0"));
 +
 +    // /sys/devices/system/cpu cpumock目录挂载
 +    (mount("/data/local/cpu", "/sys/devices/system/cpu", "", MS_BIND, nullptr));
++    (mount("/lxcfs-proc/meminfo", "/proc/meminfo", "", MS_BIND, nullptr));
++    (mount("/lxcfs-proc/diskstats", "/proc/diskstats", "", MS_BIND, nullptr));
++    (mount("/lxcfs-proc/stat", "/proc/stat", "", MS_BIND, nullptr));
++    (mount("/lxcfs-proc/swaps", "/proc/swaps", "", MS_BIND, nullptr));
++    (mount("/lxcfs-proc/uptime", "/proc/uptime", "", MS_BIND, nullptr));
 +
 +    // cpuinfo修改挂载
 +    (PrepareFile());
@@ -270,7 +275,7 @@ index 6c8089926..6916d3f38 100644
  #undef CHECKCALL
  }
  
-@@ -937,10 +993,10 @@ int SecondStageMain(int argc, char** argv) {
+@@ -942,10 +998,10 @@ int SecondStageMain(int argc, char** argv) {
      trigger_shutdown = [](const std::string& command) { shutdown_state.TriggerShutdown(command); };
  
      SetStdioToDevNull(argv);
