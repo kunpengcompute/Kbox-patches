@@ -1,0 +1,106 @@
+diff --git a/java/src/com/android/inputmethod/keyboard/KeyboardView.java b/java/src/com/android/inputmethod/keyboard/KeyboardView.java
+index faa21070e..6523de6c7 100644
+--- a/java/src/com/android/inputmethod/keyboard/KeyboardView.java
++++ b/java/src/com/android/inputmethod/keyboard/KeyboardView.java
+@@ -18,6 +18,8 @@ package com.android.inputmethod.keyboard;
+ 
+ import android.content.Context;
+ import android.content.res.TypedArray;
++import android.content.res.Resources;
++import android.content.res.Configuration;
+ import android.graphics.Bitmap;
+ import android.graphics.Canvas;
+ import android.graphics.Color;
+@@ -31,6 +33,9 @@ import android.graphics.drawable.NinePatchDrawable;
+ import android.text.TextUtils;
+ import android.util.AttributeSet;
+ import android.view.View;
++import android.util.Log;
++import android.provider.Settings;
++import android.view.WindowInsets;
+ 
+ import com.android.inputmethod.keyboard.internal.KeyDrawParams;
+ import com.android.inputmethod.keyboard.internal.KeyVisualAttributes;
+@@ -94,6 +99,7 @@ public class KeyboardView extends View {
+     private final Drawable mSpacebarBackground;
+     private final float mSpacebarIconWidthRatio;
+     private final Rect mKeyBackgroundPadding = new Rect();
++    private int mChangeWidth = 0;
+     private static final float KET_TEXT_SHADOW_RADIUS_DISABLED = -1.0f;
+ 
+     // The maximum key label width in the proportion to the key width.
+@@ -221,6 +227,32 @@ public class KeyboardView extends View {
+         mKeyDrawParams.updateParams(keyHeight, mKeyVisualAttributes);
+     }
+ 
++    //获取导航栏宽度
++    public int getNavigationBarHeight(Context context) {
++        int result = 0;
++        Resources resources = context.getResources();
++        int resourceId = resources.getIdentifier("navigation_bar_height", "dimen", "android");
++        if (resourceId > 0) {
++            result = resources.getDimensionPixelSize(resourceId);
++        }
++        return result;
++    }
++
++    public boolean isGestureMode (Context context) {
++        try {
++            int mode = Settings.Secure.getInt(context.getContentResolver(), "navigation_mode");
++            return mode == 2;
++        } catch (Settings.SettingNotFoundException e) {
++            return false; // 获取失败时回退到三键
++        }
++    }
++
++    // 判断是否横屏
++    public boolean isLandscapeByConfiguration() {
++        int orientation = getResources().getConfiguration().orientation;
++        return orientation == Configuration.ORIENTATION_LANDSCAPE;
++    }
++
+     @Override
+     protected void onMeasure(final int widthMeasureSpec, final int heightMeasureSpec) {
+         final Keyboard keyboard = getKeyboard();
+@@ -229,16 +261,32 @@ public class KeyboardView extends View {
+             return;
+         }
+         // The main keyboard expands to the entire this {@link KeyboardView}.
+-        final int width = keyboard.mOccupiedWidth + getPaddingLeft() + getPaddingRight();
++
++        // 判断是否横屏 
++        int width_tmp = 0;
++        if (isLandscapeByConfiguration()) {
++            // 判断是否是导航还是手势模式
++            Context context = getContext();
++            if (!isGestureMode(context)) {
++                width_tmp = getNavigationBarHeight(context);
++            }
++        }
++        final int width = keyboard.mOccupiedWidth + getPaddingLeft() + getPaddingRight() - width_tmp;
++        mChangeWidth = width;
+         final int height = keyboard.mOccupiedHeight + getPaddingTop() + getPaddingBottom();
++
+         setMeasuredDimension(width, height);
+     }
+ 
+     @Override
+     protected void onDraw(final Canvas canvas) {
+         super.onDraw(canvas);
++        float scaleX = (float) mChangeWidth / (getKeyboard().mOccupiedWidth + getPaddingLeft() + getPaddingRight());
++        canvas.save();
++        canvas.scale(scaleX, 1.0f);
+         if (canvas.isHardwareAccelerated()) {
+             onDrawKeyboard(canvas);
++            canvas.restore();
+             return;
+         }
+ 
+@@ -252,6 +300,7 @@ public class KeyboardView extends View {
+             onDrawKeyboard(mOffscreenCanvas);
+         }
+         canvas.drawBitmap(mOffscreenBuffer, 0.0f, 0.0f, null);
++        canvas.restore();
+     }
+ 
+     private boolean maybeAllocateOffscreenBuffer() {
