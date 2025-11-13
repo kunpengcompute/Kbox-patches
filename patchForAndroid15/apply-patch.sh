@@ -10,7 +10,7 @@ if [ ! -d "$AOSP_DIR" ];then
     exit 1
 fi
 
-find "$SOURCE_DIR" -type f -name "*.patch" | while read -r patch_file; do
+find "$SOURCE_DIR" -type f -name "*.patch" | sort | while read -r patch_file; do
     subdir=$(dirname "$patch_file")
 
     rel_path="${subdir#$SOURCE_DIR/}"
