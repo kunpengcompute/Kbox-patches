@@ -49,7 +49,7 @@ llvm_version="13.0.1"
 libdrm_version="2.4.111"
 libva_version="2.14.0"
 
-mesa_src="mesa-${mesa_version}.tar.xz"
+mesa_src="mesa-${mesa_version}.zip"
 llvm_src="llvm-${llvm_version}.src.tar.xz"
 libdrm_src="drm-libdrm-${libdrm_version}.zip"
 libva_src="${libva_version}.tar.gz"
