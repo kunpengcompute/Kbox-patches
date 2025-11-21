@@ -174,7 +174,7 @@ index e06a64593..8485b3dc1 100644
      // execv() only returns if an error happened, in which case we
      // panic and never fall through this conditional.
 diff --git a/init/init.cpp b/init/init.cpp
-index 6c8089926..6916d3f38 100644
+index 6c8089926..c6c65f7f7 100644
 --- a/init/init.cpp
 +++ b/init/init.cpp
 @@ -41,6 +41,7 @@
@@ -261,21 +261,21 @@ index 6c8089926..6916d3f38 100644
                      "mode=0755,uid=0,gid=0"));
 +
 +    // /sys/devices/system/cpu cpumock目录挂载
-+    (mount("/data/local/cpu", "/sys/devices/system/cpu", "", MS_BIND, nullptr));
-+    (mount("/lxcfs-proc/meminfo", "/proc/meminfo", "", MS_BIND, nullptr));
-+    (mount("/lxcfs-proc/diskstats", "/proc/diskstats", "", MS_BIND, nullptr));
-+    (mount("/lxcfs-proc/stat", "/proc/stat", "", MS_BIND, nullptr));
-+    (mount("/lxcfs-proc/swaps", "/proc/swaps", "", MS_BIND, nullptr));
-+    (mount("/lxcfs-proc/uptime", "/proc/uptime", "", MS_BIND, nullptr));
++    (mount("/data/local/cpu", "/sys/devices/system/cpu", "", MS_BIND | MS_REC, nullptr));
++    (mount("/lxcfs-proc/meminfo", "/proc/meminfo", "", MS_BIND | MS_REC, nullptr));
++    (mount("/lxcfs-proc/diskstats", "/proc/diskstats", "", MS_BIND | MS_REC, nullptr));
++    (mount("/lxcfs-proc/stat", "/proc/stat", "", MS_BIND | MS_REC, nullptr));
++    (mount("/lxcfs-proc/swaps", "/proc/swaps", "", MS_BIND | MS_REC, nullptr));
++    (mount("/lxcfs-proc/uptime", "/proc/uptime", "", MS_BIND | MS_REC, nullptr));
 +
 +    // cpuinfo修改挂载
 +    (PrepareFile());
-+    (mount(CPUTMP_PATH, CPUINFO_PATH, "", MS_BIND, nullptr));
++    (mount(CPUTMP_PATH, CPUINFO_PATH, "", MS_BIND | MS_REC, nullptr));
 +
  #undef CHECKCALL
  }
  
-@@ -942,10 +998,10 @@ int SecondStageMain(int argc, char** argv) {
+@@ -937,10 +998,10 @@ int SecondStageMain(int argc, char** argv) {
      trigger_shutdown = [](const std::string& command) { shutdown_state.TriggerShutdown(command); };
  
      SetStdioToDevNull(argv);
@@ -288,7 +288,7 @@ index 6c8089926..6916d3f38 100644
  
      // Update $PATH in the case the second stage init is newer than first stage init, where it is
      // first set.
-@@ -997,8 +1053,8 @@ int SecondStageMain(int argc, char** argv) {
+@@ -997,8 +1058,8 @@ int SecondStageMain(int argc, char** argv) {
      MountExtraFilesystems();
  
      // Now set up SELinux for second stage.
