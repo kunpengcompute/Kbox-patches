@@ -250,7 +250,7 @@ index 000000000..46202a9b5
 +	"root_dir" : "/system/vendor/etc/modem_simulator/files/"
 +}
 diff --git a/host/commands/modem_simulator/files/iccprofile_for_sim0.xml b/host/commands/modem_simulator/files/iccprofile_for_sim0.xml
-index 655c37a96..461411c99 100755
+index 655c37a96..b7fe97ff7 100755
 --- a/host/commands/modem_simulator/files/iccprofile_for_sim0.xml
 +++ b/host/commands/modem_simulator/files/iccprofile_for_sim0.xml
 @@ -11,7 +11,7 @@
@@ -267,12 +267,12 @@ index 655c37a96..461411c99 100755
      <ADF name="USIM" path="7FFF" aid="A0000000871002FF86FF0389FFFFFFFF">
          <EF name="EF_IMSI" id="6F07" structure="transparent">
 -            <CIMI>311740123456789</CIMI>
-+            <CIMI>460110123456789</CIMI>
++            <CIMI>460000123456789</CIMI>
          </EF>
          <EF name="EF_MSISDN" id="6F40" structure="linear fixed">
              <SIMIO cmd="C0" p1="0" p2="0" p3="F" data="">144,0,621982054221001C0283026F408A01058B036F0605800200388800</SIMIO>
 -            <SIMIO cmd="B2" p1="1" p2="4" p3="1C" data="">144,0,000000000000000000000000000007915155214365F7FFFFFFFFFFFF</SIMIO>
-+            <SIMIO cmd="B2" p1="1" p2="4" p3="1C" data="">144,0,000000000000000000000000000007915155216365F5FFFFFFFFFFFF</SIMIO>
++            <SIMIO cmd="B2" p1="1" p2="4" p3="1C" data="">144,0,00000000000000000000000000000791515521435656FFFFFFFFFFFF</SIMIO>
          </EF>
          <EF name="EF_MBI" id="6FC9" structure="linear fixed">
              <SIMIO cmd="C0" p1="0" p2="0" p3="F" data="">144,0,62198205422100050183026FC98A01058B036F0602800200058800</SIMIO>
@@ -478,7 +478,7 @@ index 000000000..e420ef69b
 +	user root 
 +	group root
 diff --git a/host/commands/modem_simulator/network_service.cpp b/host/commands/modem_simulator/network_service.cpp
-index 3dc77b5b6..e8b3b4e7b 100644
+index 3dc77b5b6..9b53e616f 100644
 --- a/host/commands/modem_simulator/network_service.cpp
 +++ b/host/commands/modem_simulator/network_service.cpp
 @@ -20,6 +20,7 @@
@@ -568,14 +568,14 @@ index 3dc77b5b6..e8b3b4e7b 100644
 +	property_get("persist.gsm.operator.alphacph", propBuf, NULL);
 +	if (strlen(propBuf) < MIN_ALPHACPH_LENGTH || strlen(propBuf) > MAX_ALPHACPH_LENGTH) {
 +	       LOG(ERROR) << "get_operator_alphacph_prop %s length error" << propBuf;
-+       		std::string alphacph = "CMCC";
++       		std::string alphacph = "China Mobile";
 + 		property_set("persist.gsm.operator.alphacph", alphacph.c_str());
 +		return alphacph;
 +	}
 +
 +	if (!isLetterOrDigits(propBuf)) {
 +		LOG(ERROR) << "get_operator_alphacph_prop %s Character error" << propBuf;	
-+		std::string alphacph="CMCC";         
++		std::string alphacph="China Mobile";         
 +		 property_set("persist.gsm.operator.alphacph", alphacph.c_str());
 +		return alphacph;
 +	}
@@ -659,7 +659,7 @@ index 3dc77b5b6..e8b3b4e7b 100644
  }
  
 diff --git a/host/commands/modem_simulator/sim_service.cpp b/host/commands/modem_simulator/sim_service.cpp
-index 8d3968967..c16f86d52 100644
+index 8d3968967..f2bcc2395 100644
 --- a/host/commands/modem_simulator/sim_service.cpp
 +++ b/host/commands/modem_simulator/sim_service.cpp
 @@ -24,6 +24,7 @@
@@ -826,12 +826,12 @@ index 8d3968967..c16f86d52 100644
 +  property_set("gsm.sim.operator.alpha", propStr.c_str());
 +  if (strlen(propBuf) < MIN_ALPHACPH_LENGTH || strlen(propBuf) > MAX_ALPHACPH_LENGTH) {
 +       LOG(ERROR) << "opearator alphacph %s length error" << propBuf;
-+     property_set("gsm.sim.operator.alpha", "CMCC");
++     property_set("gsm.sim.operator.alpha", "China Mobile");
 +  }
 +
 +  if (!isLetterOrDigits(propBuf)) {
 +	LOG(ERROR) << "operator alphacph %s Character error" << propBuf;
-+      property_set("gsm.sim.operator.alpha", "CMCC");
++      property_set("gsm.sim.operator.alpha", "China Mobile");
 +  }      
 +
    std::vector<std::string> kFileNotFoud = {"+CRSM: 106,130", "OK"};
