@@ -478,7 +478,7 @@ index 000000000..e420ef69b
 +	user root 
 +	group root
 diff --git a/host/commands/modem_simulator/network_service.cpp b/host/commands/modem_simulator/network_service.cpp
-index 3dc77b5b6..9b53e616f 100644
+index 3dc77b5b6..6c882f7b7 100644
 --- a/host/commands/modem_simulator/network_service.cpp
 +++ b/host/commands/modem_simulator/network_service.cpp
 @@ -20,6 +20,7 @@
@@ -525,7 +525,7 @@ index 3dc77b5b6..9b53e616f 100644
 +}
 +
 +static inline bool isLetter(char c) {
-+	return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');
++	return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || (c == ' ');
 +}
 +
 +static inline bool isLetterOrDigit(char c) {
@@ -659,7 +659,7 @@ index 3dc77b5b6..9b53e616f 100644
  }
  
 diff --git a/host/commands/modem_simulator/sim_service.cpp b/host/commands/modem_simulator/sim_service.cpp
-index 8d3968967..f2bcc2395 100644
+index 8d3968967..734b351f6 100644
 --- a/host/commands/modem_simulator/sim_service.cpp
 +++ b/host/commands/modem_simulator/sim_service.cpp
 @@ -24,6 +24,7 @@
@@ -705,7 +705,7 @@ index 8d3968967..f2bcc2395 100644
 +}
 +
 +static inline bool isLetter(char c) {
-+	return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');
++	return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || (c == ' ');
 +}
 +
 +static inline bool isLetterOrDigit(char c) {
