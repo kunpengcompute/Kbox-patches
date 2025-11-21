@@ -1,0 +1,19 @@
+diff --git a/services/core/java/com/android/server/wm/ActivityRecord.java b/services/core/java/com/android/server/wm/ActivityRecord.java
+index 8d0639b1e73b..b4373608004b 100644
+--- a/services/core/java/com/android/server/wm/ActivityRecord.java
++++ b/services/core/java/com/android/server/wm/ActivityRecord.java
+@@ -6460,6 +6460,14 @@ final class ActivityRecord extends WindowToken implements WindowManagerService.A
+             // pause and then resume again later, which will result in a double life-cycle event.
+             rootTask.checkReadyForSleep();
+         }
++        whiteListSettings();
++    }
++
++    // 应用白名单
++    void whiteListSettings () {
++        if (shortComponentName.contains("com.miHoYo.sdk.platform")) {
++            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
++        }
+     }
+ 
+     void activityPaused(boolean timeout) {
