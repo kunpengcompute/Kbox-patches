@@ -131,11 +131,11 @@ function prepare_gpu_driver()
 # 当前目录下有商用二进制压缩包时，使用该压缩包；如不存在该压缩包，跳过该步骤。避免覆盖用户自己编译镜像中的二进制。
 function prepare_kbox_binary()
 {
-    if [ -z $(ls | grep BoostKit-kbox_*.zip) ];then
+    if [ -z $(ls | grep BoostKit-boostcph-kbox_*.zip) ];then
         echo -e -n "\033[1;31m[INFO] kbox binary package is not exist, "
         echo -e "make sure ${DOCKER_IMAGE_IN} contain kbox binary. \033[0m" && return 0
     fi
-    BoostKit_package=$(ls BoostKit-kbox_*.zip)
+    BoostKit_package=$(ls BoostKit-boostcph-kbox_*.zip)
     unzip -o "${BoostKit_package}" -d ${TMP_PACKAGE_DIR} > /dev/null
     binary_packages=$(ls ${TMP_PACKAGE_DIR}/Kbox-*-*-binary.zip)
     unzip -o "${binary_packages}" -d ${TMP_PACKAGE_DIR} > /dev/null

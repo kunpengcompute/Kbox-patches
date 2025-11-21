@@ -75,9 +75,9 @@ function check_package(){
     echo "---------检查ExaGear转码补丁包通过---------"
 
     echo "---------检查Kbox二进制软件包---------"
-    if ! find "$PACKAGE_PATH" -maxdepth 1 -type f -name "BoostKit-kbox_*.zip" | grep -q .
+    if ! find "$PACKAGE_PATH" -maxdepth 1 -type f -name "BoostKit-boostcph-kbox_*.zip" | grep -q .
     then
-        error "检查BoostKit-kbox二进制软件包检查失败, 文件不存在"
+        error "检查BoostKit-boostcph-kbox二进制软件包检查失败, 文件不存在"
     fi
     echo "---------检查Kbox二进制软件包通过----------"
 }
@@ -206,9 +206,9 @@ function product_prebuilt(){
     cd "$PACKAGE_PATH" || error "无法切换到 $PACKAGE_PATH 目录"
 
     # 查找匹配的ZIP文件并确认其存在
-    zip_files=($(ls BoostKit-kbox_*.zip))
+    zip_files=($(ls BoostKit-boostcph-kbox_*.zip))
     if [ ${#zip_files[@]} -eq 0 ]; then
-        error "BoostKit-kbox_*.zip不存在"
+        error "BoostKit-boostcph-kbox_*.zip不存在"
     fi
 
     # 复制文件到 $CURRENT_DIR/dependency 目录
