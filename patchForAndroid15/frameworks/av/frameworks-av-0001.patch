@@ -1,5 +1,58 @@
+diff --git a/media/libstagefright/Android.bp b/media/libstagefright/Android.bp
+index d084f10590..30686eeaf0 100644
+--- a/media/libstagefright/Android.bp
++++ b/media/libstagefright/Android.bp
+@@ -202,6 +202,7 @@ cc_library_shared {
+         "liblog",
+         "libui",
+         "libutils",
++        "libcutils",
+     ],
+ 
+     export_include_dirs: [
+diff --git a/media/libstagefright/SurfaceUtils.cpp b/media/libstagefright/SurfaceUtils.cpp
+index 74432a6c30..337ec51072 100644
+--- a/media/libstagefright/SurfaceUtils.cpp
++++ b/media/libstagefright/SurfaceUtils.cpp
+@@ -22,10 +22,12 @@
+ #include <media/hardware/VideoAPI.h>
+ #include <media/stagefright/SurfaceUtils.h>
+ #include <gui/Surface.h>
++#include <cutils/properties.h>
+ 
+ extern "C" int android_get_application_target_sdk_version();
+ 
+ namespace android {
++char enableSoftDecode[PROPERTY_VALUE_MAX];
+ 
+ status_t setNativeWindowSizeFormatAndUsage(
+         ANativeWindow *nativeWindow /* nonnull */,
+@@ -53,10 +55,19 @@ status_t setNativeWindowSizeFormatAndUsage(
+         return err;
+     }
+ 
+-    err = native_window_set_buffers_format(nativeWindow, format);
+-    if (err != NO_ERROR) {
+-        ALOGE("native_window_set_buffers_format failed: %s (%d)", strerror(-err), -err);
+-        return err;
++    if (property_get("ro.hardware.omxsoftdecode", enableSoftDecode, "0") && strcmp(enableSoftDecode, "1") != 0) {
++        // 未配置ro.hardware.omxsoftdecode属性，或者值为0时走va硬解
++        err = native_window_set_buffers_format(nativeWindow, HAL_PIXEL_FORMAT_YCBCR_420_888);
++        if (err != NO_ERROR) {
++            ALOGE("native_window_set_buffers_format failed: %s (%d)", strerror(-err), -err);
++            return err;
++        }
++    } else {
++        err = native_window_set_buffers_format(nativeWindow, format);
++        if (err != NO_ERROR) {
++            ALOGE("native_window_set_buffers_format failed: %s (%d)", strerror(-err), -err);
++            return err;
++        }
+     }
+ 
+     int transform = 0;
 diff --git a/media/libstagefright/colorconversion/SoftwareRenderer.cpp b/media/libstagefright/colorconversion/SoftwareRenderer.cpp
-
+index 240931591d..bb015b751c 100644
 --- a/media/libstagefright/colorconversion/SoftwareRenderer.cpp
 +++ b/media/libstagefright/colorconversion/SoftwareRenderer.cpp
 @@ -130,6 +130,7 @@ void SoftwareRenderer::resetFormatIfChanged(
@@ -35,7 +88,7 @@ diff --git a/media/libstagefright/colorconversion/SoftwareRenderer.cpp b/media/l
              {
                  break;
 diff --git a/media/libstagefright/omx/Android.bp b/media/libstagefright/omx/Android.bp
-
+index 630817c7e6..23d1b1aa86 100644
 --- a/media/libstagefright/omx/Android.bp
 +++ b/media/libstagefright/omx/Android.bp
 @@ -183,7 +183,6 @@ cc_defaults {
@@ -47,10 +100,35 @@ diff --git a/media/libstagefright/omx/Android.bp b/media/libstagefright/omx/Andr
  
      cflags: [
 diff --git a/media/libstagefright/omx/OMXStore.cpp b/media/libstagefright/omx/OMXStore.cpp
-
+index b2d5a70ffa..d00536623d 100644
 --- a/media/libstagefright/omx/OMXStore.cpp
 +++ b/media/libstagefright/omx/OMXStore.cpp
-@@ -161,7 +161,6 @@ void OMXStore::addPlugin(OMXPluginBase *plugin) {
+@@ -29,6 +29,7 @@
+ #include <fcntl.h>
+ 
+ #include <sstream>
++#include <cutils/properties.h>
+ 
+ namespace android {
+ 
+@@ -60,9 +61,14 @@ OMXStore::OMXStore() {
+ OMXStore::~OMXStore() {
+     clearPlugins();
+ }
+-
++char enableSoftDecode[PROPERTY_VALUE_MAX];
+ void OMXStore::addVendorPlugin() {
+-    addPlugin("libstagefrighthw.so");
++    if (property_get("ro.hardware.omxsoftdecode", enableSoftDecode, "0") && strcmp(enableSoftDecode, "1") != 0) {
++        // 未配置ro.hardware.omxsoftdecode属性，或者值为0时走va硬解
++        addPlugin("libstagefrighthw_va.so");
++    } else {
++        addPlugin("libstagefrighthw.so");
++    }
+ }
+ 
+ void OMXStore::addPlatformPlugin() {
+@@ -161,7 +167,6 @@ void OMXStore::addPlugin(OMXPluginBase *plugin) {
                  }
              }
              if (skip) {
@@ -59,7 +137,7 @@ diff --git a/media/libstagefright/omx/OMXStore.cpp b/media/libstagefright/omx/OM
          }
  
 diff --git a/services/mediacodec/Android.bp b/services/mediacodec/Android.bp
-
+index 506b3bca67..a2f17c22b9 100644
 --- a/services/mediacodec/Android.bp
 +++ b/services/mediacodec/Android.bp
 @@ -95,6 +95,31 @@ cc_binary {
@@ -93,5 +171,4 @@ diff --git a/services/mediacodec/Android.bp b/services/mediacodec/Android.bp
 +
      // OMX interfaces force this to stay in 32-bit mode;
      compile_multilib: "32",
- 
  
