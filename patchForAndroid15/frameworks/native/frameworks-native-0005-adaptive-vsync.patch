@@ -1,3 +1,74 @@
+diff --git a/libs/gui/BLASTBufferQueue.cpp b/libs/gui/BLASTBufferQueue.cpp
+index 25e6a52ed1..c850c9439c 100644
+--- a/libs/gui/BLASTBufferQueue.cpp
++++ b/libs/gui/BLASTBufferQueue.cpp
+@@ -677,6 +677,7 @@ status_t BLASTBufferQueue::acquireNextBufferLocked(
+     if (!bufferItem.mIsAutoTimestamp) {
+         t->setDesiredPresentTime(bufferItem.mTimestamp);
+     }
++    t->addQueueBufferCount();
+ 
+     // Drop stale frame timeline infos
+     while (!mPendingFrameTimelines.empty() &&
+diff --git a/libs/gui/SurfaceComposerClient.cpp b/libs/gui/SurfaceComposerClient.cpp
+index df58df43be..ca71caa357 100644
+--- a/libs/gui/SurfaceComposerClient.cpp
++++ b/libs/gui/SurfaceComposerClient.cpp
+@@ -1342,6 +1342,9 @@ status_t SurfaceComposerClient::Transaction::apply(bool synchronous, bool oneWay
+     if (mEarlyWakeupEnd && !mEarlyWakeupStart) {
+         flags |= ISurfaceComposer::eEarlyWakeupEnd;
+     }
++    if (mQueueBufferCount > 0) {
++        flags |= ISurfaceComposer::eQueueBuffer;
++    }
+ 
+     sp<IBinder> applyToken = mApplyToken ? mApplyToken : getDefaultApplyToken();
+ 
+@@ -1778,6 +1781,10 @@ SurfaceComposerClient::Transaction::setTransformToDisplayInverse(const sp<Surfac
+     return *this;
+ }
+ 
++void SurfaceComposerClient::Transaction::addQueueBufferCount() {
++    mQueueBufferCount++;
++}
++
+ std::shared_ptr<BufferData> SurfaceComposerClient::Transaction::getAndClearBuffer(
+         const sp<SurfaceControl>& sc) {
+     layer_state_t* s = getLayerState(sc);
+diff --git a/libs/gui/include/gui/ISurfaceComposer.h b/libs/gui/include/gui/ISurfaceComposer.h
+index 9a422fd808..2eb952999d 100644
+--- a/libs/gui/include/gui/ISurfaceComposer.h
++++ b/libs/gui/include/gui/ISurfaceComposer.h
+@@ -101,7 +101,8 @@ public:
+         // android.permission.WAKEUP_SURFACE_FLINGER
+         eEarlyWakeupStart = 0x08,
+         eEarlyWakeupEnd = 0x10,
+-        eOneWay = 0x20
++        eOneWay = 0x20,
++        eQueueBuffer = 0x100
+     };
+ 
+     /* open/close transactions. requires ACCESS_SURFACE_FLINGER permission */
+diff --git a/libs/gui/include/gui/SurfaceComposerClient.h b/libs/gui/include/gui/SurfaceComposerClient.h
+index 4f9af16826..86a7d4eec2 100644
+--- a/libs/gui/include/gui/SurfaceComposerClient.h
++++ b/libs/gui/include/gui/SurfaceComposerClient.h
+@@ -486,6 +486,7 @@ public:
+ 
+         InputWindowCommands mInputWindowCommands;
+         int mStatus = NO_ERROR;
++        uint32_t mQueueBufferCount = 0;
+ 
+         layer_state_t* getLayerState(const sp<SurfaceControl>& sc);
+         DisplayState& getDisplayState(const sp<IBinder>& token);
+@@ -575,6 +576,7 @@ public:
+                                uint32_t producerId = 0, ReleaseBufferCallback callback = nullptr,
+                                nsecs_t dequeueTime = -1);
+         Transaction& unsetBuffer(const sp<SurfaceControl>& sc);
++        void addQueueBufferCount();
+         std::shared_ptr<BufferData> getAndClearBuffer(const sp<SurfaceControl>& sc);
+ 
+         /**
 diff --git a/services/surfaceflinger/Layer.cpp b/services/surfaceflinger/Layer.cpp
 index dcb0812b67..2179f1ec8b 100644
 --- a/services/surfaceflinger/Layer.cpp
@@ -116,7 +187,7 @@ index ba1efbe58f..bc6827cf4f 100644
      void onNewVsyncSchedule(std::shared_ptr<scheduler::VSyncDispatch>) EXCLUDES(mVsync.mutex);
  
 diff --git a/services/surfaceflinger/Scheduler/Scheduler.cpp b/services/surfaceflinger/Scheduler/Scheduler.cpp
-index 5e131548aa..fc1a7139ea 100644
+index 5e131548aa..646ae8b410 100644
 --- a/services/surfaceflinger/Scheduler/Scheduler.cpp
 +++ b/services/surfaceflinger/Scheduler/Scheduler.cpp
 @@ -58,7 +58,72 @@
@@ -219,25 +290,23 @@ index 5e131548aa..fc1a7139ea 100644
      // MessageQueue depends on VsyncSchedule, so first destroy it.
      // Otherwise, MessageQueue will get destroyed after Scheduler's dtor,
      // which will cause a use-after-free issue.
-@@ -509,6 +590,36 @@ void Scheduler::setVsyncConfig(const VsyncConfig& config, Period vsyncPeriod) {
+@@ -509,6 +590,34 @@ void Scheduler::setVsyncConfig(const VsyncConfig& config, Period vsyncPeriod) {
      setDuration(config.sfWorkDuration);
  }
  
 +void Scheduler::schedulerTriggerVsync(nsecs_t vsyncTime) {
-+    if (isEnableAdaptiveVsync() && renderAccProc && data) {
++    if (isEnableAdaptiveVsync() && renderAccProc && renderAccQueueBuffer && data) {
++        renderAccQueueBuffer(data);
 +        renderAccProc(data, Scheduler::CallOnVsync, static_cast<void *>(this), vsyncTime);
 +    }
 +}
 +
 +void Scheduler::schedulerSetAdaptiveVysncFlag(bool flag) {
-+    if (isEnableAdaptiveVsync() && renderAccQueueBuffer && data) {
-+        renderAccQueueBuffer(data);
-+    }
-+
 +    setAdaptiveVysncFlag(flag);
 +}
 +
 +void Scheduler::notifyAppVsync(const char* const name) {
++    setAdaptiveVysncFlag(false);
 +    if (adaptiveVsyncFlag && strcmp(name, "app") == 0 && renderAccJudge && data) {
 +        nsecs_t now = systemTime(SYSTEM_TIME_MONOTONIC);
 +        renderAccJudge(data, now);
@@ -310,7 +379,7 @@ index ab622e93bd..9eeb1bd15f 100644
  
  } // namespace scheduler
 diff --git a/services/surfaceflinger/SurfaceFlinger.cpp b/services/surfaceflinger/SurfaceFlinger.cpp
-index a9b61a9f14..2957f88d35 100644
+index a9b61a9f14..a64ae5176a 100644
 --- a/services/surfaceflinger/SurfaceFlinger.cpp
 +++ b/services/surfaceflinger/SurfaceFlinger.cpp
 @@ -533,6 +533,9 @@ SurfaceFlinger::SurfaceFlinger(Factory& factory) : SurfaceFlinger(factory, SkipI
@@ -323,18 +392,62 @@ index a9b61a9f14..2957f88d35 100644
  }
  
  LatchUnsignaledConfig SurfaceFlinger::getLatchUnsignaledConfig() {
-@@ -4826,10 +4829,31 @@ status_t SurfaceFlinger::setTransactionState(
+@@ -4487,6 +4490,10 @@ TransactionHandler::TransactionReadiness SurfaceFlinger::transactionReadyTimelin
+         return TransactionReadiness::NotReady;
+     }
+ 
++    if (transaction.isTriggerAdaptiveVsync) {
++        return TransactionReadiness::Ready;
++    }
++
+     // If the client didn't specify desiredPresentTime, use the vsyncId to determine the
+     // expected present time of this transaction.
+     if (transaction.isAutoTimestamp && frameIsEarly(expectedPresentTime, vsyncId)) {
+@@ -4509,6 +4516,10 @@ TransactionHandler::TransactionReadiness SurfaceFlinger::transactionReadyBufferC
+                         mLayerLifecycleManager.getLayerFromId(resolvedState.layerId);
+                 const auto& transaction = *flushState.transaction;
+                 const auto& s = resolvedState.state;
++
++                if (transaction.isTriggerAdaptiveVsync) {
++                    return TraverseBuffersReturnValues::CONTINUE_TRAVERSAL;
++                }
+                 // check for barrier frames
+                 if (s.bufferData->hasBarrier) {
+                     // The current producerId is already a newer producer than the buffer that has a
+@@ -4711,6 +4722,13 @@ status_t SurfaceFlinger::setTransactionState(
+         const std::vector<uint64_t>& mergedTransactionIds) {
+     SFTRACE_CALL();
+ 
++    bool isQueueBuffer = false;
++    if (flags & eQueueBuffer) {
++        isQueueBuffer = true;
++        flags &= ~eQueueBuffer;
++    }
++    bool isTriggerAdaptiveVsync = isEnableAdaptiveVsync() && isQueueBuffer;
++
+     IPCThreadState* ipc = IPCThreadState::self();
+     const int originPid = ipc->getCallingPid();
+     const int originUid = ipc->getCallingUid();
+@@ -4801,7 +4819,8 @@ status_t SurfaceFlinger::setTransactionState(
+                            originPid,
+                            originUid,
+                            transactionId,
+-                           mergedTransactionIds};
++                           mergedTransactionIds,
++                           isTriggerAdaptiveVsync};
+ 
+     if (mTransactionTracing) {
+         mTransactionTracing->addQueuedTransaction(state);
+@@ -4826,10 +4845,29 @@ status_t SurfaceFlinger::setTransactionState(
              scheduleNotifyExpectedPresentHint(displayId, VsyncId{frameTimelineInfo.vsyncId});
          }
      }
-+    bool isEnableAdaptiveVsyncFlag = isEnableAdaptiveVsync();
-+    mScheduler->schedulerSetAdaptiveVysncFlag(isEnableAdaptiveVsyncFlag);
++    mScheduler->schedulerSetAdaptiveVysncFlag(isTriggerAdaptiveVsync);
 +
      setTransactionFlags(eTransactionFlushNeeded, schedule, applyToken, frameHint);
 +
-+    if (isEnableAdaptiveVsyncFlag) {
++    if (isTriggerAdaptiveVsync) {
 +        nsecs_t now = systemTime();
-+        scheduleComposite(FrameHint::kNone);
 +        mScheduler->schedulerTriggerVsync(now);
 +    }
      return NO_ERROR;
@@ -383,3 +496,34 @@ index 3eb72cc4c0..f7c71e3b7c 100644
  };
  
  class SurfaceComposerAIDL : public gui::BnSurfaceComposer {
+diff --git a/services/surfaceflinger/TransactionState.h b/services/surfaceflinger/TransactionState.h
+index e5d648194f..77baedf787 100644
+--- a/services/surfaceflinger/TransactionState.h
++++ b/services/surfaceflinger/TransactionState.h
+@@ -58,7 +58,7 @@ struct TransactionState {
+                      std::vector<uint64_t> uncacheBufferIds, int64_t postTime,
+                      bool hasListenerCallbacks, std::vector<ListenerCallbacks> listenerCallbacks,
+                      int originPid, int originUid, uint64_t transactionId,
+-                     std::vector<uint64_t> mergedTransactionIds)
++                     std::vector<uint64_t> mergedTransactionIds, bool isTriggerAdaptiveVsync)
+           : frameTimelineInfo(frameTimelineInfo),
+             states(std::move(composerStates)),
+             displays(displayStates),
+@@ -74,7 +74,8 @@ struct TransactionState {
+             originPid(originPid),
+             originUid(originUid),
+             id(transactionId),
+-            mergedTransactionIds(std::move(mergedTransactionIds)) {}
++            mergedTransactionIds(std::move(mergedTransactionIds)),
++            isTriggerAdaptiveVsync(isTriggerAdaptiveVsync) {}
+ 
+     // Invokes `void(const layer_state_t&)` visitor for matching layers.
+     template <typename Visitor>
+@@ -148,6 +149,7 @@ struct TransactionState {
+     uint64_t id;
+     bool sentFenceTimeoutWarning = false;
+     std::vector<uint64_t> mergedTransactionIds;
++    bool isTriggerAdaptiveVsync = false;
+ };
+ 
+ } // namespace android
