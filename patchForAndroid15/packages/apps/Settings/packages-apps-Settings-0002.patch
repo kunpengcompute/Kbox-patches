@@ -1,0 +1,72 @@
+diff --git a/res/xml/accessibility_audio_adjustment.xml b/res/xml/accessibility_audio_adjustment.xml
+index 92e6d8d..e793495 100644
+--- a/res/xml/accessibility_audio_adjustment.xml
++++ b/res/xml/accessibility_audio_adjustment.xml
+@@ -21,13 +21,13 @@
+     android:persistent="false"
+     android:title="@string/accessibility_audio_adjustment_title">
+
+-    <SwitchPreferenceCompat
++<!--<SwitchPreferenceCompat
+         android:key="toggle_primary_mono"
+         android:persistent="false"
+         android:summary="@string/accessibility_toggle_primary_mono_summary"
+         android:title="@string/accessibility_toggle_primary_mono_title"
+         settings:controller="com.android.settings.accessibility.PrimaryMonoPreferenceController"/>
+-
++-->
+     <com.android.settings.accessibility.BalanceSeekBarPreference
+         android:key="seekbar_primary_balance"
+         android:persistent="false"
+diff --git a/res/xml/accessibility_shortcuts_settings.xml b/res/xml/accessibility_shortcuts_settings.xml
+index c807056..b8caa93 100644
+--- a/res/xml/accessibility_shortcuts_settings.xml
++++ b/res/xml/accessibility_shortcuts_settings.xml
+@@ -28,10 +28,10 @@
+         android:summary="@string/accessibility_button_summary"
+         settings:controller="com.android.settings.accessibility.AccessibilityButtonPreferenceController"/>
+
+-    <SwitchPreferenceCompat
++    <!--<SwitchPreferenceCompat
+         android:key="accessibility_shortcut_preference"
+         android:persistent="false"
+         android:title="@string/accessibility_shortcut_service_on_lock_screen_title"
+         android:summary="@string/accessibility_shortcut_description"
+-        settings:controller="com.android.settings.accessibility.AccessibilityShortcutPreferenceController"/>
++    settings:controller="com.android.settings.accessibility.AccessibilityShortcutPreferenceController"/>-->
+ </PreferenceScreen>
+diff --git a/src/com/android/settings/network/TopLevelNetworkEntryPreferenceController.kt b/src/com/android/settings/network/TopLevelNetworkEntryPreferenceController.kt
+index 11698a6..8511186 100644
+--- a/src/com/android/settings/network/TopLevelNetworkEntryPreferenceController.kt
++++ b/src/com/android/settings/network/TopLevelNetworkEntryPreferenceController.kt
+@@ -42,7 +42,7 @@ constructor(
+         return if (isDemoUser() && !isEmbeddingActivityEnabled()) {
+             UNSUPPORTED_ON_DEVICE
+         } else {
+-            AVAILABLE
++            UNSUPPORTED_ON_DEVICE
+         }
+     }
+
+diff --git a/res/values/config.xml b/res/values/config.xml
+index 065d28a..862eaed 100644
+--- a/res/values/config.xml
++++ b/res/values/config.xml
+@@ -502,7 +502,7 @@
+     <bool name="config_use_compact_battery_status">false</bool>
+
+     <!-- Whether top_level_connected_devices should be shown or not. -->
+-    <bool name="config_show_top_level_connected_devices">true</bool>
++    <bool name="config_show_top_level_connected_devices">false</bool>
+
+     <!-- Whether top_level_display should be shown or not. -->
+     <bool name="config_show_top_level_display">true</bool>
+@@ -571,7 +571,7 @@
+     <bool name="config_show_smooth_display">false</bool>
+
+     <!-- Whether to show emergency settings in top-level Settings -->
+-    <bool name="config_show_emergency_settings">true</bool>
++    <bool name="config_show_emergency_settings">false</bool>
+
+     <!-- Whether to show emergency gesture in Settings -->
+     <bool name="config_show_emergency_gesture_settings">true</bool>
