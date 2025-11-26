@@ -664,10 +664,11 @@ function start_box() {
         yes | mkfs -t ext4 $KBOX_IMG
     fi
     KBOX_DATA_PATH="${USER_DATA_PATH}/data/$BOX_NAME"
-    mkdir -p $KBOX_DATA_PATH
-    mount $KBOX_IMG $KBOX_DATA_PATH
-    echo $(($STORAGE_SIZE_GB * 2 * 1024 * 1024)) >$KBOX_DATA_PATH/storage_size
-
+    if [ ! -d "${KBOX_DATA_PATH}" ]; then
+        mkdir -p $KBOX_DATA_PATH
+        mount $KBOX_IMG $KBOX_DATA_PATH
+        echo $(($STORAGE_SIZE_GB * 2 * 1024 * 1024)) >$KBOX_DATA_PATH/storage_size
+    fi
     ########################## 4.容器启动 ##########################
     local RUN_OPTION=""
     if [ $DEFAULT_RUNTIME == "docker" ]; then

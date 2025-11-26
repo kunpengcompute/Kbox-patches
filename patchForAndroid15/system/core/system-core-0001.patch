@@ -174,7 +174,7 @@ index e06a64593..8485b3dc1 100644
      // execv() only returns if an error happened, in which case we
      // panic and never fall through this conditional.
 diff --git a/init/init.cpp b/init/init.cpp
-index 6c8089926..c6c65f7f7 100644
+index 6c8089926..5404733b8 100644
 --- a/init/init.cpp
 +++ b/init/init.cpp
 @@ -41,6 +41,7 @@
@@ -255,27 +255,19 @@ index 6c8089926..c6c65f7f7 100644
  static void MountExtraFilesystems() {
  #define CHECKCALL(x) \
      if ((x) != 0) PLOG(FATAL) << #x " failed.";
-@@ -849,6 +897,19 @@ static void MountExtraFilesystems() {
+@@ -849,6 +897,11 @@ static void MountExtraFilesystems() {
      // /linkerconfig is used to keep generated linker configuration
      CHECKCALL(mount("tmpfs", "/linkerconfig", "tmpfs", MS_NOEXEC | MS_NOSUID | MS_NODEV,
                      "mode=0755,uid=0,gid=0"));
 +
 +    // /sys/devices/system/cpu cpumock目录挂载
-+    (mount("/data/local/cpu", "/sys/devices/system/cpu", "", MS_BIND | MS_REC, nullptr));
-+    (mount("/lxcfs-proc/meminfo", "/proc/meminfo", "", MS_BIND | MS_REC, nullptr));
-+    (mount("/lxcfs-proc/diskstats", "/proc/diskstats", "", MS_BIND | MS_REC, nullptr));
-+    (mount("/lxcfs-proc/stat", "/proc/stat", "", MS_BIND | MS_REC, nullptr));
-+    (mount("/lxcfs-proc/swaps", "/proc/swaps", "", MS_BIND | MS_REC, nullptr));
-+    (mount("/lxcfs-proc/uptime", "/proc/uptime", "", MS_BIND | MS_REC, nullptr));
-+
 +    // cpuinfo修改挂载
 +    (PrepareFile());
-+    (mount(CPUTMP_PATH, CPUINFO_PATH, "", MS_BIND | MS_REC, nullptr));
 +
  #undef CHECKCALL
  }
  
-@@ -937,10 +998,10 @@ int SecondStageMain(int argc, char** argv) {
+@@ -937,10 +990,10 @@ int SecondStageMain(int argc, char** argv) {
      trigger_shutdown = [](const std::string& command) { shutdown_state.TriggerShutdown(command); };
  
      SetStdioToDevNull(argv);
@@ -288,7 +280,7 @@ index 6c8089926..c6c65f7f7 100644
  
      // Update $PATH in the case the second stage init is newer than first stage init, where it is
      // first set.
-@@ -997,8 +1058,8 @@ int SecondStageMain(int argc, char** argv) {
+@@ -997,8 +1050,8 @@ int SecondStageMain(int argc, char** argv) {
      MountExtraFilesystems();
  
      // Now set up SELinux for second stage.
@@ -719,7 +711,7 @@ index 55bbe46e1..b7288c227 100644
  
  /*
 diff --git a/rootdir/init.rc b/rootdir/init.rc
-index 1acd63774..48b261e28 100644
+index 1acd63774..22bcd0a42 100644
 --- a/rootdir/init.rc
 +++ b/rootdir/init.rc
 @@ -265,10 +265,10 @@ on init
@@ -752,6 +744,19 @@ index 1acd63774..48b261e28 100644
  
      # Set fscklog permission
      chown root system /dev/fscklogs/log
+@@ -1269,6 +1268,12 @@ on property:sys.boot_completed=1
+     # Setup per_boot directory so other .rc could start to use it on boot_completed
+     exec - system system -- /bin/rm -rf /data/per_boot
+     mkdir /data/per_boot 0700 system system encryption=Require key=per_boot_ref
++    mount none /data/local/cpu /sys/devices/system/cpu bind rec
++    mount none /system/cpuinfo_tmp /proc/cpuinfo bind rec
++    mount none /lxcfs-proc/meminfo /proc/meminfo bind rec
++    mount none /lxcfs-proc/stat /proc/stat bind rec
++    mount none /lxcfs-proc/swaps /proc/swaps bind rec
++    mount none /lxcfs-proc/uptime /proc/uptime bind rec
+ 
+ # system server cannot write to /proc/sys files,
+ # and chown/chmod does not work for /proc/sys/ entries.
 diff --git a/rootdir/init.usb.rc b/rootdir/init.usb.rc
 index b30d6d02c..4dd943149 100644
 --- a/rootdir/init.usb.rc
