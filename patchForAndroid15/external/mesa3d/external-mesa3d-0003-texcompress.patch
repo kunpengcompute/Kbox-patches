@@ -635,7 +635,7 @@ index 5840a87f07b..f80ba8c64c1 100644
                                       VkImageCreateFlags flags, bool *sign_reinterpret);
  
 diff --git a/src/amd/vulkan/radv_image_view.c b/src/amd/vulkan/radv_image_view.c
-index 5b1b4349ab0..8b6b5f94a10 100644
+index 5b1b4349ab0..53ba9b483f3 100644
 --- a/src/amd/vulkan/radv_image_view.c
 +++ b/src/amd/vulkan/radv_image_view.c
 @@ -533,6 +533,10 @@ radv_image_view_init(struct radv_image_view *iview, struct radv_device *device,
@@ -649,31 +649,22 @@ index 5b1b4349ab0..8b6b5f94a10 100644
     /* when the view format is emulated, redirect the view to the hidden plane 1 */
     if (radv_is_format_emulated(pdev, iview->vk.format)) {
        assert(radv_is_format_emulated(pdev, image->vk.format));
-@@ -662,10 +666,24 @@ radv_CreateImageView(VkDevice _device, const VkImageViewCreateInfo *pCreateInfo,
+@@ -662,7 +666,15 @@ radv_CreateImageView(VkDevice _device, const VkImageViewCreateInfo *pCreateInfo,
     if (view == NULL)
        return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
  
 -   radv_image_view_init(view, device, pCreateInfo, &(struct radv_image_view_extra_create_info){.from_client = true});
 +   // 纹理为 RGB 纹理时，需要修改 view 的 format
-+   VkImageViewCreateInfo *pCreateInfoTemp;
-+   pCreateInfoTemp =
-+      vk_alloc2(&device->vk.alloc, pAllocator, sizeof(*pCreateInfo), 8, VK_SYSTEM_ALLOCATION_SCOPE_OBJECT);
-+   if (pCreateInfoTemp == NULL)
-+      return vk_error(device, VK_ERROR_OUT_OF_HOST_MEMORY);
++   VkImageViewCreateInfo pCreateInfoTemp;
 +
-+   memcpy(pCreateInfoTemp, pCreateInfo, sizeof(VkImageViewCreateInfo));
-+   VK_FROM_HANDLE(radv_image, image, pCreateInfoTemp->image);
++   memcpy(&pCreateInfoTemp, pCreateInfo, sizeof(VkImageViewCreateInfo));
++   VK_FROM_HANDLE(radv_image, image, pCreateInfoTemp.image);
 +   if (image->isNeedSoftEncode) {
-+      pCreateInfoTemp->format = image->vk.format;
++      pCreateInfoTemp.format = image->vk.format;
 +   }
-+   radv_image_view_init(view, device, pCreateInfoTemp, &(struct radv_image_view_extra_create_info){.from_client = true});
++   radv_image_view_init(view, device, &pCreateInfoTemp, &(struct radv_image_view_extra_create_info){.from_client = true});
  
     *pView = radv_image_view_to_handle(view);
- 
-+   vk_free2(&device->vk.alloc, pAllocator, pCreateInfoTemp);
-+
-    return VK_SUCCESS;
- }
  
 diff --git a/src/mesa/state_tracker/st_context.c b/src/mesa/state_tracker/st_context.c
 index 54b501979df..5f9810959b0 100644
