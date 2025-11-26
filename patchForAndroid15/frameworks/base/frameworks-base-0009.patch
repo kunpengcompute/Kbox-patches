@@ -1,0 +1,99 @@
+diff --git a/packages/SystemUI/res/values/config.xml b/packages/SystemUI/res/values/config.xml
+index 78b2aef..d640284 100644
+--- a/packages/SystemUI/res/values/config.xml
++++ b/packages/SystemUI/res/values/config.xml
+@@ -90,22 +90,16 @@
+     <!-- The number of columns that the top level tiles span in the QuickSettings -->
+
+     <!-- The default tiles to display in QuickSettings -->
+-    <string name="quick_settings_tiles_default" translatable="false">
+-        internet,bt,flashlight,dnd,alarm,airplane,controls,wallet,rotation,battery,cast,screenrecord,mictoggle,cameratoggle,custom(com.android.permissioncontroller/.permission.service.v33.SafetyCenterQsTileService)
+-    </string>
++    <string name="quick_settings_tiles_default" translatable="false"></string>
+
+     <!-- The class path of the Safety Quick Settings Tile -->
+-    <string name="safety_quick_settings_tile_class" translatable="false">
+-        com.android.permissioncontroller.permission.service.v33.SafetyCenterQsTileService
+-    </string>
++    <string name="safety_quick_settings_tile_class" translatable="false"></string>
+
+     <!-- The minimum number of tiles to display in QuickSettings -->
+-    <integer name="quick_settings_min_num_tiles">6</integer>
++    <integer name="quick_settings_min_num_tiles">0</integer>
+
+     <!-- Tiles native to System UI. Order should match "quick_settings_tiles_default" -->
+-    <string name="quick_settings_tiles_stock" translatable="false">
+-        internet,bt,flashlight,dnd,alarm,airplane,controls,wallet,rotation,battery,cast,screenrecord,mictoggle,cameratoggle,location,hotspot,inversion,saver,dark,work,night,reverse,reduce_brightness,qr_code_scanner,onehanded,color_correction,dream,font_scaling,record_issue,hearing_devices
+-    </string>
++    <string name="quick_settings_tiles_stock" translatable="false"></string>
+
+     <!-- The tiles to display in QuickSettings -->
+     <string name="quick_settings_tiles" translatable="false">default</string>
+diff --git a/services/core/java/com/android/server/power/PowerManagerService.java b/services/core/java/com/android/server/power/PowerManagerService.java
+index 71cb882..8698d68 100644
+--- a/services/core/java/com/android/server/power/PowerManagerService.java
++++ b/services/core/java/com/android/server/power/PowerManagerService.java
+@@ -3046,26 +3046,30 @@ public final class PowerManagerService extends SystemService
+                     groupUserActivitySummary = USER_ACTIVITY_SCREEN_DREAM;
+                     groupNextTimeout = -1;
+                 }
++               if (mScreenOffTimeoutSetting == -1) {
++                   groupNextTimeout = -1;
++                   groupUserActivitySummary |= USER_ACTIVITY_SCREEN_BRIGHT;
++               } else {
++                    if ((groupUserActivitySummary & USER_ACTIVITY_SCREEN_BRIGHT) != 0
++                            && (powerGroup.getWakeLockSummaryLocked()
++                            & WAKE_LOCK_STAY_AWAKE) == 0) {
++                        groupNextTimeout = mAttentionDetector.updateUserActivity(groupNextTimeout,
++                                screenDimDuration);
++                    }
+
+-                if ((groupUserActivitySummary & USER_ACTIVITY_SCREEN_BRIGHT) != 0
+-                        && (powerGroup.getWakeLockSummaryLocked()
+-                        & WAKE_LOCK_STAY_AWAKE) == 0) {
+-                    groupNextTimeout = mAttentionDetector.updateUserActivity(groupNextTimeout,
+-                            screenDimDuration);
+-                }
+-
+-                if (isAttentiveTimeoutExpired(powerGroup, now)) {
+-                    groupUserActivitySummary = 0;
+-                    groupNextTimeout = -1;
+-                }
++                    if (isAttentiveTimeoutExpired(powerGroup, now)) {
++                        groupUserActivitySummary = 0;
++                        groupNextTimeout = -1;
++                    }
+
+-                hasUserActivitySummary |= groupUserActivitySummary != 0;
++                    hasUserActivitySummary |= groupUserActivitySummary != 0;
+
+-                if (nextTimeout == -1) {
+-                    nextTimeout = groupNextTimeout;
+-                } else if (groupNextTimeout != -1) {
+-                    nextTimeout = Math.min(nextTimeout, groupNextTimeout);
+-                }
++                    if (nextTimeout == -1) {
++                        nextTimeout = groupNextTimeout;
++                    } else if (groupNextTimeout != -1) {
++                        nextTimeout = Math.min(nextTimeout, groupNextTimeout);
++                    }
++               }
+             }
+
+             powerGroup.setUserActivitySummaryLocked(groupUserActivitySummary);
+diff --git a/packages/SystemUI/compose/features/src/com/android/systemui/qs/footer/ui/compose/FooterActions.kt b/packages/SystemUI/compose/features/src/com/android/systemui/qs/footer/ui/compose/FooterActions.kt
+index e8da4bd..0e9ef11 100644
+--- a/packages/SystemUI/compose/features/src/com/android/systemui/qs/footer/ui/compose/FooterActions.kt
++++ b/packages/SystemUI/compose/features/src/com/android/systemui/qs/footer/ui/compose/FooterActions.kt
+@@ -222,7 +222,10 @@ fun FooterActions(
+             foregroundServices?.let { ForegroundServicesButton(it) }
+             userSwitcher?.let { IconButton(it, Modifier.sysuiResTag("multi_user_switch")) }
+             IconButton(viewModel.settings, Modifier.sysuiResTag("settings_button_container"))
+-            viewModel.power?.let { IconButton(it, Modifier.sysuiResTag("pm_lite")) }
++           val hidePower = true
++            if (!hidePower) {
++                viewModel.power?.let { IconButton(it, Modifier.sysuiResTag("pm_lite")) }
++            }
+         }
+     }
+ }
