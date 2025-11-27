@@ -754,6 +754,7 @@ function start_box() {
             RUN_OPTION+=" --device=/dev/va_video${RENDER_IDX}:/dev/va_video${RENDER_IDX}:rwm "
             RUN_OPTION+=" --device=/dev/vacc${RENDER_IDX}:/dev/vacc${RENDER_IDX}:rwm "
         done
+        echo "ro.va.video.codec=c2" >> $THISDIR/build.prop
     else
         for (( i=0; i<${#GPUS_RENDER[@]};i++ )); do
             RUN_OPTION+=" --device=${GPUS_RENDER[$i]}:/dev/dri/renderD$((128 + $i)):rwm "
@@ -802,18 +803,6 @@ function start_box() {
     if [ -e "$CURRENT_DIR/local.prop" ]; then
         $RUNTIME_CMD cp $CURRENT_DIR/local.prop ${BOX_NAME}:/data
         $RUNTIME_CMD exec ${BOX_NAME} chmod 400 /data/local.prop
-    fi
-
-    # VA GPU需要配置相关属性、修改设备的权限, 否则会导致容器无法启动, 当前VA GPU仅支持一张卡，故使用 GPUS_RENDER[0]
-    if [ -n "$(lspci -n | grep ${VA_SGPU100_ID} | awk '{print $3}')" ]; then
-        $RUNTIME_CMD cp ${BOX_NAME}:/system/vendor/build.prop build.prop_${BOX_NAME}
-        if [ $ENABLE_HARD_DECODE -eq 1 ];then
-            sed -i "s/ro.hardware.omxsoftdecode=1/ro.hardware.omxsoftdecode=0/g" build.prop_${BOX_NAME}
-        else
-            sed -i "s/ro.hardware.omxsoftdecode=0/ro.hardware.omxsoftdecode=1/g" build.prop_${BOX_NAME}
-        fi
-        $RUNTIME_CMD cp build.prop_${BOX_NAME} ${BOX_NAME}:/system/vendor/build.prop
-        rm -rf ./build.prop_${BOX_NAME}
     fi
 
     container_id=$($RUNTIME_CMD ps --filter "name=$BOX_NAME" --format "{{.ID}}")
@@ -1014,6 +1003,11 @@ function restart_box() {
         break
     fi
 
+    local VA_SGPU100_ID=":0200"
+    if [ -n "$(lspci -n | grep ${VA_SGPU100_ID} | awk '{print $3}')" ]; then
+        grep -q "ro\.va\.video\.codec=c2" $THISDIR/build.prop || echo "ro.va.video.codec=c2" >> $THISDIR/build.prop
+    fi
+
     for i in $(seq 1 $restart_times)
     do
         local should_restart=0 # 0为不应该再重启，1为需要再次重启
@@ -1034,20 +1028,6 @@ function restart_box() {
             sleep 1
         } done
 
-        local execOneTime=true
-        local VA_SGPU100_ID=":0200"
-          
-        if [ -n "$(lspci -n | grep ${VA_SGPU100_ID} | awk '{print $3}')" ] && [ execOneTime ]; then
-            $RUNTIME_CMD cp ${BOX_NAME}:/system/vendor/build.prop build.prop_${BOX_NAME}
-            if [ $ENABLE_HARD_DECODE -eq 1 ];then
-                sed -i "s/ro.hardware.omxsoftdecode=1/ro.hardware.omxsoftdecode=0/g" build.prop_${BOX_NAME}
-            else
-                sed -i "s/ro.hardware.omxsoftdecode=0/ro.hardware.omxsoftdecode=1/g" build.prop_${BOX_NAME}
-            fi
-            $RUNTIME_CMD cp build.prop_${BOX_NAME} ${BOX_NAME}:/system/vendor/build.prop
-            rm -rf ./build.prop_${BOX_NAME}
-            execOneTime=false
-        fi
         local cid=$($RUNTIME_CMD ps | grep -w " ${BOX_NAME}" | awk '{print $1}')
         local BINDER_MAJOR_ID=$(cat /proc/devices | grep binder | awk '{print $1}')
 
