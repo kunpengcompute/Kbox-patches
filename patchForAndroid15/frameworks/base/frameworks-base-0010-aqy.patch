@@ -1,0 +1,89 @@
+diff --git a/core/java/android/widget/TextView.java b/core/java/android/widget/TextView.java
+index ef941da0e32d..f20e6e9efad6 100644
+--- a/core/java/android/widget/TextView.java
++++ b/core/java/android/widget/TextView.java
+@@ -5554,6 +5554,66 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
+         updateTextColors();
+     }
+ 
++    private int findActualBackgroundColor() {
++        TypedValue typedValue = new TypedValue();
++        Resources.Theme theme = getContext().getTheme();
++        if (theme.resolveAttribute(android.R.attr.windowBackground, typedValue, true)) {
++            if (typedValue.type >= TypedValue.TYPE_FIRST_COLOR_INT && 
++                typedValue.type <= TypedValue.TYPE_LAST_COLOR_INT) {
++                Log.d("BackgroundFound1", " #" + Integer.toHexString(typedValue.data));
++                return typedValue.data;
++            }
++        }
++        Log.d("BackgroundFound3", " #" + Color.TRANSPARENT);
++        return Color.TRANSPARENT;
++    }
++
++    private int invertColor(int color) {
++        int alpha = Color.alpha(color);
++        int red = 255 - Color.red(color);
++        int green = 255 - Color.green(color);
++        int blue = 255 - Color.blue(color);
++        return Color.argb(alpha, red, green, blue);
++    }
++
++    private int invertColorForContrast(int textColor, int backgroundColor) {
++        if (backgroundColor == 0) {
++            return textColor;
++        }
++        // 计算对比度
++        double contrast = calculateContrastRatio(textColor, backgroundColor);
++        
++        // 如果对比度足够，保持原色
++        if (contrast >= 4.5) {
++            return textColor;
++        }
++        
++        // 对比度不足，进行颜色反转（保持透明度）
++        return invertColor(textColor);
++    }
++
++    private double calculateContrastRatio(int color1, int color2) {
++        double lum1 = calculateRelativeLuminance(color1);
++        double lum2 = calculateRelativeLuminance(color2);
++        
++        double lighter = Math.max(lum1, lum2);
++        double darker = Math.min(lum1, lum2);
++        
++        return (lighter + 0.05) / (darker + 0.05);
++    }
++
++    private double calculateRelativeLuminance(int color) {
++        double red = Color.red(color) / 255.0;
++        double green = Color.green(color) / 255.0;
++        double blue = Color.blue(color) / 255.0;
++        
++        red = red <= 0.03928 ? red / 12.92 : Math.pow((red + 0.055) / 1.055, 2.4);
++        green = green <= 0.03928 ? green / 12.92 : Math.pow((green + 0.055) / 1.055, 2.4);
++        blue = blue <= 0.03928 ? blue / 12.92 : Math.pow((blue + 0.055) / 1.055, 2.4);
++        
++        return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
++    }
++
+     /**
+      * Sets the text color.
+      *
+@@ -5570,7 +5630,16 @@ public class TextView extends View implements ViewTreeObserver.OnPreDrawListener
+             throw new NullPointerException();
+         }
+ 
+-        mTextColor = colors;
++        int defaultColor = colors.getDefaultColor();
++        int backgroundColor = findActualBackgroundColor();
++        int calculateColor = invertColorForContrast(defaultColor, backgroundColor);
++        // 爱奇艺短视频的评论在对比度不够的情况下需要反转，但由于通过theme获取的背景不一定是文字的真实背景，因此需要做如下特殊值判断
++        if (this.getClass().getName().contains("SpanFontSizeTextView") 
++            || (this.getClass().getName().contains("FontSizeTextView") && defaultColor != 0xF2000000)) {
++            mTextColor = ColorStateList.valueOf(calculateColor);
++        } else {
++            mTextColor = colors;
++        }
+         updateTextColors();
+     }
+ 
