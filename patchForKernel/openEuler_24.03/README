@@ -1,0 +1,18 @@
+显存监控使用约定add_amdgpu_gem_statistic.patch
+AMD和瀚博的显存统计数据均位于“/sys/kernel/debug/gpu_statistics”
+
+数据定义：
+AMD显存统计数据结构如下:
+struct container_mem_stats {
+    char container_id[128];
+    size_t total_vram;
+    size_t total_gtt;
+    struct list_head list;
+};
+
+DC显存统计数据结构如下:
+struct container_mem_stats {
+    char container_id[128];
+    size_t total_vram;
+    struct list_head list;
+};
