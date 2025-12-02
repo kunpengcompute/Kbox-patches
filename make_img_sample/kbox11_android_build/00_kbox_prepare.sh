@@ -193,6 +193,7 @@ function build_dependency(){
     sudo apt-get -y install python-is-python3 || error "python-is-python3 安装失败"
     sudo apt-get -y install ninja-build || error "ninja-build 安装失败"
     sudo apt-get -y install autoconf || error "autoconf 安装失败"
+    sudo apt-get -y install glslang-tools || error "glslang-tools 安装失败"
     echo "----------安装编译构建所需依赖成功----------"
 }
 
