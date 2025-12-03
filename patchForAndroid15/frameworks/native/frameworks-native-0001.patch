@@ -85,3 +85,48 @@ index 65a0ed3065..0fd9262b3b 100644
  
      mLayersWithQueuedFrames.clear();
      mLayersIdsWithQueuedFrames.clear();
+diff --git a/vulkan/libvulkan/driver.cpp b/vulkan/libvulkan/driver.cpp
+index 01436db4ae..3ea9b59f3c 100644
+--- a/vulkan/libvulkan/driver.cpp
++++ b/vulkan/libvulkan/driver.cpp
+@@ -165,6 +165,23 @@ const std::array<const char*, 2> HAL_SUBNAME_KEY_PROPERTIES = {{
+ constexpr int LIB_DL_FLAGS = RTLD_LOCAL | RTLD_NOW;
+ constexpr char RO_VULKAN_APEX_PROPERTY[] = "ro.vulkan.apex";
+ 
++const std::array<const char*, 1> DISABLE_VULKAN_FOR_APPLICATION = {
++    "com.miHoYo.hkrpg"
++};
++
++static void get_proc_name(char* applicationName, int fReadSize)
++{
++    pid_t pid = getpid();
++    char path[256] = { 0 };
++    sprintf(path, "/proc/%d/cmdline", pid);
++    FILE* cmdline = fopen(path, "r");
++
++    if(cmdline) {
++        fread(applicationName, fReadSize, 1, cmdline);
++        fclose(cmdline);
++    }
++}
++
+ // LoadDriver returns:
+ // * 0 when succeed, or
+ // * -ENOENT when fail to open binary libraries, or
+@@ -174,6 +191,16 @@ int LoadDriver(android_namespace_t* library_namespace,
+                const char* ns_name,
+                const hwvulkan_module_t** module) {
+     ATRACE_CALL();
++    // 对名单中的应用禁用vulkan
++    const uint32_t app_name_max_len = 256;
++    char current_process[app_name_max_len] = { 0 };
++    get_proc_name(current_process, app_name_max_len);
++    for (auto app : DISABLE_VULKAN_FOR_APPLICATION) {
++        if (strcmp(app, current_process) == 0) {
++            ALOGI("\"%s\" disable vulkan api", app);
++            return -ENOENT;
++        }
++    }
+ 
+     void* so = nullptr;
+     for (auto key : HAL_SUBNAME_KEY_PROPERTIES) {
