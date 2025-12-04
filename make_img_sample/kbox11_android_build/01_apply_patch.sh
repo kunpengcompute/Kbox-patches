@@ -220,8 +220,8 @@ function product_prebuilt(){
     # 解压最新下载的zip文件, 并自动覆盖任何现有文件
     unzip -o "${zip_files[0]}" || error "无法解压 ${zip_files[0]}"
 
-    # 继续解压Kbox-BoostKit-kbox_*-binary.zip
-    binary_packages=$(ls Kbox-BoostKit-kbox_*-binary.zip)
+    # 继续解压Kbox-BoostKit-boostcph-kbox_*-binary.zip
+    binary_packages=$(ls Kbox-BoostKit-boostcph-kbox_*-binary.zip)
     unzip -o  "${binary_packages}" || error "无法解压 $binary_packages"
 
     # 将二进制内容复制到AOSP源码根目录并处理冲突文件
