@@ -1,5 +1,5 @@
 diff --git a/cmds/installd/InstalldNativeService.cpp b/cmds/installd/InstalldNativeService.cpp
-index 01eb3fe..e923532 100644
+index 01eb3fe44f..e92353243f 100644
 --- a/cmds/installd/InstalldNativeService.cpp
 +++ b/cmds/installd/InstalldNativeService.cpp
 @@ -360,6 +360,8 @@ fail:
@@ -12,7 +12,7 @@ index 01eb3fe..e923532 100644
  }
  
 diff --git a/cmds/servicemanager/servicemanager.rc b/cmds/servicemanager/servicemanager.rc
-index 152ac28..a08a471 100644
+index 152ac28ba4..a08a47114f 100644
 --- a/cmds/servicemanager/servicemanager.rc
 +++ b/cmds/servicemanager/servicemanager.rc
 @@ -1,6 +1,6 @@
@@ -24,7 +24,7 @@ index 152ac28..a08a471 100644
      critical
      onrestart restart healthd
 diff --git a/cmds/servicemanager/vndservicemanager.rc b/cmds/servicemanager/vndservicemanager.rc
-index 3fa4d7d..b2a757f 100644
+index 3fa4d7debd..b2a757fbb2 100644
 --- a/cmds/servicemanager/vndservicemanager.rc
 +++ b/cmds/servicemanager/vndservicemanager.rc
 @@ -1,6 +1,6 @@
@@ -36,7 +36,7 @@ index 3fa4d7d..b2a757f 100644
      writepid /dev/cpuset/system-background/tasks
      shutdown critical
 diff --git a/libs/binder/Binder.cpp b/libs/binder/Binder.cpp
-index 6ca3b16..10a0973 100644
+index 6ca3b16324..10a0973db6 100644
 --- a/libs/binder/Binder.cpp
 +++ b/libs/binder/Binder.cpp
 @@ -261,6 +261,7 @@ bool BBinder::isRequestingSid()
@@ -48,7 +48,7 @@ index 6ca3b16..10a0973 100644
  
      if (!e) {
 diff --git a/libs/binder/IPCThreadState.cpp b/libs/binder/IPCThreadState.cpp
-index 847b73a..ed02fca 100644
+index 847b73ad71..ed02fcaec5 100644
 --- a/libs/binder/IPCThreadState.cpp
 +++ b/libs/binder/IPCThreadState.cpp
 @@ -1238,7 +1238,7 @@ status_t IPCThreadState::executeCommand(int32_t cmd)
@@ -61,7 +61,7 @@ index 847b73a..ed02fca 100644
                           << statusToString(error)
                           << " and parcel size " << reply.dataSize() << endl;
 diff --git a/libs/binder/ProcessState.cpp b/libs/binder/ProcessState.cpp
-index 4b773e8..af75288 100644
+index 4b773e816f..af7528802b 100644
 --- a/libs/binder/ProcessState.cpp
 +++ b/libs/binder/ProcessState.cpp
 @@ -138,11 +138,14 @@ bool ProcessState::becomeContextManager(context_check_func checkFunc, void* user
@@ -80,7 +80,7 @@ index 4b773e8..af75288 100644
      // fallback to original method
      if (result != 0) {
 diff --git a/libs/dumputils/dump_utils.cpp b/libs/dumputils/dump_utils.cpp
-index fd557b7..31fd439 100644
+index fd557b71dd..31fd439363 100644
 --- a/libs/dumputils/dump_utils.cpp
 +++ b/libs/dumputils/dump_utils.cpp
 @@ -34,7 +34,7 @@ static const char* native_processes_to_dump[] = {
@@ -93,7 +93,7 @@ index fd557b7..31fd439 100644
          "/system/bin/surfaceflinger",
          "/system/bin/vehicle_network_service",
 diff --git a/libs/gui/Surface.cpp b/libs/gui/Surface.cpp
-index e1a17db..d2d86b4 100644
+index e1a17db3d9..d2d86b40c9 100644
 --- a/libs/gui/Surface.cpp
 +++ b/libs/gui/Surface.cpp
 @@ -32,6 +32,7 @@
@@ -134,7 +134,7 @@ index e1a17db..d2d86b4 100644
                  backBuffer->handle);
  
 diff --git a/opengl/libs/EGL/egl_layers.cpp b/opengl/libs/EGL/egl_layers.cpp
-index ea86c9a..755b9df 100644
+index ea86c9a05b..755b9dfe41 100644
 --- a/opengl/libs/EGL/egl_layers.cpp
 +++ b/opengl/libs/EGL/egl_layers.cpp
 @@ -327,18 +327,40 @@ void LayerLoader::InitLayers(egl_connection_t* cnx) {
@@ -183,7 +183,7 @@ index ea86c9a..755b9df 100644
      std::vector<std::string> layers = android::base::Split(debug_layers, ":");
  
 diff --git a/opengl/libs/GLES_CM/gl.cpp b/opengl/libs/GLES_CM/gl.cpp
-index bacd4b4..7913e7c 100644
+index bacd4b4bc8..7913e7cf20 100644
 --- a/opengl/libs/GLES_CM/gl.cpp
 +++ b/opengl/libs/GLES_CM/gl.cpp
 @@ -347,6 +347,11 @@ extern "C" {
@@ -199,7 +199,7 @@ index bacd4b4..7913e7c 100644
      if (ret == NULL) {
          gl_hooks_t::gl_t const * const _c = &getGlThreadSpecific()->gl;
 diff --git a/services/inputflinger/dispatcher/InputDispatcher.cpp b/services/inputflinger/dispatcher/InputDispatcher.cpp
-index fe016af..b4be275 100644
+index fe016af01f..b4be27550f 100644
 --- a/services/inputflinger/dispatcher/InputDispatcher.cpp
 +++ b/services/inputflinger/dispatcher/InputDispatcher.cpp
 @@ -3336,12 +3336,19 @@ int32_t InputDispatcher::injectInputEvent(const InputEvent* event, int32_t injec
@@ -241,7 +241,7 @@ index fe016af..b4be275 100644
                  injectedEntries.push(nextInjectedEntry);
              }
 diff --git a/services/surfaceflinger/BufferLayer.cpp b/services/surfaceflinger/BufferLayer.cpp
-index f0b0200..7d378c2 100644
+index f0b0200bc5..7d378c2dd4 100644
 --- a/services/surfaceflinger/BufferLayer.cpp
 +++ b/services/surfaceflinger/BufferLayer.cpp
 @@ -412,6 +412,18 @@ bool BufferLayer::latchBuffer(bool& recomputeVisibleRegions, nsecs_t latchTime,
@@ -264,7 +264,7 @@ index f0b0200..7d378c2 100644
      // try again later
      if (!fenceHasSignaled()) {
 diff --git a/services/surfaceflinger/BufferQueueLayer.cpp b/services/surfaceflinger/BufferQueueLayer.cpp
-index 6e4235e..b920be1 100644
+index 6e4235e409..b920be1216 100644
 --- a/services/surfaceflinger/BufferQueueLayer.cpp
 +++ b/services/surfaceflinger/BufferQueueLayer.cpp
 @@ -433,6 +433,11 @@ void BufferQueueLayer::onFrameAvailable(const BufferItem& item) {
@@ -280,7 +280,7 @@ index 6e4235e..b920be1 100644
  
  void BufferQueueLayer::onFrameReplaced(const BufferItem& item) {
 diff --git a/services/surfaceflinger/CompositionEngine/include/compositionengine/Output.h b/services/surfaceflinger/CompositionEngine/include/compositionengine/Output.h
-index baf5258..2b6c47c 100644
+index baf52588e6..2b6c47c72f 100644
 --- a/services/surfaceflinger/CompositionEngine/include/compositionengine/Output.h
 +++ b/services/surfaceflinger/CompositionEngine/include/compositionengine/Output.h
 @@ -184,6 +184,7 @@ public:
@@ -292,7 +292,7 @@ index baf5258..2b6c47c 100644
      // Gets the current render color mode for the output
      virtual DisplayColorProfile* getDisplayColorProfile() const = 0;
 diff --git a/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h b/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h
-index 6f25e63..ef9684c 100644
+index 6f25e6391b..ef9684c9c1 100644
 --- a/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h
 +++ b/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h
 @@ -51,6 +51,7 @@ public:
@@ -312,7 +312,7 @@ index 6f25e63..ef9684c 100644
  
  // This template factory function standardizes the implementation details of the
 diff --git a/services/surfaceflinger/CompositionEngine/src/Output.cpp b/services/surfaceflinger/CompositionEngine/src/Output.cpp
-index 90ac781..74123ea 100644
+index 90ac781a0c..74123eafe2 100644
 --- a/services/surfaceflinger/CompositionEngine/src/Output.cpp
 +++ b/services/surfaceflinger/CompositionEngine/src/Output.cpp
 @@ -41,6 +41,7 @@
@@ -358,7 +358,7 @@ index 90ac781..74123ea 100644
                                      std::move(fd), &readyFence);
  
 diff --git a/services/surfaceflinger/DisplayDevice.cpp b/services/surfaceflinger/DisplayDevice.cpp
-index 730f297..6300723 100644
+index 730f29744a..630072344b 100644
 --- a/services/surfaceflinger/DisplayDevice.cpp
 +++ b/services/surfaceflinger/DisplayDevice.cpp
 @@ -116,6 +116,10 @@ void DisplayDevice::setDisplayName(const std::string& displayName) {
@@ -373,7 +373,7 @@ index 730f297..6300723 100644
      return mCompositionDisplay->getRenderSurface()->getPageFlipCount();
  }
 diff --git a/services/surfaceflinger/DisplayDevice.h b/services/surfaceflinger/DisplayDevice.h
-index cb467ea..2d6d02b 100644
+index cb467ea292..2d6d02bc72 100644
 --- a/services/surfaceflinger/DisplayDevice.h
 +++ b/services/surfaceflinger/DisplayDevice.h
 @@ -134,6 +134,7 @@ public:
@@ -385,7 +385,7 @@ index cb467ea..2d6d02b 100644
  
      /* ------------------------------------------------------------------------
 diff --git a/services/surfaceflinger/Scheduler/DispSync.cpp b/services/surfaceflinger/Scheduler/DispSync.cpp
-index ff91bf7..db12328 100644
+index ff91bf7bc0..db12328ef6 100644
 --- a/services/surfaceflinger/Scheduler/DispSync.cpp
 +++ b/services/surfaceflinger/Scheduler/DispSync.cpp
 @@ -656,6 +656,14 @@ status_t DispSync::changePhaseOffset(Callback* callback, nsecs_t phase) {
@@ -404,7 +404,7 @@ index ff91bf7..db12328 100644
              period != mIntendedPeriod || (period == mIntendedPeriod && mPendingPeriod != 0);
  
 diff --git a/services/surfaceflinger/Scheduler/EventThread.cpp b/services/surfaceflinger/Scheduler/EventThread.cpp
-index 845bf50..c2519b0 100644
+index 845bf50ad3..c2519b0a28 100644
 --- a/services/surfaceflinger/Scheduler/EventThread.cpp
 +++ b/services/surfaceflinger/Scheduler/EventThread.cpp
 @@ -41,6 +41,8 @@
@@ -556,7 +556,7 @@ index 845bf50..c2519b0 100644
      std::lock_guard<std::mutex> lock(mMutex);
  
 diff --git a/services/surfaceflinger/Scheduler/EventThread.h b/services/surfaceflinger/Scheduler/EventThread.h
-index 49f624c..4df908e 100644
+index 49f624c35e..4df908eac4 100644
 --- a/services/surfaceflinger/Scheduler/EventThread.h
 +++ b/services/surfaceflinger/Scheduler/EventThread.h
 @@ -126,6 +126,9 @@ public:
@@ -609,7 +609,7 @@ index 49f624c..4df908e 100644
  
  // ---------------------------------------------------------------------------
 diff --git a/services/surfaceflinger/Scheduler/Scheduler.cpp b/services/surfaceflinger/Scheduler/Scheduler.cpp
-index 5c0ba01..7a689fd 100644
+index 5c0ba01cd3..7a689fde1f 100644
 --- a/services/surfaceflinger/Scheduler/Scheduler.cpp
 +++ b/services/surfaceflinger/Scheduler/Scheduler.cpp
 @@ -334,6 +334,12 @@ void Scheduler::disableHardwareVsync(bool makeUnavailable) {
@@ -654,7 +654,7 @@ index 5c0ba01..7a689fd 100644
 +
  } // namespace android
 diff --git a/services/surfaceflinger/Scheduler/Scheduler.h b/services/surfaceflinger/Scheduler/Scheduler.h
-index 730ea8f..dfea345 100644
+index 730ea8f0c8..dfea3454c7 100644
 --- a/services/surfaceflinger/Scheduler/Scheduler.h
 +++ b/services/surfaceflinger/Scheduler/Scheduler.h
 @@ -120,6 +120,7 @@ public:
@@ -684,7 +684,7 @@ index 730ea8f..dfea345 100644
      // Whether to use idle timer callbacks that support the kernel timer.
      const bool mSupportKernelTimer;
 diff --git a/services/surfaceflinger/SurfaceFlinger.cpp b/services/surfaceflinger/SurfaceFlinger.cpp
-index 79f99cc..3c63f79 100644
+index 79f99cc5d5..3c63f797cb 100644
 --- a/services/surfaceflinger/SurfaceFlinger.cpp
 +++ b/services/surfaceflinger/SurfaceFlinger.cpp
 @@ -85,6 +85,7 @@
@@ -810,7 +810,7 @@ index 79f99cc..3c63f79 100644
  {
      commitTransactionLocked();
 diff --git a/services/surfaceflinger/SurfaceFlinger.h b/services/surfaceflinger/SurfaceFlinger.h
-index c727574..75a557b 100644
+index c727574780..75a557b241 100644
 --- a/services/surfaceflinger/SurfaceFlinger.h
 +++ b/services/surfaceflinger/SurfaceFlinger.h
 @@ -336,6 +336,11 @@ public:
@@ -835,10 +835,51 @@ index c727574..75a557b 100644
  
  } // namespace android
 diff --git a/vulkan/libvulkan/driver.cpp b/vulkan/libvulkan/driver.cpp
-index f840561..83e01f5 100644
+index f840561292..3e09afd14c 100644
 --- a/vulkan/libvulkan/driver.cpp
 +++ b/vulkan/libvulkan/driver.cpp
-@@ -245,6 +245,12 @@ bool Hal::Open() {
+@@ -154,6 +154,23 @@ const std::array<const char*, 2> HAL_SUBNAME_KEY_PROPERTIES = {{
+ }};
+ constexpr int LIB_DL_FLAGS = RTLD_LOCAL | RTLD_NOW;
+ 
++const std::array<const char*, 1> DISABLE_VULKAN_FOR_APPLICATION = {
++    "com.miHoYo.hkrpg"
++};
++
++static void get_proc_name(char* applicationName, int fReadSize)
++{
++    pid_t pid = getpid();
++    char path[256] = { 0 };
++    sprintf(path, "/proc/%d/cmdline", pid);
++    FILE* cmdline = fopen(path, "r");
++
++    if(cmdline) {
++        fread(applicationName, fReadSize, 1, cmdline);
++        fclose(cmdline);
++    }
++}
++
+ // LoadDriver returns:
+ // * 0 when succeed, or
+ // * -ENOENT when fail to open binary libraries, or
+@@ -162,6 +179,16 @@ constexpr int LIB_DL_FLAGS = RTLD_LOCAL | RTLD_NOW;
+ int LoadDriver(android_namespace_t* library_namespace,
+                const hwvulkan_module_t** module) {
+     ATRACE_CALL();
++    // 对名单中的应用禁用vulkan
++    const uint32_t app_name_max_len = 256;
++    char current_process[app_name_max_len] = { 0 };
++    get_proc_name(current_process, app_name_max_len);
++    for (auto app : DISABLE_VULKAN_FOR_APPLICATION) {
++        if (strcmp(app, current_process) == 0) {
++            ALOGI("\"%s\" disable vulkan api", app);
++            return -EINVAL;
++        }
++    }
+ 
+     void* so = nullptr;
+     for (auto key : HAL_SUBNAME_KEY_PROPERTIES) {
+@@ -245,6 +272,12 @@ bool Hal::Open() {
      if (result == -ENOENT) {
          result = LoadBuiltinDriver(&module);
      }
