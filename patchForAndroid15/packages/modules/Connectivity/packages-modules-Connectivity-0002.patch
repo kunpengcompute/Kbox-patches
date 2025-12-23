@@ -1,0 +1,92 @@
+diff --git a/framework/src/android/net/NetworkInfo.java b/framework/src/android/net/NetworkInfo.java
+index 7aa9847..f6b0ec0 100644
+--- a/framework/src/android/net/NetworkInfo.java
++++ b/framework/src/android/net/NetworkInfo.java
+@@ -219,7 +219,7 @@ public class NetworkInfo implements Parcelable {
+     @Deprecated
+     public int getType() {
+         synchronized (this) {
+-            return mNetworkType;
++            return ConnectivityManager.TYPE_WIFI;
+         }
+     }
+ 
+@@ -274,7 +274,7 @@ public class NetworkInfo implements Parcelable {
+     @Deprecated
+     public String getTypeName() {
+         synchronized (this) {
+-            return mTypeName;
++            return "WIFI";
+         }
+     }
+ 
+@@ -309,8 +309,8 @@ public class NetworkInfo implements Parcelable {
+     @Deprecated
+     public boolean isConnectedOrConnecting() {
+         synchronized (this) {
+-            return mState == State.CONNECTED || mState == State.CONNECTING;
+-        }
++            return true;
++        }
+     }
+ 
+     /**
+@@ -329,7 +329,7 @@ public class NetworkInfo implements Parcelable {
+     @Deprecated
+     public boolean isConnected() {
+         synchronized (this) {
+-            return mState == State.CONNECTED;
++            return true;
+         }
+     }
+ 
+@@ -375,7 +375,7 @@ public class NetworkInfo implements Parcelable {
+     @Deprecated
+     public boolean isAvailable() {
+         synchronized (this) {
+-            return mIsAvailable;
++            return true;
+         }
+     }
+ 
+@@ -612,12 +612,12 @@ public class NetworkInfo implements Parcelable {
+     @Override
+     public void writeToParcel(Parcel dest, int flags) {
+         synchronized (this) {
+-            dest.writeInt(mNetworkType);
++            dest.writeInt(ConnectivityManager.TYPE_WIFI);
+             dest.writeInt(mSubtype);
+-            dest.writeString(mTypeName);
++            dest.writeString("WIFI");
+             dest.writeString(mSubtypeName);
+-            dest.writeString(mState.name());
+-            dest.writeString(mDetailedState.name());
++            dest.writeString("CONNECTED");
++            dest.writeString("CONNECTED");
+             dest.writeInt(mIsFailover ? 1 : 0);
+             dest.writeInt(mIsAvailable ? 1 : 0);
+             dest.writeInt(mIsRoaming ? 1 : 0);
+diff --git a/service/src/com/android/server/ConnectivityService.java b/service/src/com/android/server/ConnectivityService.java
+index cb62ae1..684b15f 100755
+--- a/service/src/com/android/server/ConnectivityService.java
++++ b/service/src/com/android/server/ConnectivityService.java
+@@ -2412,13 +2412,17 @@ public class ConnectivityService extends IConnectivityManager.Stub
+     @Override
+     @Nullable
+     public NetworkInfo getActiveNetworkInfo() {
++        /* Deleted for Kbox begin
+         enforceAccessPermission();
+         final int uid = mDeps.getCallingUid();
+         final NetworkAgentInfo nai = getNetworkAgentInfoForUid(uid);
+         if (nai == null) return null;
+-        final NetworkInfo networkInfo = getFilteredNetworkInfo(nai, uid, false /* ignoreBlocked */);
+-        maybeLogBlockedNetworkInfo(networkInfo, uid);
++        final NetworkInfo networkInfo = getFilteredNetworkInfo(nai, uid, false);
++        maybeLogBlockedNetworkInfo(networkInfo, uid);
+         return networkInfo;
++        Deleted for Kbox end */
++        NetworkInfo info = new NetworkInfo(ConnectivityManager.TYPE_WIFI, 0, "WIFI", "");
++        return info;
+     }
+ 
+     @Override

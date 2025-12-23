@@ -1,0 +1,193 @@
+diff --git a/framework/java/android/net/wifi/WifiInfo.java b/framework/java/android/net/wifi/WifiInfo.java
+index 8e233d7..ce4b089 100644
+--- a/framework/java/android/net/wifi/WifiInfo.java
++++ b/framework/java/android/net/wifi/WifiInfo.java
+@@ -63,6 +63,8 @@ import java.util.List;
+ import java.util.Locale;
+ import java.util.Objects;
+ 
++import android.os.SystemProperties;
++
+ /**
+  * Describes the state of any Wi-Fi connection that is active or
+  * is in the process of being set up.
+@@ -162,6 +164,12 @@ public class WifiInfo implements TransportInfo, Parcelable {
+     /** @hide **/
+     public static final int MAX_RSSI = 200;
+ 
++    /** @hide **/
++    public static final int MID_RSSI = -55;
++
++    /** @hide **/
++    public static final int LINK_SPEED_KILO = 1000;
++
+     /** Unknown security type. */
+     public static final int SECURITY_TYPE_UNKNOWN = -1;
+     /** Security type for an open network. */
+@@ -800,7 +808,12 @@ public class WifiInfo implements TransportInfo, Parcelable {
+                 return ssidString;
+             }
+         }
+-        return WifiManager.UNKNOWN_SSID;
++        String wifiGenCode = "";
++        wifiGenCode = SystemProperties.get("sys.prop.writewifissid");
++        if (wifiGenCode == null || wifiGenCode.length() == 0) {
++            wifiGenCode = "KBOX-WIFI";
++        }
++        return wifiGenCode;
+     }
+ 
+     /** @hide */
+@@ -812,7 +825,18 @@ public class WifiInfo implements TransportInfo, Parcelable {
+     /** @hide */
+     @UnsupportedAppUsage
+     public void setBSSID(String BSSID) {
+-        mBSSID = BSSID;
++        if (BSSID == null || BSSID.length() == 0) {
++            int MAC_NUM = 6;
++            String MAX_PATTEN = "aa"; // the patten of mac
++            StringBuffer mac = new StringBuffer();
++            for (int i = 1; i <= MAC_NUM; i++) {
++                mac.append(MAX_PATTEN);
++                if(i != MAC_NUM) mac.append(":");
++            }
++            mBSSID = mac.toString().toLowerCase();
++        } else {
++            mBSSID = BSSID;
++        }
+     }
+ 
+     /**
+@@ -997,7 +1021,7 @@ public class WifiInfo implements TransportInfo, Parcelable {
+      * @return the RSSI.
+      */
+     public int getRssi() {
+-        return mRssi;
++        return MID_RSSI;
+     }
+ 
+     /** @hide */
+@@ -1043,7 +1067,7 @@ public class WifiInfo implements TransportInfo, Parcelable {
+      * @see #LINK_SPEED_UNKNOWN
+      */
+     public int getLinkSpeed() {
+-        return mLinkSpeed;
++        return LINK_SPEED_KILO;
+     }
+ 
+     /** @hide */
+@@ -1460,11 +1484,20 @@ public class WifiInfo implements TransportInfo, Parcelable {
+      */
+     @Deprecated
+     public int getIpAddress() {
++        /* Delete for Kbox begin
+         int result = 0;
+         if (mIpAddress instanceof Inet4Address) {
+             result = Inet4AddressUtils.inet4AddressToIntHTL((Inet4Address) mIpAddress);
+         }
+         return result;
++        Deleted for Kbox end */
++        InetAddress inetAddr = null;
++        try {
++            inetAddr = InetAddress.getByName("172.17.0.1");
++        } catch (UnknownHostException e) {
++            throw new IllegalArgumentException("Invalid InetAddress");
++        }
++        return Inet4AddressUtils.inet4AddressToIntHTL((Inet4Address) inetAddr);
+     }
+ 
+     /**
+@@ -1615,8 +1648,8 @@ public class WifiInfo implements TransportInfo, Parcelable {
+     /** Implement the Parcelable interface {@hide} */
+     public void writeToParcel(Parcel dest, int flags) {
+         dest.writeInt(mNetworkId);
+-        dest.writeInt(mRssi);
+-        dest.writeInt(mLinkSpeed);
++        dest.writeInt(MID_RSSI);
++        dest.writeInt(LINK_SPEED_KILO);
+         dest.writeInt(mTxLinkSpeed);
+         dest.writeInt(mRxLinkSpeed);
+         dest.writeInt(mFrequency);
+diff --git a/framework/java/android/net/wifi/WifiManager.java b/framework/java/android/net/wifi/WifiManager.java
+index 4ab897e..49d614e 100644
+--- a/framework/java/android/net/wifi/WifiManager.java
++++ b/framework/java/android/net/wifi/WifiManager.java
+@@ -5355,11 +5355,14 @@ public class WifiManager {
+      * @see #isWifiEnabled()
+      */
+     public int getWifiState() {
++        /* Deleted for Kbox begin
+         try {
+             return mService.getWifiEnabledState();
+         } catch (RemoteException e) {
+             throw e.rethrowFromSystemServer();
+         }
++        Deleted for Kbox end */
++        return WIFI_STATE_ENABLED;
+     }
+ 
+     /**
+@@ -7862,6 +7865,7 @@ public class WifiManager {
+          * will be required, regardless of the number of times that {@code acquire} is called.
+          */
+         public void acquire() {
++            /* Deleted for Kbox begin
+             synchronized (mBinder) {
+                 if (mRefCounted ? (++mRefCount == 1) : (!mHeld)) {
+                     try {
+@@ -7886,6 +7890,8 @@ public class WifiManager {
+                     mHeld = true;
+                 }
+             }
++            Deleted for Kbox end */
++            Log.d("WifiMod", "WifiLock->acquire(), do nothing");
+         }
+ 
+         /**
+@@ -7901,6 +7907,7 @@ public class WifiManager {
+          * calls will be ignored.
+          */
+         public void release() {
++            /* Deleted for Kbox begin
+             synchronized (mBinder) {
+                 if (mRefCounted ? (--mRefCount == 0) : (mHeld)) {
+                     try {
+@@ -7917,6 +7924,8 @@ public class WifiManager {
+                     throw new RuntimeException("WifiLock under-locked " + mTag);
+                 }
+             }
++            Deleted for Kbox end */
++            Log.d("WifiMod", "WifiLock->release(), do nothing");
+         }
+ 
+         /**
+@@ -7940,9 +7949,13 @@ public class WifiManager {
+          * @return true if this WifiLock is held, false otherwise
+          */
+         public boolean isHeld() {
++            /* Deleted for Kbox begin
+             synchronized (mBinder) {
+                 return mHeld;
+             }
++            Deleted for Kbox end */
++            Log.d("WifiMod", "WifiLock->release(), force return true, to enable large file download");
++            return true;
+         }
+ 
+         public void setWorkSource(WorkSource ws) {
+diff --git a/service/java/com/android/server/wifi/WifiSettingsStore.java b/service/java/com/android/server/wifi/WifiSettingsStore.java
+index a84346b..f371e49 100644
+--- a/service/java/com/android/server/wifi/WifiSettingsStore.java
++++ b/service/java/com/android/server/wifi/WifiSettingsStore.java
+@@ -184,8 +184,11 @@ public class WifiSettingsStore {
+     }
+ 
+     public synchronized boolean isWifiToggleEnabled() {
++        /* Delete for Kbox start
+         return mPersistWifiState == WIFI_ENABLED
+                 || mPersistWifiState == WIFI_ENABLED_APM_OVERRIDE;
++        Delete for Kbox end */
++        return true;
+     }
+ 
+     /**
