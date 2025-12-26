@@ -96,7 +96,7 @@ function create_package(){
 ################################################################################
 function end_of_build(){
     cd $AOSP_PATH || error "无法切换到AOSP目录"
-    md5sum android.tar > android.tar.md5
+    sha256sum android.tar > android.tar.sha256
     echo $AOSP_PATH/android.tar
     echo "---------End----------"
 }
