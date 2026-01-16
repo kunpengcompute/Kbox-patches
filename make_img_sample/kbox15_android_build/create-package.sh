@@ -7,8 +7,6 @@
 # Usage: create-package_aosp15.sh
 # ******************************************************************************** #
 
-set -ex
-
 system=$1
 destdir=$PWD
 RM_BINARY=$2
@@ -18,7 +16,17 @@ if [ -z "$system" ]; then
     exit 1
 fi
 
+trap '[-n "${workdir}"] && rm -rf "${workdir}"' EXIT
+local save_mask=$(umask)
+umask 077
 workdir=$(mktemp -d)
+if [ $? -ne 0 ]
+then
+    umask "${save_mask}"
+    exit 1
+fi
+umask "${save_mask}"
+
 rootfs=$workdir/rootfs
 
 mkdir -p "$rootfs"
@@ -29,7 +37,18 @@ sudo cp -ar "$workdir"/system/* "$rootfs"/
 sudo umount "$workdir"/system
 
 apexlist=($(ls "$rootfs"/system/apex | grep apex))
+
+trap '[-n "${apexworkdir}"] && rm -rf "${apexworkdir}"' EXIT
+local save_mask=$(umask)
+umask 077
 apexworkdir=$(mktemp -d)
+if [ $? -ne 0 ]
+then
+    umask"${save_mask}"
+    exit 1
+fi
+umask"${save_mask}"
+
 for((i=0;i<${#apexlist[@]};i++)) do
     mkdir -p "$apexworkdir"/mnt
     sudo cp -anr "$rootfs"/system/apex/"${apexlist[$i]}" "$apexworkdir"
@@ -43,7 +62,6 @@ for((i=0;i<${#apexlist[@]};i++)) do
     sudo umount "$apexworkdir"/mnt
     sudo rm -rf "$apexworkdir"/*
 done
-sudo rm -rf "$apexworkdir"
 
 if [ -e android.tar ]; then
     DATE=$(date +%F_%R)
@@ -64,4 +82,3 @@ sudo tar --numeric-owner -cf "$destdir"/android.tar ./
 sudo chown "$USER":"$USER" "$destdir"/android.tar
 
 cd "$destdir"
-sudo rm -rf "$workdir"
