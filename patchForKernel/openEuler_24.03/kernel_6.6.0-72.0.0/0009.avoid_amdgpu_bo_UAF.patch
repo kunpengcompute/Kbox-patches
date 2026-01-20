@@ -1,0 +1,36 @@
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_object.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_object.c
+index 4e9ae52ef..d47d52f07 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_object.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_object.c
+@@ -57,6 +57,12 @@ static void amdgpu_bo_destroy(struct ttm_buffer_object *tbo)
+ {
+ 	struct amdgpu_bo *bo = ttm_to_amdgpu_bo(tbo);
+ 
++	struct amdgpu_vm_bo_base *base;
++	for (base = bo->vm_bo; base; base = base->next) {
++		if (base->bo == bo)
++			base->bo = NULL;
++	}
++
+ 	amdgpu_bo_kunmap(bo);
+ 
+ 	if (bo->tbo.base.import_attach)
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c
+index 5923c98eb..170232f4c 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c
+@@ -1402,6 +1402,11 @@ int amdgpu_vm_handle_moved(struct amdgpu_device *adev,
+ 	while (!list_empty(&vm->invalidated)) {
+ 		bo_va = list_first_entry(&vm->invalidated, struct amdgpu_bo_va,
+ 					 base.vm_status);
++		if (!bo_va->base.bo) {
++			dev_err(adev->dev, "drm_debug: bo in amdgpu_bo_va(%px) is NULL", bo_va);
++			list_del(&bo_va->base.vm_status);
++			continue;
++		}
+ 		resv = bo_va->base.bo->tbo.base.resv;
+ 		spin_unlock(&vm->status_lock);
+ 
+-- 
+2.43.0
+
