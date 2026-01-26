@@ -717,8 +717,8 @@ function start_box() {
     RUN_OPTION+=" $EXTRA_RUN_OPTION "
 
     # 安卓11里面使能c2解码器需要把/dev/dma_heap/system设备节点映射到容器中
-    ENABLE_C2_DECODE=$(echo "${EXTRA_RUN_OPTION}" | grep -oP '(?<=ENABLE_C2_DECODE=)[01]')
-    if [ $ENABLE_C2_DECODE -eq 1 ];then
+    ENABLE_AMD_C2_DECODE=$(echo "${EXTRA_RUN_OPTION}" | grep -oP '(?<=ENABLE_AMD_C2_DECODE=)[01]')
+    if [ $ENABLE_AMD_C2_DECODE -eq 1 ];then
         RUN_OPTION+=" --device=/dev/dma_heap/system:/dev/dma_heap/system:rwm"
     fi
     
@@ -737,7 +737,7 @@ function start_box() {
 
     # 配置是否使能C2解码器
     $RUNTIME_CMD cp ${BOX_NAME}:/system/vendor/build.prop build.prop_${BOX_NAME}
-    if [ $ENABLE_C2_DECODE -eq 1 ];then
+    if [ $ENABLE_AMD_C2_DECODE -eq 1 ];then
         sed -i "s/ro.hardware.enableC2decode=0/ro.hardware.enableC2decode=1/g" build.prop_${BOX_NAME}
     else
         sed -i "s/ro.hardware.enableC2decode=1/ro.hardware.enableC2decode=0/g" build.prop_${BOX_NAME}

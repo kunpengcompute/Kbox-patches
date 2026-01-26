@@ -427,6 +427,7 @@ function start_box_by_id() {
     else
         # amdgpu 搭配编码卡使用
         EXTRA_RUN_OPTION=$(netint_run_option $TAG_NUMBER)
+        EXTRA_RUN_OPTION+=" -e ENABLE_AMD_C2_DECODE=${ENABLE_AMD_C2_DECODE}"
     fi
 
     bash $CURRENT_DIR/base_box.sh start \
