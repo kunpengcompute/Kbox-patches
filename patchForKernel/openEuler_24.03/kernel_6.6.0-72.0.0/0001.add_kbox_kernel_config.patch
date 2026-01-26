@@ -2,7 +2,7 @@ diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
 index 9da9d58f1..8bda0bc4c 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -1828,6 +1828,23 @@ config ARM64_ILP32
+@@ -1828,6 +1828,26 @@ config ARM64_ILP32
  	  is an ABI where long and pointers are 32bits but it uses the AARCH64
  	  instruction set.
  
@@ -19,6 +19,9 @@ index 9da9d58f1..8bda0bc4c 100644
 +	select TANGO32
 +	select VFAT_FS
 +	select INPUT_UINPUT
++   select DMABUF_HEAPS
++   select DMABUF_HEAPS_SYSTEM
++   select DMABUF_HEAPS_CMA
 +	default y
 +	help
 +	  This option enables kernel support for Kbox and selects dependent kernel options.

@@ -6,7 +6,7 @@
 #===============================================================================
 XD_GPU_ID="1fe0:1010"
 VA_SGPU100_ID=":0200"
-
+THISDIR=$(readlink -ef $(dirname $0))
 #===============================================================================
 # Functions
 #===============================================================================
@@ -349,6 +349,10 @@ function netint_run_option() {
     echo "$opt"
 }
 
+function create_build_prop() {
+    echo "debug.stagefright.ccodec=0" >> $THISDIR/build.prop
+}
+
 function start_box_by_id() {
 
     # 镜像名
@@ -418,6 +422,12 @@ function start_box_by_id() {
     # 调试端口
     local PORTS=("$((8500+$TAG_NUMBER)):5555")
 
+    if [ -f $THISDIR/build.prop ]; then
+	    rm -rf $THISDIR/build.prop
+    fi
+
+    create_build_prop
+
     # docker额外启动参数
     local EXTRA_RUN_OPTION=""
     # 使能硬解设备，若获取到的值为空，则不使能
@@ -432,6 +442,7 @@ function start_box_by_id() {
     else
         # amdgpu 搭配编码卡使用
         EXTRA_RUN_OPTION=$(netint_run_option $TAG_NUMBER)
+        EXTRA_RUN_OPTION+=" -e ENABLE_AMD_C2_DECODE=${ENABLE_AMD_C2_DECODE}"
     fi
 
     bash $CURRENT_DIR/base_box_aosp15.sh start \
