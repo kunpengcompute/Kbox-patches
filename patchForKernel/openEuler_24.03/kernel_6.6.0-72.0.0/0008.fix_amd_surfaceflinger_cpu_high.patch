@@ -1,0 +1,32 @@
+diff --git a/fs/anon_inodes.c b/fs/anon_inodes.c
+index 24192a7667ed..ad1c5e241bfd 100644
+--- a/fs/anon_inodes.c
++++ b/fs/anon_inodes.c
+@@ -26,6 +26,7 @@
+ 
+ static struct vfsmount *anon_inode_mnt __read_mostly;
+ static struct inode *anon_inode_inode;
++static struct inode *anon_sync_inode;
+ 
+ /*
+  * anon_inodefs_dname() is called from d_path().
+@@ -94,7 +95,8 @@ static struct file *__anon_inode_getfile(const char *name,
+ 			goto err;
+ 		}
+ 	} else {
+-		inode =	anon_inode_inode;
++		// 为sync_file单独分配一个inode
++		inode =	(strncmp(name, "sync_file", strlen(name)) == 0) ? anon_sync_inode : anon_inode_inode;
+ 		if (IS_ERR(inode)) {
+ 			file = ERR_PTR(-ENODEV);
+ 			goto err;
+@@ -264,6 +266,9 @@ static int __init anon_inode_init(void)
+ 	if (IS_ERR(anon_inode_inode))
+ 		panic("anon_inode_init() inode allocation failed (%ld)\n", PTR_ERR(anon_inode_inode));
+ 
++	anon_sync_inode = alloc_anon_inode(anon_inode_mnt->mnt_sb);
++	if (IS_ERR(anon_sync_inode))
++		panic("anon_inode_init() sync inode allocation failed (%ld)\n", PTR_ERR(anon_sync_inode));
+ 	return 0;
+ }
+ 
