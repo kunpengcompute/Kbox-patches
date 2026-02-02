@@ -715,6 +715,13 @@ function start_box() {
         EXTRA_RUN_OPTION=${EXTRA_RUN_OPTION% *}
     fi
     RUN_OPTION+=" $EXTRA_RUN_OPTION "
+
+    # 安卓11里面使能c2解码器需要把/dev/dma_heap/system设备节点映射到容器中
+    ENABLE_AMD_C2_DECODE=$(echo "${EXTRA_RUN_OPTION}" | grep -oP '(?<=ENABLE_AMD_C2_DECODE=)[01]')
+    if [ $ENABLE_AMD_C2_DECODE -eq 1 ];then
+        RUN_OPTION+=" --device=/dev/dma_heap/system:/dev/dma_heap/system:rwm"
+    fi
+    
     $RUNTIME_CMD run $RUN_OPTION $IMAGE_NAME sh
 
     if [ $DEFAULT_RUNTIME == "containerd" ]; then
@@ -727,6 +734,16 @@ function start_box() {
         $RUNTIME_CMD cp $CURRENT_DIR/local.prop ${BOX_NAME}:/data
         $RUNTIME_CMD exec ${BOX_NAME} chmod 400 /data/local.prop
     fi
+
+    # 配置是否使能C2解码器
+    $RUNTIME_CMD cp ${BOX_NAME}:/system/vendor/build.prop build.prop_${BOX_NAME}
+    if [ $ENABLE_AMD_C2_DECODE -eq 1 ];then
+        sed -i "s/ro.hardware.enableC2decode=0/ro.hardware.enableC2decode=1/g" build.prop_${BOX_NAME}
+    else
+        sed -i "s/ro.hardware.enableC2decode=1/ro.hardware.enableC2decode=0/g" build.prop_${BOX_NAME}
+    fi
+    $RUNTIME_CMD cp build.prop_${BOX_NAME} ${BOX_NAME}:/system/vendor/build.prop
+    rm -rf ./build.prop_${BOX_NAME}
 
     # VA GPU需要配置相关属性、修改设备的权限, 否则会导致容器无法启动, 当前VA GPU仅支持一张卡，故使用 GPUS_RENDER[0]
     if [ -n "$(lspci -n | grep ${VA_SGPU100_ID} | awk '{print $3}')" ]; then

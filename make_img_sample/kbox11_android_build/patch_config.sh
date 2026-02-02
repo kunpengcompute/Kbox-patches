@@ -29,6 +29,7 @@ system-hwservicemanager-0001.patch
 system-libhwbinder-0001.patch
 system-libvintf-0001.patch
 system-memory-lmkd-0001.patch
+system-memory-libion-0001.patch
 system-netd-0001.patch
 system-sepolicy-0001.patch
 system-vold-0001.patch
