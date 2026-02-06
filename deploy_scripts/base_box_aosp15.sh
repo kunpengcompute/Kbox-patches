@@ -760,12 +760,15 @@ function start_box() {
             RUN_OPTION+=" --device=${GPUS_RENDER[$i]}:/dev/dri/renderD$((128 + $i)):rwm "
         done
     fi
-    ENABLE_AMD_C2_DECODE=$(echo "${EXTRA_RUN_OPTION}" | grep -oP '(?<=ENABLE_AMD_C2_DECODE=)[01]')
-    if [ "$ENABLE_AMD_C2_DECODE" -eq 1 ]; then
-        RUN_OPTION+=" --device=/dev/dma_heap/system:/dev/dma_heap/system:rwm "
-        echo "debug.stagefright.ccodec=4" >> $THISDIR/build.prop
-    else
-        echo "debug.stagefright.ccodec=0" >> $THISDIR/build.prop
+    if lspci | grep -q "Radeon PRO W6800"; then
+        ENABLE_AMD_C2_DECODE=$(echo "${EXTRA_RUN_OPTION}" | grep -oP '(?<=ENABLE_AMD_C2_DECODE=)[01]')
+        if [ "$ENABLE_AMD_C2_DECODE" -eq 1 ]; then
+            sudo chmod 666 /dev/dma_heap/system
+            RUN_OPTION+=" --device=/dev/dma_heap/system:/dev/dma_heap/system:rwm "
+            echo "debug.stagefright.ccodec=4" >> $THISDIR/build.prop
+        else
+            echo "debug.stagefright.ccodec=0" >> $THISDIR/build.prop
+        fi
     fi
     if [ -e "/dev/tango32" ]; then
         RUN_OPTION+=" --device=/dev/tango32:/dev/tango32:rwm "
@@ -804,7 +807,6 @@ function start_box() {
     if [ $DEFAULT_RUNTIME == "containerd" ]; then
         $RUNTIME_CMD exec -i ${BOX_NAME} ln -s /dev/net/tun /dev/tun
     fi
-    
     # 支持Android系统属性可定制
     # local.prop用于修改定制属性，但该文件不是一定存在，需要用户手动生成。
     if [ -e "$CURRENT_DIR/local.prop" ]; then
