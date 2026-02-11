@@ -742,7 +742,7 @@ function start_box() {
         $RUNTIME_CMD cp ${BOX_NAME}:/system/vendor/build.prop build.prop_${BOX_NAME}
         if [ $ENABLE_AMD_C2_DECODE -eq 1 ];then
             sed -i "s/ro.hardware.enableC2decode=0/ro.hardware.enableC2decode=1/g" build.prop_${BOX_NAME}
-            $RUNTIME_CMD exec -i ${BOX_NAME} sh -c "chmod 666 /dev/dma_heap/system"
+            sudo chmod 666 /dev/dma_heap/system
         else
             sed -i "s/ro.hardware.enableC2decode=1/ro.hardware.enableC2decode=0/g" build.prop_${BOX_NAME}
         fi
