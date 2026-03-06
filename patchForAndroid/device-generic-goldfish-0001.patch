@@ -1440,7 +1440,7 @@ new file mode 100644
 index 0000000..9eb3add
 --- /dev/null
 +++ b/camera-kbox/camera_device.cpp
-@@ -0,0 +1,686 @@
+@@ -0,0 +1,694 @@
 +/*
 + * Copyright (c) Huawei Technologies Co., Ltd. 2024-2024. All rights reserved.
 + */
@@ -1876,7 +1876,7 @@ index 0000000..9eb3add
 +CameraDevice::CameraThread::CameraThread(CameraDevice *dev, ProduceFrameFunc producer, void *producerOpaque)
 +    : WorkerThread("Camera_CameraThread", dev, dev->m_cameraHAL), m_producerFunc(producer),
 +      m_producerOpaque(producerOpaque), m_restartWidth(0), m_restartHeight(0), m_restartPixelFormat(0),
-+      m_restartOneBurst(false), m_restartTakingPicture(false), m_restartRequested(false)
++      m_restartOneBurst(false), m_restartTakingPicture(false), m_restartRequested(false), m_curFrameTimestamp(0)
 +{}
 +
 +const void *CameraDevice::CameraThread::GetPrimaryBuffer() const
@@ -1907,6 +1907,14 @@ index 0000000..9eb3add
 +    nsecs_t timeout = std::max<nsecs_t>(0, wakeAt - now);
 +    if (!CheckRestartRequest()) {
 +        return false;
++    }
++    {
++        Mutex::Autolock lock(m_runningMutex);
++        m_runningCondition.waitRelative(m_runningMutex, timeout);
++        if (!m_running) {
++            ALOGV("FrameProducer has been terminated");
++            return false;
++        }
 +    }
 +    m_cameraDevice->CheckAutoFocusTrigger();
 +    m_curFrameTimestamp = systemTime(SYSTEM_TIME_MONOTONIC);
