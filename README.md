@@ -92,10 +92,6 @@ Kbox云手机支持裸机和虚拟机，详见的环境部署请参见《部署�
 |文档|FAQ|提供Kbox安装、使用过程的常见问题和解决方法。|
 
 
-
-## 分支维护策略<a name="ZH-CN_TOPIC_0000002550278291"></a>
-
-
 ## 版本维护策略<a name="ZH-CN_TOPIC_0000002518758444"></a>
 
 Kbox版本维护策略如下：
@@ -126,6 +122,8 @@ Kbox版本维护策略如下：
 
 ## License<a name="ZH-CN_TOPIC_0000002518758448"></a>
 
+本项目采用Apache License 2.0许可证。详见[LICENSE](LICENSE)文件
+本项目的文档适用CC-BY 4.0许可证，具体参见文件[LICENSE](docs/LICENSE)文件
 
 ## 贡献声明<a name="ZH-CN_TOPIC_0000002550238283"></a>
 
