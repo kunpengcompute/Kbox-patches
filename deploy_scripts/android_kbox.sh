@@ -276,19 +276,13 @@ function enable_hard_decoder() {
         # VA GPU 硬解逻辑到base_box中处理，兼容视频流
         return;
     fi
-    # 从硬解使能软解
     if [ $ENABLE_HARD_DECODE -ne 1 ];then
         docker cp ${container_name}:/system/vendor/etc/media_codecs.xml .
-        sed -i 's/media_codecs_kbox_video.xml/media_codecs_google_video.xml/g' media_codecs.xml
+        sed -i '/<Decoders>/,/<\/Decoders>/d' media_codecs.xml
         docker cp ./media_codecs.xml ${container_name}:/system/vendor/etc/
         docker exec -itd ${container_name} chmod 644 /system/vendor/etc/media_codecs.xml
         return
     fi
-    # 使能硬解
-    docker cp ${container_name}:/system/vendor/etc/media_codecs.xml .
-    sed -i 's/media_codecs_google_video.xml/media_codecs_kbox_video.xml/g' media_codecs.xml
-    docker cp ./media_codecs.xml ${container_name}:/system/vendor/etc/
-    docker exec -itd ${container_name} chmod 644 /system/vendor/etc/media_codecs.xml
     echo "enable hard decoder done"
 }
 
