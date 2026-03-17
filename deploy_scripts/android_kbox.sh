@@ -278,11 +278,17 @@ function enable_hard_decoder() {
     fi
     if [ $ENABLE_HARD_DECODE -ne 1 ];then
         docker cp ${container_name}:/system/vendor/etc/media_codecs.xml .
-        sed -i '/<Decoders>/,/<\/Decoders>/d' media_codecs.xml
+        sed -i '/<Decoders>/,/<\/Decoders>/s/<Decoders>/<!-- &/' media_codecs.xml
+        sed -i '/<Decoders>/,/<\/Decoders>/s/<\/Decoders>/& -->/' media_codecs.xml
         docker cp ./media_codecs.xml ${container_name}:/system/vendor/etc/
         docker exec -itd ${container_name} chmod 644 /system/vendor/etc/media_codecs.xml
         return
     fi
+    docker cp ${container_name}:/system/vendor/etc/media_codecs.xml .
+    sed -i '/<!--.*<Decoders>/s/^[[:space:]]*<!--[[:space:]]*//' media_codecs.xml
+    sed -i '/<Decoders>/,/<\/Decoders>/s/ -->$//' media_codecs.xml
+    docker cp ./media_codecs.xml ${container_name}:/system/vendor/etc/
+    docker exec -itd ${container_name} chmod 644 /system/vendor/etc/media_codecs.xml
     echo "enable hard decoder done"
 }
 
