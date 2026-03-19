@@ -6,7 +6,6 @@
 
 本手册是云手机产品验收的指导文档，在进行验收前请确保使用的物理环境、系统环境以及软件版本正确，本手册中的用例为云手机产品测试团队设计，覆盖Kbox云手机产品的基本功能。
 
-
 ### 注意事项<a name="ZH-CN_TOPIC_0000002549826087"></a>
 
 1. 在进行验收前请确保使用的物理环境、系统环境以及软件版本正确并配套。
@@ -17,12 +16,9 @@
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >在实际验收测试过程中，以合同要求及双方约定为准进行验收，本手册仅供参考。
 
-
-
 ## 测试准备<a name="ZH-CN_TOPIC_0000002518186316"></a>
 
 服务器硬件以及软件包信息、用例验收前环境部署以及密度测试方法等信息请参见《[Kbox云手机容器 特性指南](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/kboxcpc/kunpengcpskbox_20_0002.html)》，BIOS/iBMC/CPLD版本请参见《[Kbox云手机容器 版本配套表](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/kboxcpc/kunpengcps_kbox_0003.html)》。
-
 
 ## 测试约定<a name="ZH-CN_TOPIC_0000002549706087"></a>
 
@@ -33,7 +29,6 @@
 - PASS：按照用例的预置条件和测试步骤，测试结果与预期结果完全符合。
 - FAIL：按照用例的预置条件和测试步骤，测试结果与预期结果不符合。
 - NT：由于需求变更或测试环境原因，用例未执行测试。
-
 
 ## 测试用例及测试记录<a name="ZH-CN_TOPIC_0000002518346236"></a>
 
@@ -85,7 +80,6 @@
 </tbody>
 </table>
 
-
 #### 重启Kbox云手机容器<a name="ZH-CN_TOPIC_0000002549706089"></a>
 
 <a name="table26778736"></a>
@@ -131,7 +125,6 @@
 </tr>
 </tbody>
 </table>
-
 
 #### 删除Kbox云手机容器<a name="ZH-CN_TOPIC_0000002518346234"></a>
 
@@ -179,7 +172,6 @@
 </tbody>
 </table>
 
-
 #### Kbox云手机容器状态查询<a name="ZH-CN_TOPIC_0000002549826077"></a>
 
 <a name="table35101782"></a>
@@ -225,7 +217,6 @@
 </tr>
 </tbody>
 </table>
-
 
 #### Kbox云手机容器adb测试<a name="ZH-CN_TOPIC_0000002549706085"></a>
 
@@ -273,7 +264,6 @@
 </tbody>
 </table>
 
-
 #### 资源隔离测试<a name="ZH-CN_TOPIC_0000002518346226"></a>
 
 <a name="table60533823"></a>
@@ -320,7 +310,6 @@
 </tbody>
 </table>
 
-
 #### GPS Mock测试<a name="ZH-CN_TOPIC_0000002549706077"></a>
 
 <a name="table60533823"></a>
@@ -364,7 +353,6 @@
 </tr>
 </tbody>
 </table>
-
 
 #### IMEI Mock测试<a name="ZH-CN_TOPIC_0000002518186306"></a>
 
@@ -412,7 +400,6 @@
 </tbody>
 </table>
 
-
 #### Wi-Fi Mock测试<a name="ZH-CN_TOPIC_0000002549826083"></a>
 
 <a name="table11771810"></a>
@@ -457,7 +444,6 @@
 </tbody>
 </table>
 
-
 #### 传感器Mock测试<a name="ZH-CN_TOPIC_0000002518186312"></a>
 
 <a name="table60533823"></a>
@@ -501,7 +487,6 @@
 </tr>
 </tbody>
 </table>
-
 
 #### vinput设备创建<a name="ZH-CN_TOPIC_0000002518346224"></a>
 
@@ -549,7 +534,6 @@
 </tbody>
 </table>
 
-
 #### vinput设备事件发送与接收<a name="ZH-CN_TOPIC_0000002518186304"></a>
 
 <a name="table60533823"></a>
@@ -595,7 +579,6 @@
 </tr>
 </tbody>
 </table>
-
 
 #### GPS Mock属性值修改<a name="ZH-CN_TOPIC_0000002518346228"></a>
 
@@ -643,7 +626,6 @@
 </tbody>
 </table>
 
-
 #### 传感器属性值设置<a name="ZH-CN_TOPIC_0000002549706079"></a>
 
 <a name="table60533823"></a>
@@ -687,7 +669,6 @@
 </tr>
 </tbody>
 </table>
-
 
 #### Kbox组件版本号查询测试<a name="ZH-CN_TOPIC_0000002518346230"></a>
 
@@ -738,7 +719,6 @@ Component AppendInfo: 11.0.0_r48</pre>
 </tbody>
 </table>
 
-
 #### Kbox云手机硬解视频播放能力测试<a name="ZH-CN_TOPIC_0000002518346232"></a>
 
 <a name="table60533823"></a>
@@ -782,7 +762,6 @@ Component AppendInfo: 11.0.0_r48</pre>
 </tr>
 </tbody>
 </table>
-
 
 #### IMSI Mock测试<a name="ZH-CN_TOPIC_0000002549706081"></a>
 
@@ -830,7 +809,6 @@ Component AppendInfo: 11.0.0_r48</pre>
 </tbody>
 </table>
 
-
 #### 网络运营商信息、SIM卡信息查询测试<a name="ZH-CN_TOPIC_0000002518186308"></a>
 
 <a name="table9347770"></a>
@@ -877,9 +855,6 @@ Component AppendInfo: 11.0.0_r48</pre>
 </tbody>
 </table>
 
-
-
-
 ## 测试结果分析<a name="ZH-CN_TOPIC_0000002549826081"></a>
 
 ### 测试基本信息<a name="ZH-CN_TOPIC_0000002518346222"></a>
@@ -912,7 +887,6 @@ Component AppendInfo: 11.0.0_r48</pre>
 </tbody>
 </table>
 
-
 ### 测试结果列表<a name="ZH-CN_TOPIC_0000002549826079"></a>
 
 |测试类别|用例编号|用例名称|测试结果（PASS/FAIL/NT）|
@@ -936,13 +910,9 @@ Component AppendInfo: 11.0.0_r48</pre>
 ||4.1.17|IMSI Mock测试||
 ||4.1.18|网络运营商信息、SIM卡信息查询测试||
 
-
-
-
 ## 客户建议及结果确认<a name="ZH-CN_TOPIC_0000002549826075"></a>
 
 ### 客户建议<a name="ZH-CN_TOPIC_0000002549706083"></a>
-
 
 ### 结果确认<a name="ZH-CN_TOPIC_0000002549826073"></a>
 
@@ -950,7 +920,3 @@ Component AppendInfo: 11.0.0_r48</pre>
 |--|--|
 |测试人员签名：|测试人员签名：|
 |时间：|时间：|
-
-
-
-
