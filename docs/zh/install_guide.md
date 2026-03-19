@@ -89,7 +89,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 本章节提供Kbox安卓容器环境部署流程，帮助您更好地理解部署过程中的各个环节。部署过程中，使用硬件配置方案二、三时需要执行安装显卡驱动操作步骤。
 
-## 配置BIOS<a name="ZH-CN_TOPIC_0000002549832109"></a>
+## 配置BIOS<a name="ZH-CN_TOPIC_0000002549832109" id="配置BIOS"></a>
 
 ### 内存插入顺序说明<a name="ZH-CN_TOPIC_0000002549832089"></a>
 
@@ -414,7 +414,7 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
 
 华为提供内核一键式编译安装自动化脚本kbox\_install\_kernel.sh，包含了手动编译安装内核的全部操作。您可以通过执行该脚本快速编译安装内核，也可以自行参见手动编译安装内核章节在环境中一步步编译安装。
 
-内核一键式编译脚本kbox\_install\_kernel.sh支持openEuler 22.03 LTS SP4（对应内核版本5.10.0-216.0.0）版本的编译，脚本获取方式：请参见[软件环境](软件环境-35.md)获取Kbox-AOSP11.zip包并解压，脚本位于“Kbox-AOSP11/deploy\_scripts/openEuler\_deploy“目录。脚本的具体使用方法，请参见脚本开头处的注释说明内容。
+内核一键式编译脚本kbox\_install\_kernel.sh支持openEuler 22.03 LTS SP4（对应内核版本5.10.0-216.0.0）版本的编译，脚本获取方式：请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)获取Kbox-AOSP11.zip包并解压，脚本位于“Kbox-AOSP11/deploy\_scripts/openEuler\_deploy“目录。脚本的具体使用方法，请参见脚本开头处的注释说明内容。
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >一键式脚本中涉及的内核配置与修改仅作为功能性参考，不建议使用鲲鹏BoostKit云手机参考方案作为商用方案。若选择使用鲲鹏BoostKit云手机参考方案需自行承担安全风险，客户或ISV在商用前请进行必要的安全评估。
@@ -430,7 +430,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >
 >- 手动编译内核章节中涉及的内核配置与修改仅作为功能性参考，不建议使用鲲鹏BoostKit云手机参考方案作为商用方案。若选择使用鲲鹏BoostKit云手机参考方案需自行承担安全风险，客户或ISV在商用前请进行必要的安全评估。
->- openEuler操作系统的安装请参考openEuler官方网站的文档：《[openEuler 22.03 LTS SP4 安装指导](https://docs.openeuler.org/zh/docs/22.03_LTS_SP4/docs/Installation/%E5%AE%89%E8%A3%85%E5%9C%A8%E6%9C%8D%E5%8A%A1%E5%99%A8.html)》
+>- openEuler操作系统的安装请参考openEuler官方网站的文档：《[openEuler 22.03 LTS SP4 安装指导](https://docs.openeuler.openatom.cn/zh/docs/22.03_LTS_SP4/server/installation_upgrade/installation/installation_preparations.html)》
 
 编译时请使用root账号登录和操作。
 
@@ -467,7 +467,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
         ```
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
-    >该配置在系统重启后生效。重启步骤可以暂缓执行，待完成章节[编译并安装Kernel](编译并安装Kernel.md)后一并进行重启操作。
+    >该配置在系统重启后生效。重启步骤可以暂缓执行，待完成章节[编译并安装Kernel](#编译并安装Kernel)后一并进行重启操作。
 
 2. 禁用SELinux。
 
@@ -496,7 +496,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
     > echo "SELINUX=disabled" > /etc/selinux/config
     >    ```
     >
-    >- 该配置在系统重启后生效。重启步骤可以暂缓执行，待完成章节[编译并安装Kernel](编译并安装Kernel.md)后一并进行重启操作。
+    >- 该配置在系统重启后生效。重启步骤可以暂缓执行，待完成章节[编译并安装Kernel](#编译并安装Kernel)后一并进行重启操作。
 
 3. 启动多路Kbox容器时，主机侧文件访问量大，需调整用户可创建的inotify instances的上限。
     1. 查看现有配置。
@@ -574,7 +574,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
 请参见该章节以获取正确的内核源码版本并解压内核源码，并解压内核源码以进行内核编译。
 
-1. 请参见[软件环境](软件环境-35.md)中的下载链接获取Kernel源码文件，本地下载后上传至服务器的“/usr/src/kernels“目录，并解压内核源码。
+1. 请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)中的下载链接获取Kernel源码文件，本地下载后上传至服务器的“/usr/src/kernels“目录，并解压内核源码。
 
     ```shell
     cd /usr/src/kernels
@@ -667,7 +667,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
     |--|--|--|--|
     |KBOX|Y|[*] Kernel support for Kbox|CONFIG_KBOX=y|
     |ANDROID_BINDER_DEVICES|binder,hwbinder,vndbinder|(binder,hwbinder,vndbinder) Android Binder devices|CONFIG_ANDROID_BINDER_DEVICES="binder,hwbinder,vndbinder"|
-    |HISI_PMU|M|<M> HiSilicon SoC PMU drivers|CONFIG_HISI_PMU=m|
+    |HISI_PMU|M|\<M> HiSilicon SoC PMU drivers|CONFIG_HISI_PMU=m|
     |SYSTEM_TRUSTED_KEYS|清空内容|( ) Additional X.509 keys for default system keyring|CONFIG_SYSTEM_TRUSTED_KEYS=""|
     |PID_RESERVE|N|[ ] Support for reserve pid|# CONFIG_PID_RESERVE is not set|
     |PSI_DEFAULT_DISABLED|N|[ ] Require boot parameter to enable pressure stall information tracking|# CONFIG_PSI_DEFAULT_DISABLED is not set|
@@ -716,7 +716,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
 生成.config文件并进行内核编译选项的配置。该文件用于指定需要使能的功能和特性。
 
-###### 编译并安装Kernel<a name="ZH-CN_TOPIC_0000002549832095"></a>
+###### 编译并安装Kernel<a name="ZH-CN_TOPIC_0000002549832095" id="编译并安装Kernel"></a>
 
 1. <a name="zh-cn_topic_0000001505919657_zh-cn_topic_0000001373652281_zh-cn_topic_0000001259572633_zh-cn_topic_0000001212014022_li295103241"></a>编译内核。
 

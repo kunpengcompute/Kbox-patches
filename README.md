@@ -11,6 +11,7 @@ Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的核心能力组件，
 Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的重要组成部分，是实现Android应用运行的基础软件。它将AOSP系统直接运行在容器内，实现GPS、加速度传感器、陀螺仪、IMEI、Wi-Fi等外设硬件的数据Mock功能，以及Gralloc&HWComposor模块，确保AOSP系统可以正常启动运行。
 
 Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的核心能力组件，本文介绍了Kbox云手机容器的基本概念，提供Kbox云手机容器的编译、部署及相关配置流程。
+
 ### 软件架构<a name="ZH-CN_TOPIC_0000002550238279"></a>
 
 本节介绍Kbox云手机容器的上下文逻辑结构与所包含的模块含义及作用。
@@ -18,7 +19,7 @@ Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的核心能力组件，
 Kbox云手机容器的整体架构如[**图 1** Kbox云手机容器架构图](#Kbox云手机容器架构图)所示。
 
 **图 1** Kbox云手机容器架构图<a name="fig89529117514"></a><a id="Kbox云手机容器架构图"></a>
-![](figures/Kbox云手机容器架构图.png "Kbox云手机容器架构图")
+![](docs/zh/figures/zh-cn_image_0000002512069213.png)
 
 Android容器：采用闭源组件Kbox和开源的AOSP软件，在容器内使能Android系统的基础云手机方案。
 
@@ -34,6 +35,7 @@ Docker：采用开源Docker软件，为Android系统提供软件运行时环境�
 硬件环境：ARM服务器，包含GPU卡、内存、磁盘等硬件，为云手机提供硬件平台。
 
 本节介绍Kbox云手机容器的上下文逻辑结构与所包含的模块含义及作用。
+
 ### 云手机规格<a name="ZH-CN_TOPIC_0000002518758446"></a>
 
 **表 1** Kbox基础云手机规格<a id="Kbox基础云手机规格"></a>
@@ -46,11 +48,7 @@ Docker：采用开源Docker软件，为Android系统提供软件运行时环境�
 |存储|16GB|
 |分辨率|720 x 1280|
 
-
-
-
 ## 目录结构<a name="ZH-CN_TOPIC_0000002550238277"></a>
-
 
 ## 版本说明<a name="ZH-CN_TOPIC_0000002550278289"></a>
 
@@ -68,18 +66,15 @@ Kbox云手机是基于AOSP开发的，目前适配了AOSP11和AOSP15，由于And
 |支持的docker版本|18.0|24.0|
 |对应的AOSP版本|11|15|
 
-
 **变更说明<a name="section4408930144513"></a>**
 
 每个发布版本特性变更详细信息，请参见《版本说明书》。
-
 
 ## 环境部署<a name="ZH-CN_TOPIC_0000002550278295"></a>
 
 Kbox云手机支持的硬件环境和操作系统，以及环境部署所需的软件包请参见《部署指南》中的“环境要求”。
 
 Kbox云手机支持裸机和虚拟机，详见的环境部署请参见《部署指南》。
-
 
 ## 学习文档<a name="ZH-CN_TOPIC_0000002518598548"></a>
 
@@ -91,7 +86,6 @@ Kbox云手机支持裸机和虚拟机，详见的环境部署请参见《部署�
 |文档|最佳实践|提供Kbox云手机在docker、k8s环境下的实践案例。|
 |文档|FAQ|提供Kbox安装、使用过程的常见问题和解决方法。|
 
-
 ## 版本维护策略<a name="ZH-CN_TOPIC_0000002518758444"></a>
 
 Kbox版本维护策略如下：
@@ -100,8 +94,6 @@ Kbox版本维护策略如下：
 |--|--|--|--|--|--|
 |Kbox11|长期分支|开发|2025/10/15|预计2026/03/15起进入维护状态|-|
 |Kbox15|长期分支|开发|2025/10/15|预计2026/03/15起进入维护状态|-|
-
-
 
 ## 免责声明<a name="ZH-CN_TOPIC_0000002518598546"></a>
 
@@ -119,7 +111,6 @@ Kbox版本维护策略如下：
 
 如果您不希望您的模型或数据集等信息在本项目中被提及，或希望更新本项目有关的描述，请在GitCode提交issue，我们将根据您的issue要求删除或更新您相关描述。衷心感谢您对本项目的理解和贡献。
 
-
 ## License<a name="ZH-CN_TOPIC_0000002518758448"></a>
 
 本项目采用Apache License 2.0许可证。详见[LICENSE](LICENSE)文件
@@ -127,13 +118,11 @@ Kbox版本维护策略如下：
 
 ## 贡献声明<a name="ZH-CN_TOPIC_0000002550238283"></a>
 
-欢迎大家为社区做贡献，如果使用过程中有任何问题/建议，或者需要反馈特性需求和bug报告，可以提交[Issues](zh-cn_topic_0000002535534673.md)联系我们，具体贡献方法可参考[这里](https://gitcode.com/boostkit/community/blob/master/docs/contributor/contributing.md)。同时也欢迎大家在[讨论专区](https://gitcode.com/boostkit/community/discussions)展开讨论交流。感谢您的支持。
-
+欢迎大家为社区做贡献，如果使用过程中有任何问题/建议，或者需要反馈特性需求和bug报告，可以提交[Issues](https://gitcode.com/boostkit/community/blob/master/docs/contributor/issue-submit.md)联系我们，具体贡献方法可参考[这里](https://gitcode.com/boostkit/community/blob/master/docs/contributor/contributing.md)。同时也欢迎大家在[讨论专区](https://gitcode.com/boostkit/community/discussions)展开讨论交流。感谢您的支持。
 
 ## 建议与交流<a name="ZH-CN_TOPIC_0000002518598544"></a>
 
 欢迎大家为社区做贡献。如果有任何疑问或建议，请提交[Issues](https://gitcode.com/boostkit/community/blob/master/docs/contributor/issue-submit.md)，我们会尽快回复。感谢您的支持。
-
 
 ## 致谢<a name="ZH-CN_TOPIC_0000002550278293"></a>
 
@@ -142,5 +131,3 @@ Kbox由华为公司的下列部门联合贡献：
 - 鲲鹏计算Boostkit开发部
 
 感谢来自社区的每一个PR，欢迎贡献Kbox！
-
-

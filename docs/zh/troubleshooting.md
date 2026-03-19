@@ -88,4 +88,4 @@
 
 **操作步骤<a name="section12953654202714"></a>**
 
-请参见[zh-cn\_topic\_0000002518226312.md](zh-cn_topic_0000002518226312.md)章节，检查内存及BIOS配置。
+请参见[配置BIOS](install_guide.md#配置BIOS)章节，检查内存及BIOS配置。

@@ -89,9 +89,9 @@ docker import android.tar kbox:demo
 
 启动云手机实例路径下应存在kbox\_config.cfg配置文件。容器会使用该文件中的配置，因此使用时应确保kbox\_config.cfg中的配置正确。若启动路径中无该配置文件，则云手机将无法启动。
 
-通过修改如[**表 1** kbox\_config.cfg配置文件中容器使用的GPU、CPU以及数据卷存放路径配置说明](#kbox\_config.cfg配置文件中容器使用的GPU、CPU以及数据卷存放路径配置说明)所示的map中对应路数的值来选择该路容器使用的GPU、CPU以及数据卷存放路径，灵活配置云手机使用的资源，使性能达到最优。
+通过修改如[**表 1** kbox\_config.cfg配置文件中容器使用的GPU、CPU以及数据卷存放路径配置说明](#kbox配置说明)所示的map中对应路数的值来选择该路容器使用的GPU、CPU以及数据卷存放路径，灵活配置云手机使用的资源，使性能达到最优。
 
-**表 1** kbox\_config.cfg配置文件中容器使用的GPU、CPU以及数据卷存放路径配置说明<a id="kbox\_config.cfg配置文件中容器使用的GPU、CPU以及数据卷存放路径配置说明"></a>
+**表 1** kbox\_config.cfg配置文件中容器使用的GPU、CPU以及数据卷存放路径配置说明<a id="kbox配置说明"></a>
 
 |参数名称|参数说明|配置说明|
 |--|--|--|
