@@ -28,7 +28,6 @@
 </tbody>
 </table>
 
-
 ### 软件版本配套说明<a name="ZH-CN_TOPIC_0000002549705863"></a>
 
 |软件类型|版本|备注|
@@ -37,16 +36,12 @@
 |OS|openEuler-24.03-LTS-SP1-aarch64 （内核6.6.0-72.0.0）|-|
 |ExaGear|ExaGear_ARM32-ARM64|转码软件|
 
-
-
 ### 硬件版本配套说明<a name="ZH-CN_TOPIC_0000002549705865"></a>
 
 |服务器类型|处理器型号|BIOS版本|CPLD版本|BMC版本|
 |--|--|--|--|--|
 |鲲鹏服务器|鲲鹏920 7260处理器|6.56|5.09|5.96|
 |鲲鹏服务器|鲲鹏920 7280Z处理器|20.55|5.08|5.05.12.15|
-
-
 
 ### 病毒扫描结果<a name="ZH-CN_TOPIC_0000002549705867"></a>
 
@@ -58,13 +53,9 @@
 |Bitdefender|7.5.1.200224|7.99967|2025-12-13 17:55:05|OK|
 |Kaspersky|12.0.0.6672|2025-12-13 10:03:00|2025-12-13 17:53:44|OK|
 
-
-
-
 ## 版本使用注意事项<a name="ZH-CN_TOPIC_0000002549825861"></a>
 
 请参见相应版本的特性指南，例如《[Kbox云手机容器 特性指南（Android 15）](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/kboxcpc_ad15/kunpengcpskbox_20_0002.html)》。
-
 
 ## V7.3.0\_15<a name="ZH-CN_TOPIC_0000002549705869"></a>
 
@@ -76,7 +67,6 @@
 |--|--|--|
 |1|新增支持Android 15云手机特性|Kbox云手机容器适配Android 15系统基础功能，完成系统启动、出图、scrcpy出流；实现了GPS、Sensor、Telephony等硬件仿真接入Android 15。|
 
-
 **修改特性<a name="section540mcpsimp"></a>**
 
 无
@@ -85,11 +75,9 @@
 
 无
 
-
 ### 已解决的问题<a name="ZH-CN_TOPIC_0000002518346010"></a>
 
 无
-
 
 ### 遗留问题<a name="ZH-CN_TOPIC_0000002518186096"></a>
 
@@ -132,8 +120,6 @@
 </tbody>
 </table>
 
-
-
 ## 版本配套文档<a name="ZH-CN_TOPIC_0000002549825863"></a>
 
 ### V7.3.0\_15配套文档<a name="ZH-CN_TOPIC_0000002518186092"></a>
@@ -145,11 +131,6 @@
 |3|Kunpeng BoostKit 26.0.RC1 Kbox云手机容器 版本配套表（Android 15）|本文档向用户介绍Kbox云手机容器的版本配套说明。|鲲鹏社区|
 |4|Kunpeng BoostKit 26.0.RC1 Kbox云手机容器 例行维护（Android 15）|本文档向用户介绍Kbox云手机容器的维护方法和维护工具。|鲲鹏社区|
 
-
-
 ### 获取文档方式<a name="ZH-CN_TOPIC_0000002549825867"></a>
 
 您可以通过访问[鲲鹏社区](https://www.hikunpeng.com/document/detail/zh/kunpengcps/overview/kunpengcps.html)浏览和获取相关文档。
-
-
-
