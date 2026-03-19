@@ -55,7 +55,7 @@ Kbox支持的所有基础功能和可选特性见[**表 1** Kbox基础功能清�
 可按以下步骤集成本特性：
 
 1. 安卓镜像中，合入patchForAndroid/frameworks-native-0001.patch（取自Kbox-AOSP11.zip，见[**表 1** Kbox基础功能清单](#Kbox基础功能清单)）
-2. 将AdaptiveVsync.kbox.so（取自BoostKit-boostcph-kbox\_\*.zip，见[zh-cn\_topic\_0000002518185584.md\#zh-cn\_topic\_0000001506119857\_zh-cn\_topic\_0000001323011582\_table1851215264513](zh-cn_topic_0000002518185584.md#zh-cn_topic_0000001506119857_zh-cn_topic_0000001323011582_table1851215264513)）集成至安卓镜像的/system/vendor/lib64/hw/路径下
+2. 将AdaptiveVsync.kbox.so（取自BoostKit-boostcph-kbox\_\*.zip，见[软件环境](compile_guide.md#Kbox安卓镜像编译构建软件环境要求)）集成至安卓镜像的/system/vendor/lib64/hw/路径下
 
 ### 使用特性<a name="ZH-CN_TOPIC_0000002518345688"></a>
 

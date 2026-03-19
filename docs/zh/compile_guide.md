@@ -93,7 +93,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
     ```
 
 2. 在“/home/auto\_compile“目录下载AOSP源码，版本为android-11.0.0\_r48，将下载好的AOSP源码目录重命名为“aosp“。
-3. 请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)下载Kbox-AOSP11.zip文件到本地，上传到服务器的“/home/auto\_compile“目录，并解压。
+3. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)下载Kbox-AOSP11.zip文件到本地，上传到服务器的“/home/auto\_compile“目录，并解压。
 
     ```shell
     cd /home/auto_compile
@@ -116,7 +116,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
     3. 按“Esc”键，输入**:wq!**，按“Enter”保存并退出编辑。
 
-5. 请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)下载Android Kbox二进制文件包、ExaGear转码包、Meson、Mesa源码、LLVM源码、libdrm源码、libva源码和Cloudphone应用安装包到本地。在如下指定目录中创建“package“文件夹。
+5. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)下载Android Kbox二进制文件包、ExaGear转码包、Meson、Mesa源码、LLVM源码、libdrm源码、libva源码和Cloudphone应用安装包到本地。在如下指定目录中创建“package“文件夹。
 
     ```shell
     cd /home/auto_compile/Kbox-AOSP11/make_img_sample/kbox11_android_build
@@ -310,7 +310,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
 6. 安装Meson。
 
-    请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)中的链接下载源码包后，将源码包中的“meson-0.63.2.tar.gz“文件上传至“\~/buildtools“目录并解压。
+    请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，将源码包中的“meson-0.63.2.tar.gz“文件上传至“\~/buildtools“目录并解压。
 
     ```shell
     cd ~/buildtools
@@ -380,7 +380,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 
 2. 下载Mesa Demo源码，并复制到“aosp/external“目录。
 
-    请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)中的链接下载源码包后，将源码包上传至“/root/sourcecode“目录，解压并重命名后，复制到“aosp/external“目录。
+    请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，将源码包上传至“/root/sourcecode“目录，解压并重命名后，复制到“aosp/external“目录。
 
     ```shell
     cd ~/sourcecode
@@ -391,7 +391,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 
 3. 下载LLVM源码，复制到“aosp/external“目录，并且将目录重命名为“llvm70“。
 
-    请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)中的链接下载源码包后，将源码包上传至“/root/sourcecode“目录，解压并重命名后，复制到“aosp/external“目录。
+    请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，将源码包上传至“/root/sourcecode“目录，解压并重命名后，复制到“aosp/external“目录。
 
     ```shell
     cd ~/sourcecode
@@ -402,7 +402,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 
 4. 下载libdrm源码，复制到“aosp/external“目录，并且重命名为“libdrm“。
 
-    请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)中的链接下载源码包后，将源码包上传至“/root/sourcecode“目录，解压并重命名后，复制到“aosp/external“目录。
+    请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，将源码包上传至“/root/sourcecode“目录，解压并重命名后，复制到“aosp/external“目录。
 
     ```shell
     cd ~/sourcecode
@@ -413,7 +413,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 
 5. 下载libva源码，复制到“aosp/external“目录，并且重命名为“libva“。
 
-    请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)中的链接下载源码包后，将源码包上传至“/root/sourcecode“目录，解压并重命名后，复制到“aosp/external“目录。
+    请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，将源码包上传至“/root/sourcecode“目录，解压并重命名后，复制到“aosp/external“目录。
 
     ```shell
     cd ~/sourcecode
@@ -422,7 +422,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
     cp -r ./libva ~/aosp/external/
     ```
 
-6. 请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)下载vmi-CloudPhone.zip软件包，解压后将指定文件夹复制到“aosp/external“目录。
+6. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)下载vmi-CloudPhone.zip软件包，解压后将指定文件夹复制到“aosp/external“目录。
 
     请将获取到的Media的zip源码包上传至“/root/sourcecode“目录，解压并复制以下内容到“aosp/external“目录。
 
