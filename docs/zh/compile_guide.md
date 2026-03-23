@@ -1,8 +1,8 @@
 # 编译指南<a name="ZH-CN_TOPIC_0000002521735842"></a>
 
-## 环境准备<a name="ZH-CN_TOPIC_0000002518346174"></a>
+## 1 环境准备<a name="ZH-CN_TOPIC_0000002518346174"></a>
 
-### 硬件环境<a name="ZH-CN_TOPIC_0000002549825993"></a>
+### 1.1 硬件环境<a name="ZH-CN_TOPIC_0000002549825993"></a>
 
 Kbox安卓镜像的编译仅支持在x86\_64服务器下进行，服务器要求的操作系统为Ubuntu 22.04 LTS，编译前请确保您的硬件环境满足要求。
 
@@ -21,7 +21,7 @@ Kbox安卓镜像编译构建的硬件环境要求如[**表 1** Kbox安卓镜像�
 
 Kbox安卓镜像的编译仅支持在x86\_64服务器下进行，服务器要求的操作系统为Ubuntu 22.04 LTS，编译前请确保您的硬件环境满足要求。
 
-### 软件环境<a name="ZH-CN_TOPIC_0000002549705993"></a>
+### 1.2 软件环境<a name="ZH-CN_TOPIC_0000002549705993"></a>
 
 编译Kbox安卓镜像需要使用AOSP源码包，华为提供的Kbox二进制文件包和ExaGear转码包，您需要通过本节提供的渠道获取相应的包并对华为提供的软件包进行完整性校验，以便进行后续的编译步骤。
 
@@ -33,11 +33,11 @@ Kbox安卓镜像编译构建的软件环境要求如[**表 1** Kbox安卓镜像�
 
 |序号|软件|说明|获取地址|
 |--|--|--|--|
-|1|AOSP源码|版本：android-15.0.0_r17|获取链接|
-|2|BoostKit-boostcph-kbox_*_15.zip|Android Kbox二进制文件包|获取链接|
-|3|Kbox-AOSP15.zip|Android代码补丁Demo包、编译脚本Demo包|获取链接|
-|4|Meson|1.1.0|获取链接|
-|5|Mesa|Mesa参考Demo24.3.4|获取链接|
+|1|AOSP源码|版本：android-15.0.0_r17|[获取链接](https://android.googlesource.com/platform/manifest)|
+|2|BoostKit-boostcph-kbox_*_15.zip|Android Kbox二进制文件包|[获取链接](https://www.hikunpeng.com/zh/developer/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft)|
+|3|Kbox-AOSP15.zip|Android代码补丁Demo包、编译脚本Demo包|[获取链接](https://raw.gitcode.com/boostkit/Kbox/archive/refs/heads/AOSP15.zip)|
+|4|Meson|1.1.0|[获取链接](https://github.com/mesonbuild/meson/releases/download/1.1.0/meson-1.1.0.tar.gz)|
+|5|Mesa|Mesa参考Demo24.3.4|[获取链接](https://gitcode.com/boostkit/mesa/tree/24.3.4)|
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >以上软件包名仅供参考，部分下载方式可能会导致软件包名与表格产生差异。请以获取的实际包名为准，参考表格适当进行更名，以方便后续步骤中的使用。
@@ -61,7 +61,7 @@ Kbox安卓镜像编译构建的软件环境要求如[**表 1** Kbox安卓镜像�
 
 编译Kbox安卓镜像需要使用AOSP源码包，华为提供的Kbox二进制文件包和ExaGear转码包，您需要通过本节提供的渠道获取相应的包并对华为提供的软件包进行完整性校验，以便进行后续的编译步骤。
 
-## 编译构建流程<a name="ZH-CN_TOPIC_0000002549826003"></a>
+## 2 编译构建流程<a name="ZH-CN_TOPIC_0000002549826003"></a>
 
 了解Kbox安卓镜像编译构建流程，可以帮助您更好地理解编译过程中的各个环节。
 
@@ -72,7 +72,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
 了解Kbox安卓镜像编译构建流程，可以帮助您更好地理解编译过程中的各个环节。
 
-## 安装编译依赖包<a name="ZH-CN_TOPIC_0000002549826019"></a>
+## 3 安装编译依赖包<a name="ZH-CN_TOPIC_0000002549826019"></a>
 
 进行编译前，需要为环境配置源，安装python3的Mako模块以及Meson等依赖包。
 
@@ -160,7 +160,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
 6. 安装Meson。
 
-    请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，将源码包中的“meson-1.1.0.tar.gz“文件上传至“\~/buildtools“目录并解压。
+    请参见[1.2-软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，将源码包中的“meson-1.1.0.tar.gz“文件上传至“\~/buildtools“目录并解压。
 
     ```shell
     cd ~/buildtools
@@ -185,9 +185,9 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
 进行编译前，需要为环境配置源，安装python3的Mako模块以及Meson等依赖包。
 
-## 编译AOSP源码与镜像生成<a name="ZH-CN_TOPIC_0000002549705989"></a>
+## 4 编译AOSP源码与镜像生成<a name="ZH-CN_TOPIC_0000002549705989"></a>
 
-### 下载AOSP源码<a name="ZH-CN_TOPIC_0000002518186238"></a>
+### 4.1 下载AOSP源码<a name="ZH-CN_TOPIC_0000002518186238"></a>
 
 Kbox安卓镜像使用AOSP 15进行编译，请参考本节操作步骤下载源码。
 
@@ -211,7 +211,7 @@ Kbox安卓镜像使用AOSP 15进行编译，请参考本节操作步骤下载源
 
 Kbox安卓镜像使用AOSP 15进行编译，请参考本节操作步骤下载源码。
 
-### 下载Mesa Demo源码<a name="ZH-CN_TOPIC_0000002549825989"></a>
+### 4.2 下载Mesa Demo源码<a name="ZH-CN_TOPIC_0000002549825989"></a>
 
 Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作步骤下载源码。
 
@@ -222,7 +222,7 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
     chmod -R 700 ~/sourcecode
     ```
 
-2. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载Mesa源码包后，将源码包上传至“\~/sourcecode“目录，解压并重命名后，复制到“aosp/external“目录。
+2. 请参见[1.2-软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载Mesa源码包后，将源码包上传至“\~/sourcecode“目录，解压并重命名后，复制到“aosp/external“目录。
 
     ```shell
     cd ~/sourcecode
@@ -234,13 +234,13 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
 
 Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作步骤下载源码。
 
-### 合入Kbox安卓补丁<a name="ZH-CN_TOPIC_0000002518346170" id="合入Kbox安卓补丁"></a>
+### 4.3 合入Kbox安卓补丁<a name="ZH-CN_TOPIC_0000002518346170" id="合入Kbox安卓补丁"></a>
 
 在AOSP源码包中合入Kbox安卓补丁包。
 
 1. 下载Kbox安卓补丁源码。
 
-    请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，将源码包上传至“\~/sourcecode“目录，并解压。
+    请参见[1.2-软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，将源码包上传至“\~/sourcecode“目录，并解压。
 
     ```shell
     cd ~/sourcecode
@@ -259,11 +259,11 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
 
 在AOSP源码包中合入Kbox安卓补丁包。
 
-### 合入二进制内容<a name="ZH-CN_TOPIC_0000002549705997"></a>
+### 4.4 合入二进制内容<a name="ZH-CN_TOPIC_0000002549705997"></a>
 
 在AOSP源码包中合入Kbox二进制软件包。
 
-1. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，解压二进制文件包（BoostKit-boostcph-kbox\_\*\_15.zip），获得Kbox-\*-aosp15.0-binary.zip压缩包，将此压缩包中的“product\_prebuilt“、“products“目录上传至“\~/dependency“目录。
+1. 请参见[1.2-软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，解压二进制文件包（BoostKit-boostcph-kbox\_\*\_15.zip），获得Kbox-\*-aosp15.0-binary.zip压缩包，将此压缩包中的“product\_prebuilt“、“products“目录上传至“\~/dependency“目录。
 
     请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
 
@@ -298,7 +298,7 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
 
 在AOSP源码包中合入Kbox二进制软件包。
 
-### 编译AOSP并生成镜像<a name="ZH-CN_TOPIC_0000002549826011"></a>
+### 4.5 编译AOSP并生成镜像<a name="ZH-CN_TOPIC_0000002549826011"></a>
 
 编译AOSP源码生成Kbox安卓镜像。
 
@@ -373,7 +373,7 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
         >可不指定核数，直接执行**make**命令，则默认用1个核进行编译，也可用“-j”参数指定核数进行编译，可指定的数字最大为服务器实际的CPU核数，本文以64核为例进行说明。
         >正常情况下，能够编译完成。有时可能由于并发编译顺序导致编译出现问题，可尝试重新执行**make**命令。
 
-2. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，解压Kbox-AOSP15.zip（与[合入Kbox安卓补丁](#合入Kbox安卓补丁)相同），将Kbox-AOSP15文件夹中的“make\_img\_sample“目录上传至“\~/dependency“目录。
+2. 请参见[1.2-软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，解压Kbox-AOSP15.zip（与[合入Kbox安卓补丁](#合入Kbox安卓补丁)相同），将Kbox-AOSP15文件夹中的“make\_img\_sample“目录上传至“\~/dependency“目录。
 
     请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
 
