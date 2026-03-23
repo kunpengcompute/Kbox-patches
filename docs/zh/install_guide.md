@@ -1,12 +1,12 @@
 # 安装指南<a name="ZH-CN_TOPIC_0000002521623658"></a>
 
-## 部署说明<a name="ZH-CN_TOPIC_0000002518192330"></a>
+## 1 部署说明<a name="ZH-CN_TOPIC_0000002518192330"></a>
 
 为了方便用户快速部署Kbox，鲲鹏BoostKit提供了Demo部署脚本与Demo补丁。请参考以下操作步骤，基于鲲鹏服务器体验云手机Demo。
 
-## 环境准备<a name="ZH-CN_TOPIC_0000002549832091"></a>
+## 2 环境准备<a name="ZH-CN_TOPIC_0000002549832091"></a>
 
-### 硬件环境<a name="ZH-CN_TOPIC_0000002549832093"></a>
+### 2.1 硬件环境<a name="ZH-CN_TOPIC_0000002549832093"></a>
 
 部署Kbox云手机容器环境前请确保您的环境满足已验证的硬件环境要求。
 
@@ -34,7 +34,7 @@ Kbox云手机容器环境部署的硬件环境配置方案要求如[**表 1** Kb
 
 部署Kbox云手机容器环境前请确保您的环境满足已验证的硬件环境要求。
 
-### 软件环境<a name="ZH-CN_TOPIC_0000002518352230"></a>
+### 2.2 软件环境<a name="ZH-CN_TOPIC_0000002518352230"></a>
 
 在openEuler 22.03 LTS SP4（对应内核版本5.10.0-216.0.0）操作系统下部署Kbox安卓容器前，通过本节提供的渠道获取相应的软件包，并对华为提供的软件包进行完整性校验，以便进行后续的部署步骤。
 
@@ -46,14 +46,14 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 |序号|软件包|说明|获取地址|配置方案一|配置方案二|配置方案三|
 |--|--|--|--|--|--|--|
-|1|android.tar|Kbox安卓镜像包，用于部署Kbox基础环境。|自行编译（请参见进行编译）。|√|√|√|
-|2|BoostKit-boostcph-kbox_*.zip|Android Kbox二进制文件包，包含运行所需组件。|获取链接|√|√|√|
-|3|kernel-5.10.0-216.0.0.zip|openEuler 22.03 LTS SP4 Kernel源码。|获取链接|√|√|√|
-|4|ExaGear_ARM32-ARM64_V2.5.tar.gz|ExaGear转码二进制包。|获取链接|√|√|√|
-|5|linux-firmware-20210919.tar.gz|包含Kbox运行所需相关固件。|获取链接|√|-|-|
-|6|Kbox-AOSP11.zip|包含内核补丁Demo包、容器部署脚本Demo包。|获取链接切换到AOSP11分支，并单击“下载zip”进行下载。|√|√|√|
-|7|NETINT-vXXX.tar.gz|NETINT编解码库，当使能硬解的时候获取该软件包，配套版本4.8.F-scale。|获取链接下载密码：test123|√|-|-|
-|8|Quadra_V*XXX*.zip|包含NETINT编码卡Quadra软固件及文档包。|获取链接下载密码：test123|√|-|-|
+|1|android.tar|Kbox安卓镜像包，用于部署Kbox基础环境。|自行编译（请参见[编译指南](compile_guide.md)进行编译）。|√|√|√|
+|2|BoostKit-boostcph-kbox_*.zip|Android Kbox二进制文件包，包含运行所需组件。|[获取链接](https://www.hikunpeng.com/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft)|√|√|√|
+|3|kernel-5.10.0-216.0.0.zip|openEuler 22.03 LTS SP4 Kernel源码。|[获取链接](https://gitee.com/openeuler/kernel/repository/archive/5.10.0-216.0.0.zip)|√|√|√|
+|4|ExaGear_ARM32-ARM64_V2.5.tar.gz|ExaGear转码二进制包。|[获取链接](https://www.hikunpeng.com/zh/developer/download?title=%E4%BA%91%E6%89%8B%E6%9C%BA&subTitle=ExaGear%2BAArch32%E6%8C%87%E4%BB%A4%E7%BF%BB%E8%AF%91%E8%BD%AF%E4%BB%B6&zhTitle=%E4%BA%91%E6%89%8B%E6%9C%BA&zhSubTitle=ExaGear%2BAArch32%E6%8C%87%E4%BB%A4%E7%BF%BB%E8%AF%91%E8%BD%AF%E4%BB%B6&enTitle=ARM%2BNative&enSubTitle=ExaGear%2BAArch32%2BInstruction%2BTranslation%2BSoftware)|√|√|√|
+|5|linux-firmware-20210919.tar.gz|包含Kbox运行所需相关固件。|[获取链接](https://mirrors.edge.kernel.org/pub/linux/kernel/firmware/linux-firmware-20210919.tar.gz)|√|-|-|
+|6|Kbox-AOSP11.zip|包含内核补丁Demo包、容器部署脚本Demo包。|[获取链接](https://gitcode.com/boostkit/Kbox)切换到AOSP11分支，并单击“下载zip”进行下载。|√|√|√|
+|7|NETINT-vXXX.tar.gz|NETINT编解码库，当使能硬解的时候获取该软件包，配套版本4.8.F-scale。|[获取链接](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)下载密码：test123|√|-|-|
+|8|Quadra_V*XXX*.zip|包含NETINT编码卡Quadra软固件及文档包。|[获取链接](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)下载密码：test123|√|-|-|
 |9|VAGPU-25.03.01.01-RC20.tgz|显卡驱动。|请联系华为技术支持获取。|-|√|√|
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
@@ -78,20 +78,21 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 在openEuler 22.03 LTS SP4（对应内核版本5.10.0-216.0.0）操作系统下部署Kbox安卓容器前，通过本节提供的渠道获取相应的软件包，并对华为提供的软件包进行完整性校验，以便进行后续的部署步骤。
 
-## 部署流程简述<a name="ZH-CN_TOPIC_0000002549832101"></a>
+## 3 部署流程简述<a name="ZH-CN_TOPIC_0000002549832101"></a>
 
 本章节提供Kbox安卓容器环境部署流程，帮助您更好地理解部署过程中的各个环节。部署过程中，使用硬件配置方案二、三时需要执行安装显卡驱动操作步骤。
 
 容器环境部署的流程如[**图 1** 环境部署流程](#环境部署流程)所示。
 
 **图 1** 环境部署流程<a name="fig269321515327"></a><a id="环境部署流程"></a>
+
 ![](figures/环境部署流程.png "环境部署流程")
 
 本章节提供Kbox安卓容器环境部署流程，帮助您更好地理解部署过程中的各个环节。部署过程中，使用硬件配置方案二、三时需要执行安装显卡驱动操作步骤。
 
-## 配置BIOS<a name="ZH-CN_TOPIC_0000002549832109" id="配置BIOS"></a>
+## 4 配置BIOS<a name="ZH-CN_TOPIC_0000002549832109" id="配置BIOS"></a>
 
-### 内存插入顺序说明<a name="ZH-CN_TOPIC_0000002549832089"></a>
+### 4.1 内存插入顺序说明<a name="ZH-CN_TOPIC_0000002549832089"></a>
 
 环境部署指定的服务器BIOS版本对内存的插入格式有限制。在进行BIOS设置之前，请确保内存插入格式如本章节提供的所示。
 
@@ -102,7 +103,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 环境部署指定的服务器BIOS版本对内存的插入格式有限制。在进行BIOS设置之前，请确保内存插入格式如本章节提供的所示。
 
-### （硬件配置方案一、二）配置BIOS<a name="ZH-CN_TOPIC_0000002549712099" id="方案一、二配置BIOS"></a>
+### 4.2 （硬件配置方案一、二）配置BIOS<a name="ZH-CN_TOPIC_0000002549712099" id="方案一、二配置BIOS"></a>
 
 本章节提供硬件配置方案一、二两种环境BIOS配置步骤，包括MISC、Performance、Memory和PCIe相关选项的配置，用以提高服务器性能。
 
@@ -193,7 +194,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 本章节提供硬件配置方案一、二两种环境BIOS配置步骤，包括MISC、Performance、Memory和PCIe相关选项的配置，用以提高服务器性能。
 
-### （硬件配置方案三）配置BIOS<a name="ZH-CN_TOPIC_0000002518352254" id="方案三配置BIOS"></a>
+### 4.3 （硬件配置方案三）配置BIOS<a name="ZH-CN_TOPIC_0000002518352254" id="方案三配置BIOS"></a>
 
 本章节提供硬件配置方案三的环境BIOS配置步骤，包括MISC、Performance、Memory相关选项的配置，用以提高服务器性能。
 
@@ -243,7 +244,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 本章节提供硬件配置方案三的环境BIOS配置步骤，包括MISC、Performance、Memory相关选项的配置，用以提高服务器性能。
 
-## 网卡绑定CPU<a name="ZH-CN_TOPIC_0000002518192328"></a>
+## 5 网卡绑定CPU<a name="ZH-CN_TOPIC_0000002518192328"></a>
 
 网络服务占用的CPU与容器绑定的CPU重叠时，会造成容器内CPU资源异常。为了避免这种情况出现，请将流量较大、负载较重的网卡绑定至空闲CPU。
 
@@ -353,7 +354,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 网络服务占用的CPU与容器绑定的CPU重叠时，会造成容器内CPU资源异常。为了避免这种情况出现，请将流量较大、负载较重的网卡绑定至空闲CPU。
 
-## （硬件配置方案一）配置GPU工作模式和CPU绑定<a name="ZH-CN_TOPIC_0000002518352232" id="配置GPU工作模式和CPU绑定"></a>
+## 6 （硬件配置方案一）配置GPU工作模式和CPU绑定<a name="ZH-CN_TOPIC_0000002518352232" id="配置GPU工作模式和CPU绑定"></a>
 
 使用硬件配置方案一时将GPU卡工作模式设置为高性能模式，使GPU运行在最高频率，保持GPU性能最优。该操作每次系统重启都需重新配置一次。
 
@@ -408,9 +409,9 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
 
 使用硬件配置方案一时将GPU卡工作模式设置为高性能模式，使GPU运行在最高频率，保持GPU性能最优。该操作每次系统重启都需重新配置一次。
 
-## 编译内核<a name="ZH-CN_TOPIC_0000002549712085"></a>
+## 7 编译内核<a name="ZH-CN_TOPIC_0000002549712085"></a>
 
-### 内核一键式编译脚本<a name="ZH-CN_TOPIC_0000002549712089"></a>
+### 7.1 内核一键式编译脚本<a name="ZH-CN_TOPIC_0000002549712089"></a>
 
 华为提供内核一键式编译安装自动化脚本kbox\_install\_kernel.sh，包含了手动编译安装内核的全部操作。您可以通过执行该脚本快速编译安装内核，也可以自行参见手动编译安装内核章节在环境中一步步编译安装。
 
@@ -421,9 +422,9 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
 
 华为提供内核一键式编译安装自动化脚本kbox\_install\_kernel.sh，包含了手动编译安装内核的全部操作。您可以通过执行该脚本快速编译安装内核，也可以自行参见手动编译安装内核章节在环境中一步步编译安装。
 
-### （可选）手动编译内核<a name="ZH-CN_TOPIC_0000002549712101"></a>
+### 7.2 （可选）手动编译内核<a name="ZH-CN_TOPIC_0000002549712101"></a>
 
-#### 编译准备<a name="ZH-CN_TOPIC_0000002518352252"></a>
+#### 7.2.1 编译准备<a name="ZH-CN_TOPIC_0000002518352252"></a>
 
 Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-216.0.0）操作系统下进行内核源码的编译。在编译开始前，请正确配置服务器的网络环境、软件源、同步服务器系统时间，以便下载相关的编译依赖包。
 
@@ -568,9 +569,9 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
 Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-216.0.0）操作系统下进行内核源码的编译。在编译开始前，请正确配置服务器的网络环境、软件源、同步服务器系统时间，以便下载相关的编译依赖包。
 
-#### 编译及安装内核<a name="ZH-CN_TOPIC_0000002549832099"></a>
+#### 7.2.2 编译及安装内核<a name="ZH-CN_TOPIC_0000002549832099"></a>
 
-##### 下载Kernel源码<a name="ZH-CN_TOPIC_0000002518192308"></a>
+##### 7.2.2.1 下载Kernel源码<a name="ZH-CN_TOPIC_0000002518192308"></a>
 
 请参见该章节以获取正确的内核源码版本并解压内核源码，并解压内核源码以进行内核编译。
 
@@ -590,7 +591,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
 请参见该章节以获取正确的内核源码版本并解压内核源码，并解压内核源码以进行内核编译。
 
-##### 合入内核补丁<a name="ZH-CN_TOPIC_0000002549712103"></a>
+##### 7.2.2.2 合入内核补丁<a name="ZH-CN_TOPIC_0000002549712103"></a>
 
 用户在内核源码目录中合入内核补丁，以便适用于Kbox。
 
@@ -623,9 +624,9 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
 用户在内核源码目录中合入内核补丁，以便适用于Kbox。
 
-##### 编译及安装内核<a name="ZH-CN_TOPIC_0000002549832103"></a>
+##### 7.2.2.3 编译及安装内核<a name="ZH-CN_TOPIC_0000002549832103"></a>
 
-###### 生成并配置.config文件<a name="ZH-CN_TOPIC_0000002518352248"></a>
+###### 7.2.2.3.1 生成并配置.config文件<a name="ZH-CN_TOPIC_0000002518352248"></a>
 
 生成.config文件并进行内核编译选项的配置。该文件用于指定需要使能的功能和特性。
 
@@ -716,7 +717,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
 生成.config文件并进行内核编译选项的配置。该文件用于指定需要使能的功能和特性。
 
-###### 编译并安装Kernel<a name="ZH-CN_TOPIC_0000002549832095" id="编译并安装Kernel"></a>
+###### 7.2.2.3.2 编译并安装Kernel<a name="ZH-CN_TOPIC_0000002549832095" id="编译并安装Kernel"></a>
 
 1. <a name="zh-cn_topic_0000001505919657_zh-cn_topic_0000001373652281_zh-cn_topic_0000001259572633_zh-cn_topic_0000001212014022_li295103241"></a>编译内核。
 
@@ -822,9 +823,9 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >如果重启后未能进入新编译的内核，请在BIOS进入grub启动后选择新编译的内核进入系统，或者联系技术支持工程师协助解决。
 
-## 部署Kbox<a name="ZH-CN_TOPIC_0000002518352236"></a>
+## 8 部署Kbox<a name="ZH-CN_TOPIC_0000002518352236"></a>
 
-### 确定GPU拓扑结构<a name="ZH-CN_TOPIC_0000002549712097"></a>
+### 8.1 确定GPU拓扑结构<a name="ZH-CN_TOPIC_0000002549712097"></a>
 
 **硬件配置方案一<a name="section15510204125011"></a>**
 
@@ -894,7 +895,7 @@ NUMA node: 2
 
 当前回显表示/dev/dri/目录下的渲染节点renderD128\~143中，renderD128\~135属于NUMA0，renderD136\~143属于NUMA2。
 
-### （硬件配置方案一，可选）升级NVMe固件版本<a name="ZH-CN_TOPIC_0000002549712087" id="升级NVMe固件版本"></a>
+### 8.2 （硬件配置方案一，可选）升级NVMe固件版本<a name="ZH-CN_TOPIC_0000002549712087" id="升级NVMe固件版本"></a>
 
 该章节仅在使用硬件配置方案一，并且需要使能编码卡硬件解码功能时才需要执行。若不需要使能硬件解码则跳过该章节。
 
@@ -941,7 +942,7 @@ NUMA node: 2
 
 该章节仅在使用硬件配置方案一，并且需要使能编码卡硬件解码功能时才需要执行。若不需要使能硬件解码则跳过该章节。
 
-### （硬件配置方案二、三）安装显卡驱动<a name="ZH-CN_TOPIC_0000002549832107"></a>
+### 8.3（硬件配置方案二、三）安装显卡驱动<a name="ZH-CN_TOPIC_0000002549832107" id="安装显卡驱动"></a>
 
 使用硬件配置方案二、三每次服务器重启后，都需要重新执行安装显卡驱动步骤。
 
@@ -1011,7 +1012,7 @@ NUMA node: 2
 
 使用硬件配置方案二、三每次服务器重启后，都需要重新执行安装显卡驱动步骤。
 
-### 上传ExaGear转码包<a name="ZH-CN_TOPIC_0000002549712107"></a>
+### 8.4 上传ExaGear转码包<a name="ZH-CN_TOPIC_0000002549712107"></a>
 
 使用脚本启动Kbox容器时，会自动根据“\~/dependency“目录下的ExaGear转码包自动使能ExaGear转码功能，因此需要提前将ExaGear转码包上传到对应目录，若自动使能失败，则需要手动进行ExaGear转码使能。
 

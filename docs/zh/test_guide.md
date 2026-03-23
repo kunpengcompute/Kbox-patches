@@ -1,12 +1,12 @@
 # 验收测试指南<a name="ZH-CN_TOPIC_0000002552663615"></a>
 
-## 概述<a name="ZH-CN_TOPIC_0000002518186314"></a>
+## 1 概述<a name="ZH-CN_TOPIC_0000002518186314"></a>
 
-### 验收依据<a name="ZH-CN_TOPIC_0000002549706091"></a>
+### 1.1 验收依据<a name="ZH-CN_TOPIC_0000002549706091"></a>
 
 本手册是云手机产品验收的指导文档，在进行验收前请确保使用的物理环境、系统环境以及软件版本正确，本手册中的用例为云手机产品测试团队设计，覆盖Kbox云手机产品的基本功能。
 
-### 注意事项<a name="ZH-CN_TOPIC_0000002549826087"></a>
+### 1.2 注意事项<a name="ZH-CN_TOPIC_0000002549826087"></a>
 
 1. 在进行验收前请确保使用的物理环境、系统环境以及软件版本正确并配套。
 2. 执行验收用例前请首先完成Kbox云手机端到端环境部署，具体部署步骤请参见《[Kbox云手机容器 特性指南](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/kboxcpc/kunpengcpskbox_20_0002.html)》。
@@ -16,11 +16,11 @@
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >在实际验收测试过程中，以合同要求及双方约定为准进行验收，本手册仅供参考。
 
-## 测试准备<a name="ZH-CN_TOPIC_0000002518186316"></a>
+## 2 测试准备<a name="ZH-CN_TOPIC_0000002518186316"></a>
 
 服务器硬件以及软件包信息、用例验收前环境部署以及密度测试方法等信息请参见《[Kbox云手机容器 特性指南](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/kboxcpc/kunpengcpskbox_20_0002.html)》，BIOS/iBMC/CPLD版本请参见《[Kbox云手机容器 版本配套表](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/kboxcpc/kunpengcps_kbox_0003.html)》。
 
-## 测试约定<a name="ZH-CN_TOPIC_0000002549706087"></a>
+## 3 测试约定<a name="ZH-CN_TOPIC_0000002549706087"></a>
 
 **结果描述<a name="section62693428"></a>**
 
@@ -30,11 +30,11 @@
 - FAIL：按照用例的预置条件和测试步骤，测试结果与预期结果不符合。
 - NT：由于需求变更或测试环境原因，用例未执行测试。
 
-## 测试用例及测试记录<a name="ZH-CN_TOPIC_0000002518346236"></a>
+## 4 测试用例及测试记录<a name="ZH-CN_TOPIC_0000002518346236"></a>
 
-### 基本功能测试<a name="ZH-CN_TOPIC_0000002518186318"></a>
+### 4.1 基本功能测试<a name="ZH-CN_TOPIC_0000002518186318"></a>
 
-#### 创建Kbox云手机容器<a name="ZH-CN_TOPIC_0000002549826089"></a>
+#### 4.1.1 创建Kbox云手机容器<a name="ZH-CN_TOPIC_0000002549826089"></a>
 
 <a name="table27768935"></a>
 <table><tbody><tr id="row1988636"><th class="firstcol" valign="top" width="22.220000000000002%" id="mcps1.1.3.1.1"><p id="p26861861"><a name="p26861861"></a><a name="p26861861"></a>用例编号</p>
@@ -80,7 +80,7 @@
 </tbody>
 </table>
 
-#### 重启Kbox云手机容器<a name="ZH-CN_TOPIC_0000002549706089"></a>
+#### 4.1.2 重启Kbox云手机容器<a name="ZH-CN_TOPIC_0000002549706089"></a>
 
 <a name="table26778736"></a>
 <table><tbody><tr id="row63739165"><th class="firstcol" valign="top" width="22.220000000000002%" id="mcps1.1.3.1.1"><p id="p62598754"><a name="p62598754"></a><a name="p62598754"></a>用例编号</p>
@@ -126,7 +126,7 @@
 </tbody>
 </table>
 
-#### 删除Kbox云手机容器<a name="ZH-CN_TOPIC_0000002518346234"></a>
+#### 4.1.3 删除Kbox云手机容器<a name="ZH-CN_TOPIC_0000002518346234"></a>
 
 <a name="table24712267"></a>
 <table><tbody><tr id="row43575614"><th class="firstcol" valign="top" width="22.220000000000002%" id="mcps1.1.3.1.1"><p id="p39963839"><a name="p39963839"></a><a name="p39963839"></a>用例编号</p>
@@ -172,7 +172,7 @@
 </tbody>
 </table>
 
-#### Kbox云手机容器状态查询<a name="ZH-CN_TOPIC_0000002549826077"></a>
+#### 4.1.4 Kbox云手机容器状态查询<a name="ZH-CN_TOPIC_0000002549826077"></a>
 
 <a name="table35101782"></a>
 <table><tbody><tr id="row13303384"><th class="firstcol" valign="top" width="22.220000000000002%" id="mcps1.1.3.1.1"><p id="p3832334"><a name="p3832334"></a><a name="p3832334"></a>用例编号</p>
@@ -218,7 +218,7 @@
 </tbody>
 </table>
 
-#### Kbox云手机容器adb测试<a name="ZH-CN_TOPIC_0000002549706085"></a>
+#### 4.1.5 Kbox云手机容器adb测试<a name="ZH-CN_TOPIC_0000002549706085"></a>
 
 <a name="table21405834"></a>
 <table><tbody><tr id="row12065858"><th class="firstcol" valign="top" width="22.220000000000002%" id="mcps1.1.3.1.1"><p id="p37810443"><a name="p37810443"></a><a name="p37810443"></a>用例编号</p>
@@ -264,7 +264,7 @@
 </tbody>
 </table>
 
-#### 资源隔离测试<a name="ZH-CN_TOPIC_0000002518346226"></a>
+#### 4.1.6 资源隔离测试<a name="ZH-CN_TOPIC_0000002518346226"></a>
 
 <a name="table60533823"></a>
 <table><tbody><tr id="row18289549"><th class="firstcol" valign="top" width="22.220000000000002%" id="mcps1.1.3.1.1"><p id="p5058482"><a name="p5058482"></a><a name="p5058482"></a>用例编号</p>
@@ -310,7 +310,7 @@
 </tbody>
 </table>
 
-#### GPS Mock测试<a name="ZH-CN_TOPIC_0000002549706077"></a>
+#### 4.1.7 GPS Mock测试<a name="ZH-CN_TOPIC_0000002549706077"></a>
 
 <a name="table60533823"></a>
 <table><tbody><tr id="row18289549"><th class="firstcol" valign="top" width="22.220000000000002%" id="mcps1.1.3.1.1"><p id="p5058482"><a name="p5058482"></a><a name="p5058482"></a>用例编号</p>
@@ -354,7 +354,7 @@
 </tbody>
 </table>
 
-#### IMEI Mock测试<a name="ZH-CN_TOPIC_0000002518186306"></a>
+#### 4.1.8 IMEI Mock测试<a name="ZH-CN_TOPIC_0000002518186306"></a>
 
 <a name="table9347770"></a>
 <table><tbody><tr id="row3292479"><th class="firstcol" valign="top" width="22.220000000000002%" id="mcps1.1.3.1.1"><p id="p65364216"><a name="p65364216"></a><a name="p65364216"></a>用例编号</p>
@@ -400,7 +400,7 @@
 </tbody>
 </table>
 
-#### Wi-Fi Mock测试<a name="ZH-CN_TOPIC_0000002549826083"></a>
+#### 4.1.10 Wi-Fi Mock测试<a name="ZH-CN_TOPIC_0000002549826083"></a>
 
 <a name="table11771810"></a>
 <table><tbody><tr id="row59149545"><th class="firstcol" valign="top" width="22.220000000000002%" id="mcps1.1.3.1.1"><p id="p26383877"><a name="p26383877"></a><a name="p26383877"></a>用例编号</p>
@@ -444,7 +444,7 @@
 </tbody>
 </table>
 
-#### 传感器Mock测试<a name="ZH-CN_TOPIC_0000002518186312"></a>
+#### 4.1.11 传感器Mock测试<a name="ZH-CN_TOPIC_0000002518186312"></a>
 
 <a name="table60533823"></a>
 <table><tbody><tr id="row18289549"><th class="firstcol" valign="top" width="22.220000000000002%" id="mcps1.1.3.1.1"><p id="p5058482"><a name="p5058482"></a><a name="p5058482"></a>用例编号</p>
@@ -488,7 +488,7 @@
 </tbody>
 </table>
 
-#### vinput设备创建<a name="ZH-CN_TOPIC_0000002518346224"></a>
+#### 4.1.12 vinput设备创建<a name="vinput设备创建"></a>
 
 <a name="table60533823"></a>
 <table><tbody><tr id="row18289549"><th class="firstcol" valign="top" width="22.220000000000002%" id="mcps1.1.3.1.1"><p id="p5058482"><a name="p5058482"></a><a name="p5058482"></a>用例编号</p>
@@ -534,7 +534,7 @@
 </tbody>
 </table>
 
-#### vinput设备事件发送与接收<a name="ZH-CN_TOPIC_0000002518186304"></a>
+#### 4.1.13 vinput设备事件发送与接收<a name="ZH-CN_TOPIC_0000002518186304"></a>
 
 <a name="table60533823"></a>
 <table><tbody><tr id="row18289549"><th class="firstcol" valign="top" width="22.1%" id="mcps1.1.3.1.1"><p id="p5058482"><a name="p5058482"></a><a name="p5058482"></a>用例编号</p>
@@ -559,7 +559,7 @@
 </tr>
 <tr id="row32777406"><th class="firstcol" valign="top" width="22.1%" id="mcps1.1.3.5.1"><p id="p37724200"><a name="p37724200"></a><a name="p37724200"></a>测试步骤</p>
 </th>
-<td class="cellrowborder" valign="top" width="77.9%" headers="mcps1.1.3.5.1 "><a name="ol179511353163010"></a><a name="ol179511353163010"></a><ol id="ol179511353163010"><li>完成<a href="vinput设备创建.md">vinput设备创建</a>相关设置后，打开另一个服务器端远程连接窗口B输入命令<strong id="b576354018211"><a name="b576354018211"></a><a name="b576354018211"></a>getevent</strong>侦听事件。</li><li>在服务器远程连接窗口A使用命令<strong id="b1976319409216"><a name="b1976319409216"></a><a name="b1976319409216"></a>docker exec -it kbox_<em id="i6763340320"><a name="i6763340320"></a><a name="i6763340320"></a>x</em> sh</strong>进入容器。输入命令<strong id="b57631240921"><a name="b57631240921"></a><a name="b57631240921"></a>getevent -p</strong>获取相应事件的<span class="parmvalue" id="parmvalue13846195210156"><a name="parmvalue13846195210156"></a><a name="parmvalue13846195210156"></a>“device”</span>、<span class="parmvalue" id="parmvalue185416558153"><a name="parmvalue185416558153"></a><a name="parmvalue185416558153"></a>“type”</span>、<span class="parmvalue" id="parmvalue963119574156"><a name="parmvalue963119574156"></a><a name="parmvalue963119574156"></a>“code”</span>、<span class="parmvalue" id="parmvalue13874081617"><a name="parmvalue13874081617"></a><a name="parmvalue13874081617"></a>“value”</span>参数。</li><li>在容器中使用命令<strong id="b1763194019210"><a name="b1763194019210"></a><a name="b1763194019210"></a>sendevent [device] [type] [code] [value]</strong>发送事件。<div class="note" id="note554619383117"><a name="note554619383117"></a><a name="note554619383117"></a><span class="notetitle"> 说明： </span><div class="notebody"><p id="p254633816115"><a name="p254633816115"></a><a name="p254633816115"></a>其中<em id="i6906248124519"><a name="i6906248124519"></a><a name="i6906248124519"></a>x</em>表示容器编号数字部分。</p>
+<td class="cellrowborder" valign="top" width="77.9%" headers="mcps1.1.3.5.1 "><a name="ol179511353163010"></a><a name="ol179511353163010"></a><ol id="ol179511353163010"><li>完成<a href="#vinput设备创建">4.1.12-vinput设备创建</a>相关设置后，打开另一个服务器端远程连接窗口B输入命令<strong id="b576354018211"><a name="b576354018211"></a><a name="b576354018211"></a>getevent</strong>侦听事件。</li><li>在服务器远程连接窗口A使用命令<strong id="b1976319409216"><a name="b1976319409216"></a><a name="b1976319409216"></a>docker exec -it kbox_<em id="i6763340320"><a name="i6763340320"></a><a name="i6763340320"></a>x</em> sh</strong>进入容器。输入命令<strong id="b57631240921"><a name="b57631240921"></a><a name="b57631240921"></a>getevent -p</strong>获取相应事件的<span class="parmvalue" id="parmvalue13846195210156"><a name="parmvalue13846195210156"></a><a name="parmvalue13846195210156"></a>“device”</span>、<span class="parmvalue" id="parmvalue185416558153"><a name="parmvalue185416558153"></a><a name="parmvalue185416558153"></a>“type”</span>、<span class="parmvalue" id="parmvalue963119574156"><a name="parmvalue963119574156"></a><a name="parmvalue963119574156"></a>“code”</span>、<span class="parmvalue" id="parmvalue13874081617"><a name="parmvalue13874081617"></a><a name="parmvalue13874081617"></a>“value”</span>参数。</li><li>在容器中使用命令<strong id="b1763194019210"><a name="b1763194019210"></a><a name="b1763194019210"></a>sendevent [device] [type] [code] [value]</strong>发送事件。<div class="note" id="note554619383117"><a name="note554619383117"></a><a name="note554619383117"></a><span class="notetitle"> 说明： </span><div class="notebody"><p id="p254633816115"><a name="p254633816115"></a><a name="p254633816115"></a>其中<em id="i6906248124519"><a name="i6906248124519"></a><a name="i6906248124519"></a>x</em>表示容器编号数字部分。</p>
 </div></div>
 </li></ol>
 </td>
@@ -580,7 +580,7 @@
 </tbody>
 </table>
 
-#### GPS Mock属性值修改<a name="ZH-CN_TOPIC_0000002518346228"></a>
+#### 4.1.14 GPS Mock属性值修改<a name="ZH-CN_TOPIC_0000002518346228"></a>
 
 <a name="table60533823"></a>
 <table><tbody><tr id="row18289549"><th class="firstcol" valign="top" width="22.220000000000002%" id="mcps1.1.3.1.1"><p id="p5058482"><a name="p5058482"></a><a name="p5058482"></a>用例编号</p>
@@ -626,7 +626,7 @@
 </tbody>
 </table>
 
-#### 传感器属性值设置<a name="ZH-CN_TOPIC_0000002549706079"></a>
+#### 4.1.15 传感器属性值设置<a name="ZH-CN_TOPIC_0000002549706079"></a>
 
 <a name="table60533823"></a>
 <table><tbody><tr id="row18289549"><th class="firstcol" valign="top" width="22.220000000000002%" id="mcps1.1.3.1.1"><p id="p5058482"><a name="p5058482"></a><a name="p5058482"></a>用例编号</p>
@@ -670,7 +670,7 @@
 </tbody>
 </table>
 
-#### Kbox组件版本号查询测试<a name="ZH-CN_TOPIC_0000002518346230"></a>
+#### 4.1.16 Kbox组件版本号查询测试<a name="ZH-CN_TOPIC_0000002518346230"></a>
 
 <a name="table60533823"></a>
 <table><tbody><tr id="row18289549"><th class="firstcol" valign="top" width="22.220000000000002%" id="mcps1.1.3.1.1"><p id="p5058482"><a name="p5058482"></a><a name="p5058482"></a>用例编号</p>
@@ -719,7 +719,7 @@ Component AppendInfo: 11.0.0_r48</pre>
 </tbody>
 </table>
 
-#### Kbox云手机硬解视频播放能力测试<a name="ZH-CN_TOPIC_0000002518346232"></a>
+#### 4.1.17 Kbox云手机硬解视频播放能力测试<a name="ZH-CN_TOPIC_0000002518346232"></a>
 
 <a name="table60533823"></a>
 <table><tbody><tr id="row18289549"><th class="firstcol" valign="top" width="22.2%" id="mcps1.1.3.1.1"><p id="p5058482"><a name="p5058482"></a><a name="p5058482"></a>用例编号</p>
@@ -763,7 +763,7 @@ Component AppendInfo: 11.0.0_r48</pre>
 </tbody>
 </table>
 
-#### IMSI Mock测试<a name="ZH-CN_TOPIC_0000002549706081"></a>
+#### 4.1.18 IMSI Mock测试<a name="ZH-CN_TOPIC_0000002549706081"></a>
 
 <a name="table9347770"></a>
 <table><tbody><tr id="row3292479"><th class="firstcol" valign="top" width="22.220000000000002%" id="mcps1.1.3.1.1"><p id="p65364216"><a name="p65364216"></a><a name="p65364216"></a>用例编号</p>
@@ -809,7 +809,7 @@ Component AppendInfo: 11.0.0_r48</pre>
 </tbody>
 </table>
 
-#### 网络运营商信息、SIM卡信息查询测试<a name="ZH-CN_TOPIC_0000002518186308"></a>
+#### 4.1.19 网络运营商信息、SIM卡信息查询测试<a name="ZH-CN_TOPIC_0000002518186308"></a>
 
 <a name="table9347770"></a>
 <table><tbody><tr id="row3292479"><th class="firstcol" valign="top" width="22.220000000000002%" id="mcps1.1.3.1.1"><p id="p65364216"><a name="p65364216"></a><a name="p65364216"></a>用例编号</p>
@@ -855,9 +855,9 @@ Component AppendInfo: 11.0.0_r48</pre>
 </tbody>
 </table>
 
-## 测试结果分析<a name="ZH-CN_TOPIC_0000002549826081"></a>
+## 5 测试结果分析<a name="ZH-CN_TOPIC_0000002549826081"></a>
 
-### 测试基本信息<a name="ZH-CN_TOPIC_0000002518346222"></a>
+### 5.1 测试基本信息<a name="ZH-CN_TOPIC_0000002518346222"></a>
 
 <a name="table56604068"></a>
 <table><tbody><tr id="row35370789"><th class="firstcol" valign="top" width="21.07%" id="mcps1.1.3.1.1"><p id="p46461622"><a name="p46461622"></a><a name="p46461622"></a>设备制造商</p>
@@ -887,7 +887,7 @@ Component AppendInfo: 11.0.0_r48</pre>
 </tbody>
 </table>
 
-### 测试结果列表<a name="ZH-CN_TOPIC_0000002549826079"></a>
+### 5.2 测试结果列表<a name="ZH-CN_TOPIC_0000002549826079"></a>
 
 |测试类别|用例编号|用例名称|测试结果（PASS/FAIL/NT）|
 |--|--|--|--|
@@ -910,11 +910,11 @@ Component AppendInfo: 11.0.0_r48</pre>
 ||4.1.17|IMSI Mock测试||
 ||4.1.18|网络运营商信息、SIM卡信息查询测试||
 
-## 客户建议及结果确认<a name="ZH-CN_TOPIC_0000002549826075"></a>
+## 6 客户建议及结果确认<a name="ZH-CN_TOPIC_0000002549826075"></a>
 
-### 客户建议<a name="ZH-CN_TOPIC_0000002549706083"></a>
+### 6.1 客户建议<a name="ZH-CN_TOPIC_0000002549706083"></a>
 
-### 结果确认<a name="ZH-CN_TOPIC_0000002549826073"></a>
+### 6.2 结果确认<a name="ZH-CN_TOPIC_0000002549826073"></a>
 
 |被测试方：华为技术有限公司|测试方：|
 |--|--|
