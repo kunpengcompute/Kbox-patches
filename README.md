@@ -1,79 +1,133 @@
-# 项目介绍<a name="ZH-CN_TOPIC_0000002475594085"></a>
+# Kbox云手机介绍<a name="ZH-CN_TOPIC_0000002550238281"></a>
 
-Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的重要组成部分，Kbox代码仓存放安卓和Linux内核的相关补丁。Kbox云手机实现了GPS、加速度传感器、陀螺仪、IMEI、Wi-Fi等外设硬件的数据Mock功能，以及Gralloc & HWComposor模块，确保AOSP系统可以正常启动运行。可以远程实时控制云手机，实现Android APP的云端运行；也可以基于云手机的基础算力，高效搭建应用，如云游戏、移动办公、直播互娱等场景。
+## 项目简介<a name="ZH-CN_TOPIC_0000002518598550"></a>
 
-# 版本说明<a name="ZH-CN_TOPIC_0000002475594081"></a>
+### 简介<a name="ZH-CN_TOPIC_0000002518758442"></a>
 
-<a name="table740710612324"></a>
-<table><thead align="left"><tr id="row144075603214"><th class="cellrowborder" valign="top" width="49.96%" id="mcps1.1.3.1.1"><p id="p114078693216"><a name="p114078693216"></a><a name="p114078693216"></a>项目</p>
-</th>
-<th class="cellrowborder" valign="top" width="50.03999999999999%" id="mcps1.1.3.1.2"><p id="p4238382489"><a name="p4238382489"></a><a name="p4238382489"></a>版本</p>
-</th>
-</tr>
-</thead>
-<tbody>
-<tr id="row44089619323"><td class="cellrowborder" valign="top" width="49.96%" headers="mcps1.1.3.1.1 "><p id="p64089617323"><a name="p64089617323"></a><a name="p64089617323"></a><span>Android</span></p>
-</td>
-<td class="cellrowborder" valign="top" width="50.03999999999999%" headers="mcps1.1.3.1.2 "><p id="p540820673214"><a name="p540820673214"></a><a name="p540820673214"></a>11</p>
-</td>
-</tr>
-</tbody>
-</table>
+Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的核心能力组件，本文介绍了Kbox云手机容器的基本概念，提供Kbox云手机容器的编译、部署及相关配置流程。
 
-# 环境部署<a name="ZH-CN_TOPIC_0000002442154120"></a>
+云手机是基于ARM服务器虚拟出的带有AOSP （Android Open Source Project，安卓开放源代码项目）系统的虚拟手机服务。简而言之，云手机=ARM服务器+Android OS。您可以远程实时控制云手机，实现Android APP的云端运行；也可以基于云手机的基础算力，高效搭建应用，如云游戏、移动办公、直播互娱等场景。
 
-1.  配置BIOS，包括MISC、Performance、Memory和PCIe相关选项的配置。
-2.  网卡绑定CPU。
-3.  配置GPU工作模式和CPU绑定（可选）。
+Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的重要组成部分，是实现Android应用运行的基础软件。它将AOSP系统直接运行在容器内，实现GPS、加速度传感器、陀螺仪、IMEI、Wi-Fi等外设硬件的数据Mock功能，以及Gralloc&HWComposor模块，确保AOSP系统可以正常启动运行。
 
-详细操作步骤见[参考文档](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/kboxcpc/kunpengcpskbox_20_0002.html)
+Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的核心能力组件，本文介绍了Kbox云手机容器的基本概念，提供Kbox云手机容器的编译、部署及相关配置流程。
 
-# 快速上手<a name="ZH-CN_TOPIC_0000002442314008"></a>
+### 软件架构<a name="ZH-CN_TOPIC_0000002550238279"></a>
 
-该代码仓的脚本和补丁涉及内核编译，镜像制作，云手机启动。
+本节介绍Kbox云手机容器的上下文逻辑结构与所包含的模块含义及作用。
 
-1.  编译内核
+Kbox云手机容器的整体架构如[**图 1** Kbox云手机容器架构图](#Kbox云手机容器架构图)所示。
 
-    ```
-    cd deploy_scripts/openEuler_deploy/
-    ./kbox_install_kernel.sh
-    ```
+**图 1** Kbox云手机容器架构图<a name="fig89529117514"></a><a id="Kbox云手机容器架构图"></a>
+![](docs/zh/figures/zh-cn_image_0000002512069213.png)
 
-2.  部署Kbox，安装显卡驱动，部署Exagear转码包。
-3.  挂载安卓镜像。
-4.  启动一个编号为1的实例。
+Android容器：采用闭源组件Kbox和开源的AOSP软件，在容器内使能Android系统的基础云手机方案。
 
-    ```
-    ./android_kbox.sh start kbox:origin  1
-    ```
+Kbox主要实现VInput、传感器、GPS、Mock（IMEI/Wi-Fi）等硬件仿真以及GPU设备直通等功能，使能Android云手机容器方案。Kbox包含二进制和Demo两部分：
 
-5.  启动编号为1\~5的五个实例。
+- 二进制：VInput（触屏输入模块）、Sensor（Sensor传感器相关的仿真）、GPS（实现GPS相关的仿真）、IMEI/Wi-Fi Mock（仿真）、Gralloc（离屏渲染）、HWC（图像合成）、Audio（音频模块）、OMX（解码模块）。
+- Demo：MediaFramework、Vold、adbd、Init、netd基于Android系统开源代码提供增量patch给客户进行参考。
 
-    ```
-    ./android_kbox.sh start kbox:origin  1 5
-    ```
+Docker：采用开源Docker软件，为Android系统提供软件运行时环境。
 
-6.  执行如下命令确认Kbox容器是否启动成功，其中“$\{index\}“为启动实例的编号。
+操作系统：基于开源openEuler作为Docker Host端操作系统。集成的GPU Kernel Driver驱动模块，为上层容器实例所共享，并驱动GPU卡完成渲染工作。ashmem/binder驱动为Android容器提供基本内存管理功能。
 
-    ```
-    docker exec -it kbox_${index} getprop | grep boot_completed
-    ```
+硬件环境：ARM服务器，包含GPU卡、内存、磁盘等硬件，为云手机提供硬件平台。
 
-    详细操作步骤见[参考文档](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/kboxcpc/kunpengcpskbox_20_0002.html)
+本节介绍Kbox云手机容器的上下文逻辑结构与所包含的模块含义及作用。
 
-# 贡献指南<a name="ZH-CN_TOPIC_0000002442154116"></a>
+### 云手机规格<a name="ZH-CN_TOPIC_0000002518758446"></a>
 
-如果使用过程中有任何问题，或者需要反馈特性需求和bug报告，可以提交issue联系我们，具体贡献方法可参考[这里](https://gitcode.com/boostkit/community/blob/master/docs/contributor/contributing.md)。
+**表 1** Kbox基础云手机规格<a id="Kbox基础云手机规格"></a>
 
-# 免责声明<a name="ZH-CN_TOPIC_0000002475673913"></a>
+|**条目**|**配置**|
+|--|--|
+|绑核策略|2容器/2核|
+|核数|2核|
+|内存|6GB|
+|存储|16GB|
+|分辨率|720 x 1280|
 
-此代码仓仅包含安卓和Linux内核的相关补丁，旨在展示特定功能的使用方式与集成方法，不用于生产环境。所有代码仅为技术参考，不继承或承诺任何上下游软件的安全设计与防护机制。本仓库中的示例代码可能存在安全缺陷、漏洞或不完整实现，鲲鹏计算社区不对代码的安全性、稳定性及合规性承担任何责任。使用者应自行评估风险，并根据实际场景进行安全加固。任何因使用本仓库代码所引发的安全问题，均由使用者自行承担。请勿将本仓库代码直接用于生产系统，建议持续关注上游开源项目的安全公告与版本更新。
+## 目录结构<a name="ZH-CN_TOPIC_0000002550238277"></a>
 
-# 许可证书<a name="ZH-CN_TOPIC_0000002442314016"></a>
+## 版本说明<a name="ZH-CN_TOPIC_0000002550278289"></a>
 
-本项目采用Apache License 2.0许可证。详见[LICENSE](https://gitee.com/kunpengcompute/Kbox/blob/AOSP11/LICENSE)文件。
+Kbox云手机包含Android11和Android15两个分支版本，本节主要介绍两个版本差异和特性变更说明。
 
-# 参考文档<a name="ZH-CN_TOPIC_0000002475759045"></a>
+**版本介绍<a name="section10131916143616"></a>**
 
-特性指南（[https://support.huawei.com/enterprise/zh/doc/EDOC1100485492/ed99dbc0?idPath=23710424|251364417|9856629|253662285](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/kboxcpc/kunpengcpskbox_20_0002.html)）
+Kbox云手机是基于AOSP开发的，目前适配了AOSP11和AOSP15，由于Android版本的差异，Kbox云手机在两套代码用于支持不同的Android代码，分别是AOSP11和AOSP15两个代码分支。
 
+**表 1** Kbox代码分支差异<a id="Kbox代码分支差异"></a>
+
+|代码分支|AOSP11|AOSP15|
+|--|--|--|
+|支持的内核版本|5.10|6.6|
+|支持的docker版本|18.0|24.0|
+|对应的AOSP版本|11|15|
+
+**变更说明<a name="section4408930144513"></a>**
+
+每个发布版本特性变更详细信息，请参见《版本说明书》。
+
+## 环境部署<a name="ZH-CN_TOPIC_0000002550278295"></a>
+
+Kbox云手机支持的硬件环境和操作系统，以及环境部署所需的软件包请参见《部署指南》中的“环境要求”。
+
+Kbox云手机支持裸机和虚拟机，详见的环境部署请参见《部署指南》。
+
+## 学习文档<a name="ZH-CN_TOPIC_0000002518598548"></a>
+
+|学习资源类别|学习资源名称|学习资源简介|
+|--|--|--|
+|文档|快速入门|提供Kbox云手机启动和操作的快速入门指导。|
+|文档|版本说明书|提供Kbox云手机每个发布版本的基础信息和特性更新信息。|
+|文档|部署指南|提供Kbox云手机裸机和虚拟机两种环境部署的详细指导。|
+|文档|最佳实践|提供Kbox云手机在docker、k8s环境下的实践案例。|
+|文档|FAQ|提供Kbox安装、使用过程的常见问题和解决方法。|
+
+## 版本维护策略<a name="ZH-CN_TOPIC_0000002518758444"></a>
+
+Kbox版本维护策略如下：
+
+|**Kbox版本**|**维护策略**|**当前状态**|**发布时间**|**后续状态**|**EOL日期**|
+|--|--|--|--|--|--|
+|Kbox11|长期分支|开发|2025/10/15|预计2026/03/15起进入维护状态|-|
+|Kbox15|长期分支|开发|2025/10/15|预计2026/03/15起进入维护状态|-|
+
+## 免责声明<a name="ZH-CN_TOPIC_0000002518598546"></a>
+
+**致本项目使用者**
+
+- 本项目仅供调试和开发之用，使用者需自行承担使用风险，并理解以下内容：
+    - 数据处理及删除：用户在使用本工具过程中产生的数据属于用户责任范畴。建议用户在使用完毕后及时删除相关数据，以防信息泄露。
+    - 数据保密与传播：使用者了解并同意不得将通过本工具产生的数据随意外发或传播。对于由此产生的信息泄露、数据泄露或其他不良后果，本工具及其开发者概不负责。
+    - 用户输入安全性：用户需自行保证输入的命令行的安全性，并承担因输入不当而导致的任何安全风险或损失。对于输入命令行不当所导致的问题，本工具及其开发者概不负责。
+
+- 免责声明范围：本免责声明适用于所有使用本工具的个人或实体。使用本工具即表示您同意并接受本声明的内容，并愿意承担因使用该功能而产生的风险和责任，如有异议请停止使用本工具。
+- 在使用本工具之前，请**谨慎阅读并理解以上免责声明的内容**。对于使用本工具所产生的任何问题或疑问，请及时联系开发者。
+
+**致数据所有者**
+
+如果您不希望您的模型或数据集等信息在本项目中被提及，或希望更新本项目有关的描述，请在GitCode提交issue，我们将根据您的issue要求删除或更新您相关描述。衷心感谢您对本项目的理解和贡献。
+
+## License<a name="ZH-CN_TOPIC_0000002518758448"></a>
+
+本项目采用Apache License 2.0许可证。详见[LICENSE](LICENSE)文件
+本项目的文档适用CC-BY 4.0许可证，具体参见文件[LICENSE](docs/LICENSE)文件
+
+## 贡献声明<a name="ZH-CN_TOPIC_0000002550238283"></a>
+
+欢迎大家为社区做贡献，如果使用过程中有任何问题/建议，或者需要反馈特性需求和bug报告，可以提交[Issues](https://gitcode.com/boostkit/community/blob/master/docs/contributor/issue-submit.md)联系我们，具体贡献方法可参考[这里](https://gitcode.com/boostkit/community/blob/master/docs/contributor/contributing.md)。同时也欢迎大家在[讨论专区](https://gitcode.com/boostkit/community/discussions)展开讨论交流。感谢您的支持。
+
+## 建议与交流<a name="ZH-CN_TOPIC_0000002518598544"></a>
+
+欢迎大家为社区做贡献。如果有任何疑问或建议，请提交[Issues](https://gitcode.com/boostkit/community/blob/master/docs/contributor/issue-submit.md)，我们会尽快回复。感谢您的支持。
+
+## 致谢<a name="ZH-CN_TOPIC_0000002550278293"></a>
+
+Kbox由华为公司的下列部门联合贡献：
+
+- 鲲鹏计算Boostkit开发部
+
+感谢来自社区的每一个PR，欢迎贡献Kbox！
