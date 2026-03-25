@@ -373,7 +373,7 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
         >可不指定核数，直接执行**make**命令，则默认用1个核进行编译，也可用“-j”参数指定核数进行编译，可指定的数字最大为服务器实际的CPU核数，本文以64核为例进行说明。
         >正常情况下，能够编译完成。有时可能由于并发编译顺序导致编译出现问题，可尝试重新执行**make**命令。
 
-2. 请参见[1.2-软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，解压Kbox-AOSP15.zip（与[合入Kbox安卓补丁](#合入Kbox安卓补丁)相同），将Kbox-AOSP15文件夹中的“make\_img\_sample“目录上传至“\~/dependency“目录。
+2. 请参见[1.2-软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，解压Kbox-AOSP15.zip（与[4.3-合入Kbox安卓补丁](#合入Kbox安卓补丁)相同），将Kbox-AOSP15文件夹中的“make\_img\_sample“目录上传至“\~/dependency“目录。
 
     请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
 
@@ -381,9 +381,9 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
 
     ```shell
     cd ~/dependency/make_img_sample/kbox15_android_build
-    cp create-package_aosp15.sh ~/aosp/
+    cp create-package.sh ~/aosp/
     cd ~/aosp
-    chmod +x create-package_aosp15.sh
+    chmod +x create-package.sh
     ```
 
 4. 运行脚本，生成Kbox安卓镜像。
@@ -392,7 +392,7 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
     >制作镜像的时候需要root权限，请用root用户执行脚本，且执行脚本时，目录需要使用绝对路径。
 
     ```shell
-    ./create-package_aosp15.sh ~/aosp/out/target/product/kbox_arm64/system.img
+    ./create-package.sh ~/aosp/out/target/product/kbox_arm64/system.img
     ```
 
     至此，Kbox安卓镜像制作完成，在当前目录下会生成名为android.tar的Kbox镜像。
