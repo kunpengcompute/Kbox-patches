@@ -88,4 +88,4 @@
 
 **操作步骤<a name="section12953654202714"></a>**
 
-请参见[配置BIOS](安装指南.md#配置BIOS)章节，检查内存及BIOS配置。
+请参见[配置BIOS](install_guide.md#配置BIOS)章节，检查内存及BIOS配置。
