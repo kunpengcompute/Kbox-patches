@@ -17,7 +17,7 @@
 
 **Kbox Demo镜像挂载<a name="section16531422174717"></a>**
 
-请参见[软件环境](安装指南.md#Kbox安卓容器环境搭建软件环境要求)获取android.tar包上传至“\~/dependency”目录（本文以此目录作为示例，用户可自行设置目录），并挂载。
+请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)获取android.tar包上传至“\~/dependency”目录（本文以此目录作为示例，用户可自行设置目录），并挂载。
 
 镜像的名称和tag可以自行定义，格式为“\{名称\}:\{tag\}”，此处设置镜像名为kbox:demo。
 
@@ -38,9 +38,9 @@ docker import android.tar kbox:demo
 >- 硬件配置方案一：可跳过该小节的全部步骤。
 >- 硬件配置方案二、三、四：可跳过该小节的步骤2。
 
-1. 请参见[软件环境](安装指南.md#Kbox安卓容器环境搭建软件环境要求)获取Kbox-AOSP11.zip，解压Kbox-AOSP11.zip，将Kbox-AOSP11文件夹中的deploy\_scripts目录上传至服务器的“\~/dependency“目录。
-2. 请参见[软件环境](安装指南.md#Kbox安卓容器环境搭建软件环境要求)获取Android Kbox二进制文件包Boostkit-boostcph-kbox\_\*.zip并上传到“\~/dependency/deploy\_scripts“目录。
-3. （硬件配置方案二、三、四）使用硬件配置方案二、三、四时需要解压显卡驱动压缩包VAGPU-25.03.01.01-RC20.tgz(参见[软件环境](安装指南.md#Kbox安卓容器环境搭建软件环境要求)获取)，获取va\_driver.tgz，上传到服务器的“\~/dependency/deploy\_scripts“目录。
+1. 请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)获取Kbox-AOSP11.zip，解压Kbox-AOSP11.zip，将Kbox-AOSP11文件夹中的deploy\_scripts目录上传至服务器的“\~/dependency“目录。
+2. 请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)获取Android Kbox二进制文件包Boostkit-boostcph-kbox\_\*.zip并上传到“\~/dependency/deploy\_scripts“目录。
+3. （硬件配置方案二、三、四）使用硬件配置方案二、三、四时需要解压显卡驱动压缩包VAGPU-25.03.01.01-RC20.tgz(参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)获取)，获取va\_driver.tgz，上传到服务器的“\~/dependency/deploy\_scripts“目录。
 4. 制作包含Android Kbox二进制的Kbox镜像，其中kbox:demo为上一步导入的官方Kbox Demo镜像，kbox:origin为包含Android Kbox二进制的新镜像。
     - 硬件配置方案一：
 
@@ -63,7 +63,7 @@ docker import android.tar kbox:demo
 若环境中未使用编码卡则不能制作并使用使能硬解功能的镜像。
 
 1. 解压Kbox-AOSP11.zip，将Kbox-AOSP11/make\_img\_sample目录上传至服务器的“\~/dependency“目录。
-2. 请参见[软件环境](安装指南.md#Kbox安卓容器环境搭建软件环境要求)获取NETINT-vXXX.tar.gz，并重命名为NETINT.tar.gz，放至“\~/dependency/make\_img\_sample/decode\_iso\_build“目录，对该目录下的制作镜像脚本赋予可执行权限。
+2. 请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)获取NETINT-vXXX.tar.gz，并重命名为NETINT.tar.gz，放至“\~/dependency/make\_img\_sample/decode\_iso\_build“目录，对该目录下的制作镜像脚本赋予可执行权限。
 
     ```shell
     cd ~/dependency/make_img_sample/decode_iso_build
@@ -102,9 +102,9 @@ docker import android.tar kbox:demo
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >为确保Kbox云手机的稳定运行与最佳性能，请保障每个容器所绑定的CPU物理核和GPU渲染节点同属于一个CPU片。
 
-Kbox云手机容器支持根据客户需求定制系统属性，以覆盖原有系统属性。如需使用定制属性，需要在启动路径中生成“local.prop”文件，文件内记录定制的系统属性，容器启动后的初始化过程会读取该文件内的属性并覆盖写入。修改方法请参见《[Kbox云手机容器 例行维护](例行维护.md)》文档的“支持Android系统属性可定制”章节。
+Kbox云手机容器支持根据客户需求定制系统属性，以覆盖原有系统属性。如需使用定制属性，需要在启动路径中生成“local.prop”文件，文件内记录定制的系统属性，容器启动后的初始化过程会读取该文件内的属性并覆盖写入。修改方法请参见《[Kbox云手机容器 例行维护](routine_maintenance.md)》文档的“支持Android系统属性可定制”章节。
 
-Kbox云手机容器支持使能图形加速层，通过将kbox\_config.cfg配置文件中的“ENABLE\_RENDER\_LAYER“修改为“1“进行使能。打开“\~/dependency/deploy\_scripts“路径下的“kbox\_render\_accelerating\_configuration.xml”配置文件，对应用的图形加速层功能进行配置。具体配置项描述请参见《[视频流引擎 特性指南](https://gitcode.com/boostkit/vmi/blob/CloudPhone/docs/zh/%E7%94%A8%E6%88%B7%E6%8C%87%E5%8D%97.md)》中的“图形加速层配置项”章节。首次启动云手机容器时，若需要修改图形加速层功能的配置，则修改配置文件中应用对应的配置，手动将其拷贝到云手机容器“/data/local/tmp“路径，重启应用即可生效。
+Kbox云手机容器支持使能图形加速层，通过将kbox\_config.cfg配置文件中的“ENABLE\_RENDER\_LAYER“修改为“1“进行使能。打开“\~/dependency/deploy\_scripts“路径下的“kbox\_render\_accelerating\_configuration.xml”配置文件，对应用的图形加速层功能进行配置。具体配置项描述请参见《[视频流引擎 用户指南](https://gitcode.com/boostkit/vmi/blob/CloudPhone/docs/zh/user_guide.md)》中的“图形加速层配置项”章节。首次启动云手机容器时，若需要修改图形加速层功能的配置，则修改配置文件中应用对应的配置，手动将其拷贝到云手机容器“/data/local/tmp“路径，重启应用即可生效。
 
 1. 解压Kbox-AOSP11.zip，将Kbox-AOSP11文件夹中的deploy\_scripts目录上传至服务器的“\~/dependency“目录。
 2. （可选）使能硬件解码（以下简称“硬解”）。
@@ -292,7 +292,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox\_config.cfg配置
 
 - 方法一：通过获取的软件包查询版本号信息。
 
-    请参见[**表 1** Kbox安卓容器环境搭建软件环境要求](安装指南.md#Kbox安卓容器环境搭建软件环境要求)中获取并解压BoostKit-boostcph-kbox\_\*.zip，并通过查询kbox\_version.txt文件，确认当前软件包的版本号。
+    请参见[**表 1** Kbox安卓容器环境搭建软件环境要求](install_guide.md#Kbox安卓容器环境搭建软件环境要求)中获取并解压BoostKit-boostcph-kbox\_\*.zip，并通过查询kbox\_version.txt文件，确认当前软件包的版本号。
 
     ```shell
     unzip BoostKit-boostcph-kbox_*.zip
@@ -945,4 +945,4 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 |通过**dmesg -T**收集查看开机信息。|
 |通过**docker stats/docker inspect**收集docker相关日志。|
 
-为了便于使用，特基于Kbox\_maintainer（维护工具）提供一键式日志收集能力，Kbox\_maintainer工具收集日志的方法，请参见《[例行维护](例行维护.md)》的“日志收集”章节。
+为了便于使用，特基于Kbox\_maintainer（维护工具）提供一键式日志收集能力，Kbox\_maintainer工具收集日志的方法，请参见《[例行维护](routine_maintenance.md)》的“日志收集”章节。
