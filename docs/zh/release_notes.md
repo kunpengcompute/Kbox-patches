@@ -55,7 +55,7 @@
 
 ## 版本使用注意事项<a name="ZH-CN_TOPIC_0000002549825861"></a>
 
-请参见相应版本的特性指南，例如《[Kbox云手机容器 特性指南（Android 15）](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/kboxcpc_ad15/kunpengcpskbox_20_0002.html)》。
+请参见相应版本的特性指南，例如《[feature guide](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/feature_guide.md)》。
 
 ## V7.3.0\_15<a name="ZH-CN_TOPIC_0000002549705869"></a>
 
@@ -126,11 +126,16 @@
 
 |序号|文档名称|内容简介|下载方法|
 |--|--|--|--|
-|1|Kunpeng BoostKit 26.0.RC1 Kbox云手机容器 特性指南（Android 15）|本文档向用户介绍Kbox云手机容器的特性说明。|鲲鹏社区|
-|2|Kunpeng BoostKit 26.0.RC1 Kbox云手机容器 版本说明书（Android 15）|本文档向用户介绍Kbox云手机容器的版本说明。|鲲鹏社区|
-|3|Kunpeng BoostKit 26.0.RC1 Kbox云手机容器 版本配套表（Android 15）|本文档向用户介绍Kbox云手机容器的版本配套说明。|鲲鹏社区|
-|4|Kunpeng BoostKit 26.0.RC1 Kbox云手机容器 例行维护（Android 15）|本文档向用户介绍Kbox云手机容器的维护方法和维护工具。|鲲鹏社区|
+|1|best practices|本文档向用户介绍Kbox云手机容器的最佳实践。|[best practices](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/best_practices.md)|
+|2|compile guide|本文档向用户介绍Kbox云手机容器的编译方法。|[compile guide](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/compile_guide.md)|
+|3|feature guide|本文档向用户介绍Kbox云手机容器的特性说明。|[feature guide](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/feature_guide.md)|
+|4|install guide|本文档向用户介绍Kbox云手机容器的安装指南。|[install guide](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/install_guide.md)|
+|5|release notes|本文档向用户介绍Kbox云手机容器的版本相关信息。|[release notes](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/release_notes.md)|
+|6|test guide|本文档向用户介绍Kbox云手机容器的测试方法。|[test guide](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/test_guide.md)|
+|7|troubleshooting|本文档向用户介绍Kbox云手机容器的故障案例。|[troubleshooting](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/troubleshooting.md)|
+|8|user guide|本文档向用户介绍Kbox云手机容器的用户指南。|[user guide](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/user_guide.md)|
+|9|routine maintenance|本文档向用户介绍Kbox云手机容器的维护方法和维护工具。|[routine maintenance](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/%E4%BE%8B%E8%A1%8C%E7%BB%B4%E6%8A%A4.md)|
 
 ### 获取文档方式<a name="ZH-CN_TOPIC_0000002549825867"></a>
 
-您可以通过访问[鲲鹏社区](https://www.hikunpeng.com/document/detail/zh/kunpengcps/overview/kunpengcps.html)浏览和获取相关文档。
+您可以通过访问[目录结构](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/menu.md)浏览和获取相关文档。
