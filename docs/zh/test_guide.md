@@ -9,7 +9,7 @@
 ### 1.2 注意事项<a name="ZH-CN_TOPIC_0000002518346214"></a>
 
 1. 在进行验收前请确保使用的物理环境、系统环境以及软件版本正确并配套。
-2. 执行验收用例前请首先完成Kbox云手机端到端环境部署，具体部署步骤请参见《[Kbox云手机容器 特性指南（Android 15）](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/kboxcpc_ad15/kunpengcpskbox_20_0002.html)》。
+2. 执行验收用例前请首先完成Kbox云手机端到端环境部署，具体部署步骤请参见《[install_guide](install_guide.md)》。
 3. 验收的项目应经过华为公司和用户双方相关人员的确认。
 4. 在验收和初验测试过程中，双方人员应对照相关标准严格测试，部分指标参数出厂时已经测试，验收时由于限于条件可以进行抽测或免测。
 
@@ -18,7 +18,7 @@
 
 ## 2 测试准备<a name="ZH-CN_TOPIC_0000002549826063"></a>
 
-服务器硬件以及软件包信息、用例验收前环境部署以及密度测试方法等信息请参见《[Kbox云手机容器 特性指南（Android 15）](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/kboxcpc_ad15/kunpengcpskbox_20_0002.html)》，BIOS/iBMC/CPLD版本请参见《[Kbox云手机容器 版本配套表（Android 15）](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/kboxcpc_ad15/kunpengcps_kbox_0004.html)》。
+服务器硬件以及软件包信息、用例验收前环境部署以及密度测试方法等信息请参见《[install_guide](install_guide.md)》，BIOS/iBMC/CPLD版本请参见《[release_notes](release_notes.md)》。
 
 ## 3 测试约定<a name="ZH-CN_TOPIC_0000002549706061"></a>
 
@@ -763,7 +763,7 @@ Component AppendInfo: 15.0.0_r17</pre>
 </tbody>
 </table>
 
-#### 4.1.18 IMSI Mock测试<a name="ZH-CN_TOPIC_0000002518186300"></a>
+#### 4.1.17 IMSI Mock测试<a name="ZH-CN_TOPIC_0000002518186300"></a>
 
 <a name="table9347770"></a>
 <table><tbody><tr id="row3292479"><th class="firstcol" valign="top" width="22.220000000000002%" id="mcps1.1.3.1.1"><p id="p65364216"><a name="p65364216"></a><a name="p65364216"></a>用例编号</p>
@@ -809,7 +809,7 @@ Component AppendInfo: 15.0.0_r17</pre>
 </tbody>
 </table>
 
-#### 4.1.19 网络运营商信息、SIM卡信息查询测试<a name="ZH-CN_TOPIC_0000002518186284"></a>
+#### 4.1.18 网络运营商信息、SIM卡信息查询测试<a name="ZH-CN_TOPIC_0000002518186284"></a>
 
 <a name="table9347770"></a>
 <table><tbody><tr id="row3292479"><th class="firstcol" valign="top" width="22.220000000000002%" id="mcps1.1.3.1.1"><p id="p65364216"><a name="p65364216"></a><a name="p65364216"></a>用例编号</p>
