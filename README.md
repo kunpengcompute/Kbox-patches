@@ -54,15 +54,16 @@ Docker：采用开源Docker软件，为Android系统提供软件运行时环境�
 ├── docs                                           # 项目文档目录
 │   └── zh                                         # 中文文档目录
 │       ├── figures                                # 中文文档图片资源目录
-│       ├── 版本说明书.md                            # Kbox云手机版本发布说明
-│       ├── 安装指南.md                             # Kbox云手机安装指导
-│       ├── 用户指南.md                             # Kbox云手机使用指导
-│       ├── 最佳实践.md                             # Kbox云手机场景化应用最佳实践
-│       ├── 特性指南.md                             # Kbox云手机特性指南
-│       ├── 测试指南.md                             # Kbox云手机测试指南
-│       ├── 编译指南.md                             # Kbox云手机编译指南
-│       ├── 例行维护.md                             # Kbox云手机例行维护
-│       ├── 故障案例.md                             # Kbox云手机使用常见问题
+│       ├── best_practices.md                         # Kbox云手机场景化应用最佳实践
+│       ├── compile_guide.md                          # Kbox云手机编译指南
+│       ├── feature_guide.md                          # Kbox云手机特性指南
+│       ├── install_guide.md                           # Kbox云手机安装指南
+│       ├── release_notes.md                           # Kbox云手机版本发布说明
+│       ├── routine_maintenance.md                     # Kbox云手机例行维护
+│       ├── security_statement.md                     # Kbox云手机安全声明
+│       ├── test_guide.md                             # Kbox云手机测试指南
+│       ├── troubleshooting.md                         # Kbox云手机使用常见问题
+│       ├── user_guide.md                             # Kbox云手机使用指南
 ├── deploy_scripts                                 # 部署容器相关脚本
 ├── make_img_sample                                # 一键式参考脚本
 ├── patchForAndroid                                # 安卓补丁
