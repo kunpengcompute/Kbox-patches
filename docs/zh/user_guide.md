@@ -76,10 +76,16 @@ docker import android.tar kbox:demo
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >为确保Kbox云手机的稳定运行与最佳性能，请保障每个容器所绑定的CPU物理核和GPU渲染节点同属于一个CPU片。
 
-Kbox云手机容器支持使能图形加速层，通过修改kbox\_config.cfg配置文件中的“ENABLE\_RENDER\_LAYER”为1进行使能。打开“\~/dependency/deploy\_scripts“路径下的“kbox\_render\_accelerating\_configuration.xml”配置文件，对应用的图形加速层功能进行配置。具体配置项描述请参见《[视频流引擎 特性指南（Android 15）](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/videostreamengine_ad15/kunpengcpsvideo_20_0013.html)》中的“图形加速层配置项”章节。首次启动云手机容器后，若需要修改图形加速层功能的配置，修改配置文件中应用对应的配置，手动将其拷贝到云手机容器“/data/local/tmp“路径，重启应用生效。
+Kbox云手机容器支持使能图形加速层，通过修改kbox\_config.cfg配置文件中的“ENABLE\_RENDER\_LAYER”为1进行使能。打开“\~/dependency/deploy\_scripts“路径下的“kbox\_render\_accelerating\_configuration.xml”配置文件，对应用的图形加速层功能进行配置。具体配置项描述请参见《[视频流引擎 用户指南（Android 15）](https://gitcode.com/boostkit/vmi/blob/CloudPhone15/docs/zh/user_guide.md)》中的“图形加速层配置项”章节。首次启动云手机容器后，若需要修改图形加速层功能的配置，修改配置文件中应用对应的配置，手动将其拷贝到云手机容器“/data/local/tmp“路径，重启应用生效。
 
 1. 解压Kbox-AOSP15.zip，将Kbox-AOSP15文件夹中的“deploy\_scripts“目录上传至服务器的“\~/dependency“目录。
-2. 通过android\_kbox\_aosp15.sh脚本启动容器。
+2. （可选）若需要启动使能了C2解码器的视频流云手机实例（硬件配置方案一可用），则需要设置“deploy_scripts”目录下的kbox_config.cfg文件，将“**ENABLE_AMD_C2_DECODE**”设置位“1”，其他值不使能，默认为0。必须再容器第一次启动时配置开/关C2解码器，不支持中途切换。云手机内置应用会根据自身需要自行选择解码器
+
+    ```shell
+    ENABLE_AMD_C2_DECODE=0
+    ```
+
+3. 通过android\_kbox\_aosp15.sh脚本启动容器。
 
     ```shell
     cd ~/dependency/deploy_scripts
@@ -122,7 +128,7 @@ Kbox云手机容器支持使能图形加速层，通过修改kbox\_config.cfg配
     > echo 1 > /sys/kernel/kbox/kbox_enable
     >    ```
 
-3. 执行如下命令确认Kbox容器是否启动成功，其中“$\{index\}“为启动实例的编号。
+4. 执行如下命令确认Kbox容器是否启动成功，其中“$\{index\}“为启动实例的编号。
 
     ```shell
     docker exec -it kbox_${index} getprop | grep boot_completed
@@ -130,25 +136,25 @@ Kbox云手机容器支持使能图形加速层，通过修改kbox\_config.cfg配
 
     若回显信息中的sys.boot\_completed显示为“1“，则启动成功。
 
-4. 停止并删除Kbox容器的方法。
+5. 停止并删除Kbox容器的方法。
 
     由于Kbox方案默认挂载数据卷，默认的**docker stop**、**docker rm**命令不能彻底清理容器数据，需要使用脚本彻底清理主机侧文件。
 
     使用android\_kbox\_aosp15.sh脚本，停止并删除正在运行的Kbox容器。
 
-    停止并删除编号为_$\{index\}_的容器。
+    停止并删除编号为$\{index\}的容器。
 
     ```shell
     ./android_kbox_aosp15.sh delete ${index}
     ```
 
-5. 重启Kbox容器的方法。
+6. 重启Kbox容器的方法。
 
     由于Kbox方案默认挂载数据卷，在重启容器时，无法使用默认的**docker restart**命令进行重启，需要使用脚本执行容器的重启操作。
 
     使用android\_kbox\_aosp15.sh脚本重启Kbox容器。
 
-    重启编号为_$\{index\}_的容器。
+    重启编号为$\{index\}的容器。
 
     ```shell
     ./android_kbox_aosp15.sh restart ${index}
@@ -174,9 +180,9 @@ cat ./products/kbox_version.txt
 
 ```shell
 Product Name: Kunpeng BoostKit
-Product Version: 25.3.0
+Product Version: 26.0.RC1
 Component Name: BoostKit-boostcph-kbox
-Component Version: 7.3.0
+Component Version: 8.0.RC1
 Component AppendInfo: 15.0.0_r17
 ```
 
@@ -830,4 +836,4 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 |通过**dmesg -T**收集查看开机信息。|
 |通过**docker stats/docker inspect**收集Docker相关日志。|
 
-为了便于使用，特基于Kbox\_maintainer（维护工具）提供一键式日志收集能力，Kbox\_maintainer工具收集日志的方法，请参见《[Kbox云手机容器 例行维护（Android 15）](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/kboxcpc_ad15/kunpengcpskbox_32_0001.html)》的“日志收集”章节。
+为了便于使用，特基于Kbox\_maintainer（维护工具）提供一键式日志收集能力，Kbox\_maintainer工具收集日志的方法，请参见《[例行维护](routine_maintenance.md)》的“日志收集”章节。

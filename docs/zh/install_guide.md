@@ -17,13 +17,13 @@ Kbox云手机容器环境部署的硬件环境配置方案要求如[**表 1** Kb
 |配置项|硬件配置方案一|硬件配置方案二|硬件配置方案三|
 |--|--|--|--|
 |服务器|鲲鹏服务器|鲲鹏服务器|鲲鹏服务器|
-|CPU|2*鲲鹏920 7260处理器，64 <Core@2.6GHz>|2*鲲鹏920 7260处理器，64 <Core@2.6GHz>|2*鲲鹏920 7280Z处理器，80 <Core@2.9GHz>|
-|内存|16*DDR4 RDIMM内存-32GB-2933MT/s|16*DDR4 RDIMM内存-32GB-2933MT/s|16*DDR5 DIMM内存-64GB-4800MT/s|
-|硬盘|系统盘：2*固态硬盘-480GB-SATA 6Gb/s-读取密集型数据盘：2*ES3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：2*固态硬盘-480GB-SATA 6Gb/s-读取密集型数据盘：2*ES3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：1*S3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型数据盘：2*S3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|
-|网卡|板载：1*（4*GE接口卡）1*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）外接：1*Mellanox网卡|板载：1*（4*GE接口卡）1*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）外接：1*Mellanox网卡|板载：1*（4*GE接口卡）1*TM280板载灵活网卡-2*25GE/10GE光口-4端口-SFP28（不含光模块）外接：1*Mellanox网卡|
-|Riser卡|RISER1与RISER2模组相同，均为：PCIe X16 + PCIe X8|RISER1与RISER2模组相同，均为：PCIe X8*3|前置Riser（x8*2）*2+后置Riser（x8*2）*2+Riser3（x8*2）*1|
-|编码卡|1 * NETINT Quadra T2A（X8）|无|无|
-|GPU|2*AMD W6800|4*道客DC 1000|8*道客DC 1000|
+|CPU|2\*鲲鹏920 7260处理器，64 <Core@2.6GHz>|2\*鲲鹏920 7260处理器，64 <Core@2.6GHz>|2\*鲲鹏920 7280Z处理器，80 <Core@2.9GHz>|
+|内存|16\*DDR4 RDIMM内存-32GB-2933MT/s|16\*DDR4 RDIMM内存-32GB-2933MT/s|16\*DDR5 DIMM内存-64GB-4800MT/s|
+|硬盘|系统盘：2\*固态硬盘-480GB-SATA 6Gb/s-读取密集型数据盘：2\*ES3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：2\*固态硬盘-480GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*ES3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：1\*S3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*S3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|
+|网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-2\*25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|
+|Riser卡|RISER1与RISER2模组相同，均为：PCIe X16 + PCIe X8|RISER1与RISER2模组相同，均为：PCIe X8\*3|前置Riser（x8\*2）\*2+后置Riser（x8\*2）\*2+Riser3（x8\*2）\*1|
+|编码卡|1 \* NETINT Quadra T2A（X8）|无|无|
+|GPU|2\*AMD W6800|4\*道客DC 1000|8\*道客DC 1000|
 |操作系统|openEuler 24.03 LTS SP1|openEuler 24.03 LTS SP1|openEuler 24.03 LTS SP1|
 |系统/内核版本|6.6.0-72.0.0|6.6.0-72.0.0|6.6.0-72.0.0|
 
@@ -264,7 +264,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 2. 执行命令，查询网卡涉及的中断。
 
-    命令中的_**$\{id\_pci\}**_为[1](#zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512)中查到的网卡设备号。
+    命令中的$\{id\_pci\}为[1](#zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512)中查到的网卡设备号。
 
     ```shell
     cat /proc/interrupts | grep "${id_pci}" | awk -F: '{print $1}'
@@ -280,7 +280,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >若查询网卡涉及的中断时，回显包含多个中断号，则需要判断中断是否分散地绑在不同CPU上，根据判断结果来确定是否修改中断绑定的CPU。
 
-3. 查询中断绑定在哪个CPU上，命令中的**_$\{break\_value\}_**为查询到的网卡中断号。
+3. 查询中断绑定在哪个CPU上，命令中的\$\{break\_value\}为查询到的网卡中断号。
 
     ```shell
     cat /proc/irq/${break_value}/smp_affinity_list
@@ -291,7 +291,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 4. <a name="zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li1667182211497"></a>根据网卡的**pci设备号**，查看网卡所属的NUMA node。
 
-    命令中的**_$\{id\_pci\}_**为网卡设备号，可通过本节内容的[1](#zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512)进行查看。执行命令，回显中的NUMA node参数对应的值即为网卡所属的NUMA node。
+    命令中的\$\{id\_pci\}为网卡设备号，可通过本节内容的[1](#zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512)进行查看。执行命令，回显中的NUMA node参数对应的值即为网卡所属的NUMA node。
 
     ```shell
     lspci -vvvs ${id_pci}
@@ -312,15 +312,15 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 5. <a name="zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li1985492711497"></a>网卡中断绑定至预留CPU（优先网卡所属的NUMA node CPU）上。
 
-    命令中的_**$\{break\_1\}**_、_**$\{break\_2\}**_依次为两个网卡中断的值。
+    命令中的\$\{break\_1\}、$\{break\_2\}依次为两个网卡中断的值。
 
-    - 将中断_$\{break\_1\}_绑定至1 CPU。
+    - 将中断$\{break\_1\}绑定至1 CPU。
 
         ```shell
         echo 1 > /proc/irq/${break_1}/smp_affinity_list
         ```
 
-    - 将中断_$\{break\_2\}_绑定至2 CPU。
+    - 将中断$\{break\_2\}绑定至2 CPU。
 
         ```shell
         echo 2 > /proc/irq/${break_2}/smp_affinity_list
@@ -372,7 +372,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >
 >- 编译内核中涉及的内核配置与修改仅作为功能性参考，不建议使用鲲鹏BoostKit云手机参考方案作为商用方案。若选择使用鲲鹏BoostKit云手机参考方案需自行承担安全风险，客户或ISV在商用前请进行必要的安全评估。
->- openEuler操作系统的安装请参见[openEuler官方网站文档](https://docs.openeuler.openatom.cn/zh/docs/24.03_LTS_SP1/server/installation_upgrade/installation/installation_preparations.html)。
+>- openEuler操作系统的安装请参见[openEuler官方网站文档](https://docs.openeuler.openatom.cn/zh/docs/24.03_LTS_SP3/server/installation_upgrade/installation/installation_preparations.html)。
 
 编译时请使用root账号登录和操作。
 
@@ -494,7 +494,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
 
 6. Docker升级到24.0.0版本。若**yum**安装的Docker版本低于24.0.0版本，则需要升级版本。
 
-    请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)中的下载链接，下载docker-24.0.0.tgz文件。在任意目录下，解压，并将二进制包中的文件拷贝到“/usr/bin“下。
+    请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)中的下载链接，下载docker-24.0.0.tgz文件。在任意目录下，解压，并将二进制包中的文件拷贝到“/usr/bin“下。
 
     ```shell
     tar -xvf docker-24.0.0.tgz
@@ -518,7 +518,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
 
 请参见该章节获取正确的内核源码版本并解压内核源码，为内核编译做准备。
 
-1. 请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)中的下载链接获取Kernel源码文件kernel-6.6.0-72.0.0.zip，本地下载后上传至服务器的“/usr/src/kernels“目录，并解压内核源码。
+1. 请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)中的下载链接获取Kernel源码文件kernel-6.6.0-72.0.0.zip，本地下载后上传至服务器的“/usr/src/kernels“目录，并解压内核源码。
 
     ```shell
     cd /usr/src/kernels
@@ -614,7 +614,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
     |HISI_PMU|M|\<M> HiSilicon SoC PMU drivers|CONFIG_HISI_PMU=m|
     |SYSTEM_TRUSTED_KEYS|清空内容|( ) Additional X.509 keys for default system keyring|CONFIG_SYSTEM_TRUSTED_KEYS=""|
     |DEBUG_INFO_DWARF4|N（回车进入Debug information，在选项中单击空格选择Disable debug information）|Debug information (Disable debug information)|# CONFIG_DEBUG_INFO_DWARF4 is not set|
-    |PSI_DEFAULT_DISABLED|N|[ ] Require boot parameter to enable pressure stall information tracking|# CONFIG_PSI_DEFAULT_DISABLED is not set|
+    |PSI_DEFAULT_DISABLED|N|[  ] Require boot parameter to enable pressure stall information tracking|# CONFIG_PSI_DEFAULT_DISABLED is not set|
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >配置方法说明：
@@ -773,7 +773,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
 
 ## 8 部署Kbox<a name="ZH-CN_TOPIC_0000002518225514"></a>
 
-### 8.1 确定GPU拓扑结构<a name="ZH-CN_TOPIC_0000002549865273"></a>
+### 8.1 确定GPU拓扑结构<a id="确定GPU拓扑结构"></a>
 
 本章节描述了如何在服务器上获取GPU渲染节点及其所属的NUMA节点的信息。
 
@@ -898,7 +898,7 @@ NUMA node: 2
 
 使用硬件配置方案二、三每次服务器重启后，都需要重新执行安装显卡驱动步骤。
 
-1. 请参见[软件环境](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/kboxcpc_ad15/kunpengcpskbox_20_0131.html)获取VAGPU-25.03.01.01-RC13-A15.tgz，上传至“\~/dependency/“目录，解压后获取显卡内核态驱动。
+1. 请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)获取VAGPU-25.03.01.01-RC13-A15.tgz，上传至“\~/dependency/“目录，解压后获取显卡内核态驱动。
 
     ```shell
     cd ~/dependency/
@@ -922,7 +922,7 @@ NUMA node: 2
 
     GPU驱动会为每个显卡节点启动一个kworker进程，道客DC 1000单卡有4个节点。为保障kworker进程性能，建议使用kworkerCores参数为每个kworker进程绑定CPU，kworkerCores参数依次表示每个显卡节点对应kworker进程的绑核。
 
-    在安装显卡图形驱动绑核时，**请确保kworker进程绑定的CPU核和GPU渲染节点同属一个CPU片**。GPU渲染节点所属CPU片的查询方式请参见[确定GPU拓扑结构](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/kboxcpc_ad15/kunpengcpskbox_20_0170.html)章节。
+    在安装显卡图形驱动绑核时，**请确保kworker进程绑定的CPU核和GPU渲染节点同属一个CPU片**。GPU渲染节点所属CPU片的查询方式请参见[确定GPU拓扑结构](#确定GPU拓扑结构)章节。
 
     以下绑核方式仅作为参考，请依据实际情况做出调整。
 
