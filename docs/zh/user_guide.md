@@ -36,7 +36,7 @@ docker import android.tar kbox:demo
 >当用户使用自行编译的镜像时：
 >
 >- 硬件配置方案一：可跳过该小节的全部步骤。
->- 硬件配置方案二、三：可跳过该小节的步骤2。
+>- 硬件配置方案二、三、四：可跳过该小节的步骤2。
 
 1. 请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)获取Kbox-AOSP11.zip，解压Kbox-AOSP11.zip，将Kbox-AOSP11文件夹中的deploy\_scripts目录上传至服务器的“\~/dependency“目录。
 2. 请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)获取Android Kbox二进制文件包Boostkit-boostcph-kbox\_\*.zip并上传到“\~/dependency/deploy\_scripts“目录。
@@ -95,16 +95,16 @@ docker import android.tar kbox:demo
 
 |参数名称|参数说明|配置说明|
 |--|--|--|
-|KBOX_GPU_MAP（硬件配置一）KBOX_VA_GPU_MAP（硬件配置二、三）|通过修改map中对应路数的值来选择该路容器使用的GPU。|KBOX_GPU_MAP列表里的第一个表示编号为1的Kbox云手机，分配的GPU节点（/dev/dri/renderD128），根据renderD128节点属于NUMA0，因此鲲鹏920 7260处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~31。KBOX_VA_GPU_MAP列表里的第一个表示编号为1的Kbox云手机，分配的GPU节点（/dev/dri/renderD128），根据renderD128~135属于NUMA0，因此对于鲲鹏920 7260处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~31。鲲鹏920 7280Z处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~79。|
+|KBOX_GPU_MAP（硬件配置一）KBOX_VA_GPU_MAP（硬件配置二、三、四）|通过修改map中对应路数的值来选择该路容器使用的GPU。|KBOX_GPU_MAP列表里的第一个表示编号为1的Kbox云手机，分配的GPU节点（/dev/dri/renderD128），根据renderD128节点属于NUMA0，因此鲲鹏920 7260处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~31。KBOX_VA_GPU_MAP列表里的第一个表示编号为1的Kbox云手机，分配的GPU节点（/dev/dri/renderD128），根据renderD128~135属于NUMA0，因此对于鲲鹏920 7260处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~31。鲲鹏920 7280Z处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~79。|
 |KBOX_CPUSET_MAP|通过修改map中对应路数的值来选择该路容器使用的CPU。|同上|
 |KBOX_MOUNT_MAP|通过修改map中对应路数的值来选择该路容器使用的数据卷存放路径。|无|
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >为确保Kbox云手机的稳定运行与最佳性能，请保障每个容器所绑定的CPU物理核和GPU渲染节点同属于一个CPU片。
 
-Kbox云手机容器支持根据客户需求定制系统属性，以覆盖原有系统属性。如需使用定制属性，需要在启动路径中生成“local.prop”文件，文件内记录定制的系统属性，容器启动后的初始化过程会读取该文件内的属性并覆盖写入。修改方法请参见《[Kbox云手机容器 例行维护](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/kboxcpc/kunpengcpskbox_32_0044.html)》文档的“支持Android系统属性可定制”章节。
+Kbox云手机容器支持根据客户需求定制系统属性，以覆盖原有系统属性。如需使用定制属性，需要在启动路径中生成“local.prop”文件，文件内记录定制的系统属性，容器启动后的初始化过程会读取该文件内的属性并覆盖写入。修改方法请参见《[Kbox云手机容器 例行维护](routine_maintenance.md)》文档的“支持Android系统属性可定制”章节。
 
-Kbox云手机容器支持使能图形加速层，通过将kbox\_config.cfg配置文件中的“ENABLE\_RENDER\_LAYER“修改为“1“进行使能。打开“\~/dependency/deploy\_scripts“路径下的“kbox\_render\_accelerating\_configuration.xml”配置文件，对应用的图形加速层功能进行配置。具体配置项描述请参见《[视频流引擎 特性指南](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/videostreamengine/kunpengcpsvideo_20_0013.html)》中的“图形加速层配置项”章节。首次启动云手机容器时，若需要修改图形加速层功能的配置，则修改配置文件中应用对应的配置，手动将其拷贝到云手机容器“/data/local/tmp“路径，重启应用即可生效。
+Kbox云手机容器支持使能图形加速层，通过将kbox\_config.cfg配置文件中的“ENABLE\_RENDER\_LAYER“修改为“1“进行使能。打开“\~/dependency/deploy\_scripts“路径下的“kbox\_render\_accelerating\_configuration.xml”配置文件，对应用的图形加速层功能进行配置。具体配置项描述请参见《[视频流引擎 用户指南](https://gitcode.com/boostkit/vmi/blob/CloudPhone/docs/zh/user_guide.md)》中的“图形加速层配置项”章节。首次启动云手机容器时，若需要修改图形加速层功能的配置，则修改配置文件中应用对应的配置，手动将其拷贝到云手机容器“/data/local/tmp“路径，重启应用即可生效。
 
 1. 解压Kbox-AOSP11.zip，将Kbox-AOSP11文件夹中的deploy\_scripts目录上传至服务器的“\~/dependency“目录。
 2. （可选）使能硬件解码（以下简称“硬解”）。
@@ -131,7 +131,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox\_config.cfg配置
 
         2. 查看nvme节点与pcie bus号对应关系。
 
-            _\{index\}_为[2.b.i](#li12677451102912)回显信息所示的NVMe节点编号。例如/dev/nvme0n1，该节点_\{index\}_即为0。
+            \{index\}为[2.b.i](#li12677451102912)回显信息所示的NVMe节点编号。例如/dev/nvme0n1，该节点\{index\}即为0。
 
             ```shell
             find /sys/devices/ -name nvme{index}
@@ -146,7 +146,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox\_config.cfg配置
 
         3. 通过bus号找到该节点与NUMA从属关系。
 
-            _\{busID\}_为上一步骤获取的bus号。以nvme0设备的回显为例，_\{busID\}_即为0000:05:00.0。
+            \{busID\}为上一步骤获取的bus号。以nvme0设备的回显为例，\{busID\}即为0000:05:00.0。
 
             ```shell
             lspci -vvvs {busID} | grep NUMA
@@ -181,7 +181,13 @@ Kbox云手机容器支持使能图形加速层，通过将kbox\_config.cfg配置
             > NETINT1="/dev/nvme0,/dev/nvme0n1,/dev/nvme1,/dev/nvme1n1"
             >    ```
 
-3. 通过android\_kbox.sh脚本启动容器。
+3. （可选）若需要启动使能了C2解码器的视频流云手机实例（硬件配置方案一可用），则需要设置“deploy_scripts”目录下的kbox_config.cfg文件，将“**ENABLE_AMD_C2_DECODE**”设置位“1”，其他值不使能，默认为0。必须再容器第一次启动时配置开/关C2解码器，不支持中途切换。云手机内置应用会根据自身需要自行选择解码器
+
+    ```shell
+    ENABLE_AMD_C2_DECODE=0
+    ```
+
+4. 通过android\_kbox.sh脚本启动容器。
 
     ```shell
     cd ~/dependency/deploy_scripts
@@ -231,7 +237,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox\_config.cfg配置
         >echo 1 > /sys/kernel/kbox/kbox_enable
         >```
 
-4. 执行如下命令确认Kbox容器是否启动成功，其中“$\{index\}“为启动实例的编号。
+5. 执行如下命令确认Kbox容器是否启动成功，其中“$\{index\}“为启动实例的编号。
 
     ```shell
     docker exec -it kbox_${index} getprop | grep boot_completed
@@ -239,37 +245,37 @@ Kbox云手机容器支持使能图形加速层，通过将kbox\_config.cfg配置
 
     若回显信息中的sys.boot\_completed显示为“1“，则启动成功。
 
-5. 停止并删除Kbox容器的方法。
+6. 停止并删除Kbox容器的方法。
 
     由于Kbox方案默认挂载数据卷，默认的**docker stop**、**docker rm**命令不能彻底清理容器数据，需要使用脚本彻底清理主机侧文件。
 
     使用android\_kbox.sh脚本，停止并删除正在运行的Kbox容器。
 
-    - 停止并删除编号为_$\{index\}_的容器。
+    - 停止并删除编号为$\{index\}的容器。
 
         ```shell
         ./android_kbox.sh delete ${index}
         ```
 
-    - 停止并删除编号为_$\{index1\}\~$\{index2\}_的所有容器。
+    - 停止并删除编号为\$\{index1\}\~\$\{index2\}的所有容器。
 
         ```shell
         ./android_kbox.sh delete ${index1} ${index2}
         ```
 
-6. 重启Kbox容器的方法。
+7. 重启Kbox容器的方法。
 
     由于Kbox方案默认挂载数据卷，在重启容器时，无法使用默认的**docker restart**命令进行重启，需要使用脚本执行容器的重启操作。
 
     使用android\_kbox.sh脚本重启Kbox容器。
 
-    - 重启编号为_$\{index\}_的容器。
+    - 重启编号为$\{index\}的容器。
 
         ```shell
         ./android_kbox.sh restart ${index}
         ```
 
-    - 重启编号为_$\{index1\}\~$\{index2\}_的所有容器。
+    - 重启编号为\$\{index1\}\~\$\{index2\}的所有容器。
 
         ```shell
         ./android_kbox.sh restart ${index1} ${index2}
@@ -298,9 +304,9 @@ Kbox云手机容器支持使能图形加速层，通过将kbox\_config.cfg配置
 
     ```shell
     Product Name: Kunpeng BoostKit
-    Product Version: 25.3.0
+    Product Version: 26.0.RC1
     Component Name: BoostKit-boostcph-kbox
-    Component Version: 7.3.0
+    Component Version: 8.0.RC1
     Component AppendInfo: 11.0.0_r48
     ```
 
@@ -327,7 +333,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox\_config.cfg配置
     - “pages\_to\_scan“表示在KSM守护进程睡眠之前，需要扫描多少页面。
     - “sleep\_millisecs“表示守护进程内核线程完成一次扫描之后的睡眠时间，以毫秒为单位。
 
-    通过**echo  _xx_  \> /sys/kernel/mm/ksm/_$param_**进行参数修改，其中xx为要修改的参数值大小，$param为要修改的参数。
+    通过**echo  _xx_  \> /sys/kernel/mm/ksm/_\$param_** 进行参数修改，其中xx为要修改的参数值大小，$param为要修改的参数。
 
 2. 容器使能自动全量KSM去重。
 
@@ -672,12 +678,12 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 |配置项名称|含义|类型|取值范围|默认值|说明|
 |--|--|--|--|--|--|
 |persist.sensors.mock.delaytime|数据采集频率（以微秒为单位）。|int|[20000,1000000]|200000|当设置的persist.sensors.mock.delaytime的值不在[20000,1000000]内时，实际采用默认值。|
-|persist.sensors.mock.acce.data.x|当配置项为persist.sensors.mock.acce.data.x，表示沿x轴的加速力（包括重力），单位：m/s^2。当配置项为persist.sensors.mock.gyro.data.x，表示沿x轴的旋转速率，单位：弧度/秒。|float|[-3.402823466e+38,3.402823466e+38]|加速度和陀螺仪的x轴默认值均为9.833359，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.x或persist.sensors.mock.gyro.data.x上。但由于Android 11将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000。|当设置的persist.sensors.mock.acce.data.x或persist.sensors.mock.gyro.data.x的值包含非数字且非小数点字符的非法字符时，设置无效采用默认值。需注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题。|
-|persist.sensors.mock.gyro.data.x|
-|persist.sensors.mock.acce.data.y|当配置项为persist.sensors.mock.acce.data.y，表示沿y轴的加速力（包括重力）。当配置项为persist.sensors.mock.gyro.data.y，表示沿y轴的旋转速率。|float|[-3.402823466e+38,3.402823466e+38]|加速度和陀螺仪的y轴默认值均为0.184357，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.y或persist.sensors.mock.gyro.data.y上。但由于Android 11将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000。|当设置的persist.sensors.mock.acce.data.y或persist.sensors.mock.gyro.data.y的值包含非数字/小数点字符的非法字符时，设置无效采用默认值。需注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题。|
-|persist.sensors.mock.gyro.data.y|
-|persist.sensors.mock.acce.data.z|当配置项为persist.sensors.mock.acce.data.z，表示沿z轴的加速力（包括重力）。当配置项为persist.sensors.mock.gyro.data.z，表示沿z轴的旋转速率。|float|[-3.402823466e+38,3.402823466e+38]|加速度和陀螺仪的z轴默认值均为0.101028，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.z或persist.sensors.mock.gyro.data.z上。但由于Android 11将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000。|当设置的persist.sensors.mock.acce.data.z或persist.sensors.mock.gyro.data.z的值包含非数字/小数点字符的非法字符时，设置无效采用默认值。需注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题。|
-|persist.sensors.mock.gyro.data.z|
+|persist.sensors.mock.acce.data.x|当配置项为persist.sensors.mock.acce.data.x，表示沿x轴的加速力（包括重力），单位：m/s^2。|float|[-3.402823466e+38,3.402823466e+38]|加速度和陀螺仪的x轴默认值均为9.833359，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.x或persist.sensors.mock.gyro.data.x上。但由于Android 11将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000。|当设置的persist.sensors.mock.acce.data.x或persist.sensors.mock.gyro.data.x的值包含非数字且非小数点字符的非法字符时，设置无效采用默认值。需注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题。|
+|persist.sensors.mock.gyro.data.x|当配置项为persist.sensors.mock.acce.data.x，表示沿x轴的加速力（包括重力），单位：m/s^2。|float|[-3.402823466e+38,3.402823466e+38]|加速度和陀螺仪的x轴默认值均为9.833359，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.x或persist.sensors.mock.gyro.data.x上。但由于Android 11将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000。|当设置的persist.sensors.mock.acce.data.x或persist.sensors.mock.gyro.data.x的值包含非数字且非小数点字符的非法字符时，设置无效采用默认值。需注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题。|
+|persist.sensors.mock.acce.data.y|当配置项为persist.sensors.mock.acce.data.y，表示沿y轴的加速力（包括重力）。|float|[-3.402823466e+38,3.402823466e+38]|加速度和陀螺仪的y轴默认值均为0.184357，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.y或persist.sensors.mock.gyro.data.y上。但由于Android 11将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000。|当设置的persist.sensors.mock.acce.data.y或persist.sensors.mock.gyro.data.y的值包含非数字/小数点字符的非法字符时，设置无效采用默认值。需注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题。|
+|persist.sensors.mock.gyro.data.y|当配置项为persist.sensors.mock.gyro.data.y，表示沿y轴的旋转速率。|float|[-3.402823466e+38,3.402823466e+38]|加速度和陀螺仪的y轴默认值均为0.184357，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.y或persist.sensors.mock.gyro.data.y上。但由于Android 11将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000。|当设置的persist.sensors.mock.acce.data.y或persist.sensors.mock.gyro.data.y的值包含非数字/小数点字符的非法字符时，设置无效采用默认值。需注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题。|
+|persist.sensors.mock.acce.data.z|当配置项为persist.sensors.mock.acce.data.z，表示沿z轴的加速力（包括重力）。|float|[-3.402823466e+38,3.402823466e+38]|加速度和陀螺仪的z轴默认值均为0.101028，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.z或persist.sensors.mock.gyro.data.z上。但由于Android 11将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000。|当设置的persist.sensors.mock.acce.data.z或persist.sensors.mock.gyro.data.z的值包含非数字/小数点字符的非法字符时，设置无效采用默认值。需注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题。|
+|persist.sensors.mock.gyro.data.z|当配置项为persist.sensors.mock.gyro.data.z，表示沿z轴的旋转速率。|float|[-3.402823466e+38,3.402823466e+38]|加速度和陀螺仪的z轴默认值均为0.101028，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.z或persist.sensors.mock.gyro.data.z上。但由于Android 11将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000。|当设置的persist.sensors.mock.acce.data.z或persist.sensors.mock.gyro.data.z的值包含非数字/小数点字符的非法字符时，设置无效采用默认值。需注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题。|
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >Android 11数值转换公式：输入value是float类型，resolution是double类型，double incRes = 0.125 \* resolution；value = round\(static\_cast<double\>\(value\) / incRes\) \* incRes，round是指double类型取整。
@@ -939,4 +945,4 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 |通过**dmesg -T**收集查看开机信息。|
 |通过**docker stats/docker inspect**收集docker相关日志。|
 
-为了便于使用，特基于Kbox\_maintainer（维护工具）提供一键式日志收集能力，Kbox\_maintainer工具收集日志的方法，请参见《[Kbox云手机容器 例行维护](https://www.hikunpeng.com/document/detail/zh/kunpengcps/cpturbokit/kboxcpc/kunpengcpskbox_32_0029.html)》的“日志收集”章节。
+为了便于使用，特基于Kbox\_maintainer（维护工具）提供一键式日志收集能力，Kbox\_maintainer工具收集日志的方法，请参见《[例行维护](routine_maintenance.md)》的“日志收集”章节。
