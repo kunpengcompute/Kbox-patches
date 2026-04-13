@@ -290,3 +290,243 @@ index 506b3bca67..a2f17c22b9 100644
      // OMX interfaces force this to stay in 32-bit mode;
      compile_multilib: "32",
  
+diff --git a/media/libstagefright/FrameDecoder.cpp b/media/libstagefright/FrameDecoder.cpp
+index 506b3bca67..a2f17c22b9 100644
+--- a/media/libstagefright/FrameDecoder.cpp
++++ b/media/libstagefright/FrameDecoder.cpp
+@@ -44,7 +44,7 @@
+ #include <utils/Trace.h>
+ #include "include/FrameCaptureLayer.h"
+ #include "include/HevcUtils.h"
+-
++#include <cutils/properties.h>
+ #include <C2Buffer.h>
+ #include <Codec2BufferUtils.h>
+ 
+@@ -644,73 +644,121 @@
+ 
+ status_t FrameDecoder::extractInternalUsingBlockModel() {
+     status_t err = OK;
+-    MediaBufferBase* mediaBuffer = NULL;
+-    int64_t ptsUs = 0LL;
+-    uint32_t flags = 0;
+-    int32_t index;
+-    mHandleOutputBufferAsyncDone = false;
++    char prop[PROPERTY_VALUE_MAX];
++    property_get("sys.cpu.limited", prop, "0");
++    bool isLowResource = (atoi(prop) == 1);
++    
++    int maxRetries = isLowResource ? 8 : 3;    // 增加重试次数
++    const int64_t kSecureTimeoutUs = 1500000LL;    // 1.5秒超时给软解充足时间
++
++    for (int attempt = 0; attempt < maxRetries; ++attempt) {
++        mHandleOutputBufferAsyncDone = false;
++
++        if (attempt > 0) {
++            ALOGW("[Retry %d] Green frame or Timeout detected. Resetting C2 component...", attempt);
++            mDecoder->flush();
++            mDecoder->stop();
++            
++            if (isLowResource) usleep(50000); 
++
++            sp<AMessage> fillFormat = mOutputFormat;
++            if (fillFormat == nullptr) {
++                sp<MetaData> meta = mSource->getFormat();
++                fillFormat = new AMessage();
++                convertMetaDataToMessage(meta, &fillFormat);
++            }
++            
++            if (mDecoder->configure(fillFormat, nullptr, nullptr, 0) != OK || mDecoder->start() != OK) {
++                ALOGE("Failed to re-start decoder at attempt %d", attempt);
++                continue;
++            }
++            
++            mReadOptions.setSeekTo(0, MediaSource::ReadOptions::SEEK_NEXT_SYNC);
++        }
+ 
+-    err = mSource->read(&mediaBuffer, &mReadOptions);
+-    mReadOptions.clearSeekTo();
+-    if (err != OK) {
+-        ALOGW("Input Error: err=%d", err);
+-        if (mediaBuffer) {
++        MediaBufferBase* mediaBuffer = NULL;
++        int findKeyFrameCount = 0;
++        bool foundSync = false;
++        while (findKeyFrameCount < 60) {
++            err = mSource->read(&mediaBuffer, &mReadOptions);
++            mReadOptions.clearSeekTo();
++            if (err != OK) break;
++
++            int32_t isSync = 0;
++            if (mediaBuffer->meta_data().findInt32(kKeyIsSyncFrame, &isSync) && isSync) {
++                foundSync = true;
++                break;
++            }
+             mediaBuffer->release();
++            mediaBuffer = NULL;
++            findKeyFrameCount++;
+         }
+-        return err;
+-    }
+ 
+-    size_t inputSize = mediaBuffer->range_length();
+-    std::shared_ptr<C2LinearBlock> block =
+-            MediaCodec::FetchLinearBlock(inputSize, {std::string{mComponentName.c_str()}});
+-    C2WriteView view{block->map().get()};
+-    if (view.error() != C2_OK) {
+-        ALOGE("Fatal error: failed to allocate and map a block");
+-        mediaBuffer->release();
+-        return NO_MEMORY;
+-    }
+-    if (inputSize > view.capacity()) {
+-        ALOGE("Fatal error: allocated block is too small "
+-              "(input size %zu; block cap %u)",
+-              inputSize, view.capacity());
++        if (err != OK || !foundSync || mediaBuffer == NULL) {
++            ALOGE("No valid sync frame found (attempt %d)", attempt);
++            if (mediaBuffer) mediaBuffer->release();
++            continue; 
++        }
++
++        size_t inputSize = mediaBuffer->range_length();
++        int64_t ptsUs = 0LL;
++        uint32_t flags = 0;
++        int32_t index;
++        CHECK(mediaBuffer->meta_data().findInt64(kKeyTime, &ptsUs));
++        
++        std::shared_ptr<C2LinearBlock> block =
++                MediaCodec::FetchLinearBlock(inputSize, {std::string{mComponentName.c_str()}});
++        if (block == nullptr) {
++            mediaBuffer->release();
++            return NO_MEMORY;
++        }
++
++        C2WriteView view{block->map().get()};
++        if (view.error() != C2_OK) {
++            mediaBuffer->release();
++            return NO_MEMORY;
++        }
++
++        memcpy(view.base(), (const uint8_t*)mediaBuffer->data() + mediaBuffer->range_offset(), inputSize);
++        std::shared_ptr<C2Buffer> c2Buffer = C2Buffer::CreateLinearBuffer(block->share(0, inputSize, C2Fence{}));
++        
++        onInputReceived(view.base(), inputSize, mediaBuffer->meta_data(), true, &flags);
++        
++        flags |= MediaCodec::BUFFER_FLAG_EOS;
+         mediaBuffer->release();
+-        return BAD_VALUE;
+-    }
+-    CHECK(mediaBuffer->meta_data().findInt64(kKeyTime, &ptsUs));
+-    memcpy(view.base(), (const uint8_t*)mediaBuffer->data() + mediaBuffer->range_offset(),
+-           inputSize);
+-    std::shared_ptr<C2Buffer> c2Buffer =
+-            C2Buffer::CreateLinearBuffer(block->share(0, inputSize, C2Fence{}));
+-    onInputReceived(view.base(), inputSize, mediaBuffer->meta_data(), true /* firstSample */,
+-                    &flags);
+-    flags |= MediaCodec::BUFFER_FLAG_EOS;
+-    mediaBuffer->release();
+-
+-    std::vector<AccessUnitInfo> infoVec;
+-    infoVec.emplace_back(flags, inputSize, ptsUs);
+-    sp<BufferInfosWrapper> infos = new BufferInfosWrapper{std::move(infoVec)};
+-
+-    if (!mInputBufferIndexQueue.dequeue(&index, kAsyncBufferTimeOutUs)) {
+-        ALOGE("No available input buffer index for async mode.");
+-        return TIMED_OUT;
+-    }
+-
+-    AString errorDetailMsg;
+-    ALOGD("QueueLinearBlock: index=%d size=%zu ts=%" PRId64 " us flags=%x",
+-            index, inputSize, ptsUs,flags);
+-    err = mDecoder->queueBuffer(index, c2Buffer, infos, nullptr, &errorDetailMsg);
+-    if (err != OK) {
+-        ALOGE("failed to queueBuffer (err %d): %s", err, errorDetailMsg.c_str());
+-        return err;
+-    }
+ 
+-    // wait for handleOutputBufferAsync() to finish
+-    std::unique_lock _lk(mMutex);
+-    mOutputFramePending.wait_for(_lk, std::chrono::microseconds(kAsyncBufferTimeOutUs),
+-                                 [this] { return mHandleOutputBufferAsyncDone; });
+-    return mHandleOutputBufferAsyncDone ? OK : TIMED_OUT;
++        std::vector<AccessUnitInfo> infoVec;
++        infoVec.emplace_back(flags, inputSize, ptsUs);
++        sp<BufferInfosWrapper> infos = new BufferInfosWrapper{std::move(infoVec)};
++
++        if (!mInputBufferIndexQueue.dequeue(&index, kSecureTimeoutUs)) {
++            ALOGE("Input queue timeout (attempt %d)", attempt);
++            continue; 
++        }
++
++        AString errorDetailMsg;
++        err = mDecoder->queueBuffer(index, c2Buffer, infos, nullptr, &errorDetailMsg);
++        if (err != OK) {
++            ALOGE("queueBuffer failed: %d", err);
++            continue;
++        }
++
++        std::unique_lock<std::mutex> _lk(mMutex);
++        bool waitDone = mOutputFramePending.wait_for(_lk, std::chrono::microseconds(kSecureTimeoutUs),
++                                     [this] { return mHandleOutputBufferAsyncDone; });
++
++        if (waitDone && mHandleOutputBufferAsyncDone) {
++            ALOGD("Frame decoded successfully after %d attempts", attempt + 1);
++            return OK; 
++        }
++        
++        ALOGW("Output timeout or invalid frame detected at attempt %d", attempt);
++        err = TIMED_OUT;
++    }
++    return err;
+ }
+ 
++
+ //////////////////////////////////////////////////////////////////////
+ 
+ VideoFrameDecoder::VideoFrameDecoder(
+@@ -756,11 +804,8 @@
+     bool onOutputReceivedDone = false;
+     if (mSurface != nullptr) {
+         mDecoder->renderOutputBufferAndRelease(index);
+-        // frameData and imgObj will be fetched by captureSurface() inside onOutputReceived()
+-        // explicitly pass null here
+         err = onOutputReceived(nullptr, nullptr, mOutputFormat, timeUs, &onOutputReceivedDone);
+     } else {
+-        // get stride and frame data for block model buffer
+         std::shared_ptr<C2Buffer> c2buffer = videoFrameBuffer->asC2Buffer();
+         if (!c2buffer
+                 || c2buffer->data().type() != C2BufferData::GRAPHIC
+@@ -779,6 +824,24 @@
+ 
+         uint8_t* frameData = converter.wrap()->data();
+         sp<ABuffer> imageData = converter.imageData();
++        
++        bool isInvalidFrame = false;
++        if (frameData != nullptr) {
++            isInvalidFrame = true;
++            for (size_t i = 0; i < 1024; i++) {
++                if (frameData[i] != 0) {
++                    isInvalidFrame = false;
++                    break;
++                }
++            }
++        }
++
++        if (isInvalidFrame) {
++            ALOGW("Detected green/invalid frame from C2 decoder, skipping...");
++            mDecoder->releaseOutputBuffer(index);
++            return OK; 
++        }
++
+         if (imageData != nullptr) {
+             mOutputFormat->setBuffer("image-data", imageData);
+             MediaImage2 *img = (MediaImage2*) imageData->data();
+@@ -801,6 +864,7 @@
+     return err;
+ }
+ 
++
+ sp<AMessage> VideoFrameDecoder::onGetFormatAndSeekOptions(
+         int64_t frameTimeUs, int seekMode,
+         MediaSource::ReadOptions *options,
+ 
