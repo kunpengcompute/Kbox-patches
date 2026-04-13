@@ -569,3 +569,110 @@ index 4c51a9c..ba58378 100644
  
  # mremap: Ensure |flags| are (MREMAP_MAYMOVE | MREMAP_FIXED) TODO: Once minijail
  # parser support for '<' is in this needs to be modified to also prevent
+
+diff --git a/media/libstagefright/FrameDecoder.cpp b/media/libstagefright/FrameDecoder.cpp
+index 73a388e..92f153a 100644
+--- a/media/libstagefright/FrameDecoder.cpp
++++ b/media/libstagefright/FrameDecoder.cpp
+@@ -39,6 +39,7 @@
+ #include <media/stagefright/Utils.h>
+ #include <private/media/VideoFrame.h>
+ #include <utils/Log.h>
++#include <cutils/properties.h>
+ 
+ namespace android {
+ 
+@@ -318,6 +319,14 @@
+     status_t err = OK;
+     bool done = false;
+     size_t retriesLeft = kRetryCount;
++
++    char cpuLimited[PROPERTY_VALUE_MAX];
++    bool isCpuLimited = (property_get("sys.cpu.limited", cpuLimited, "0") > 0 && strcmp(cpuLimited, "1") == 0);
++    
++    size_t continuousErrorCount = 0;
++    const size_t kMaxContinuousErrorCount = 8;
++    const int64_t kBusyDelayUs = 15000ll;
++
+     do {
+         size_t index;
+         int64_t ptsUs = 0LL;
+@@ -411,20 +420,46 @@
+             } else if (err == INFO_OUTPUT_BUFFERS_CHANGED) {
+                 ALOGV("Output buffers changed");
+                 err = OK;
+-            } else {
+-                if (err == -EAGAIN /* INFO_TRY_AGAIN_LATER */ && --retriesLeft > 0) {
+-                    ALOGV("Timed-out waiting for output.. retries left = %zu", retriesLeft);
++            } else if (err == -EAGAIN) {
++                if (--retriesLeft > 0) {
++                    if (isCpuLimited) {
++                        usleep(kBusyDelayUs); 
++                    }
+                     err = OK;
+-                } else if (err == OK) {
++                } else {
++                    err = TIMED_OUT;
++                }
++                break;
++            } else if (err == OK) {
+                     // If we're seeking with CLOSEST option and obtained a valid targetTimeUs
+                     // from the extractor, decode to the specified frame. Otherwise we're done.
+                     ALOGV("Received an output buffer, timeUs=%lld", (long long)ptsUs);
+-                    sp<MediaCodecBuffer> videoFrameBuffer;
+-                    err = mDecoder->getOutputBuffer(index, &videoFrameBuffer);
+-                    if (err != OK) {
+-                        ALOGE("failed to get output buffer %zu", index);
+-                        break;
++                sp<MediaCodecBuffer> videoFrameBuffer;
++                err = mDecoder->getOutputBuffer(index, &videoFrameBuffer);
++                if (err != OK || videoFrameBuffer == nullptr) {
++                    mDecoder->releaseOutputBuffer(index);
++                    break;
++                }
++
++                bool skipFrame = false;
++                if (isCpuLimited) {
++                    if (videoFrameBuffer->size() < 16) {
++                        skipFrame = true;
++                    } else {
++                        const uint8_t *ptr = videoFrameBuffer->data();
++                        bool allZeros = true;
++                        for (size_t i = 0; i < 16; ++i) {
++                            if (ptr[i] != 0) {
++                                allZeros = false;
++                                break;
++                            }
++                        }
++                        if (allZeros) skipFrame = true;
+                     }
++                }
++
++                if (!skipFrame) {
++                    continuousErrorCount = 0;
+                     if (mSurface != nullptr) {
+                         mDecoder->renderOutputBufferAndRelease(index);
+                         err = onOutputReceived(videoFrameBuffer, mOutputFormat, ptsUs, &done);
+@@ -433,10 +468,20 @@
+                         mDecoder->releaseOutputBuffer(index);
+                     }
+                 } else {
+-                    ALOGW("Received error %d (%s) instead of output", err, asString(err));
+-                    done = true;
++                    ALOGW("CPU Limited: Dropping green/empty frame. Count: %zu", ++continuousErrorCount);
++                    mDecoder->releaseOutputBuffer(index);
++                    if (continuousErrorCount >= kMaxContinuousErrorCount) {
++                        ALOGE("Too many bad frames, aborting");
++                        done = true;
++                        err = ERROR_END_OF_STREAM;
++                    } else {
++                        err = OK;
++                    }
+                 }
+                 break;
++            } else {
++                done = true;
++                break;
+             }
+         }
+     } while (err == OK && !done);
