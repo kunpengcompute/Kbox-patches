@@ -15,16 +15,16 @@ then
    exit $?
 fi
 
-# 检查参数是否传递正确
-if [ $# -ne 3 ]; then
-    echo "Usage: $0 <CURRENT_DIR> <AOSP_PATH> <PACKAGE_PATH>"
+# 检查必需的环境变量
+if ! command -v validate_config >/dev/null 2>&1; then
+    echo "Error: validate_config 函数未定义，请确保已加载配置文件"
     exit 1
 fi
 
-# 获取传递给脚本的参数
-CURRENT_DIR=$1
-AOSP_PATH=$2
-PACKAGE_PATH=$3
+validate_config || {
+    echo "Error: 配置项验证失败"
+    exit 1
+}
 
 function error(){
     echo -e "\033[1;31m$1\033[0m"
@@ -73,13 +73,15 @@ function check_package(){
         error "检查ExaGear_ARM32-ARM64_V2.5.tar.gz转码补丁包失败, 文件不存在"
     fi
     echo "---------检查ExaGear转码补丁包通过---------"
-
-    echo "---------检查Kbox二进制软件包---------"
-    if ! find "$PACKAGE_PATH" -maxdepth 1 -type f -name "BoostKit-boostcph-kbox_*.zip" | grep -q .
-    then
-        error "检查BoostKit-boostcph-kbox二进制软件包检查失败, 文件不存在"
+    
+    if [ $USE_PREBUILT -eq 1 ]; then
+    	echo "---------检查Kbox二进制软件包---------"
+    	if ! find "$PACKAGE_PATH" -maxdepth 1 -type f -name "BoostKit-boostcph-kbox_*.zip" | grep -q .
+    	then
+        	error "检查BoostKit-boostcph-kbox二进制软件包检查失败, 文件不存在"
+    	fi
+    	echo "---------检查Kbox二进制软件包通过----------"
     fi
-    echo "---------检查Kbox二进制软件包通过----------"
 }
 
 ################################################################################
@@ -238,6 +240,25 @@ function product_prebuilt(){
     echo "---------Success----------"
 }
 
+
+################################################################################
+# Function Name: kbox_src
+# Description  : 合入kbox源码
+# Parameter    : 
+# Returns      : 0 on success, otherwise on fail
+################################################################################
+function kbox_src(){
+    echo "---------合入Kbox src----------"
+    cd "$PACKAGE_PATH" || error "无法切换到 $PACKAGE_PATH 目录"
+
+    # 在AOSP源码目录创建“vendor/kbox”目录, 拷贝Kbox/src/vendor目录至该目录
+    mkdir -p "$AOSP_PATH/vendor/kbox" || error "无法创建目录 $AOSP_PATH/vendor/kbox"
+    chmod -R 700 "$AOSP_PATH/vendor/kbox" || error "无法修改权限为 700 $AOSP_PATH/vendor/kbox"
+    cp -r "$KBOX_SRC_PATH"/src/vendor/kbox/* "$AOSP_PATH"/vendor/kbox/ || error "无法复制文件到 $AOSP_PATH/vendor/kbox"
+
+    echo "---------Success----------"
+}
+
 function apply_only_64_compile_patchs()
 {
     PATCH_DIR=$CURRENT_DIR/dependency/patchForAndroid/patchForAndroidOnly64
@@ -281,7 +302,11 @@ main(){
     check_package
     apply_exagear
     apply_patchs
-    product_prebuilt
+    if [ $USE_PREBUILT -eq "1" ]; then
+        product_prebuilt
+    else
+        kbox_src
+    fi
     apply_only_64_compile_patchs
     apply_soft_render_patchs
     return 0
