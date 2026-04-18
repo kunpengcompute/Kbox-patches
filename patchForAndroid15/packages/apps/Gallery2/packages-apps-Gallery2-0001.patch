@@ -2,24 +2,33 @@ diff --git a/src/com/android/gallery3d/app/MoviePlayer.java b/src/com/android/ga
 index 9104357a2..5e0997aa0 100644
 --- a/src/com/android/gallery3d/app/MoviePlayer.java
 +++ b/src/com/android/gallery3d/app/MoviePlayer.java
-@@ -49,6 +49,9 @@
- import java.io.ByteArrayOutputStream;
- import java.io.DataInputStream;
- import java.io.DataOutputStream;
+@@ -38,6 +38,9 @@
+ import android.view.View;
+ import android.view.ViewGroup;
+ import android.widget.VideoView;
 +import android.app.Activity;
 +import android.os.Handler;
 +import android.os.Looper;
  
- public class MoviePlayer implements
-         MediaPlayer.OnErrorListener, MediaPlayer.OnCompletionListener,
-@@ -277,18 +280,58 @@
+ import com.android.gallery3d.R;
+ import com.android.gallery3d.common.ApiHelper;
+@@ -76,7 +79,7 @@
+     private static final long RESUMEABLE_TIMEOUT = 3 * 60 * 1000; // 3 mins
+ 
+     private Context mContext;
+-    private final VideoView mVideoView;
++    private VideoView mVideoView;
+     private final View mRootView;
+     private final Bookmarker mBookmarker;
+     private final Uri mUri;
+@@ -277,18 +280,38 @@
      public void onPause() {
          mHasPaused = true;
          mHandler.removeCallbacksAndMessages(null);
 -        mVideoPosition = mVideoView.getCurrentPosition();
 -        mBookmarker.setBookmark(mUri, mVideoPosition, mVideoView.getDuration());
 -        mVideoView.suspend();
-+        
++
 +        if (mVideoView != null) {
 +            mVideoPosition = mVideoView.getCurrentPosition();
 +            mBookmarker.setBookmark(mUri, mVideoPosition, mVideoView.getDuration());
@@ -27,51 +36,66 @@ index 9104357a2..5e0997aa0 100644
 +            mVideoView.stopPlayback();
 +            mVideoView.setVideoURI(null);
 +
-+            android.view.ViewParent parent = mVideoView.getParent();
-+            if (parent instanceof android.view.ViewGroup) {
-+                android.view.ViewGroup group = (android.view.ViewGroup) parent;
-+                int index = group.indexOfChild(mVideoView);
-+                android.view.ViewGroup.LayoutParams lp = mVideoView.getLayoutParams();
-+
-+                group.removeView(mVideoView);
-+                
-+                android.view.View placeholder = new android.view.View(mContext);
-+                placeholder.setId(mVideoView.getId());
-+                placeholder.setLayoutParams(lp);
-+                placeholder.setBackgroundColor(android.graphics.Color.BLACK);
-+                group.addView(placeholder, index);
-+                
-+                Log.d("MoviePlayer", "Real VideoView removed to kill dirty Slots");
-+            }
-+            
-+            mVideoView.suspend();
++            mVideoView.getHolder().setFixedSize(320, 240);
++            mVideoView.setVisibility(android.view.View.GONE);
 +        }
-+
          mResumeableTime = System.currentTimeMillis() + RESUMEABLE_TIMEOUT;
      }
  
-+
      public void onResume() {
          if (mHasPaused) {
+-            mVideoView.seekTo(mVideoPosition);
+-            mVideoView.resume();
 +            if (mVideoView != null) {
-+                android.view.ViewParent currentParent = mVideoView.getParent();
-+                if (currentParent == null) {
-+                    android.view.ViewGroup rootView = (android.view.ViewGroup) ((android.app.Activity)mContext).findViewById(R.id.movie_view_root); 
-+                    
-+                    if (rootView != null) {
-+                        rootView.removeAllViews(); 
-+                        rootView.addView(mVideoView, new android.view.ViewGroup.LayoutParams(
-+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT));
-+                        Log.d("MoviePlayer", "Re-added mVideoView onResume to restore rendering");
++                mVideoView.getHolder().setSizeFromLayout();
++                mVideoView.setVisibility(android.view.View.VISIBLE);
++                mVideoView.post(new Runnable() {
++                    @Override
++                    public void run() {
++                        if (mVideoView != null) {
++                            mVideoView.setVideoURI(mUri);
++                            mVideoView.seekTo(mVideoPosition);
++                            mVideoView.resume();
++                            Log.d("MoviePlayer", "Resume: Layout size restored and playback started");
++                        }
 +                    }
-+                }
++                });
 +            }
-+
-             mVideoView.seekTo(mVideoPosition);
-             mVideoView.resume();
  
 -            // If we have slept for too long, pause the play
              if (System.currentTimeMillis() > mResumeableTime) {
                  pauseVideo();
              }
+diff --git a/src/com/android/gallery3d/app/MovieActivity.java b/src/com/android/gallery3d/app/MovieActivity.java
+index 9104357a2..5e0997aa0 100644
+--- a/src/com/android/gallery3d/app/MovieActivity.java
++++ b/src/com/android/gallery3d/app/MovieActivity.java
+@@ -267,6 +267,28 @@
+     }
+ 
+     @Override
++    public void finish() {
++        if (mPlayer != null) {
++            mPlayer.onPause();
++        }
++        overridePendingTransition(0, 0);
++
++        final android.view.View decor = getWindow().getDecorView();
++        if (decor != null) {
++            decor.setBackgroundColor(android.graphics.Color.BLACK);
++            decor.postDelayed(new Runnable() {
++                @Override
++                public void run() {
++                    MovieActivity.super.finish();
++                    overridePendingTransition(0, 0);
++                }
++            }, 250); 
++        } else {
++            super.finish();
++        }
++    }
++
++    @Override
+     public boolean onKeyUp(int keyCode, KeyEvent event) {
+         return mPlayer.onKeyUp(keyCode, event)
+                 || super.onKeyUp(keyCode, event);
