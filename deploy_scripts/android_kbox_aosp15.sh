@@ -457,7 +457,8 @@ function start_box_by_id() {
     --image "$IMAGE_NAME" \
     --user_data_path "$MOUNT_DIR" \
     --container_data_path "/var/lib/docker" \
-    --enable_render_layer "$ENABLE_RENDER_LAYER"
+    --enable_render_layer "$ENABLE_RENDER_LAYER"\
+    --enable_f2fs "$ENABLE_F2FS"
 
     enable_hard_decoder $TAG_NUMBER
 
@@ -526,7 +527,7 @@ function main() {
             else
                 set +e
                 local MOUNT_DIR=${KBOX_MOUNT_MAP[TAG_NUMBER - 1]}
-                bash $CURRENT_DIR/base_box_aosp15.sh restart "kbox_$TAG_NUMBER" "$MOUNT_DIR" 3 ${ENABLE_HARD_DECODE} $ENABLE_RENDER_LAYER
+                bash $CURRENT_DIR/base_box_aosp15.sh restart "kbox_$TAG_NUMBER" "$MOUNT_DIR" 3 ${ENABLE_HARD_DECODE} $ENABLE_RENDER_LAYER $ENABLE_F2FS
                 [ ${?} -eq 1 ] && continue
                 mount_lxcfs "kbox_$TAG_NUMBER"
                 enable_netint "kbox_$TAG_NUMBER"
