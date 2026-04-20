@@ -15,16 +15,18 @@ then
    exit $?
 fi
 
-# 检查参数是否传递正确
-if [ $# -ne 3 ]; then
-    echo "Usage: $0 <CURRENT_DIR> <AOSP_PATH> <PACKAGE_PATH>"
+# 检查必需的环境变量
+if ! command -v validate_config >/dev/null 2>&1; then
+    echo "Error: validate_config 函数未定义，请确保已加载配置文件"
     exit 1
 fi
 
-# 获取传递给脚本的参数
-CURRENT_DIR=$1
-AOSP_PATH=$2
-PACKAGE_PATH=$3
+validate_config || {
+    echo "Error: 配置项验证失败"
+    exit 1
+}
+
+CURRENT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 function error(){
     echo -e "\033[1;31m$1\033[0m"
@@ -39,6 +41,16 @@ cpu_num=$(< /proc/cpuinfo grep -c "processor")
 # 关闭ubuntu的Daemons using outdated libraries服务重启提示弹窗
 echo "\$nrconf{kernelhints} = 0;" >> /etc/needrestart/needrestart.conf
 echo "\$nrconf{restart} = 'l';" >> /etc/needrestart/needrestart.conf
+
+buildtools_path="$CURRENT_DIR/buildtools"
+
+meson_version="1.1.0"
+meson_dir="meson-${meson_version}"
+
+mesa_version="24.3.4"
+mesa_src="mesa"
+
+vmi_cloudphone_src="vmi-CloudPhone"
 
 ################################################################################
 # Function Name: clean
@@ -269,7 +281,7 @@ function install_meson(){
     MESON_LINK=/usr/local/bin/meson15.py
     if [ ! -f "$MESON_LINK" ]; then
         echo "创建meson.py的软链"
-        ln -s $meson_path $MESON_LINK
+        ln -s $meson_path/meson.py $MESON_LINK
     fi
 
     echo "---------安装meson完成----------"

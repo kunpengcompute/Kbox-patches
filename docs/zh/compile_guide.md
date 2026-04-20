@@ -34,14 +34,16 @@ Kbox安卓镜像编译构建的软件环境要求如[**表 1** Kbox安卓镜像�
 |序号|软件|说明|获取地址|
 |--|--|--|--|
 |1|AOSP源码|版本：android-15.0.0_r17|[获取链接](https://android.googlesource.com/platform/manifest)|
-|2|BoostKit-boostcph-kbox_*_15.zip|Android Kbox二进制文件包|[获取链接](https://www.hikunpeng.com/zh/developer/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft)|
+|2|[可选]BoostKit-boostcph-kbox_*_15.zip|Android Kbox二进制文件包|[获取链接](https://www.hikunpeng.com/zh/developer/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft)|
 |3|Kbox-AOSP15.zip|Android代码补丁Demo包、编译脚本Demo包|[获取链接](https://raw.gitcode.com/boostkit/Kbox/archive/refs/heads/AOSP15.zip)|
 |4|Meson|1.1.0|[获取链接](https://github.com/mesonbuild/meson/releases/download/1.1.0/meson-1.1.0.tar.gz)|
 |5|Mesa|Mesa参考Demo24.3.4|[获取链接](https://gitcode.com/boostkit/mesa/tree/24.3.4)|
+|6|[可选]Kbox源码|华为KBOX云手机容器分支：dev_aosp15|[获取链接](https://raw.gitcode.com/boostkit/Kbox/archive/refs/heads/dev_aosp15.zip)|
 
->![](public_sys-resources/icon-note.gif) **说明：** 
->以上软件包名仅供参考，部分下载方式可能会导致软件包名与表格产生差异。请以获取的实际包名为准，参考表格适当进行更名，以方便后续步骤中的使用。
->Mesa源码仓库当前默认分支为22.1.7，使用git clone方式获取源码注意切换分支。
+>![](public_sys-resources/icon-note.gif) **说明：** <br>
+>1、以上软件包名仅供参考，部分下载方式可能会导致软件包名与表格产生差异。请以获取的实际包名为准，参考表格适当进行更名，以方便后续步骤中的使用。<br>
+>2、Mesa源码仓库当前默认分支为22.1.7，使用git clone方式获取源码注意切换分支。<br>
+>3、提供2种编译方式可选：基于Kbox二进制 prebuilt时必须下载(2)BoostKit-boostcph-kbox_*.zip；基于Kbox源码编译时必须下载(6)Kbox源码
 
 **软件包完整性校验<a name="section12800195641510"></a>**
 
@@ -259,7 +261,9 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
 
 在AOSP源码包中合入Kbox安卓补丁包。
 
-### 4.4 合入二进制内容<a name="ZH-CN_TOPIC_0000002549705997"></a>
+### 4.4 合入二进制内容或Kbox源码<a name="ZH-CN_TOPIC_0000002549705997"></a>
+
+**基于KBOX二进制**
 
 在AOSP源码包中合入Kbox二进制软件包。
 
@@ -296,7 +300,33 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
     >- DNS地址也可以通过修改Kbox容器内部文件“/system/vendor/build.prop“配置，容器重启后配置生效。
     >- 如配置时有疑问，请联系华为运维人员支撑。
 
-在AOSP源码包中合入Kbox二进制软件包。
+**基于KBOX源码**
+
+1. 请参见[1.2-软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载KBOX源码包后，解压后上传至“\~/dependency“目录。
+
+    请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
+
+2. 在AOSP源码目录创建“vendor“目录，拷贝“./Kbox/src/vendor/kbox“目录至该目录。
+
+    ```shell
+    mkdir -p ~/aosp/vendor
+    chmod -R 700 ~/aosp/vendor
+    cd ~/dependency
+    cp -rf ./Kbox/src/vendor/kbox ~/aosp/vendor
+    ```
+
+3. 在“\~/aosp/vendor/kbox/products“目录下，通过以下命令修改kbox.mk文件里的DNS地址。
+
+    此命令中的net.dns1=xxx.xxx.xxx.xxx需要替换成配置容器的DNS地址。需保证配置的地址可用，否则可能导致编译获得的镜像不可用。
+
+    ```shell
+    sed -i "s|net.dns1=.*|net.dns1=xxx.xxx.xxx.xxx \\\\|" ~/aosp/vendor/kbox/products/kbox.mk
+    ```
+
+    >![](public_sys-resources/icon-note.gif) **说明：** 
+    >- 示例仅作为格式参考，请根据实际情况自行配置可用的公共DNS地址，以保证容器连接网络正常。
+    >- DNS地址也可以通过修改Kbox容器内部文件“/system/vendor/build.prop“配置，容器重启后配置生效。
+    >- 如配置时有疑问，请联系华为运维人员支撑。
 
 ### 4.5 编译AOSP并生成镜像<a name="ZH-CN_TOPIC_0000002549826011"></a>
 

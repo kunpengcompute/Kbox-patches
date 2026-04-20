@@ -15,16 +15,18 @@ then
    exit $?
 fi
 
-# 检查参数是否传递正确
-if [ $# -ne 3 ]; then
-    echo "Usage: $0 <CURRENT_DIR> <AOSP_PATH> <PACKAGE_PATH>"
+# 检查必需的环境变量
+if ! command -v validate_config >/dev/null 2>&1; then
+    echo "Error: validate_config 函数未定义，请确保已加载配置文件"
     exit 1
 fi
 
-# 获取传递给脚本的参数
-CURRENT_DIR=$1
-AOSP_PATH=$2
-PACKAGE_PATH=$3
+validate_config || {
+    echo "Error: 配置项验证失败"
+    exit 1
+}
+
+CURRENT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 function error(){
     echo -e "\033[1;31m$1\033[0m"
@@ -50,12 +52,14 @@ function clean(){
 # Returns      : 0 on success, otherwise on fail
 ################################################################################
 function check_package(){
-    echo "---------检查Kbox二进制软件包---------"
-    if ! find "$PACKAGE_PATH" -maxdepth 1 -type f -name "BoostKit-boostcph-kbox_*.zip" | grep -q .
-    then
-        error "检查BoostKit-boostcph-kbox二进制软件包检查失败, 文件不存在"
+    if [ $USE_PREBUILT -eq 1 ]; then
+    	echo "---------检查Kbox二进制软件包---------"
+    	if ! find "$PACKAGE_PATH" -maxdepth 1 -type f -name "BoostKit-boostcph-kbox_*.zip" | grep -q .
+    	then
+        	error "检查BoostKit-boostcph-kbox二进制软件包检查失败, 文件不存在"
+    	fi
+    	echo "---------检查Kbox二进制软件包通过----------"
     fi
-    echo "---------检查Kbox二进制软件包通过----------"
 }
 
 function apply_patchs(){
@@ -64,6 +68,24 @@ function apply_patchs(){
     source ./apply-patch.sh $AOSP_PATH
 
     echo "所有补丁尝试合入完成"
+}
+
+################################################################################
+# Function Name: kbox_src
+# Description  : 合入kbox源码
+# Parameter    : 
+# Returns      : 0 on success, otherwise on fail
+################################################################################
+function kbox_src(){
+    echo "---------合入Kbox src----------"
+    cd "$PACKAGE_PATH" || error "无法切换到 $PACKAGE_PATH 目录"
+
+    # 在AOSP源码目录创建vendor/kbox目录, 拷贝Kbox/src/vendor目录至该目录
+    mkdir -p "$AOSP_PATH/vendor/kbox" || error "无法创建目录 $AOSP_PATH/vendor/kbox"
+    chmod -R 700 "$AOSP_PATH/vendor/kbox" || error "无法修改权限为 700 $AOSP_PATH/vendor/kbox"
+    cp -r "$KBOX_SRC_PATH"/src/vendor/kbox/* "$AOSP_PATH"/vendor/kbox/ || error "无法复制文件到 $AOSP_PATH/vendor/kbox"
+
+    echo "---------Success----------"
 }
 
 ################################################################################
@@ -118,7 +140,11 @@ main(){
     clean
     check_package
     apply_patchs
-    product_prebuilt
+    if [ $USE_PREBUILT -eq "1" ]; then
+        product_prebuilt
+    else
+        kbox_src
+    fi
     return 0
 }
 

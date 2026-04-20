@@ -26,13 +26,17 @@ CURRENT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 [ -z "$CURRENT_DIR" ] && error "获取当前脚本路径失败"
 echo "当前脚本的全路径为: $CURRENT_DIR"
 
-# 准备所有编译相关的配置
-source ./build.conf
-
-# 检查网络配置参数是否为空
-if [ -z "${DNS}" ]; then
-    error "请确保DNS已设置"
+# 加载配置文件
+CONFIG_FILE="$CURRENT_DIR/build.conf"
+if [ ! -f "$CONFIG_FILE" ]; then
+    error "配置文件不存在: $CONFIG_FILE"
 fi
+
+# shellcheck source=/dev/null
+source "$CONFIG_FILE"
+
+# 加载配置后验证必需配置项
+validate_config || error "配置项验证失败"
 
 # 切换到当前目录
 cd "${CURRENT_DIR}" || error "切换到当前脚本所在目录失败"
@@ -46,13 +50,13 @@ if [[ "$arch" != "x86_64" ]] && [[ "$arch" != "i686" ]]; then
 fi
 
 main(){
-    source "${CURRENT_DIR}/00_kbox_prepare.sh" "${CURRENT_DIR}" "${AOSP_PATH}" "${PACKAGE_PATH}"
+    source "${CURRENT_DIR}/00_kbox_prepare.sh"
     [ $? -ne 0 ] && error "00_kbox_prepare.sh执行失败"
     echo "00_kbox_prepare OK!!!"
-    source "${CURRENT_DIR}/01_apply_patch.sh" "${CURRENT_DIR}" "${AOSP_PATH}" "${PACKAGE_PATH}"
+    source "${CURRENT_DIR}/01_apply_patch.sh"
     [ $? -ne 0 ] && error "01_apply_patch.sh执行失败"
     echo "01_apply_patch OK!!!"
-    source "${CURRENT_DIR}/02_compile_aosp.sh" "${CURRENT_DIR}" "${AOSP_PATH}" "${PACKAGE_PATH}" "${DNS}"
+    source "${CURRENT_DIR}/02_compile_aosp.sh"
     [ $? -ne 0 ] && error "02_compile_aosp.sh执行失败"
 }
 
