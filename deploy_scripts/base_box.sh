@@ -238,6 +238,7 @@ function check_paras() {
     local BOX_NAME CPUS NUMAS GPUS_RENDER STORAGE_SIZE_GB RAM_SIZE_MB PORTS
     local EXTRA_RUN_OPTION IMAGE_NAME USER_DATA_PATH CONTAINER_DATA_PATH
     local ENABLE_RENDER_LAYER ENABLE_F2FS
+    local ENABLE_RENDER_LAYER SYSTEM_SIZE_MB
     local PARA_ERROR=""
     while :; do
         case $1 in
@@ -255,6 +256,7 @@ function check_paras() {
             --container_data_path) CONTAINER_DATA_PATH=$2; echo "--container_data_path)   CONTAINER_DATA_PATH   : $2 "; shift;;
             --enable_render_layer) ENABLE_RENDER_LAYER=$2; echo "--enable_render_layer)   ENABLE_RENDER_LAYER   : $2 "; shift;;
             --enable_f2fs)         ENABLE_F2FS=$2;         echo "--enable_f2fs)           ENABLE_F2FS           : $2 "; shift;;
+            --system_size_mb)   SYSTEM_SIZE_MB=$2;       echo "--system_size_mb)      SYSTEM_SIZE_MB     : $2 "; shift;;
             --)                 shift;               break;;
             -?*)                printf 'WARN: Unknown option: %s\n' "$1" >&2; exit 1;;
             *)   break
@@ -334,6 +336,19 @@ function check_paras() {
     else
         echo "\"--ram_size_mb\" option error, fail: ram size must be number!"
         PARA_ERROR="true"
+    fi
+
+    # 校验系统分区大小参数 (新增逻辑)
+    if [ -n "$SYSTEM_SIZE_MB" ]; then
+        # 校验是否为纯数字
+        if [ -n "`echo "$SYSTEM_SIZE_MB" | sed 's/[0-9]//g'`" ]; then
+            echo "\"--system_size_mb\" option error, fail: system partition size must be number!"
+            PARA_ERROR="true"
+        # 允许传入 0
+        elif [ "$SYSTEM_SIZE_MB" -lt 0 ];then
+            echo "\"--system_size_mb\" option error, fail: system partition size must greater than or equal to 0 MB!"
+            PARA_ERROR="true"
+        fi
     fi
 
     if [ ${#PORTS[@]} -eq 0 ]; then
@@ -554,6 +569,7 @@ function start_box() {
             --container_data_path)      local CONTAINER_DATA_PATH=$2;  shift;;
             --enable_render_layer)      local ENABLE_RENDER_LAYER=$2;  shift;;
             --enable_f2fs)              local ENABLE_F2FS=$2;          shift;;
+            --system_size_mb)           local SYSTEM_SIZE_MB=$2;    shift;;
             --)                     shift;                      break;;
             -?*) printf 'WARN: Unknown option: %s\n' "$1" >&2;;
             *)   break
@@ -566,6 +582,7 @@ function start_box() {
         CONTAINER_DATA_PATH="/var/lib/docker"
     else
         CONTAINER_DATA_PATH="/var/lib/containerd"
+        SYSTEM_SIZE_MB=0
     fi
 
     # HOOK_PATH
@@ -715,6 +732,20 @@ function start_box() {
     RUN_OPTION+=" --volume=$(get_lxcfs_path)/proc/swaps:/proc/swaps:ro "
     RUN_OPTION+=" --volume=$(get_lxcfs_path)/proc/uptime:/proc/uptime:ro "
     RUN_OPTION+=" --volume=$KBOX_DATA_PATH/storage_size:/storage_size:rw "
+
+    # --- 新增的 /system 分区大小配置及 xfs 校验逻辑 开始 ---
+    # 如果参数为空，赋予默认值 0
+    if [ -z "$SYSTEM_SIZE_MB" ]; then
+        SYSTEM_SIZE_MB=0
+    fi
+
+    # 只有当配置值不为 0 时，才去校验 xfs 格式
+    if [ "$SYSTEM_SIZE_MB" -ne 0 ]; then
+       check_system_size_modify "$CONTAINER_DATA_PATH"
+    fi
+    # 如果 SYSTEM_SIZE_MB 为 0，则上面整个 if 都不进，直接跳过，什么参数都不加
+    # --- 新增的 /system 分区大小配置及 xfs 校验逻辑 结束 ---
+
     if [[ $ENABLE_RENDER_LAYER == "1" ]]; then
         create_app_shader_filesystem ${BOX_NAME} RUN_OPTION
     fi
@@ -935,7 +966,7 @@ check_wait_cmd_result() {
     fi
 }
 
-function check_f2fs_environment() {
+function check_f2fs_partition() {
     local target_path=$1
     local has_error=0
     
@@ -967,6 +998,29 @@ function check_f2fs_environment() {
     return 0
 }
 
+# 校验指定路径所在磁盘是否为 xfs 格式，并根据结果设置 RUN_OPTION
+check_system_size_modify() {
+    local target_path="$1"
+    
+    # 路径为空检查保护
+    if [ -z "$target_path" ]; then
+        echo -e "\033[33m WARN: Target path is empty. Cannot check fs type. Ignoring custom system size ${SYSTEM_SIZE_MB}M. \033[0m"
+        return 1
+    fi
+
+    # 获取 target_path 所在磁盘的文件系统类型
+    # 屏蔽 df 可能产生的标准错误输出（例如路径不存在时），避免脏日志
+    local fs_type=$(df -T "$target_path" 2>/dev/null | tail -n 1 | awk '{print $2}')
+    
+    if [ "$fs_type" == "xfs" ]; then
+        # 条件满足：格式为 xfs，添加存储限制参数
+        RUN_OPTION+=" --storage-opt size=${SYSTEM_SIZE_MB}M "
+    else
+        # 格式不是 xfs：打印警告提示，且不生效该配置 (已将写死的路径替换为变量)
+        echo -e "\033[33m WARN: ${target_path} is not xfs format (current: ${fs_type}). Ignoring custom system size ${SYSTEM_SIZE_MB}M. \033[0m"
+    fi
+}
+
 
 
 function restart_box() {
@@ -993,6 +1047,11 @@ function restart_box() {
         ENABLE_F2FS=$6
     fi
 
+    local SYSTEM_SIZE_MB=0
+    if [ $# -ge 7 ]; then
+        SYSTEM_SIZE_MB=$7
+    fi
+
     set +e
     if [ -z ${USER_DATA_PATH} ]; then
         USER_DATA_PATH="/root/mount"
@@ -1007,6 +1066,10 @@ function restart_box() {
         mount -t f2fs -o loop ${USER_DATA_PATH}/img/${BOX_NAME}.img ${USER_DATA_PATH}/data/${BOX_NAME} >/dev/null
     else
         mount ${USER_DATA_PATH}/img/${BOX_NAME}.img ${USER_DATA_PATH}/data/${BOX_NAME} >/dev/null
+    fi
+
+    if [ "$SYSTEM_SIZE_MB" -ne 0 ]; then
+        check_system_size_modify "/var/lib/docker"
     fi
 
     mock_cpu

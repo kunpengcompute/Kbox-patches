@@ -443,7 +443,8 @@ function start_box_by_id() {
     --user_data_path "$MOUNT_DIR" \
     --container_data_path "/var/lib/docker" \
     --enable_render_layer "$ENABLE_RENDER_LAYER" \
-    --enable_f2fs "$ENABLE_F2FS"
+    --enable_f2fs "$ENABLE_F2FS" \
+    --system_size_mb "$SYSTEM_PARTITION_SIZE_MB"
 
     enable_hard_decoder $TAG_NUMBER
 
@@ -519,7 +520,7 @@ function main() {
                 set +e
                 enable_hard_decoder $TAG_NUMBER
                 local MOUNT_DIR=${KBOX_MOUNT_MAP[TAG_NUMBER - 1]}
-                bash $CURRENT_DIR/base_box.sh restart "kbox_$TAG_NUMBER" "$MOUNT_DIR" 3 ${ENABLE_HARD_DECODE} $ENABLE_RENDER_LAYER $ENABLE_F2FS
+                bash $CURRENT_DIR/base_box.sh restart "kbox_$TAG_NUMBER" "$MOUNT_DIR" 3 ${ENABLE_HARD_DECODE} $ENABLE_RENDER_LAYER $ENABLE_F2FS $SYSTEM_PARTITION_SIZE_MB
                 [ ${?} -eq 1 ] && continue
 
                 enable_netint "kbox_$TAG_NUMBER"
