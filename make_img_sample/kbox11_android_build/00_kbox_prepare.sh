@@ -15,16 +15,18 @@ then
    exit $?
 fi
 
-# 检查参数是否传递正确
-if [ $# -ne 3 ]; then
-    echo "Usage: $0 <CURRENT_DIR> <AOSP_PATH> <PACKAGE_PATH>"
+CURRENT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# 检查必需的环境变量
+if ! command -v validate_config >/dev/null 2>&1; then
+    echo "Error: validate_config 函数未定义，请确保已加载配置文件"
     exit 1
 fi
 
-# 获取传递给脚本的参数
-CURRENT_DIR=$1
-AOSP_PATH=$2
-PACKAGE_PATH=$3
+validate_config || {
+    echo "Error: 配置项验证失败"
+    exit 1
+}
 
 function error(){
     echo -e "\033[1;31m$1\033[0m"

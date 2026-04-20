@@ -14,17 +14,16 @@ if [ "$BASH" != "/bin/bash" ] && [ "$BASH" != "/usr/bin/bash" ]; then
    exit $?
 fi
 
-# 检查参数是否传递正确
-if [ $# -ne 4 ]; then
-    echo "Usage: $0 <CURRENT_DIR> <AOSP_PATH> <PACKAGE_PATH> <DNS>"
+# 检查必需的环境变量
+if ! command -v validate_config >/dev/null 2>&1; then
+    echo "Error: validate_config 函数未定义，请确保已加载配置文件"
     exit 1
 fi
 
-# 获取传递给脚本的参数
-CURRENT_DIR=$1
-AOSP_PATH=$2
-PACKAGE_PATH=$3
-DNS=$4
+validate_config || {
+    echo "Error: 配置项验证失败"
+    exit 1
+}
 
 function error(){
     echo -e "\033[1;31m$1\033[0m"
@@ -89,6 +88,20 @@ function create_package(){
 }
 
 ################################################################################
+# Function Name: pack_binary
+# Description  : 打包Kbox二进制
+# Parameter    : 
+# Returns      : 0 on success, otherwise on fail
+################################################################################
+function pack_binary(){
+    echo "-----------生成Kbox二进制包-----------"
+    KBOX_BUILD_PATH=$KBOX_SRC_PATH/build
+    cd $KBOX_BUILD_PATH || error "无法切换到KBOX Build目录"
+    ./jenkins_conf.sh package $AOSP_PATH
+    echo "---------Success----------"
+}
+
+################################################################################
 # Function Name: end_of_build
 # Description  : 生成MD5文件及清理
 # Parameter    : 
@@ -104,6 +117,9 @@ function end_of_build(){
 main(){
     aosp_compile
     create_package
+    if [ $PACK_BINARY -eq 1 ]; then
+        pack_binary
+    fi
     end_of_build
     return 0
 }
