@@ -237,7 +237,7 @@ function check_paras() {
 
     local BOX_NAME CPUS NUMAS GPUS_RENDER STORAGE_SIZE_GB RAM_SIZE_MB PORTS
     local EXTRA_RUN_OPTION IMAGE_NAME USER_DATA_PATH CONTAINER_DATA_PATH
-    local ENABLE_RENDER_LAYER
+    local ENABLE_RENDER_LAYER ENABLE_F2FS
     local PARA_ERROR=""
     while :; do
         case $1 in
@@ -254,6 +254,7 @@ function check_paras() {
             --user_data_path)   USER_DATA_PATH=$2;   echo "--user_data_path)     USER_DATA_PATH     : $2 "; shift;;
             --container_data_path) CONTAINER_DATA_PATH=$2; echo "--container_data_path)   CONTAINER_DATA_PATH   : $2 "; shift;;
             --enable_render_layer) ENABLE_RENDER_LAYER=$2; echo "--enable_render_layer)   ENABLE_RENDER_LAYER   : $2 "; shift;;
+            --enable_f2fs)         ENABLE_F2FS=$2;         echo "--enable_f2fs)           ENABLE_F2FS           : $2 "; shift;;
             --)                 shift;               break;;
             -?*)                printf 'WARN: Unknown option: %s\n' "$1" >&2; exit 1;;
             *)   break
@@ -552,6 +553,7 @@ function start_box() {
             --user_data_path)           local USER_DATA_PATH=$2;    shift;;
             --container_data_path)      local CONTAINER_DATA_PATH=$2;  shift;;
             --enable_render_layer)      local ENABLE_RENDER_LAYER=$2;  shift;;
+            --enable_f2fs)              local ENABLE_F2FS=$2;          shift;;
             --)                     shift;                      break;;
             -?*) printf 'WARN: Unknown option: %s\n' "$1" >&2;;
             *)   break
@@ -584,14 +586,29 @@ function start_box() {
     if [ ! -d "${USER_DATA_PATH}/img" ]; then
         mkdir -p ${USER_DATA_PATH}/img
     fi
+    # f2fs 宿主机物理分区格式校验
+    if [ "$ENABLE_F2FS" == "1" ]; then  
+        check_f2fs_partition "${USER_DATA_PATH}/data"
+        if [ $? -ne 0 ]; then
+            return 1 # 校验失败，直接退出拉起流程
+        fi
+    fi
     local KBOX_IMG=${USER_DATA_PATH}/img/$BOX_NAME.img
     if [ ! -e $KBOX_IMG ]; then
         fallocate -l ${STORAGE_SIZE_GB}G $KBOX_IMG
-        yes | mkfs -t ext4 $KBOX_IMG
+        if [ "$ENABLE_F2FS" == "1" ]; then
+            yes | mkfs.f2fs $KBOX_IMG
+        else
+            yes | mkfs -t ext4 $KBOX_IMG
+        fi
     fi
     KBOX_DATA_PATH="${USER_DATA_PATH}/data/$BOX_NAME"
     mkdir -p $KBOX_DATA_PATH
-    mount $KBOX_IMG $KBOX_DATA_PATH
+    if [ "$ENABLE_F2FS" == "1" ]; then
+        mount -t f2fs -o loop $KBOX_IMG $KBOX_DATA_PATH
+    else
+        mount $KBOX_IMG $KBOX_DATA_PATH
+    fi
     echo $(($STORAGE_SIZE_GB * 2 * 1024 * 1024)) >$KBOX_DATA_PATH/storage_size
 
     ########################## 4.容器启动 ##########################
@@ -918,6 +935,40 @@ check_wait_cmd_result() {
     fi
 }
 
+function check_f2fs_environment() {
+    local target_path=$1
+    local has_error=0
+    
+    # 1. 校验当前内核是否支持 f2fs
+    # 使用 grep -q 静默匹配，如果找到了会返回 0 (true)
+    if ! grep -q "f2fs" /proc/filesystems; then
+        echo -e "\033[1;31m[ERROR] 校验失败: 当前系统内核不支持 f2fs 文件系统。\033[0m"
+        echo -e "\033[1;31m[ERROR] 执行 'cat /proc/filesystems | grep f2fs' 未检测到回显。\033[0m"
+        echo -e "\033[1;31m[ERROR] 请检查内核是否编译了 f2fs 支持，或尝试手动加载模块 (modprobe f2fs)。\033[0m"
+        has_error=1
+    fi
+
+    # 2. 校验目标目录所在的分区是否为 f2fs 格式
+    mkdir -p "${target_path}"
+    local host_fs_type=$(df -T "${target_path}" | tail -1 | awk '{print $2}')
+    if [ "$host_fs_type" != "f2fs" ]; then
+        echo -e "\033[1;31m[ERROR] 校验失败: 容器配置为使能 f2fs (ENABLE_F2FS=1)\033[0m"
+        echo -e "\033[1;31m[ERROR] 但目标挂载目录 ${target_path} 所在的分区格式为 ${host_fs_type}，并非 f2fs。\033[0m"
+        echo -e "\033[1;31m[ERROR] 请检查底层硬盘分区格式是否已正确格式化并挂载！\033[0m"
+        has_error=1
+    fi
+
+    # 3. 最终判断逻辑：只要有一个校验未通过，就中止并返回 1
+    if [ "$has_error" -ne 0 ]; then
+        echo -e "\033[1;31m[ERROR] f2fs 运行环境检查未通过，操作已中止。\033[0m"
+        return 1
+    fi
+
+    return 0
+}
+
+
+
 function restart_box() {
     local BOX_NAME=$1
     local USER_DATA_PATH=$2
@@ -937,13 +988,26 @@ function restart_box() {
         ENABLE_RENDER_LAYER=$5
     fi
 
+    local ENABLE_F2FS=0
+    if [ $# -ge 6 ]; then
+        ENABLE_F2FS=$6
+    fi
+
     set +e
     if [ -z ${USER_DATA_PATH} ]; then
         USER_DATA_PATH="/root/mount"
     fi
 
     echo "mount ${BOX_NAME}.img"
-    mount ${USER_DATA_PATH}/img/${BOX_NAME}.img ${USER_DATA_PATH}/data/${BOX_NAME} >/dev/null
+    if [ "$ENABLE_F2FS" == "1" ]; then
+        check_f2fs_partition "${USER_DATA_PATH}/data"
+        if [ $? -ne 0 ]; then
+            return 1 # 校验失败，中止重启流程
+        fi
+        mount -t f2fs -o loop ${USER_DATA_PATH}/img/${BOX_NAME}.img ${USER_DATA_PATH}/data/${BOX_NAME} >/dev/null
+    else
+        mount ${USER_DATA_PATH}/img/${BOX_NAME}.img ${USER_DATA_PATH}/data/${BOX_NAME} >/dev/null
+    fi
 
     mock_cpu
 
