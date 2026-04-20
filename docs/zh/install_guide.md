@@ -616,6 +616,13 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
     |DEBUG_INFO_DWARF4|N（回车进入Debug information，在选项中单击空格选择Disable debug information）|Debug information (Disable debug information)|# CONFIG_DEBUG_INFO_DWARF4 is not set|
     |PSI_DEFAULT_DISABLED|N|[  ] Require boot parameter to enable pressure stall information tracking|# CONFIG_PSI_DEFAULT_DISABLED is not set|
 
+    **表 2** 使能f2fs内核编译选项配置说明<a id="使能f2fs内核编译选项配置说明"></a>
+    |配置项|配置要求|配置结果对照|.config中显示的配置结果|
+    |--|--|--|--|
+    |CONFIG_F2FS_FS|Y|[\*] Support for F2FS files|CONFIG_F2FS_FS=y|  
+
+    如果要使能容器支持以f2fs文件格式启动，则还要进行上面内核编译选项的配置
+
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >配置方法说明：
     >- 键盘的上下左右键进行菜单导航。
