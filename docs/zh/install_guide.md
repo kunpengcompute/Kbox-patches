@@ -50,7 +50,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 |2|BoostKit-boostcph-kbox_*_15.zip|Android Kbox二进制文件包。|[获取链接](https://www.hikunpeng.com/zh/developer/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft)|√|√|√|
 |3|kernel-6.6.0-72.0.0.zip|openEuler 24.03 LTS SP1 Kernel源码。|[获取链接](https://gitee.com/openeuler/kernel/repository/archive/6.6.0-72.0.0.zip)|√|√|√|
 |4|ExaGear_ARM32-ARM64.tar.gz|ExaGear转码二进制包。|请联系华为技术支持获取。|√|√|√|
-|5|Kbox-AOSP15.zip|内核补丁Demo包、容器部署脚本Demo包。|[获取链接](https://gitcode.com/boostkit/Kbox/tree/AOSP15)|√|√|√|
+|5|Kbox-patches-AOSP15.zip|内核补丁Demo包、容器部署脚本Demo包。|[获取链接](https://gitcode.com/boostkit/Kbox/tree/AOSP15)|√|√|√|
 |6|Quadra_V*XXX*.zip|NETINT编码卡Quadra软固件及文档包。配套版本V4.8.F-Android15。|[获取链接](https://www.netint.cn/quadra-firmware-downloads-android15/)<br>下载密码:test123|√|-|-|
 |7|VAGPU-25.03.01.01-RC13-A15.tgz|显卡驱动。|请联系华为技术支持获取。|-|√|√|
 |8|docker-24.0.0.tgz|Docker 24.0.0版本二进制包。|[获取链接](https://download.docker.com/linux/static/stable/aarch64/docker-24.0.0.tgz)|√|√|√|
@@ -545,7 +545,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
     chmod -R 700 ~/dependency
     ```
 
-2. 解压Kbox-AOSP15.zip，将Kbox-AOSP15文件夹中的“patchForKernel“目录、“patchForExagear“目录上传至服务器的“\~/dependency“目录下。请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
+2. 解压Kbox-patches-AOSP15.zip，将Kbox-patches-AOSP15文件夹中的“patchForKernel“目录、“patchForExagear“目录上传至服务器的“\~/dependency“目录下。请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
 3. 拷贝转码补丁到内核源码目录。
 
     ```shell

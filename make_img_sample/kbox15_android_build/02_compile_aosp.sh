@@ -55,7 +55,7 @@ function aosp_compile(){
     # 编译前修改文件系统为读写模式, 否则视频流无法出流
     sed -i 's|mount rootfs rootfs / remount bind ro|mount rootfs rootfs / remount bind rw|' system/core/rootdir/init.rc
     # 修改kbox.mk文件中的网络配置
-    sed -i "s|net.dns1=.*|net.dns1=${DNS} \\|" $AOSP_PATH/vendor/kbox/products/kbox.mk
+    sed -i "s|net.dns1=.*|net.dns1=${DNS} \\\\|" $AOSP_PATH/vendor/kbox/products/kbox.mk
     # 生成release key
     rm -rf ./build/target/product/security/release*
     chmod +x ./development/tools/make_key || error "无法设置make_key为可执行"

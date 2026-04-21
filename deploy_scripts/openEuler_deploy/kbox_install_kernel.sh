@@ -5,7 +5,7 @@
 # File Name: kbox_install_kernel.sh
 # Description: openEuler kbox内核编译安装及环境部署。
 # Usage: 
-# 1.请确认脚本位于：Kbox-AOSP*/deploy_scripts/openEuler_deploy/
+# 1.请确认脚本位于：Kbox-patches-AOSP*/deploy_scripts/openEuler_deploy/
 # 2.需使用root用户或sudo命令执行此脚本
 # 3.脚本运行格式：
 #   [1] 联网模式：该模式下脚本会联网下载所需源码包
