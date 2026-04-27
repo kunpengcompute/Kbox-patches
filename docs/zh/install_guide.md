@@ -596,9 +596,20 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
     |PSI_DEFAULT_DISABLED|N|[  ] Require boot parameter to enable pressure stall information tracking|# CONFIG_PSI_DEFAULT_DISABLED is not set|
 
     **表 2** 使能f2fs内核编译选项配置说明<a id="使能f2fs内核编译选项配置说明"></a>
+
     |配置项|配置要求|配置结果对照|.config中显示的配置结果|
     |--|--|--|--|
     |CONFIG_F2FS_FS|Y|[\*] Support for F2FS files|CONFIG_F2FS_FS=y|  
+
+    如果要使能容器支持以f2fs文件格式启动，则还要进行上面内核编译选项的配置
+
+    **表 3** （可选）使能nfs内核编译选项配置说明<a id="使能f2fs内核编译选项配置说明"></a>
+
+    |配置项|配置要求|配置结果对照|.config中显示的配置结果|
+    |--|--|--|--|
+    |CONFIG_NFS_FS|Y|[\*] NFS client support|CONFIG_NFS_FS=y|
+    |CONFIG_NFSD|Y|[\*] NFS server support|CONFIG_NFSD=y|
+    |CONFIG_NFSD|Y|[\*] NFS client support for NFS version 4|CONFIG_NFSD=y|
 
     如果要使能容器支持以f2fs文件格式启动，则还要进行上面内核编译选项的配置
 
@@ -826,8 +837,6 @@ NUMA node: 2
 ```
 
 当前回显表示/dev/dri/目录下的渲染节点renderD128\~143中，renderD128\~135属于NUMA0，renderD136\~143属于NUMA2。
-
-本章节描述了如何在服务器上获取GPU渲染节点及其所属的NUMA节点的信息。
 
 ### 8.2 （硬件配置方案一，可选）升级NVMe固件版本<a name="ZH-CN_TOPIC_0000002549745271"></a>
 

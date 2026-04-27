@@ -193,17 +193,19 @@ docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
 此前云手机容器内文件格式是服务器常用ext4格式，和真机的f2fs格式不同，下面步骤说明如何使能云手机支持以f2fs文件格式启动，使其和真实手机采用一样的文件系统，提高仿真能力
 
 #### 1.4.1  **环境准备。**
+
    环境准备的步骤可以参照feature_guide.md的[3.2.1.1环境准备](feature_guide.md#ZH-CN_TOPIC_0000002549865941)章节
   
-
 #### 1.4.2. **使能配置项。**<a name="ZH-CN_TOPIC_0000002549832549"></a>
+
    将配置文件的kbox_config.cfg中的ENABLE_F2FS设置为1
+
    ```text
    ENABLE_F2FS=1
    ```
 
-
 #### 1.4.3. **校验是否生效。**
+
    启动容器后，进入容器环境查看挂载点信息。
 
    ```shell
@@ -216,17 +218,20 @@ docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
 
 此前使用检测工具发现云手机容器内system分区大小和宿主机内根目录下空间大小一致，达到将近1T大小，和真机差距巨大，下面步骤说明如何调节云手机/system分区大小，使其和真实手机的/system分区大小相近，提高仿真能力
 
-#### 1.5.1. **环境准备**
+#### 1.5.1 **环境准备**
+
    环境准备部分请参照feature_guide.md的[4.2 使用介绍](feature_guide.md#ZH-CN_TOPIC_0000002549865942)章节执行
 
-#### 1.5.2. **触发分区扩容逻辑。**<a name="ZH-CN_TOPIC_0000002549832550"></a>
+#### 1.5.2 **触发分区扩容逻辑。**<a name="ZH-CN_TOPIC_0000002549832550"></a>
+
    在云手机配置文件kbox_config.cfg里，将SYSTEM_PARTITION_SIZE_MB设置为预期要实现的/system分区大小值，单位为MB
 
    ```txt
    SYSTEM_PARTITION_SIZE_MB=${预期要实现的/system分区大小值(MB)}
    ```
 
-#### 1.5.3. **校验是否生效。**
+#### 1.5.3 **校验是否生效。**
+
    启动容器后，在容器内执行下面命令检查系统分区的实际容量。
 
    ```shell
@@ -234,6 +239,29 @@ docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
    ```
 
    确认 `Size` 列显示的大小(MB)与您配置的参数大小(MB)一致，即表示分区调节生效。
+
+### 1.6（可选） 使能容器支持NFS挂载启动
+
+该特性支持将数据存储通过NFS挂载到远端，实现存算分离，存储复用。
+
+#### 1.6.1 **环境准备**
+
+环境准备部分参考[支持NFS挂载](feature_guide.md#支持NFS挂载)章节执行。
+
+#### 1.6.2 **NFS挂载**
+
+容器配置文件kbox_config.cfg中配置NFS_DIR属性为/tmp/nfs，启动云手机使用nstart命令
+
+```shell
+./android_kbox.sh nstart kbox:origin 1
+```
+
+#### 1.6.3 **校验是否生效**
+查看挂载目录下对应data/containerd内容是否跟容器id一致
+
+```shell
+cat /tmp/nfs/data/kbox_1/data/containerd
+```
 
 ## 2 SCRCPY测试<a name="ZH-CN_TOPIC_0000002549865635"></a>
 

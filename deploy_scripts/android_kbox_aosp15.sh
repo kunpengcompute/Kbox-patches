@@ -57,12 +57,12 @@ function check_paras() {
         exit 1
     fi
 
-    if [ $1 == "start" ]; then
+    if [ $1 == "start" ] || [ $1 == "nstart" ]; then
         if [ $# -gt 4 ]; then
             echo "the number of parameters exceeds 4!"
             echo "Usage: "
-            echo "./android_kbox.sh start <image_id> <start_container_id> <end_container_id>"
-            echo "./android_kbox.sh start <image_id> <container_id>"
+            echo "./android_kbox.sh $1 <image_id> <start_container_id> <end_container_id>"
+            echo "./android_kbox.sh $1 <image_id> <container_id>"
             exit 1;
         fi
 
@@ -97,12 +97,12 @@ function check_paras() {
             echo "start_num must be less than or equal to end_num"
             exit 1
         fi
-    elif [ $1 == "delete" ]; then
+    elif [ $1 == "delete" ] || [ $1 == "ndelete" ]; then
         if [ $# -gt 3 ]; then
             echo "the number of parameters exceeds 3!"
             echo "Usage: "
-            echo "./android_kbox.sh delete <start_container_id> <end_container_id>"
-            echo "./android_kbox.sh delete <container_id>"
+            echo "./android_kbox.sh $1 <start_container_id> <end_container_id>"
+            echo "./android_kbox.sh $1 <container_id>"
             exit 1
         fi
 
@@ -354,7 +354,10 @@ function create_build_prop() {
 }
 
 function start_box_by_id() {
-
+    local enabel_nfs=0
+    if [ "$1" = "nstart" ];then
+        enable_nfs=1
+    fi
     # 镜像名
     local IMAGE_NAME=$2
 
@@ -459,7 +462,9 @@ function start_box_by_id() {
     --container_data_path "/var/lib/docker" \
     --enable_render_layer "$ENABLE_RENDER_LAYER"\
     --enable_f2fs "$ENABLE_F2FS"\
-    --system_size_mb "$SYSTEM_PARTITION_SIZE_MB"
+    --system_size_mb "$SYSTEM_PARTITION_SIZE_MB" \
+    --enable_nfs "$enable_nfs" \
+    --nfs_dir "$NFS_DIR"
 
     enable_hard_decoder $TAG_NUMBER
 
@@ -487,7 +492,7 @@ function main() {
         exit 1
     fi
 
-    if [ $1 = "start" ];then
+    if [ $1 = "start" ] || [ $1 = "nstart" ];then
         local MIN=$3 MAX=$4
         if [ -z $4 ]; then
             MAX=$3
@@ -501,7 +506,7 @@ function main() {
                 start_box_by_id $1 $2 $TAG_NUMBER
             fi
         done
-    elif [ $1 = "delete" ]; then
+    elif [ $1 = "delete" ] || [ "$1" = "ndelete" ]; then
         local MIN=$2 MAX=$3
         if [ -z $3 ]; then
             MAX=$2
@@ -513,6 +518,9 @@ function main() {
                 echo "no container kbox_$TAG_NUMBER!"
             else
                 local MOUNT_DIR=${KBOX_MOUNT_MAP[TAG_NUMBER - 1]}
+                if [ $1 = "ndelete" ]; then
+                    MOUNT_DIR=$NFS_DIR
+                fi
                 bash $CURRENT_DIR/base_box_aosp15.sh delete "kbox_$TAG_NUMBER" "$MOUNT_DIR"
             fi
         done
