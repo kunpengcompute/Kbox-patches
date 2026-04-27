@@ -805,8 +805,10 @@ function start_box() {
             sudo chmod 666 /dev/dma_heap/system
             RUN_OPTION+=" --device=/dev/dma_heap/system:/dev/dma_heap/system:rwm "
             echo "debug.stagefright.ccodec=4" >> $THISDIR/build.prop
+            echo "sys.cpu.limited=1" >> $THISDIR/build.prop
         else
             echo "debug.stagefright.ccodec=0" >> $THISDIR/build.prop
+            echo "sys.cpu.limited=0" >> $THISDIR/build.prop
         fi
     fi
     if [ -e "/dev/tango32" ]; then
