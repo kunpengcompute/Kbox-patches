@@ -57,8 +57,6 @@ docker import android.tar kbox:demo
         ./make_image_aosp15.sh kbox:demo kbox:origin va_driver.tgz
         ```
 
-华为镜像仓提供的官方Kbox Demo镜像不包含Android Kbox二进制，所以使用该镜像无法正常启动容器。用户使用该Demo镜像时，需要下载Android Kbox二进制到本地，并使用脚本制作可正常启动的Kbox原始镜像。
-
 ### 1.2 启动与卸载云手机实例<a name="ZH-CN_TOPIC_0000002518225854"></a>
 
 启动云手机实例路径下应存在kbox\_config.cfg配置文件。容器会使用该文件中的配置，因此使用时应确保kbox\_config.cfg配置文件中的配置正确。若启动路径下无该配置文件，云手机将禁止启动。
@@ -160,8 +158,6 @@ Kbox云手机容器支持使能图形加速层，通过修改kbox\_config.cfg配
     ./android_kbox_aosp15.sh restart ${index}
     ```
 
-启动云手机实例路径下应存在kbox\_config.cfg配置文件。容器会使用该文件中的配置，因此使用时应确保kbox\_config.cfg配置文件中的配置正确。若启动路径下无该配置文件，云手机将禁止启动。
-
 ### 1.3 查询版本号信息<a name="ZH-CN_TOPIC_0000002518225866"></a>
 
 本章节提供两种获取Kbox组件版本信息，通过软件包查询和通过命令查询版本号信息。
@@ -191,8 +187,6 @@ Component AppendInfo: 15.0.0_r17
 ```shell
 docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
 ```
-
-本章节提供两种获取Kbox组件版本信息，通过软件包查询和通过命令查询版本号信息。
 
 ### 1.4（可选） 使能容器以F2FS文件系统启动<a name="ZH-CN_TOPIC_0000002549832548"></a>
 
@@ -287,8 +281,6 @@ docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
 6. 将待测试的APK拖入界面中，等待安装。
 7. APK安装成功后，运行APK，开始测试。
 
-在Windows系统中，调试时推荐使用SCRCPY投屏软件，图形接入Kbox容器。SCRCPY版本要求在2.4版本及以上，推荐使用2.4版本，请通过官方渠道获取并安装。
-
 ## 3 （可选）Docker环境配置<a name="ZH-CN_TOPIC_0000002549745615"></a>
 
 Docker不在本解决方案交付范围内，本章节提供的环境配置仅作为功能参考。不建议使用鲲鹏BoostKit云手机Demo作为商用方案。若选择使用鲲鹏BoostKit云手机参考方案需自行承担安全风险，客户或ISV在商用前请进行必要的安全评估。
@@ -360,8 +352,6 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     mount -a
     ```
 
-Docker不在本解决方案交付范围内，本章节提供的环境配置仅作为功能参考。不建议使用鲲鹏BoostKit云手机Demo作为商用方案。若选择使用鲲鹏BoostKit云手机参考方案需自行承担安全风险，客户或ISV在商用前请进行必要的安全评估。
-
 ## 4 仿真设备参数配置<a name="ZH-CN_TOPIC_0000002518385792"></a>
 
 ### 4.1 配置属性操作方式<a name="ZH-CN_TOPIC_0000002549745645"></a>
@@ -407,8 +397,6 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     进入容器后即可执行相应的云手机参数配置命令。
 
-在进行配置属性前，需要先连接容器、进入容器，然后进行相应的属性操作。
-
 ### 4.2 配置系统属性<a name="ZH-CN_TOPIC_0000002549745623"></a>
 
 #### 4.2.1 配置GPS系统属性<a name="ZH-CN_TOPIC_0000002549865627"></a>
@@ -431,8 +419,6 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 |persist.gps.mock.speed|表示当前的移动速度，单位：米每秒。|float|[0,343]米每秒|0米每秒|初始值代表当前处于静止状态，超过343米每秒Android系统会停止上报GPS数据。|
 |persist.gps.mock.bearing|当前的移动导向角，单位：度。|float|范围[0,360)度|0度|初始值代表正北方。|
 |persist.gps.mock.accuracy|表示当前的定位精度，单位：米。|float|大于等于0米|20米|初始值代表定位误差为正负20米。|
-
-本章节介绍GPS系统属性配置项说明内容。
 
 ##### 4.2.1.2 配置属性示例<a name="ZH-CN_TOPIC_0000002518225836"></a>
 
@@ -488,8 +474,6 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 4. 检查Location Service的GPS数据值与设定值是否一致。
 
-本章节提供GPS系统属性配置示例。
-
 #### 4.2.2 配置Telephony系统属性<a name="ZH-CN_TOPIC_0000002518385780"></a>
 
 ##### 4.2.2.1 Telephony属性说明<a name="ZH-CN_TOPIC_0000002549745611"></a>
@@ -510,8 +494,6 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 >
 >- 所有属性设置后都需要重启容器才能生效。
 >- 容器启动过程中做参数合法性校验，只会判断字符和长度是否合法，判断非法则采用默认值。
-
-本章节介绍Telephony属性配置项说明内容。
 
 ##### 4.2.2.2 配置属性示例<a name="ZH-CN_TOPIC_0000002518225876"></a>
 
@@ -599,8 +581,6 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     ![](figures/zh-cn_image_0000002518225894.png)
 
-本章节提供Telephony属性配置示例。
-
 #### 4.2.3 配置加速度陀螺仪系统属性<a name="ZH-CN_TOPIC_0000002549745631"></a>
 
 ##### 4.2.3.1 加速度陀螺仪属性说明<a name="ZH-CN_TOPIC_0000002518225840"></a>
@@ -619,8 +599,6 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >Android 15数值转换公式：输入value是float类型，resolution是double类型，double incRes = 0.125 \* resolution；value = round\(static\_cast<double\>\(value\) / incRes\) \* incRes，round是指double类型取整。
-
-本章节介绍加速度陀螺仪属性配置项说明内容。
 
 ##### 4.2.3.2 配置属性示例<a name="ZH-CN_TOPIC_0000002549745641"></a>
 
@@ -652,8 +630,6 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 4. 在应用中可查看陀螺仪数据。
 
     ![](figures/zh-cn_image_0000002549745655.png)
-
-本章节提供加速度陀螺仪属性配置示例。
 
 #### 4.2.4 配置多VInput设备系统属性<a name="ZH-CN_TOPIC_0000002549745651"></a>
 
@@ -732,8 +708,6 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     could not get driver version for /dev/input/event0, Inappropriate ioctl for device
     could not get driver version for /dev/input/event1, Inappropriate ioctl for device
     ```
-
-本章节提供VInput属性配置示例。
 
 ## 5 故障处理<a name="ZH-CN_TOPIC_0000002549865625"></a>
 

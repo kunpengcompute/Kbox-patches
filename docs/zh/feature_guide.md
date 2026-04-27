@@ -8,7 +8,7 @@ Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的核心能力组件，
 
 Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的重要组成部分，是实现Android应用运行的基础软件。它将AOSP系统直接运行在容器内，实现GPS、加速度传感器、陀螺仪、IMEI、Wi-Fi等外设硬件的数据Mock功能，以及Gralloc&HWComposor模块，确保AOSP系统可以正常启动运行；以及一系列可选特性，用于在各种业务场景下增强云手机功能或性能。
 
-Kbox支持的所有基础功能和可选特性见[**表 1** Kbox基础功能清单](#Kbox基础功能清单)和[**表 2** Kbox可选特性清单](#Kbox可选特性清单)。对于Kbox基础功能，可按照[compile_guild](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/compile_guild.md)与[install_guide](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/install_guide.md)中描述集成Kbox云手机容器组件，即可支持。可选功能的相关信息在下文章节中相信描述。
+Kbox支持的所有基础功能和可选特性见[**表 1** Kbox基础功能清单](#Kbox基础功能清单)和[**表 2** Kbox可选特性清单](#Kbox可选特性清单)。对于Kbox基础功能，可按照[compile_guild](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/compile_guild.md)与[install_guide](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/install_guide.md)中描述集成Kbox云手机容器组件，即可支持。可选功能的相关信息在下文章节中详细描述。
 
 **表 1** Kbox基础功能清单<a id="Kbox基础功能清单"></a>
 
