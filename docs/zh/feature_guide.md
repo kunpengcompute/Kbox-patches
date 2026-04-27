@@ -317,3 +317,104 @@ Kbox支持的所有基础功能和可选特性见[**表 1** Kbox基础功能清�
 1. 容器配置属性 SYSTEM_PARTITION_SIZE_MB 为预期设置的/system分区大小，即打开特性。
 
 2. 在运行时，观察云机属性/system分区的大小的值是否等于配置属性，如果相等则说明特性正在使能，若不相等则说明未生效。
+
+## 10 支持NFS挂载<a name="支持NFS挂载"></a>
+
+### 10.1 特性介绍
+
+#### 10.1.1 简介
+
+当前云手机方案采用的是存算一体，数据本地存储，存储无法复用。因此为了实现存算分离，存储复用，该特性支持将数据存储通过NFS挂载到远端。NFS是一种网络文件系统，它允许你像访问本地磁盘一样，通过网络访问远程服务器上的文件。
+
+#### 10.1.2约束与限制
+
+NFS采用典型的**客户端/服务器（C/S）**架构，客户端/服务器均需要包含内核模块nfs、nfsd、nfsv4，安装nfs-utils、rpcbind。
+
+#### 10.1.3 应用场景
+
+存算分离，存储复用等场景
+
+### 10.2安装特性
+
+#### 2.1、客户端/服务器公共操作
+
+1、确认内核是否加载nfs模块
+
+```shell
+cat /boot/config-$(uname -r) | grep NFS
+```
+
+CONFIG_NFS_FS、CONFIG_NFS_V4、CONFIG_NFSD为y，则说明该内核支持NFS，为m则需要执行如下命令加载改模块。其他值则需要改成y或m重新编译内核。
+
+```shell
+modprobe nfs
+modprobe nfsd
+modprobe nfsv4
+```
+
+2、安装nfs-utils软件包
+
+```shell
+yum install nfs-utils rpcbind
+```
+
+#### 2.2、服务器配置
+
+1、新建要导出的目录
+
+```shell
+mkdir -p /home/nfs
+```
+
+2、编写/etc/exports文件，文件内容如下
+
+```shell
+/home 192.168.20.0/24(rw,fsid=0,sync,no_root_squash)
+/home/nfs 192.168.20.0/24/(rw,sync,no_root_squash)
+```
+
+3、重启相关服务
+
+```shell
+systemctl restart rpcbind
+systemctl restart nfs
+```
+
+4、查看目录是否导出
+
+```shell
+exportfs
+```
+
+期望有步骤2中编写的目录输出。
+
+#### 2.3、客户端配置
+
+1、创建挂载点
+
+```shell
+mkdir -p /tmp/nfs
+```
+
+2、挂载服务器的nfs目录
+
+```shell
+mount -t nfs4 192.168.20.XX:/nfs /tmp/nfs
+```
+
+>![](public_sys-resources/icon-note.gif) **说明：**
+>- 由于服务器的/etc/exports对/home目录配置了fsid=0，因此在客户端时不可见的，所以只需要挂载/nfs目录即可
+
+### 3、使用特性
+
+1、在容器配置文件kbox_config.cfg中配置NFS_DIR属性为/tmp/nfs，启动云手机使用nstart命令
+
+```shell
+./android_kbox.sh nstart kbox:origin 1
+```
+
+2、在容器启动后，查看挂载目录下对应data/containerd内容是否跟容器id一致
+
+```shell
+cat /tmp/nfs/data/kbox_1/data/containerd
+```
