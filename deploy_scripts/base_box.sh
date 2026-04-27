@@ -257,6 +257,8 @@ function check_paras() {
             --enable_render_layer) ENABLE_RENDER_LAYER=$2; echo "--enable_render_layer)   ENABLE_RENDER_LAYER   : $2 "; shift;;
             --enable_f2fs)         ENABLE_F2FS=$2;         echo "--enable_f2fs)           ENABLE_F2FS           : $2 "; shift;;
             --system_size_mb)   SYSTEM_SIZE_MB=$2;       echo "--system_size_mb)      SYSTEM_SIZE_MB     : $2 "; shift;;
+            --enable_nfs)       ENABLE_NFS=$2;       echo "--enabel_nfs)         ENABLE_NFS         : $2 "; shift;;
+	        --nfs_dir)          NFS_DIR=$2;          echo "--nfs_dir)            NFS_DIR            : $2 "; shift;;
             --)                 shift;               break;;
             -?*)                printf 'WARN: Unknown option: %s\n' "$1" >&2; exit 1;;
             *)   break
@@ -570,6 +572,8 @@ function start_box() {
             --enable_render_layer)      local ENABLE_RENDER_LAYER=$2;  shift;;
             --enable_f2fs)              local ENABLE_F2FS=$2;          shift;;
             --system_size_mb)           local SYSTEM_SIZE_MB=$2;    shift;;
+            --enable_nfs)        local ENABLE_NFS=$2;        shift;;
+            --nfs_dir)           local NFS_DIR=$2;           shift;;
             --)                     shift;                      break;;
             -?*) printf 'WARN: Unknown option: %s\n' "$1" >&2;;
             *)   break
@@ -599,6 +603,10 @@ function start_box() {
     if [ -z ${USER_DATA_PATH} ]; then
         USER_DATA_PATH="/root/mount"
     fi
+        
+    if [[ $ENABLE_NFS == "1" ]]; then
+        USER_DATA_PATH="${NFS_DIR}"
+    fi
 
     if [ ! -d "${USER_DATA_PATH}/img" ]; then
         mkdir -p ${USER_DATA_PATH}/img
@@ -620,7 +628,9 @@ function start_box() {
         fi
     fi
     KBOX_DATA_PATH="${USER_DATA_PATH}/data/$BOX_NAME"
-    mkdir -p $KBOX_DATA_PATH
+    if [ ! -d "${KBOX_DATA_PATH}" ]; then
+        mkdir -p $KBOX_DATA_PATH
+    fi
     if [ "$ENABLE_F2FS" == "1" ]; then
         mount -t f2fs -o loop $KBOX_IMG $KBOX_DATA_PATH
     else
@@ -843,6 +853,11 @@ function delete_box() {
     local USER_DATA_PATH=$2
     local keep_data=0
     if [ $3 ] && [ $3 -eq 1 ]; then
+        keep_data=1
+    fi
+    local enable_nfs=0
+    if [ $3 ] && [ $3 -eq 2 ]; then
+        enable_nfs=1
         keep_data=1
     fi
     local RET="true"

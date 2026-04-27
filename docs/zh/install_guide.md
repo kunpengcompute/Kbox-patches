@@ -97,8 +97,6 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 ### 4.2 （硬件配置方案一、二）配置BIOS<a name="ZH-CN_TOPIC_0000002549712099" id="方案一、二配置BIOS"></a>
 
-本章节提供硬件配置方案一、二两种环境BIOS配置步骤，包括MISC、Performance、Memory和PCIe相关选项的配置，用以提高服务器性能。
-
 **重启服务器进入BIOS设置界面<a name="section2017525320112"></a>**
 
 1. 登录服务器远程管理平台。进入远程虚拟控制台，出现系统启动界面后，按下“Del“键或“F4“键。
@@ -657,6 +655,15 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
     |CONFIG_F2FS_FS|Y|[\*] Support for F2FS files|CONFIG_F2FS_FS=y|  
 
     如果要使能容器支持以f2fs文件格式启动，则还要进行上面内核编译选项的配置
+
+    **表 3** （可选）使能nfs内核编译选项配置说明<a id="使能f2fs内核编译选项配置说明"></a>
+
+    |配置项|配置要求|配置结果对照|.config中显示的配置结果|
+    |--|--|--|--|
+    |CONFIG_NFS_FS|Y|[\*] NFS client support|CONFIG_NFS_FS=y|
+    |CONFIG_NFSD|Y|[\*] NFS server support|CONFIG_NFSD=y|
+    |CONFIG_NFSD|Y|[\*] NFS client support for NFS version 4|CONFIG_NFSD=y|
+
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >配置方法说明：
     >- 键盘的上下左右键进行菜单导航。
