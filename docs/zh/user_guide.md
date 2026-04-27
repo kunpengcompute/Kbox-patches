@@ -35,11 +35,11 @@ docker import android.tar kbox:demo
 >当用户使用自行编译的镜像时：
 >
 >- 硬件配置方案一：可跳过该小节的全部步骤。
->- 硬件配置方案二、三：可跳过该小节的步骤2。
+>- 硬件配置方案二、三、四：可跳过该小节的步骤2。
 
 1. 解压Kbox-patches-AOSP15.zip，将Kbox-patches-AOSP15文件夹中的“deploy\_scripts“目录上传至服务器的“\~/dependency“目录。
 2. 上传Android Kbox二进制文件包BoostKit-boostcph-kbox\_\*\_15.zip到“\~/dependency/deploy\_scripts“目录。
-3. （硬件配置方案二、三）使用硬件配置方案二、三时需要解压显卡驱动压缩包VAGPU-25.03.01.01-RC13-A15.tgz，获取va\_driver.tgz，上传到服务器的“\~/dependency/deploy\_scripts“目录。
+3. （硬件配置方案二、三、四）使用硬件配置方案二、三、四时需要解压显卡驱动压缩包VAGPU-25.03.01.01-RC13-A15.tgz，获取va\_driver.tgz，上传到服务器的“\~/dependency/deploy\_scripts“目录。
 4. 制作包含Android Kbox二进制的Kbox镜像，其中kbox:demo为上一步导入的官方Kbox Demo镜像，kbox:origin为包含Android Kbox二进制的新镜像。
     - 硬件配置方案一：
 
@@ -49,7 +49,7 @@ docker import android.tar kbox:demo
         ./make_image_aosp15.sh kbox:demo kbox:origin
         ```
 
-    - 硬件配置方案二、三：
+    - 硬件配置方案二、三、四：
 
         ```shell
         cd ~/dependency/deploy_scripts
@@ -69,7 +69,7 @@ docker import android.tar kbox:demo
 
 |参数名称|参数说明|配置说明|
 |--|--|--|
-|KBOX_GPU_MAP（硬件配置一）KBOX_VA_GPU_MAP（硬件配置二、三）|通过修改map中对应路数的值来选择该路容器使用的GPU。|KBOX_GPU_MAP列表里的第一个代表编号为1的Kbox云手机，分配的GPU节点是/dev/dri/renderD128，根据，renderD128节点属于NUMA0，因此鲲鹏920 7260处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~31。KBOX_VA_GPU_MAP列表里的第一个代表编号为1的Kbox云手机，分配的GPU节点是/dev/dri/renderD128，根据，renderD128~135属于NUMA0，因此对于鲲鹏920 7260处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~31。鲲鹏920 7280Z处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~79。|
+|KBOX_GPU_MAP（硬件配置一）KBOX_VA_GPU_MAP（硬件配置二、三、四）|通过修改map中对应路数的值来选择该路容器使用的GPU。|KBOX_GPU_MAP列表里的第一个代表编号为1的Kbox云手机，分配的GPU节点是/dev/dri/renderD128，根据，renderD128节点属于NUMA0，因此鲲鹏920 7260处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~31。KBOX_VA_GPU_MAP列表里的第一个代表编号为1的Kbox云手机，分配的GPU节点是/dev/dri/renderD128，根据，renderD128~135属于NUMA0，因此对于鲲鹏920 7260处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~31。鲲鹏920 7280Z处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~79。|
 |KBOX_CPUSET_MAP|通过修改map中对应路数的值来选择该路容器使用的CPU。|KBOX_GPU_MAP列表里的第一个代表编号为1的Kbox云手机，分配的GPU节点是/dev/dri/renderD128，根据，renderD128节点属于NUMA0，因此鲲鹏920 7260处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~31。KBOX_VA_GPU_MAP列表里的第一个代表编号为1的Kbox云手机，分配的GPU节点是/dev/dri/renderD128，根据，renderD128~135属于NUMA0，因此对于鲲鹏920 7260处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~31。鲲鹏920 7280Z处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~79。|
 |KBOX_MOUNT_MAP|通过修改map中对应路数的值来选择该路容器使用的数据卷存放路径。|无|
 
