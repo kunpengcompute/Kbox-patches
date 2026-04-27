@@ -32,8 +32,6 @@ Kbox云手机容器环境部署的硬件环境配置方案要求如[**表 1** Kb
 >- 选择鲲鹏服务器兼容的Mellanox网卡，通过[鲲鹏计算兼容性查询工具](https://info.support.huawei.com/computing/tools/compatibility-query/enterprise/kunpeng-computing/component-compatibility)可查询具体型号网卡。
 >- NETINT驱动针对Android15系统仅支持Quadra卡。
 
-部署Kbox云手机容器环境前请确保您的环境满足已验证的硬件环境要求。
-
 ### 2.2 软件环境<a name="ZH-CN_TOPIC_0000002518385414"></a>
 
 在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72.0.0）操作系统下部署Kbox安卓容器前，请通过本节提供的渠道获取相应的软件包，并对华为提供的软件包进行完整性校验，以便进行后续的部署步骤。
@@ -75,8 +73,6 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 >- 使用软件包安装/升级之前，也需要按上述过程先验证软件包的数字签名，确保软件包未被篡改。
 >- 使用软件包前请先阅读《[鲲鹏应用使能套件BoostKit用户许可协议 2.0](https://www.hikunpeng.com/zh/legal/developer/boostkit/software/protocol)》，如确认继续使用，则默认同意协议的条款和条件。
 
-在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72.0.0）操作系统下部署Kbox安卓容器前，请通过本节提供的渠道获取相应的软件包，并对华为提供的软件包进行完整性校验，以便进行后续的部署步骤。
-
 ## 3 部署流程简述<a name="ZH-CN_TOPIC_0000002518385446"></a>
 
 本章节提供Kbox安卓容器环境部署流程，帮助您更好地理解部署过程中的各个环节。其中，当使用硬件配置方案二、三、四时需要执行安装显卡驱动操作步骤。
@@ -86,8 +82,6 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 **图 1** 环境部署流程<a name="fig269321515327"></a><a id="环境部署流程"></a>
 
 ![](figures/环境部署流程.png "环境部署流程")
-
-本章节提供Kbox安卓容器环境部署流程，帮助您更好地理解部署过程中的各个环节。其中，当使用硬件配置方案二、三时需要执行安装显卡驱动操作步骤。
 
 ## 4 配置BIOS<a name="ZH-CN_TOPIC_0000002518385450" id="配置BIOS"></a>
 
@@ -99,8 +93,6 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 **图 1** 内存插入格式<a name="fig10693358191820"></a><a id="内存插入格式"></a>
 ![](figures/内存插入格式.png "内存插入格式")
-
-环境部署指定的服务器BIOS版本对内存的插入格式有限制。在进行BIOS设置之前，请确保内存插入格式如本章节提供的所示。
 
 ### 4.2 （硬件配置方案一、二）配置BIOS<a name="ZH-CN_TOPIC_0000002549865263"></a>
 
@@ -190,8 +182,6 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >- 1张NETINT Quadra卡有2颗芯片，对应2个设备节点。以上回显中为1张NETINT Quadra卡，对应2个设备节点。
 
-本章节提供硬件配置方案一、二两种环境BIOS配置步骤，包括MISC、Performance、Memory和PCIe相关选项的配置，用以提高服务器性能。
-
 ### 4.3 （硬件配置方案三、四）配置BIOS<a name="ZH-CN_TOPIC_0000002518385436"></a>
 
 本章节提供硬件配置方案三、四的环境BIOS配置步骤，包括MISC、Performance、Memory相关选项的配置，用以提高服务器性能。
@@ -239,8 +229,6 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 2. 进入Memory Configuration设置页面后，硬件配置方案三将**Memory Frequency**选项设置为“4800”，配置方案四将**Memory Frequency**选项设置为“5200”，将**“Custom Refresh Rate“**选项设置为“Auto”后保存BIOS配置并退出设置界面。
 
     ![](figures/zh-cn_image_0000002549745319.png)
-
-本章节提供硬件配置方案三的环境BIOS配置步骤，包括MISC、Performance、Memory相关选项的配置，用以提高服务器性能。
 
 ## 5 网卡绑定CPU<a name="ZH-CN_TOPIC_0000002518225524"></a>
 
@@ -350,8 +338,6 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
     >NUMA node3 CPU(s):               96-127
     >```
 
-网络服务占用的CPU与容器绑定的CPU重叠时，会造成容器内CPU资源异常。为了避免这种情况出现，请将流量较大、负载较重的网卡绑定至空闲CPU。
-
 ## 6 （硬件配置方案一）配置GPU工作模式<a name="ZH-CN_TOPIC_0000002518225504"></a>
 
 使用硬件配置方案一时将GPU卡工作模式设置为高性能模式，使GPU运行在最高频率，保持GPU性能最优。该操作每次系统重启都需重新配置一次。
@@ -361,8 +347,6 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 ```shell
 find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high > '{}'"
 ```
-
-使用硬件配置方案一时将GPU卡工作模式设置为高性能模式，使GPU运行在最高频率，保持GPU性能最优。该操作每次系统重启都需重新配置一次。
 
 ## 7 编译内核<a name="ZH-CN_TOPIC_0000002518385448"></a>
 
@@ -511,8 +495,6 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
     sudo systemctl disable systemd-udevd-kernel.socket
     ```
 
-Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72.0.0）操作系统下进行内核源码的编译。在编译开始前，请正确配置服务器的网络环境、软件源、并同步服务器系统时间，以便下载相关的编译依赖包。
-
 ### 7.2 编译及安装内核<a name="ZH-CN_TOPIC_0000002549745269"></a>
 
 #### 7.2.1 下载Kernel源码<a name="ZH-CN_TOPIC_0000002549865295"></a>
@@ -532,8 +514,6 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
     cd /usr/src/kernels/kernel-6.6.0-72.0.0
     touch .scmversion
     ```
-
-请参见该章节获取正确的内核源码版本并解压内核源码，为内核编译做准备。
 
 #### 7.2.2 合入内核补丁<a name="ZH-CN_TOPIC_0000002549865259"></a>
 
@@ -565,8 +545,6 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
     cd /usr/src/kernels/kernel-6.6.0-72.0.0
     for patch_name in *.patch; do echo $patch_name; patch -p1 < $patch_name; done
     ```
-
-在内核源码目录中合入内核补丁，以适用于Kbox。
 
 #### 7.2.3 编译及安装内核<a name="ZH-CN_TOPIC_0000002549865277"></a>
 
@@ -665,8 +643,6 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
 9. 执行完上述操作，进入如图所示的初始界面，选择“Exit“，当前文件夹下即可生成.config文件。
 
     ![](figures/内核configure_exit.png)
-
-生成.config文件并进行内核编译选项的配置。该文件用于指定需要使能的功能和特性。
 
 ##### 7.2.3.2 编译并安装Kernel<a name="ZH-CN_TOPIC_0000002549745263" id="编译并安装Kernel"></a>
 
@@ -776,8 +752,6 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >如果重启后未能进入新编译的内核，请在BIOS进入grub启动后选择新编译的内核进入系统，或者联系技术支持工程师协助解决。
     >如果重启后，amdgpu内核模块未能成功安装，可以使用**modprobe amdgpu**命令手动安装。
-
-本章节描述了在openEuler 24.03 LTS SP1操作系统上编译和安装6.6.0-72.0.0版本内核的详细步骤。
 
 ## 8 部署Kbox<a name="ZH-CN_TOPIC_0000002518225514"></a>
 
@@ -900,8 +874,6 @@ NUMA node: 2
     reboot
     ```
 
-该章节仅在使用硬件配置方案一，并且需要使能编码卡硬件解码功能时才需要执行。若不需要使能硬件解码则跳过该章节。
-
 ### 8.3 （硬件配置方案二、三、四）安装显卡驱动<a name="ZH-CN_TOPIC_0000002518385424"></a>
 
 使用硬件配置方案二、三、四每次服务器重启后，都需要重新执行安装显卡驱动步骤。
@@ -976,8 +948,6 @@ NUMA node: 2
 > rmmod va_pci
 >    ```
 
-使用硬件配置方案二、三每次服务器重启后，都需要重新执行安装显卡驱动步骤。
-
 ### 8.4 上传ExaGear转码包<a name="ZH-CN_TOPIC_0000002549745297"></a>
 
 使用脚本启动Kbox容器时，会自动根据“\~/dependency“目录下的ExaGear转码包自动使能ExaGear转码功能，因此需要提前将ExaGear转码包上传到对应目录，若自动使能失败，则需要手动进行ExaGear转码使能。
@@ -1041,5 +1011,3 @@ NUMA node: 2
     magic 7f454c4601010100000000000000000002002800 
     mask ffffffffffffff00fffffffffffffffffeffffff
     ```
-
-使用脚本启动Kbox容器时，会自动根据“\~/dependency“目录下的ExaGear转码包自动使能ExaGear转码功能，因此需要提前将ExaGear转码包上传到对应目录，若自动使能失败，则需要手动进行ExaGear转码使能。
