@@ -355,7 +355,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox\_config.cfg配置
 
 #### 1.5.1  **环境准备。**
 
-   环境准备的步骤可以参照feature_guide.md的[3.2 使用介绍](feature_guide.md#ZH-CN_TOPIC_0000002549865941)章节
+   环境准备的步骤可以参照feature_guide.md的"以f2fs文件格式启动"章节里的[使用介绍](feature_guide.md#ZH-CN_TOPIC_0000002549865941)章节
   
 #### 1.5.2 **使能配置项。**<a name="ZH-CN_TOPIC_0000002549832549"></a>
 
@@ -381,14 +381,14 @@ Kbox云手机容器支持使能图形加速层，通过将kbox\_config.cfg配置
 
 #### 1.6.1 **环境准备部分。**
 
-   环境准备部分请参照feature_guide.md的[4.2 使用介绍](feature_guide.md#ZH-CN_TOPIC_0000002549865942)执行
+   环境准备部分请参照feature_guide.md的“容器内/system分区大小可调节”章节里的[使用介绍](feature_guide.md#ZH-CN_TOPIC_0000002549865942)章节执行
 
 #### 1.6.2 **触发分区扩容逻辑。**<a name="ZH-CN_TOPIC_0000002549832550"></a>
 
-   在云手机配置文件kbox_config.cfg里，将SYSTEM_PARTITION_SIZE_MB设置为预期要实现的/system分区大小值，单位为M
+   在云手机配置文件kbox_config.cfg里，将SYSTEM_PARTITION_SIZE_MB设置为预期要实现的/system分区大小值，单位为MB
 
    ```txt
-   SYSTEM_PARTITION_SIZE_MB=${预期要实现的/system分区大小值(M)}
+   SYSTEM_PARTITION_SIZE_MB=${预期要实现的/system分区大小值(MB)}
    ```
 
 #### 1.6.3 **校验是否生效。**
@@ -405,11 +405,11 @@ Kbox云手机容器支持使能图形加速层，通过将kbox\_config.cfg配置
 
 该特性支持将数据存储通过NFS挂载到远端，实现存算分离，存储复用。
 
-#### 1.6.1 **环境准备**
+#### 1.7.1 **环境准备**
 
 环境准备部分参考[支持NFS挂载](feature_guide.md#支持NFS挂载)章节执行。
 
-#### 1.6.2 **NFS挂载**
+#### 1.7.2 **NFS挂载**
 
 容器配置文件kbox_config.cfg中配置NFS_DIR属性为/tmp/nfs，启动云手机使用nstart命令
 
@@ -417,13 +417,37 @@ Kbox云手机容器支持使能图形加速层，通过将kbox\_config.cfg配置
 ./android_kbox.sh nstart kbox:origin 1
 ```
 
-#### 1.6.3 **校验是否生效**
+#### 1.7.3 **校验是否生效**
 
 查看挂载目录下对应data/containerd内容是否跟容器id一致
 
 ```shell
 cat /tmp/nfs/data/kbox_1/data/containerd
 ```
+
+### 1.8（可选） 实现云机cpu频率动态调整<a name="ZH-CN_TOPIC_000000254983254923"></a>
+
+在真机中，系统为了平衡负载和功耗，会动态调节 CPU 的运行频率，而云机依托于服务器宿主机的容器化环境运行，其底层物理 CPU 的频率通常处于恒定状态，与真机存在差异。下面步骤说明如何实现云手机cpu频率动态调节，提高仿真能力
+
+#### 1.8.1. **环境准备**
+   环境准备部分请参照feature_guide.md的"CPU频率动态模拟与调节"章节的[安装特性](feature_guide.md#ZH-CN_TOPIC_0000002518386097)章节执行
+
+#### 1.8.2. **实施修改**<a name="ZH-CN_TOPIC_000000254983255011"></a>
+   当前第三方检测应用一般通过读取scaling_cur_freq和cpuinfo_cur_freq这两个文件来获取当前设备的cpu运行频率，为了提高云机设备的仿真能力，在修改前先输入如下命令读取cpu所支持的频率列表。并且要对这两个文件都进行修改
+   ```shell
+   cat /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/scaling_available_frequencies
+   ```
+   随后输入如下两个命令进行修改，输入的频率值最好是刚刚查询到的当前cpu支持的频率值
+   ```shell
+   echo ${预期修改的值} > /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/scaling_cur_freq
+   ```
+
+   ```shell
+   echo ${预期修改的值} > /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/cpuinfo_cur_freq
+   ```
+
+#### 1.8.3. **校验是否生效。**
+   启动容器后，在容器内安装如“手机设备信息大全”的app，查看cpu频率是否等于预期，若等于预期值即表示cpu频率调节生效。
 
 ## 2 ARDC测试<a name="ZH-CN_TOPIC_0000002549712565"></a>
 
