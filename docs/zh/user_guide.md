@@ -38,7 +38,7 @@ docker import android.tar kbox:demo
 >- 硬件配置方案一：可跳过该小节的全部步骤。
 >- 硬件配置方案二、三、四：可跳过该小节的步骤2。
 
-1. 请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)获取Kbox-AOSP11.zip，解压Kbox-AOSP11.zip，将Kbox-AOSP11文件夹中的deploy\_scripts目录上传至服务器的“\~/dependency“目录。
+1. 请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)获取Kbox-patches-AOSP11.zip，解压Kbox-patches-AOSP11.zip，将Kbox-patches-AOSP11文件夹中的deploy\_scripts目录上传至服务器的“\~/dependency“目录。
 2. 请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)获取Android Kbox二进制文件包Boostkit-boostcph-kbox\_\*.zip并上传到“\~/dependency/deploy\_scripts“目录。
 3. （硬件配置方案二、三、四）使用硬件配置方案二、三、四时需要解压显卡驱动压缩包VAGPU-25.03.01.01-RC20.tgz(参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)获取)，获取va\_driver.tgz，上传到服务器的“\~/dependency/deploy\_scripts“目录。
 4. 制作包含Android Kbox二进制的Kbox镜像，其中kbox:demo为上一步导入的官方Kbox Demo镜像，kbox:origin为包含Android Kbox二进制的新镜像。
@@ -62,7 +62,7 @@ docker import android.tar kbox:demo
 
 若环境中未使用编码卡则不能制作并使用使能硬解功能的镜像。
 
-1. 解压Kbox-AOSP11.zip，将Kbox-AOSP11/make\_img\_sample目录上传至服务器的“\~/dependency“目录。
+1. 解压Kbox-patches-AOSP11.zip，将Kbox-patches-AOSP11/make\_img\_sample目录上传至服务器的“\~/dependency“目录。
 2. 请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)获取NETINT-vXXX.tar.gz，并重命名为NETINT.tar.gz，放至“\~/dependency/make\_img\_sample/decode\_iso\_build“目录，对该目录下的制作镜像脚本赋予可执行权限。
 
     ```shell
@@ -104,7 +104,7 @@ Kbox云手机容器支持根据客户需求定制系统属性，以覆盖原有�
 
 Kbox云手机容器支持使能图形加速层，通过将kbox\_config.cfg配置文件中的“ENABLE\_RENDER\_LAYER“修改为“1“进行使能。打开“\~/dependency/deploy\_scripts“路径下的“kbox\_render\_accelerating\_configuration.xml”配置文件，对应用的图形加速层功能进行配置。具体配置项描述请参见《[视频流引擎 用户指南](https://gitcode.com/boostkit/vmi/blob/CloudPhone/docs/zh/user_guide.md)》中的“图形加速层配置项”章节。首次启动云手机容器时，若需要修改图形加速层功能的配置，则修改配置文件中应用对应的配置，手动将其拷贝到云手机容器“/data/local/tmp“路径，重启应用即可生效。
 
-1. 解压Kbox-AOSP11.zip，将Kbox-AOSP11文件夹中的deploy\_scripts目录上传至服务器的“\~/dependency“目录。
+1. 解压Kbox-patches-AOSP11.zip，将Kbox-patches-AOSP11文件夹中的deploy\_scripts目录上传至服务器的“\~/dependency“目录。
 2. （可选）使能硬件解码（以下简称“硬解”）。
     1. 设置“deploy\_scripts“目录下的kbox\_config.cfg文件，将“ENABLE\_HARD\_DECODE“设置为“1“。
 

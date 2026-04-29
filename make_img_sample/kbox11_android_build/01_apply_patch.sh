@@ -179,7 +179,7 @@ function apply_patchs(){
         error "patch_config.sh不存在"
     fi
     source $CURRENT_DIR/patch_config.sh
-    # 解压Kbox-AOSP11.zip, 将Kbox-AOSP11文件夹中的“patchForAndroid”目录上传至“~/dependency”目录
+    # 解压Kbox-patches-AOSP11.zip, 将Kbox-patches-AOSP11文件夹中的“patchForAndroid”目录上传至“~/dependency”目录
     # 请对上传文件、目录的权限进行合理配置, 其他用户属组建议不配置写权限
     cd "$CURRENT_DIR" || error "无法切换到 $CURRENT_DIR 目录"
     cp -r "../../patchForAndroid" "$CURRENT_DIR/dependency" ||
