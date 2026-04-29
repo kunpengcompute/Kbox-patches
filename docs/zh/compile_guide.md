@@ -33,7 +33,7 @@ Kbox安卓镜像编译构建的软件环境要求如[**表 1** Kbox安卓镜像�
 |--|--|--|--|
 |1|AOSP源码|版本：android-15.0.0_r17|[获取链接](https://android.googlesource.com/platform/manifest)|
 |2|[可选]BoostKit-boostcph-kbox_*_15.zip|Android Kbox二进制文件包|[获取链接](https://www.hikunpeng.com/zh/developer/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft)|
-|3|Kbox-patches-AOSP15.zip|Android代码补丁Demo包、编译脚本Demo包|[获取链接](https://raw.gitcode.com/boostkit/Kbox/archive/refs/heads/AOSP15.zip)|
+|3|Kbox-patches-AOSP15.zip|Android代码补丁Demo包、编译脚本Demo包|[获取链接](https://raw.gitcode.com/boostkit/Kbox-patches/archive/refs/heads/AOSP15.zip)|
 |4|Meson|1.1.0|[获取链接](https://github.com/mesonbuild/meson/releases/download/1.1.0/meson-1.1.0.tar.gz)|
 |5|Mesa|Mesa参考Demo24.3.4|[获取链接](https://gitcode.com/boostkit/mesa/tree/24.3.4)|
 |6|[可选]Kbox源码|华为KBOX云手机容器分支：dev_aosp15|[获取链接](https://raw.gitcode.com/boostkit/Kbox/archive/refs/heads/dev_aosp15.zip)|
