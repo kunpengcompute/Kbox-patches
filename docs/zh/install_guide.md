@@ -49,7 +49,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 |3|kernel-5.10.0-216.0.0.zip|openEuler 22.03 LTS SP4 Kernel源码。|[获取链接](https://gitee.com/openeuler/kernel/repository/archive/5.10.0-216.0.0.zip)|√|√|√|√|
 |4|ExaGear_ARM32-ARM64_V2.5.tar.gz|ExaGear转码二进制包。|[获取链接](https://www.hikunpeng.com/zh/developer/download?title=%E4%BA%91%E6%89%8B%E6%9C%BA&subTitle=ExaGear%2BAArch32%E6%8C%87%E4%BB%A4%E7%BF%BB%E8%AF%91%E8%BD%AF%E4%BB%B6&zhTitle=%E4%BA%91%E6%89%8B%E6%9C%BA&zhSubTitle=ExaGear%2BAArch32%E6%8C%87%E4%BB%A4%E7%BF%BB%E8%AF%91%E8%BD%AF%E4%BB%B6&enTitle=ARM%2BNative&enSubTitle=ExaGear%2BAArch32%2BInstruction%2BTranslation%2BSoftware)|√|√|√|√|
 |5|linux-firmware-20210919.tar.gz|包含Kbox运行所需相关固件。|[获取链接](https://mirrors.edge.kernel.org/pub/linux/kernel/firmware/linux-firmware-20210919.tar.gz)|√|-|-|-|
-|6|Kbox-AOSP11.zip|包含内核补丁Demo包、容器部署脚本Demo包。|[获取链接](https://gitcode.com/boostkit/Kbox)切换到AOSP11分支，并单击“下载zip”进行下载。|√|√|√|√|
+|6|Kbox-patches-AOSP11.zip|包含内核补丁Demo包、容器部署脚本Demo包。|[获取链接](https://gitcode.com/boostkit/Kbox-patches)切换到AOSP11分支，并单击“下载zip”进行下载。|√|√|√|√|
 |7|NETINT-vXXX.tar.gz|NETINT编解码库，当使能硬解的时候获取该软件包，配套版本4.8.F-scale。|[获取链接](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)下载密码：test123|√|-|-|-|
 |8|Quadra_V*XXX*.zip|包含NETINT编码卡Quadra软固件及文档包。|[获取链接](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)下载密码：test123|√|-|-|-|
 |9|VAGPU-25.03.01.01-RC20.tgz|显卡驱动。|请联系华为技术支持获取。|-|√|√|√|
@@ -397,7 +397,7 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
 
 华为提供内核一键式编译安装自动化脚本kbox\_install\_kernel.sh，包含了手动编译安装内核的全部操作。您可以通过执行该脚本快速编译安装内核，也可以自行参见手动编译安装内核章节在环境中一步步编译安装。
 
-内核一键式编译脚本kbox\_install\_kernel.sh支持openEuler 22.03 LTS SP4（对应内核版本5.10.0-216.0.0）版本的编译，脚本获取方式：请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)获取Kbox-AOSP11.zip包并解压，脚本位于“Kbox-AOSP11/deploy\_scripts/openEuler\_deploy“目录。脚本的具体使用方法，请参见脚本开头处的注释说明内容。
+内核一键式编译脚本kbox\_install\_kernel.sh支持openEuler 22.03 LTS SP4（对应内核版本5.10.0-216.0.0）版本的编译，脚本获取方式：请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)获取Kbox-patches-AOSP11.zip包并解压，脚本位于“Kbox-patches-AOSP11/deploy\_scripts/openEuler\_deploy“目录。脚本的具体使用方法，请参见脚本开头处的注释说明内容。
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >一键式脚本中涉及的内核配置与修改仅作为功能性参考，不建议使用鲲鹏BoostKit云手机参考方案作为商用方案。若选择使用鲲鹏BoostKit云手机参考方案需自行承担安全风险，客户或ISV在商用前请进行必要的安全评估。
@@ -578,7 +578,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
     chmod -R 700 ~/dependency
     ```
 
-2. 解压Kbox-AOSP11.zip，将Kbox-AOSP11文件夹中的patchForKernel目录、patchForExagear目录上传至服务器的“\~/dependency“目录下。请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
+2. 解压Kbox-patches-AOSP11.zip，将Kbox-patches-AOSP11文件夹中的patchForKernel目录、patchForExagear目录上传至服务器的“\~/dependency“目录下。请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
 3. 拷贝转码补丁到内核源码目录。
 
     ```shell
