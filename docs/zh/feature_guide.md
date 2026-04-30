@@ -227,12 +227,15 @@ Kbox支持的所有基础功能和可选特性见[**表 1** Kbox基础功能清�
 
 #### 8.2.2 使用特性<a name="ZH-CN_TOPIC_0000002549745952"></a>
 
-1. 在容器配置文件kbox_config.cfg中将属性 ENABLE_F2FS设置为1，即打开特性。
-2. 在容器运行时，在容器内输入如下命令观察文件格式是否为f2fs，为f2fs时说明特性正在使能，为其他格式时说明未生效。
+1. kbox_config.cfg中的 ENABLE_F2FS负责控制F2FS文件系统开关，默认值是0，0表示不使能。
 
-    ```shell
-    mount | grep -i /data
-    ```
+2. 在容器配置文件kbox_config.cfg中将属性 ENABLE_F2FS设置为1，即打开特性。
+
+3. 在容器运行时，在容器内输入如下命令观察文件格式是否为f2fs，为f2fs时说明特性正在使能，为其他格式时说明未生效。
+
+```shell
+mount | grep -i /data
+```
 
 ## 9 容器内/system分区大小可调节<a name="ZH-CN_TOPIC_0000002549865943"></a>
 
