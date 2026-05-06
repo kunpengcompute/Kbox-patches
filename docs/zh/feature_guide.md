@@ -222,7 +222,8 @@ Kbox支持的所有基础功能和可选特性见[**表 1** Kbox基础功能清�
 挂载新分区，使能新分区挂载生效
 
    ```shell
-   mount -a
+   mount -a  
+   systemctl daemon-reload
    ```
 
 #### 8.2.2 使用特性<a name="ZH-CN_TOPIC_0000002549745952"></a>
@@ -249,6 +250,7 @@ mount | grep -i /data
 
 1. 底层文件系统强依赖：宿主机用于承载云机容器数据的目标磁盘，必须被格式化为 XFS 格式。若文件系统不支持该特性，容量配置将直接失效。
 2. 挂载选项合规性：负责挂载该数据盘的运维脚本或 /etc/fstab 配置中，必须包含并成功应用了 pquota 参数。若磁盘以默认参数挂载，即使底层是 XFS，Docker 在尝试应用  --storage-opt size 参数启动云机时也会抛出异常或导致配额下发失败。
+3. 参数配置限制：system分区可设置的大小并不是无限大，当设置的参数大于docker根目录的大小的时候，设置给system分区的大小会自动变成docker根目录的大小
 
 #### 9.1.3 应用场景<a name="ZH-CN_TOPIC_0000002518226174"></a>
 
@@ -294,16 +296,24 @@ mount | grep -i /data
    vim /etc/fstab
    ```
 
+输入如下命令查看新建的磁盘分区的UUID
+   ```shell
+   lsblk -f
+   ```
+在UUID属性列看到的一串由数字和字母组成的id即为uuid
+
 输入如下挂载信息
 
    ```text
-   UUID=${新建的xfs磁盘的uuid信息}$ /var/lib/docker  xfs defaults,pquota 0 2
+   UUID=${UUID} /var/lib/docker  xfs defaults,pquota 0 2
    ```
 
-挂载新分区，使能新分区挂载生效
+挂载新分区，先启动xfs驱动，随后使能新分区挂载生效
 
    ```shell
-   mount -a
+   modprobe xfs
+   mount -a 
+   systemctl daemon-reload
    ```
 
 ##### 9.2.1.2 **触发分区扩容逻辑。**<a name="ZH-CN_TOPIC_0000002549832550"></a>
@@ -316,7 +326,7 @@ mount | grep -i /data
 
 #### 9.2.2 使用特性<a name="ZH-CN_TOPIC_0000002549745950"></a>
 
-1. 容器配置属性 SYSTEM_PARTITION_SIZE_MB 为预期设置的/system分区大小，即打开特性。
+1. 容器配置属性 SYSTEM_PARTITION_SIZE_MB 来控制是否使用该特性，默认值为0，表示不使能；输入非0值即表示打开，这个值为预期设置的/system分区大小，单位是MB.
 2. 在运行时，观察云机属性/system分区的大小的值是否等于配置属性，如果相等则说明特性正在使能，若不相等则说明未生效。
 
 ## 10 支持NFS挂载<a name="支持NFS挂载"></a>
