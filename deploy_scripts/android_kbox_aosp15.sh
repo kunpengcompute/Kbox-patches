@@ -61,8 +61,8 @@ function check_paras() {
         if [ $# -gt 4 ]; then
             echo "the number of parameters exceeds 4!"
             echo "Usage: "
-            echo "./android_kbox.sh $1 <image_id> <start_container_id> <end_container_id>"
-            echo "./android_kbox.sh $1 <image_id> <container_id>"
+            echo "./android_kbox_aosp15.sh $1 <image_id> <start_container_id> <end_container_id>"
+            echo "./android_kbox_aosp15.sh $1 <image_id> <container_id>"
             exit 1;
         fi
 
@@ -101,8 +101,8 @@ function check_paras() {
         if [ $# -gt 3 ]; then
             echo "the number of parameters exceeds 3!"
             echo "Usage: "
-            echo "./android_kbox.sh $1 <start_container_id> <end_container_id>"
-            echo "./android_kbox.sh $1 <container_id>"
+            echo "./android_kbox_aosp15.sh $1 <start_container_id> <end_container_id>"
+            echo "./android_kbox_aosp15.sh $1 <container_id>"
             exit 1
         fi
 
@@ -124,8 +124,8 @@ function check_paras() {
         if [ $# -gt 3 ]; then
             echo "the number of parameters exceeds 3!"
             echo "Usage: "
-            echo "./android_kbox.sh restart <start_container_id> <end_container_id>"
-            echo "./android_kbox.sh restart <container_id>"
+            echo "./android_kbox_aosp15.sh restart <start_container_id> <end_container_id>"
+            echo "./android_kbox_aosp15.sh restart <container_id>"
             exit 1
         fi
 
