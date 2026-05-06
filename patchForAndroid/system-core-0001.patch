@@ -202,7 +202,7 @@ index 05d64da6e..45278805b 100644
      bool FindPlatformDevice(std::string path, std::string* platform_device_path) const;
      std::tuple<mode_t, uid_t, gid_t> GetDevicePermissions(
 diff --git a/init/first_stage_init.cpp b/init/first_stage_init.cpp
-index 021557697..e8bdbcb75 100644
+index 021557697..4668c5342 100644
 --- a/init/first_stage_init.cpp
 +++ b/init/first_stage_init.cpp
 @@ -180,7 +180,7 @@ int FirstStageMain(int argc, char** argv) {
@@ -214,7 +214,7 @@ index 021557697..e8bdbcb75 100644
  
      // Clear the umask.
      umask(0);
-@@ -189,14 +189,15 @@ int FirstStageMain(int argc, char** argv) {
+@@ -189,14 +189,16 @@ int FirstStageMain(int argc, char** argv) {
      CHECKCALL(setenv("PATH", _PATH_DEFPATH, 1));
      // Get the basic filesystem setup we need put together in the initramdisk
      // on / and then we'll let the rc file figure out the rest.
@@ -231,11 +231,12 @@ index 021557697..e8bdbcb75 100644
 +    //CHECKCALL(mount("proc", "/proc", "proc", 0, "hidepid=2,gid=" MAKE_STR(AID_READPROC)));
 +    //#undef MAKE_STR
      // Don't expose the raw commandline to unprivileged processes.
-+    std::filesystem::copy("/system/etc/", "/etc/", std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
++    // std::filesystem::copy("/system/etc/", "/etc/", std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
++    mount("/system/etc", "/etc", "none", MS_BIND, NULL); // cgroup fix
      CHECKCALL(chmod("/proc/cmdline", 0440));
      std::string cmdline;
      android::base::ReadFileToString("/proc/cmdline", &cmdline);
-@@ -235,6 +236,8 @@ int FirstStageMain(int argc, char** argv) {
+@@ -235,6 +237,8 @@ int FirstStageMain(int argc, char** argv) {
      // /debug_ramdisk is used to preserve additional files from the debug ramdisk
      CHECKCALL(mount("tmpfs", "/debug_ramdisk", "tmpfs", MS_NOEXEC | MS_NOSUID | MS_NODEV,
                      "mode=0755,uid=0,gid=0"));
