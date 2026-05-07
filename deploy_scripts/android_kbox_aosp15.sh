@@ -466,6 +466,12 @@ function start_box_by_id() {
     --enable_nfs "$enable_nfs" \
     --nfs_dir "$NFS_DIR"
 
+    # 新增拦截：判断上方的 base_box_aosp15.sh 是否成功执行
+    if [ $? -ne 0 ]; then
+        echo -e "\033[1;31m[ERROR] ${CONTAINER_NAME} 基础环境准备失败，终止后续拉起流程！\033[0m"
+        return 1
+    fi
+
     enable_hard_decoder $TAG_NUMBER
 
     if [ -n "$(docker ps -a --format {{.Names}} | grep "$CONTAINER_NAME$")" ]; then
