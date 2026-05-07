@@ -198,7 +198,7 @@ cat /sys/kernel/debug/dri/*/amdgpu_pm_info |grep Temp
 
 使用GPU驱动包VAGPU-25.03.01.01-RC20.tgz中提供的工具，以查看GPU状态。
 
-1. 请参见《install guide》文档中“环境准备”章节中的“[软件环境](https://gitcode.com/boostkit/Kbox/blob/AOSP11/docs/zh/install_guide.md#22-%E8%BD%AF%E4%BB%B6%E7%8E%AF%E5%A2%83)”小节获取VAGPU-25.03.01.01-RC20.tgz包并解压，将解压获得的显卡工具包tools-3.2.2\_sp1.tgz上传至服务器。
+1. 请参见《install guide》文档中“环境准备”章节中的“[软件环境](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/install_guide.md#22-%E8%BD%AF%E4%BB%B6%E7%8E%AF%E5%A2%83)”小节获取VAGPU-25.03.01.01-RC20.tgz包并解压，将解压获得的显卡工具包tools-3.2.2\_sp1.tgz上传至服务器。
 2. 显卡工具包tools-3.2.2\_sp1.tgz的具体使用方法可以请参见tools-doc-3.2.2\_sp1.tgz压缩包中的说明文档。
 
 ## 4 日志管理<a name="ZH-CN_TOPIC_0000002549705891"></a>
@@ -321,7 +321,7 @@ dmesg -T
 为增强云手机原型的可测试性、可服务性和可维护性，Kbox云手机容器提供了Kbox\_maintainer维护工具。该工具集成了日志收集、资源检查、故障恢复等多项功能，显著提升了云手机原型的整体性能。
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
->Kbox\_maintainer工具包含在Kbox\_AOSP11.zip中，Kbox\_AOSP11.zip的获取方式请参见《install guide》文档中“环境准备”章节中的“[软件环境](https://gitcode.com/boostkit/Kbox/blob/AOSP11/docs/zh/install_guide.md#22-%E8%BD%AF%E4%BB%B6%E7%8E%AF%E5%A2%83)”小节。
+>Kbox\_maintainer工具包含在Kbox\_AOSP11.zip中，Kbox\_AOSP11.zip的获取方式请参见《install guide》文档中“环境准备”章节中的“[软件环境](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/install_guide.md#22-%E8%BD%AF%E4%BB%B6%E7%8E%AF%E5%A2%83)”小节。
 
 #### 4.4.2 日志收集<a name="ZH-CN_TOPIC_0000002518346024"></a>
 
@@ -454,7 +454,7 @@ python3 kbox_maintainer.py recover kbox_1
 |Android日志信息|**logcat**|
 |Android进程信息|**ps -a**|
 |Android堆栈信息|**ls /data/anr/**|
-|Android系统属性|**getprop****cat /system/build.prop**|
+|Android系统属性|**getprop**<br>**cat /system/build.prop**|
 |Android后台services信息|**service list**|
 |Android bugreport工具报告|**bugreport**|
 |Android dumpsys信息|**dumpsys**|
@@ -469,16 +469,16 @@ python3 kbox_maintainer.py recover kbox_1
 |主机系统内核版本|**uname -r**|
 |NUMA信息|**numactl**|
 |pci设备信息|**lspci**|
-|CPU信息|**lscpu****cat /proc/cpuinfo**|
-|内存使用情况|**free****cat /proc/meminfo**|
-|硬盘存储情况|**df -h****cat /proc/loadavg****cat /proc/partitions**|
+|CPU信息|**lscpu**<br>**cat /proc/cpuinfo**|
+|内存使用情况|**free**<br>**cat /proc/meminfo**|
+|硬盘存储情况|**df -h**<br>**cat /proc/loadavg**<br>**cat /proc/partitions**|
 |系统运行时间负载|**uptime**|
-|进程相关信息|**top****ps**|
-|IO相关信息|**cat /proc/iomem****cat /proc/ioports**|
+|进程相关信息|**top**<br>**ps**|
+|IO相关信息|**cat /proc/iomem**<br>**cat /proc/ioports**|
 |系统log信息|**/var/log/**|
 |系统环境变量|**env**|
 |开机信息|**dmesg -T**|
-|网络状态检查|**ifconfig****ping****netstat****tcpdump**|
+|网络状态检查|**ifconfig**<br>**ping**<br>**netstat**<br>**tcpdump**|
 
 > ![](public_sys-resources/icon-note.gif) **说明：** 
 > 当Host OS为openEuler 22.03时，联网游戏场景需要打开防火墙的某些端口（端口号由游戏厂商定义，如王者荣耀使用的端口为50012)，否则会出现网络异常无法登录游戏的情况。防火墙配置方法如下。
