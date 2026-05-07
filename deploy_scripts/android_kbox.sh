@@ -417,14 +417,17 @@ function start_box_by_id() {
 	    rm -rf build.prop
     fi
     echo "ro.hardware.enableC2decode=0" >> build.prop
+    echo "sys.cpu.limited=0" >> build.prop
     echo "ro.hardware.omxsoftdecode=1" >> build.prop
     # 配置是否使能C2解码器
     if lspci | grep -q "Radeon PRO W6800"; then
         if [ ${ENABLE_AMD_C2_DECODE} -eq 1 ];then
             sed -i "s/ro.hardware.enableC2decode=0/ro.hardware.enableC2decode=1/g" build.prop
+            sed -i "s/sys.cpu.limited=0/sys.cpu.limited=1/g" build.prop
             sudo chmod 666 /dev/dma_heap/system
         else
             sed -i "s/ro.hardware.enableC2decode=1/ro.hardware.enableC2decode=0/g" build.prop
+            sed -i "s/sys.cpu.limited=1/sys.cpu.limited=0/g" build.prop
         fi
     fi
 
