@@ -1,5 +1,5 @@
 diff --git a/adb/Android.bp b/adb/Android.bp
-index dee48bf..91d9842 100644
+index dee48bf80..91d98421f 100644
 --- a/adb/Android.bp
 +++ b/adb/Android.bp
 @@ -594,6 +594,10 @@ cc_binary {
@@ -14,7 +14,7 @@ index dee48bf..91d9842 100644
  
  phony {
 diff --git a/adb/daemon/main.cpp b/adb/daemon/main.cpp
-index 7a0f7ff..773c00d 100644
+index 7a0f7ffcd..773c00d27 100644
 --- a/adb/daemon/main.cpp
 +++ b/adb/daemon/main.cpp
 @@ -90,8 +90,9 @@ static bool should_drop_privileges() {
@@ -61,7 +61,7 @@ index 7a0f7ff..773c00d 100644
  
      // Our external storage path may be different than apps, since
 diff --git a/base/include/android-base/macros.h b/base/include/android-base/macros.h
-index 5abf514..9711b37 100644
+index 5abf5141f..9711b3711 100644
 --- a/base/include/android-base/macros.h
 +++ b/base/include/android-base/macros.h
 @@ -21,6 +21,13 @@
@@ -79,7 +79,7 @@ index 5abf514..9711b37 100644
  #ifndef TEMP_FAILURE_RETRY
  #define TEMP_FAILURE_RETRY(exp)            \
 diff --git a/fs_mgr/Android.bp b/fs_mgr/Android.bp
-index ac784b2..03aa64d 100644
+index ac784b249..03aa64dbe 100644
 --- a/fs_mgr/Android.bp
 +++ b/fs_mgr/Android.bp
 @@ -79,7 +79,8 @@ cc_defaults {
@@ -103,7 +103,7 @@ index ac784b2..03aa64d 100644
      product_variables: {
          debuggable: {
 diff --git a/init/devices.cpp b/init/devices.cpp
-index 9fbec64..b29a0d5 100644
+index 9fbec641b..b29a0d536 100644
 --- a/init/devices.cpp
 +++ b/init/devices.cpp
 @@ -375,6 +375,15 @@ std::vector<std::string> DeviceHandler::GetBlockDeviceSymlinks(const Uevent& uev
@@ -152,7 +152,7 @@ index 9fbec64..b29a0d5 100644
  DeviceHandler::DeviceHandler()
      : DeviceHandler(std::vector<Permissions>{}, std::vector<SysfsPermissions>{},
 diff --git a/init/devices.h b/init/devices.h
-index 05d64da..4527880 100644
+index 05d64da6e..45278805b 100644
 --- a/init/devices.h
 +++ b/init/devices.h
 @@ -120,7 +120,7 @@ class DeviceHandler : public UeventHandler {
@@ -165,7 +165,7 @@ index 05d64da..4527880 100644
      bool FindPlatformDevice(std::string path, std::string* platform_device_path) const;
      std::tuple<mode_t, uid_t, gid_t> GetDevicePermissions(
 diff --git a/init/first_stage_init.cpp b/init/first_stage_init.cpp
-index 0215576..b262d84 100644
+index 021557697..4668c5342 100644
 --- a/init/first_stage_init.cpp
 +++ b/init/first_stage_init.cpp
 @@ -180,7 +180,7 @@ int FirstStageMain(int argc, char** argv) {
@@ -177,7 +177,7 @@ index 0215576..b262d84 100644
  
      // Clear the umask.
      umask(0);
-@@ -189,13 +189,13 @@ int FirstStageMain(int argc, char** argv) {
+@@ -189,14 +189,16 @@ int FirstStageMain(int argc, char** argv) {
      CHECKCALL(setenv("PATH", _PATH_DEFPATH, 1));
      // Get the basic filesystem setup we need put together in the initramdisk
      // on / and then we'll let the rc file figure out the rest.
@@ -194,9 +194,12 @@ index 0215576..b262d84 100644
 +    //CHECKCALL(mount("proc", "/proc", "proc", 0, "hidepid=2,gid=" MAKE_STR(AID_READPROC)));
 +    //#undef MAKE_STR
      // Don't expose the raw commandline to unprivileged processes.
++    // std::filesystem::copy("/system/etc/", "/etc/", std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
++    mount("/system/etc", "/etc", "none", MS_BIND, NULL); // cgroup fix
      CHECKCALL(chmod("/proc/cmdline", 0440));
      std::string cmdline;
-@@ -235,6 +235,8 @@ int FirstStageMain(int argc, char** argv) {
+     android::base::ReadFileToString("/proc/cmdline", &cmdline);
+@@ -235,6 +237,8 @@ int FirstStageMain(int argc, char** argv) {
      // /debug_ramdisk is used to preserve additional files from the debug ramdisk
      CHECKCALL(mount("tmpfs", "/debug_ramdisk", "tmpfs", MS_NOEXEC | MS_NOSUID | MS_NODEV,
                      "mode=0755,uid=0,gid=0"));
@@ -206,10 +209,18 @@ index 0215576..b262d84 100644
  
      SetStdioToDevNull(argv);
 diff --git a/init/init.cpp b/init/init.cpp
-index 29859c5..fa9e4a3 100644
+index 29859c5f5..6362e5b5b 100644
 --- a/init/init.cpp
 +++ b/init/init.cpp
-@@ -303,7 +303,8 @@ void PropertyChanged(const std::string& name, const std::string& value) {
+@@ -38,6 +38,7 @@
+ #include <optional>
+ #include <thread>
+ #include <vector>
++#include <fstream>
+ 
+ #include <android-base/chrono_utils.h>
+ #include <android-base/file.h>
+@@ -303,7 +304,8 @@ void PropertyChanged(const std::string& name, const std::string& value) {
      // In non-thermal-shutdown case, 'shutdown' trigger will be fired to let device specific
      // commands to be executed.
      if (name == "sys.powerctl") {
@@ -219,7 +230,7 @@ index 29859c5..fa9e4a3 100644
      }
  
      if (property_triggers_enabled) {
-@@ -640,6 +641,7 @@ static void UmountDebugRamdisk() {
+@@ -640,6 +642,7 @@ static void UmountDebugRamdisk() {
  }
  
  static void MountExtraFilesystems() {
@@ -227,7 +238,7 @@ index 29859c5..fa9e4a3 100644
  #define CHECKCALL(x) \
      if ((x) != 0) PLOG(FATAL) << #x " failed.";
  
-@@ -673,9 +675,11 @@ static void RecordStageBoottimes(const boot_clock::time_point& second_stage_star
+@@ -673,9 +676,11 @@ static void RecordStageBoottimes(const boot_clock::time_point& second_stage_star
  
      SetProperty("ro.boottime.init.first_stage",
                  std::to_string(selinux_start_time_ns - first_stage_start_time_ns));
@@ -242,18 +253,7 @@ index 29859c5..fa9e4a3 100644
  }
  
  void SendLoadPersistentPropertiesMessage() {
-@@ -696,7 +700,9 @@ int SecondStageMain(int argc, char** argv) {
-     trigger_shutdown = [](const std::string& command) { shutdown_state.TriggerShutdown(command); };
- 
-     SetStdioToDevNull(argv);
--    InitKernelLogging(argv);
-+
-+    // InitKernelLogging(argv);
-+
-     LOG(INFO) << "init second stage started!";
- 
-     // Init should not crash because of a dependence on any other process, therefore we ignore
-@@ -747,6 +753,7 @@ int SecondStageMain(int argc, char** argv) {
+@@ -747,6 +752,7 @@ int SecondStageMain(int argc, char** argv) {
      }
  
      // Mount extra filesystems required during second stage init
@@ -261,7 +261,7 @@ index 29859c5..fa9e4a3 100644
      MountExtraFilesystems();
  
      // Now set up SELinux for second stage.
-@@ -767,10 +774,10 @@ int SecondStageMain(int argc, char** argv) {
+@@ -767,10 +773,10 @@ int SecondStageMain(int argc, char** argv) {
      RecordStageBoottimes(start_time);
  
      // Set libavb version for Framework-only OTA match in Treble build.
@@ -276,7 +276,7 @@ index 29859c5..fa9e4a3 100644
  
      fs_mgr_vendor_overlay_mount_all();
      export_oem_lock_status();
-@@ -802,7 +809,7 @@ int SecondStageMain(int argc, char** argv) {
+@@ -802,7 +808,7 @@ int SecondStageMain(int argc, char** argv) {
      SetProperty(gsi::kGsiInstalledProp, is_installed);
  
      am.QueueBuiltinAction(SetupCgroupsAction, "SetupCgroups");
@@ -285,7 +285,7 @@ index 29859c5..fa9e4a3 100644
      am.QueueBuiltinAction(TestPerfEventSelinuxAction, "TestPerfEventSelinux");
      am.QueueEventTrigger("early-init");
  
-@@ -810,7 +817,7 @@ int SecondStageMain(int argc, char** argv) {
+@@ -810,7 +816,7 @@ int SecondStageMain(int argc, char** argv) {
      am.QueueBuiltinAction(wait_for_coldboot_done_action, "wait_for_coldboot_done");
      // ... so that we can start queuing up actions that require stuff from /dev.
      am.QueueBuiltinAction(MixHwrngIntoLinuxRngAction, "MixHwrngIntoLinuxRng");
@@ -294,21 +294,342 @@ index 29859c5..fa9e4a3 100644
      Keychords keychords;
      am.QueueBuiltinAction(
              [&epoll, &keychords](const BuiltinArguments& args) -> Result<void> {
-@@ -825,9 +832,9 @@ int SecondStageMain(int argc, char** argv) {
+@@ -825,9 +831,87 @@ int SecondStageMain(int argc, char** argv) {
      // Trigger all the boot actions to get us started.
      am.QueueEventTrigger("init");
  
 -    // Repeat mix_hwrng_into_linux_rng in case /dev/hw_random or /dev/random
 -    // wasn't ready immediately after wait_for_coldboot_done
 -    am.QueueBuiltinAction(MixHwrngIntoLinuxRngAction, "MixHwrngIntoLinuxRng");
++#define CHECKCALL(x) \
++    if ((x) != 0) LOG(ERROR) << #x " failed" << " " << strerror(errno);
++    // hook_cpuinfo.sh
++    std::ifstream infile("/proc/cpuinfo");
++    std::ofstream outfile("/system/cpuinfo_origin");
++    std::string line;
++    int line_count = 0;
++
++    // 读取前 71 行
++    while (std::getline(infile, line) && line_count < 71) {
++        outfile << line << "\n";
++        line_count++;
++    }
++    infile.close();
++    outfile.close();
++    
++    std::ifstream origin_file("/system/cpuinfo_origin");
++    std::ofstream merge_file("/system/cpuinfo_merge");
++    while (std::getline(origin_file, line)) {
++        if (line.find("Features") == 0) {
++            merge_file << "Features        : half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt lpae evtstrm aes pmull sha1 sha2 crc32\n";
++        } else {
++            merge_file << line << "\n";
++        }
++    }
++    origin_file.close();
++    merge_file.close();
++
++    chmod("/system/cpuinfo_merge", 0644);
++    umount("/proc/cpuinfo");
++    mount("/system/cpuinfo_merge", "/proc/cpuinfo", nullptr, MS_BIND, nullptr);
++
++
++    struct stat st;
++    if (stat("/sys/kernel/kbox/kbox_enable", &st) == 0) {
++    // echo 1 > kbox_enable
++        CHECKCALL(mount("none", "/sys", "sysfs", MS_REMOUNT, nullptr) == 0);
++        std::ofstream debug_enable("/sys/kernel/kbox/kbox_enable");
++        if (debug_enable.is_open()) {
++            // **1. 重新挂载 /proc/sys 为 rw**
++            debug_enable << "1";
++            debug_enable.close();
++        }
++        CHECKCALL(mount("none", "/sys", "sysfs", MS_REMOUNT | MS_RDONLY, nullptr) == 0);
++    } else {
++        LOG(ERROR) << "Failed to enable debug mode!";
++    }
++
++    std::ifstream os_release("/proc/version");
++    bool is_ubuntu_or_debian = false;
++
++    if (os_release.is_open()) {
++        while (std::getline(os_release, line)) {
++            if (line.find("Ubuntu") != std::string::npos || line.find("Debian") != std::string::npos) {
++                is_ubuntu_or_debian = true;
++                break;
++            }
++        }
++        os_release.close();
++    }
++
++    if (!is_ubuntu_or_debian) {
++        // pid max sysctl kernel.pid_max=65530
++        CHECKCALL(mount("none", "/proc/sys", "proc", MS_REMOUNT, nullptr) == 0);
++
++        std::ofstream pid_max("/proc/sys/kernel/pid_max");
++        if (pid_max.is_open()) {
++            pid_max << "65530";
++            pid_max.close();
++            LOG(INFO) << "Successfully set kernel.pid_max=65530";
++        } else {
++            LOG(ERROR) << "Failed to set kernel.pid_max";
++        }
++
++        // **3. 重新挂载 /proc/sys 为只读**
++        CHECKCALL(mount("none", "/proc/sys", "proc", MS_REMOUNT | MS_RDONLY, nullptr) == 0);
++    }
++
 +    // // Repeat mix_hwrng_into_linux_rng in case /dev/hw_random or /dev/random
 +    // // wasn't ready immediately after wait_for_coldboot_done
 +    // am.QueueBuiltinAction(MixHwrngIntoLinuxRngAction, "MixHwrngIntoLinuxRng");
  
      // Don't mount filesystems or start core system services in charger mode.
      std::string bootmode = GetProperty("ro.bootmode", "");
+@@ -840,6 +924,7 @@ int SecondStageMain(int argc, char** argv) {
+     // Run all property triggers based on current state of the properties.
+     am.QueueBuiltinAction(queue_property_triggers_action, "queue_property_triggers");
+ 
++
+     while (true) {
+         // By default, sleep until something happens.
+         auto epoll_timeout = std::optional<std::chrono::milliseconds>{};
+diff --git a/init/ipconfigstore/Android.bp b/init/ipconfigstore/Android.bp
+new file mode 100644
+index 000000000..71b98e237
+--- /dev/null
++++ b/init/ipconfigstore/Android.bp
+@@ -0,0 +1,17 @@
++// Android.bp
++cc_binary {
++    name: "ipconfigstore",
++    srcs: ["ipconfig.cpp"],
++    include_dirs: [
++        // "system/core/base/include",
++    ],
++    shared_libs: [
++        "libc++",
++        "libcutils",
++        "liblog",
++        "libbase",
++    ],
++    stl: "c++_shared",
++    installable: true,
++    visibility: ["//visibility:public"],
++}
+diff --git a/init/ipconfigstore/ipconfig.cpp b/init/ipconfigstore/ipconfig.cpp
+new file mode 100644
+index 000000000..4cd75dd41
+--- /dev/null
++++ b/init/ipconfigstore/ipconfig.cpp
+@@ -0,0 +1,206 @@
++#include <fstream>
++#include <set>
++#include <string>
++#include <vector>
++#include <sstream>
++#include <cstring>
++#include <stdio.h>
++#include <cstdint>
++#include <stdlib.h>
++#include <ctype.h>
++#include <unistd.h>
++#include <sys/stat.h>
++#include <sys/types.h>
++#include <fcntl.h>
++#include <cutils/properties.h>  // Android系统属性API
++#include <android-base/logging.h>
++#include <ifaddrs.h>
++#include <sys/socket.h>
++#include <netinet/in.h>
++#include <net/if.h>
++#include <sys/ioctl.h>
++#include <errno.h>
++#include <net/route.h>
++#include <arpa/inet.h>
++#include <android-base/properties.h>
++
++uint16_t convertBigEndianUInt16(uint16_t value);
++uint32_t convertBigEndianUInt32(uint32_t value);
++
++bool writePackedString(const std::string& str, FILE *stream);
++bool writePackedUInt16(uint16_t value, FILE *stream);
++bool writePackedUInt32(uint32_t value, FILE *stream);
++
++uint16_t convertBigEndianUInt16(uint16_t value)
++{
++	union { uint16_t value; unsigned char data[2]; } aux = { 0x4142 };
++
++	if (aux.data[0] == 0x41)
++	{
++		return value;
++	}
++
++	aux.data[0] = (value >> 8) & 0xff;
++	aux.data[1] = value & 0xff;
++
++	return aux.value;
++}
++
++uint32_t convertBigEndianUInt32(uint32_t value)
++{
++	union { uint32_t value; unsigned char data[4]; } aux = { 0x41424344 };
++
++	if (aux.data[0] == 0x41)
++	{
++		return value;
++	}
++
++	aux.data[0] = (value >> 24) & 0xff;
++	aux.data[1] = (value >> 16) & 0xff;
++	aux.data[2] = (value >> 8) & 0xff;
++	aux.data[3] = value & 0xff;
++
++	return aux.value;
++}
++
++bool writePackedString(const std::string& str, FILE *stream)
++{
++    const char *string = str.c_str();
++	size_t stringLength = strlen(string);
++
++	if (!writePackedUInt16(stringLength, stream))
++	{
++		return false;
++	}
++
++	return fwrite(string, stringLength, 1, stream) == 1;
++}
++
++bool writePackedUInt16(uint16_t value, FILE *stream)
++{
++	uint16_t buffer = convertBigEndianUInt16(value);
++	return fwrite(&buffer, sizeof buffer, 1, stream) == 1;
++}
++
++bool writePackedUInt32(uint32_t value, FILE *stream)
++{
++	uint32_t buffer = convertBigEndianUInt32(value);
++	return fwrite(&buffer, sizeof buffer, 1, stream) == 1;
++}
++
++// 执行系统命令并返回输出结果
++std::string execute_command(const std::string& command) {
++    FILE* fp = popen(command.c_str(), "r");
++    if (!fp) {
++        return "";
++    }
++    char buffer[128];
++    std::string result;
++    while (fgets(buffer, sizeof(buffer), fp) != nullptr) {
++        result += buffer;
++    }
++    pclose(fp);
++    if (!result.empty() && result.back() == '\n') {
++        result.pop_back();  // 去除末尾换行符
++    }
++    return result;
++}
++
++// 从build.prop文件中读取指定属性值
++std::string read_prop_from_file(const std::string& filename, const std::string& key) {
++    std::ifstream file(filename);
++    if (!file) {
++        return "";
++    }
++    std::string line;
++    while (std::getline(file, line)) {
++        if (line.find(key) != std::string::npos) {
++            size_t pos = line.find('=');
++            if (pos != std::string::npos) {
++                return line.substr(pos + 1);
++            }
++        }
++    }
++    return "";
++}
++
++// 获取DNS地址，优先读取系统属性，否则读取build.prop
++std::string get_dns(int index) {
++    char key[32];
++    snprintf(key, sizeof(key), "net.dns%d", index);
++    std::string vendor_dns = read_prop_from_file("/vendor/build.prop", key);
++    if (!vendor_dns.empty()) {
++        return vendor_dns;
++    }
++    std::string system_vendor_dns = read_prop_from_file("/system/build.prop", key);
++    return system_vendor_dns;
++}
++
++int main() {
++    const std::string ipconfigfile = "/data/misc/ethernet/ipconfig.txt";
++    const std::string ipconfigpath = "/data/misc/ethernet";
++    const std::string apexipconfigfile = "/data/misc/apexdata/com.android.tethering/misc/ethernet/ipconfig.txt";
++    // 删除旧文件
++    unlink(ipconfigfile.c_str());
++    // 创建目录
++    struct stat info;
++    if (stat(ipconfigpath.c_str(), &info) != 0) {
++        mkdir(ipconfigpath.c_str(), 0755);
++    }
++
++    FILE *out = fopen("/data/misc/ethernet/ipconfig.txt", "w+");
++    if (!out) {
++        LOG(ERROR) << "Failed to open ipconfigfile";
++        return 1;
++    }
++
++    writePackedUInt32(3, out);
++    writePackedString("ipAssignment", out);
++    writePackedString("STATIC", out);
++    writePackedString("linkAddress", out);
++
++    // 获取IP地址
++    std::string ip = execute_command("ifconfig | grep Bcast |awk -F \"[: ]\" '{print $13}'");
++    if (ip.empty()) {
++        LOG(ERROR) << "Failed to get IP address";
++        return 1;
++    }
++    writePackedString(ip, out);
++    writePackedUInt32(24, out);
++    writePackedString("gateway", out);
++    writePackedUInt32(0, out);
++    writePackedUInt32(1, out);
++
++    std::string gateway = execute_command("ip route show table all | grep default | awk -F \"[: ]\" '{print $3}'");
++    if (gateway.empty()) {
++        LOG(ERROR) << "Failed to get gateway";
++        return 1;
++    }
++    writePackedString(gateway, out);
++    writePackedString("dns", out);
++    writePackedString(get_dns(1), out);
++    writePackedString("dns", out);
++    writePackedString(get_dns(2), out);
++    writePackedString("dns", out);
++    writePackedString(get_dns(3), out);
++    writePackedString("id", out);
++
++
++    std::string id = execute_command("ifconfig | grep Ethernet | awk '{print $1}'");
++    writePackedString(id, out);
++    writePackedString("eos", out);
++
++    fclose(out);
++    // 设置文件权限
++
++    chmod(ipconfigfile.c_str(), 0600);
++    chown(ipconfigfile.c_str(), getuid(), getgid());  // 需要root权限
++
++    // 复制到apex目录
++    if (access(apexipconfigfile.c_str(), F_OK) == 0) {
++        std::ifstream src(ipconfigfile, std::ios::binary);
++        std::ofstream dst(apexipconfigfile, std::ios::binary | std::ios::trunc);
++        dst << src.rdbuf();
++    }
++    return 0;
++}
 diff --git a/init/mount_namespace.cpp b/init/mount_namespace.cpp
-index f3b584c..5796e06 100644
+index f3b584c4c..5796e065b 100644
 --- a/init/mount_namespace.cpp
 +++ b/init/mount_namespace.cpp
 @@ -73,6 +73,7 @@ static bool MakeSlave(const std::string& mount_point, bool recursive = false) {
@@ -320,7 +641,7 @@ index f3b584c..5796e06 100644
      if (recursive) {
          mountflags |= MS_REC;
 diff --git a/init/property_service.cpp b/init/property_service.cpp
-index a89504e..52a5264 100644
+index a89504e59..550e86650 100644
 --- a/init/property_service.cpp
 +++ b/init/property_service.cpp
 @@ -106,7 +106,7 @@ struct PropertyAuditData {
@@ -418,7 +739,19 @@ index a89504e..52a5264 100644
                  LOG(ERROR) << "Could not set '" << name << "' to '" << value
                             << "' in /data/local.prop: " << error;
              }
-@@ -1005,7 +1046,7 @@ static void ExportKernelBootProps() {
+@@ -898,7 +939,10 @@ void PropertyLoadBootDefaults() {
+     }
+     load_properties_from_file("/product/build.prop", nullptr, &properties);
+     load_properties_from_file("/factory/factory.prop", "ro.*", &properties);
+-
++    
++    load_properties_from_file("/kbox_prop/build.prop", nullptr, &properties);
++    load_properties_from_file("/kbox_prop/default.prop", nullptr, &properties);
++    load_properties_from_file("/kbox_prop/local.prop", nullptr, &properties);
+     if (access(kDebugRamdiskProp, R_OK) == 0) {
+         LOG(INFO) << "Loading " << kDebugRamdiskProp;
+         load_properties_from_file(kDebugRamdiskProp, nullptr, &properties);
+@@ -1005,7 +1049,7 @@ static void ExportKernelBootProps() {
          { "ro.boot.mode",       "ro.bootmode",   "unknown", },
          { "ro.boot.baseband",   "ro.baseband",   "unknown", },
          { "ro.boot.bootloader", "ro.bootloader", "unknown", },
@@ -427,7 +760,7 @@ index a89504e..52a5264 100644
          { "ro.boot.revision",   "ro.revision",   "0", },
              // clang-format on
      };
-@@ -1059,9 +1100,9 @@ static void ProcessKernelCmdline() {
+@@ -1059,9 +1103,9 @@ static void ProcessKernelCmdline() {
  }
  
  void PropertyInit() {
@@ -441,7 +774,7 @@ index a89504e..52a5264 100644
      mkdir("/dev/__properties__", S_IRWXU | S_IXGRP | S_IXOTH);
      CreateSerializedPropertyInfo();
 diff --git a/init/reboot.cpp b/init/reboot.cpp
-index a4fb08e..bb7cf87 100644
+index a4fb08e0b..bb7cf8776 100644
 --- a/init/reboot.cpp
 +++ b/init/reboot.cpp
 @@ -686,7 +686,7 @@ static void DoReboot(unsigned int cmd, const std::string& reason, const std::str
@@ -454,7 +787,7 @@ index a4fb08e..bb7cf87 100644
          vold_service->Stop();
      } else {
 diff --git a/init/selinux.cpp b/init/selinux.cpp
-index 5a0255a..811261e 100644
+index 5a0255acd..811261eac 100644
 --- a/init/selinux.cpp
 +++ b/init/selinux.cpp
 @@ -104,6 +104,7 @@ EnforcingStatus StatusFromCmdline() {
@@ -483,7 +816,7 @@ index 5a0255a..811261e 100644
  
      const char* path = "/system/bin/init";
 diff --git a/init/service.cpp b/init/service.cpp
-index 69f944e..79c0f61 100644
+index 69f944eb2..79c0f61af 100644
 --- a/init/service.cpp
 +++ b/init/service.cpp
 @@ -62,6 +62,15 @@ using android::base::WriteStringToFile;
@@ -580,7 +913,7 @@ index 69f944e..79c0f61 100644
          // priority. Aborts on failure.
          SetProcessAttributesAndCaps();
 diff --git a/init/subcontext.cpp b/init/subcontext.cpp
-index f3dd538..a79fd7a 100644
+index f3dd53826..a79fd7a9a 100644
 --- a/init/subcontext.cpp
 +++ b/init/subcontext.cpp
 @@ -326,6 +326,7 @@ Result<std::vector<std::string>> Subcontext::ExpandArgs(const std::vector<std::s
@@ -602,7 +935,7 @@ index f3dd538..a79fd7a 100644
          if (!subcontext_terminated_by_shutdown) {
              subcontext->Restart();
 diff --git a/init/util.cpp b/init/util.cpp
-index 255434a..7dc992d 100644
+index 255434a1b..7dc992d9f 100644
 --- a/init/util.cpp
 +++ b/init/util.cpp
 @@ -88,18 +88,19 @@ Result<uid_t> DecodeUid(const std::string& name) {
@@ -692,7 +1025,7 @@ index 255434a..7dc992d 100644
  
  /*
 diff --git a/libcutils/android_reboot.cpp b/libcutils/android_reboot.cpp
-index e0def71..e527bc1 100644
+index e0def711d..e527bc155 100644
 --- a/libcutils/android_reboot.cpp
 +++ b/libcutils/android_reboot.cpp
 @@ -22,8 +22,12 @@
@@ -709,7 +1042,7 @@ index e0def71..e527bc1 100644
      const char* restart_cmd = NULL;
      char* prop_value;
 diff --git a/liblog/include/android/log.h b/liblog/include/android/log.h
-index 512c7cd..2ccc37d 100644
+index 512c7cd7b..2ccc37d0b 100644
 --- a/liblog/include/android/log.h
 +++ b/liblog/include/android/log.h
 @@ -59,6 +59,13 @@
@@ -727,7 +1060,7 @@ index 512c7cd..2ccc37d 100644
  #define __INTRODUCED_IN(x)
  #endif
 diff --git a/libprocessgroup/sched_policy.cpp b/libprocessgroup/sched_policy.cpp
-index 698e74d..8b19643 100644
+index 698e74d40..8b196430d 100644
 --- a/libprocessgroup/sched_policy.cpp
 +++ b/libprocessgroup/sched_policy.cpp
 @@ -170,11 +170,13 @@ int get_sched_policy(int tid, SchedPolicy* policy) {
@@ -745,7 +1078,7 @@ index 698e74d..8b19643 100644
          if (getCGroupSubsys(tid, "cpuset", group) < 0) return -1;
      }
 diff --git a/libprocessgroup/setup/cgroup_map_write.cpp b/libprocessgroup/setup/cgroup_map_write.cpp
-index 25f16a6..2f76d44 100644
+index 25f16a6e9..2f76d44b9 100644
 --- a/libprocessgroup/setup/cgroup_map_write.cpp
 +++ b/libprocessgroup/setup/cgroup_map_write.cpp
 @@ -291,6 +291,11 @@ static bool SetupCgroup(const CgroupDescriptor& descriptor) {
@@ -799,7 +1132,7 @@ index 25f16a6..2f76d44 100644
      }
  
 diff --git a/libsuspend/autosuspend.c b/libsuspend/autosuspend.c
-index b87f59c..e505ef9 100644
+index b87f59cd6..e505ef939 100644
 --- a/libsuspend/autosuspend.c
 +++ b/libsuspend/autosuspend.c
 @@ -28,6 +28,7 @@ static struct autosuspend_ops* autosuspend_ops = NULL;
@@ -843,7 +1176,7 @@ index b87f59c..e505ef9 100644
  
      ret = autosuspend_init();
 diff --git a/logd/main.cpp b/logd/main.cpp
-index acf9a07..310a185 100644
+index acf9a071f..310a1850d 100644
 --- a/logd/main.cpp
 +++ b/logd/main.cpp
 @@ -58,11 +58,13 @@
@@ -883,7 +1216,7 @@ index acf9a07..310a185 100644
  }
  
 diff --git a/qemu_pipe/qemu_pipe.cpp b/qemu_pipe/qemu_pipe.cpp
-index beeccb0..787b18b 100644
+index beeccb07f..787b18b8f 100644
 --- a/qemu_pipe/qemu_pipe.cpp
 +++ b/qemu_pipe/qemu_pipe.cpp
 @@ -21,6 +21,8 @@
@@ -923,7 +1256,7 @@ index beeccb0..787b18b 100644
          QEMU_PIPE_DEBUG("%s: Could not open /dev/qemu_pipe: %s", __FUNCTION__,
                          strerror(errno));
 diff --git a/rootdir/Android.mk b/rootdir/Android.mk
-index a9d0ed0..ac74a52 100644
+index a9d0ed08a..ac74a52a0 100644
 --- a/rootdir/Android.mk
 +++ b/rootdir/Android.mk
 @@ -83,7 +83,8 @@ LOCAL_POST_INSTALL_CMD := mkdir -p $(addprefix $(TARGET_ROOT_OUT)/, \
@@ -937,7 +1270,7 @@ index a9d0ed0..ac74a52 100644
    LOCAL_POST_INSTALL_CMD += ; mkdir -p $(TARGET_ROOT_OUT)/vendor
  else
 diff --git a/rootdir/init.rc b/rootdir/init.rc
-index a9af0b0..fa28af5 100644
+index a9af0b094..eda4fb4b4 100644
 --- a/rootdir/init.rc
 +++ b/rootdir/init.rc
 @@ -8,7 +8,7 @@ import /init.environ.rc
@@ -958,7 +1291,26 @@ index a9af0b0..fa28af5 100644
  
      symlink /dev/binderfs/binder /dev/binder
      symlink /dev/binderfs/hwbinder /dev/hwbinder
-@@ -811,7 +811,7 @@ on zygote-start && property:persist.sys.fuse=""
+@@ -457,7 +457,7 @@ on post-fs
+ 
+     # Once everything is setup, no need to modify /.
+     # The bind+remount combination allows this to work in containers.
+-    mount rootfs rootfs / remount bind ro nodev
++    mount rootfs rootfs / remount bind rw nodev
+ 
+     # Make sure /sys/kernel/debug (if present) is labeled properly
+     # Note that tracefs may be mounted under debug, so we need to cross filesystems
+@@ -791,6 +791,9 @@ on post-fs-data
+     # Enable FUSE by default
+     setprop persist.sys.fuse true
+ 
++    exec - root root -- /system/bin/ipconfigstore
++    chown system system /data/misc/ethernet/ipconfig.txt
++
+ # Switch between sdcardfs and FUSE depending on persist property
+ # TODO: Move this to ro property before launch because FDE devices
+ # interact with persistent properties differently during boot
+@@ -811,7 +814,7 @@ on zygote-start && property:persist.sys.fuse=""
  # to start-zygote in device's init.rc to unblock zygote start.
  on zygote-start && property:ro.crypto.state=unencrypted
      # A/B update verifier that marks a successful boot.
@@ -967,7 +1319,7 @@ index a9af0b0..fa28af5 100644
      start statsd
      start netd
      start zygote
-@@ -819,7 +819,7 @@ on zygote-start && property:ro.crypto.state=unencrypted
+@@ -819,7 +822,7 @@ on zygote-start && property:ro.crypto.state=unencrypted
  
  on zygote-start && property:ro.crypto.state=unsupported
      # A/B update verifier that marks a successful boot.
@@ -976,7 +1328,7 @@ index a9af0b0..fa28af5 100644
      start statsd
      start netd
      start zygote
-@@ -827,7 +827,7 @@ on zygote-start && property:ro.crypto.state=unsupported
+@@ -827,7 +830,7 @@ on zygote-start && property:ro.crypto.state=unsupported
  
  on zygote-start && property:ro.crypto.state=encrypted && property:ro.crypto.type=file
      # A/B update verifier that marks a successful boot.
@@ -985,7 +1337,7 @@ index a9af0b0..fa28af5 100644
      start statsd
      start netd
      start zygote
-@@ -938,7 +938,7 @@ on boot
+@@ -938,7 +941,7 @@ on boot
      # Requires keystore (currently a core service) to be ready first.
      exec -- /system/bin/fsverity_init
  
@@ -994,7 +1346,7 @@ index a9af0b0..fa28af5 100644
      class_start main
      class_start late_start
  
-@@ -1050,8 +1050,8 @@ on property:ro.debuggable=1
+@@ -1050,8 +1053,8 @@ on property:ro.debuggable=1
      # Give reads to anyone for the window trace folder on debug builds.
      chmod 0775 /data/misc/wmtrace
  
@@ -1006,7 +1358,7 @@ index a9af0b0..fa28af5 100644
  on userspace-reboot-requested
    # TODO(b/135984674): reset all necessary properties here.
 diff --git a/rootdir/init.usb.rc b/rootdir/init.usb.rc
-index 27b05ec..2d56b0f 100644
+index 27b05ec17..2d56b0f23 100644
 --- a/rootdir/init.usb.rc
 +++ b/rootdir/init.usb.rc
 @@ -23,9 +23,10 @@ service adbd /system/bin/adbd --root_seclabel=u:r:su:s0
@@ -1022,7 +1374,7 @@ index 27b05ec..2d56b0f 100644
      write /sys/class/android_usb/android0/enable 0
      write /sys/class/android_usb/android0/bDeviceClass 0
 diff --git a/rootdir/init.zygote32.rc b/rootdir/init.zygote32.rc
-index e827cf5..375d78c 100644
+index e827cf557..375d78c04 100644
 --- a/rootdir/init.zygote32.rc
 +++ b/rootdir/init.zygote32.rc
 @@ -5,11 +5,11 @@ service zygote /system/bin/app_process -Xzygote /system/bin --zygote --start-sys
@@ -1041,7 +1393,7 @@ index e827cf5..375d78c 100644
 -    writepid /dev/cpuset/foreground/tasks
 +    # writepid /dev/cpuset/foreground/tasks
 diff --git a/rootdir/init.zygote32_64.rc b/rootdir/init.zygote32_64.rc
-index fe6dcfa..546d810 100644
+index fe6dcfa47..546d810d2 100644
 --- a/rootdir/init.zygote32_64.rc
 +++ b/rootdir/init.zygote32_64.rc
 @@ -5,14 +5,14 @@ service zygote /system/bin/app_process32 -Xzygote /system/bin --zygote --start-s
@@ -1069,7 +1421,7 @@ index fe6dcfa..546d810 100644
 -    writepid /dev/cpuset/foreground/tasks
 +    # writepid /dev/cpuset/foreground/tasks
 diff --git a/rootdir/init.zygote64.rc b/rootdir/init.zygote64.rc
-index adc7031..97ea807 100644
+index adc703102..97ea8077f 100644
 --- a/rootdir/init.zygote64.rc
 +++ b/rootdir/init.zygote64.rc
 @@ -5,11 +5,11 @@ service zygote /system/bin/app_process64 -Xzygote /system/bin --zygote --start-s
@@ -1088,7 +1440,7 @@ index adc7031..97ea807 100644
 -    writepid /dev/cpuset/foreground/tasks
 +    # writepid /dev/cpuset/foreground/tasks
 diff --git a/rootdir/init.zygote64_32.rc b/rootdir/init.zygote64_32.rc
-index fb9e99b..a931bd6 100644
+index fb9e99b69..a931bd67b 100644
 --- a/rootdir/init.zygote64_32.rc
 +++ b/rootdir/init.zygote64_32.rc
 @@ -5,8 +5,9 @@ service zygote /system/bin/app_process64 -Xzygote /system/bin --zygote --start-s
@@ -1104,7 +1456,7 @@ index fb9e99b..a931bd6 100644
      onrestart restart cameraserver
      onrestart restart media
 diff --git a/sdcard/Android.bp b/sdcard/Android.bp
-index c096587..84188b5 100644
+index c096587ba..84188b5bc 100644
 --- a/sdcard/Android.bp
 +++ b/sdcard/Android.bp
 @@ -1,15 +1,17 @@
@@ -1127,7 +1479,7 @@ index c096587..84188b5 100644
      sanitize: {
          misc_undefined: ["integer"],
 diff --git a/sdcard/sdcard.cpp b/sdcard/sdcard.cpp
-index 622de5b..75ee8ba 100644
+index 622de5b7a..75ee8bafe 100644
 --- a/sdcard/sdcard.cpp
 +++ b/sdcard/sdcard.cpp
 @@ -43,6 +43,7 @@
@@ -1175,7 +1527,7 @@ index 622de5b..75ee8ba 100644
 +
 diff --git a/sdcard/sdcard_fuse.cpp b/sdcard/sdcard_fuse.cpp
 new file mode 100755
-index 0000000..9d4ec34
+index 000000000..9d4ec347d
 --- /dev/null
 +++ b/sdcard/sdcard_fuse.cpp
 @@ -0,0 +1,2056 @@
@@ -3238,7 +3590,7 @@ index 0000000..9d4ec34
 \ No newline at end of file
 diff --git a/sdcard/sdcard_wrapper.h b/sdcard/sdcard_wrapper.h
 new file mode 100755
-index 0000000..6ce996d
+index 000000000..a7af50abd
 --- /dev/null
 +++ b/sdcard/sdcard_wrapper.h
 @@ -0,0 +1,4 @@
