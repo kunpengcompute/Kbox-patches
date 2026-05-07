@@ -78,43 +78,6 @@ index 5abf5141f..9711b3711 100644
  // bionic and glibc both have TEMP_FAILURE_RETRY, but eg Mac OS' libc doesn't.
  #ifndef TEMP_FAILURE_RETRY
  #define TEMP_FAILURE_RETRY(exp)            \
-diff --git a/debuggerd/Android.bp b/debuggerd/Android.bp
-index c7bd1a83b..4454d6d37 100644
---- a/debuggerd/Android.bp
-+++ b/debuggerd/Android.bp
-@@ -85,6 +85,8 @@ cc_library_static {
- 
-     export_header_lib_headers: ["libdebuggerd_common_headers"],
-     export_include_dirs: ["include"],
-+
-+    cflags: ["-DWITH_EXAGEAR"],
- }
- 
- // Implementation with a no-op fallback.
-diff --git a/debuggerd/handler/debuggerd_handler.cpp b/debuggerd/handler/debuggerd_handler.cpp
-index 8b4b6304f..0903b6606 100644
---- a/debuggerd/handler/debuggerd_handler.cpp
-+++ b/debuggerd/handler/debuggerd_handler.cpp
-@@ -514,13 +514,18 @@ static void debuggerd_signal_handler(int signal_number, siginfo_t* info, void* c
-     }
-   }
- 
-+  // We can't use ptrace to get the register state with ExaGear, so just obtain
-+  // the backtrace directly from the signal context.
-+#if !defined(WITH_EXAGEAR) || !defined(__arm__)
-   // If sival_int is ~0, it means that the fallback handler has been called
-   // once before and this function is being called again to dump the stack
-   // of a specific thread. It is possible that the prctl call might return 1,
-   // then return 0 in subsequent calls, so check the sival_int to determine if
-   // the fallback handler should be called first.
-   if (si_val == kDebuggerdFallbackSivalUintptrRequestDump ||
--      prctl(PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0) == 1) {
-+      prctl(PR_GET_NO_NEW_PRIVS, 0, 0, 0, 0) == 1)
-+#endif
-+  {
-     // This check might be racy if another thread sets NO_NEW_PRIVS, but this should be unlikely,
-     // you can only set NO_NEW_PRIVS to 1, and the effect should be at worst a single missing
-     // ANR trace.
 diff --git a/fs_mgr/Android.bp b/fs_mgr/Android.bp
 index ac784b249..03aa64dbe 100644
 --- a/fs_mgr/Android.bp
