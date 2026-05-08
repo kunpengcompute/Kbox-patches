@@ -531,7 +531,7 @@ su root
 
 输入如下命令添加写入（w）权限
 ```shell
-chmod a+w /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq
+chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufreq/
 ```
 
 ##### 11.2.1.3 **文件说明**<a name="ZH-CN_TOPIC_0000002549832553"></a>
