@@ -652,7 +652,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
     |配置项|配置要求|配置结果对照|.config中显示的配置结果|
     |--|--|--|--|
-    |CONFIG_F2FS_FS|Y|[\*] Support for F2FS files|CONFIG_F2FS_FS=y|  
+    |CONFIG_F2FS_FS|Y|[\*] F2FS filesystem support|CONFIG_F2FS_FS=y|  
 
     如果要使能容器支持以f2fs文件格式启动，则还要进行上面内核编译选项的配置
 

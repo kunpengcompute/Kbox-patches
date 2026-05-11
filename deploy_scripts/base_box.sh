@@ -732,6 +732,7 @@ function start_box() {
     if [ -e "/dev/tango32" ]; then
         RUN_OPTION+=" --device=/dev/tango32:/dev/tango32:rwm "
     fi
+     
     RUN_OPTION+=" --volume=$KBOX_DATA_PATH/cache:/cache:rw "
     RUN_OPTION+=" --volume=$KBOX_DATA_PATH/data:/data:rw "
     RUN_OPTION+=" --volume=$INPUT_EVENT_PATH/event0:/dev/input/event0:rw "
@@ -742,6 +743,19 @@ function start_box() {
     RUN_OPTION+=" --volume=$(get_lxcfs_path)/proc/swaps:/proc/swaps:ro "
     RUN_OPTION+=" --volume=$(get_lxcfs_path)/proc/uptime:/proc/uptime:ro "
     RUN_OPTION+=" --volume=$KBOX_DATA_PATH/storage_size:/storage_size:rw "
+    if [ -f $THISDIR/default.prop_$BOX_NAME ]; then
+        RUN_OPTION+=" --volume=$THISDIR/default.prop_$BOX_NAME:/kbox_prop/default.prop:rw "
+    fi
+    if [ -f $THISDIR/build.prop ]; then
+        RUN_OPTION+=" --volume=$THISDIR/build.prop:/kbox_prop/build.prop:rw "
+    fi
+    if [ -e "$CURRENT_DIR/local.prop" ]; then
+        chmod 400 $CURRENT_DIR/local.prop
+        RUN_OPTION+=" --volume=$CURRENT_DIR/local.prop:/data/local.prop:rw "
+    fi
+    if [[ $ENABLE_RENDER_LAYER == "1" ]]; then
+        create_app_shader_filesystem ${BOX_NAME} RUN_OPTION
+    fi
 
     # --- 新增的 /system 分区大小配置及 xfs 校验逻辑 开始 ---
     # 如果参数为空，赋予默认值 0
@@ -781,44 +795,7 @@ function start_box() {
             RUN_OPTION+=" --device=/dev/dma_heap/system:/dev/dma_heap/system:rwm"
         fi
     fi
-    
-    $RUNTIME_CMD run $RUN_OPTION $IMAGE_NAME sh
-
-    if [ $DEFAULT_RUNTIME == "containerd" ]; then
-        $RUNTIME_CMD exec -i ${BOX_NAME} ln -s /dev/net/tun /dev/tun
-    fi
-    
-    # 支持Android系统属性可定制
-    # local.prop用于修改定制属性，但该文件不是一定存在，需要用户手动生成。
-    if [ -e "$CURRENT_DIR/local.prop" ]; then
-        $RUNTIME_CMD cp $CURRENT_DIR/local.prop ${BOX_NAME}:/data
-        $RUNTIME_CMD exec ${BOX_NAME} chmod 400 /data/local.prop
-    fi
-
-    # 配置是否使能C2解码器
-    if lspci | grep -q "Radeon PRO W6800"; then
-        $RUNTIME_CMD cp ${BOX_NAME}:/system/vendor/build.prop build.prop_${BOX_NAME}
-        if [ $ENABLE_AMD_C2_DECODE -eq 1 ];then
-            sed -i "s/ro.hardware.enableC2decode=0/ro.hardware.enableC2decode=1/g" build.prop_${BOX_NAME}
-            sudo chmod 666 /dev/dma_heap/system
-        else
-            sed -i "s/ro.hardware.enableC2decode=1/ro.hardware.enableC2decode=0/g" build.prop_${BOX_NAME}
-        fi
-        $RUNTIME_CMD cp build.prop_${BOX_NAME} ${BOX_NAME}:/system/vendor/build.prop
-        rm -rf ./build.prop_${BOX_NAME}
-    fi
-
-    # VA GPU需要配置相关属性、修改设备的权限, 否则会导致容器无法启动, 当前VA GPU仅支持一张卡，故使用 GPUS_RENDER[0]
-    if [ -n "$(lspci -n | grep ${VA_SGPU100_ID} | awk '{print $3}')" ]; then
-        $RUNTIME_CMD cp ${BOX_NAME}:/system/vendor/build.prop build.prop_${BOX_NAME}
-        if [ $ENABLE_HARD_DECODE -eq 1 ];then
-            sed -i "s/ro.hardware.omxsoftdecode=1/ro.hardware.omxsoftdecode=0/g" build.prop_${BOX_NAME}
-        else
-            sed -i "s/ro.hardware.omxsoftdecode=0/ro.hardware.omxsoftdecode=1/g" build.prop_${BOX_NAME}
-        fi
-        $RUNTIME_CMD cp build.prop_${BOX_NAME} ${BOX_NAME}:/system/vendor/build.prop
-        rm -rf ./build.prop_${BOX_NAME}
-    fi
+    $RUNTIME_CMD run $RUN_OPTION $IMAGE_NAME init
     local cid=$($RUNTIME_CMD ps | grep -w " ${BOX_NAME}" | awk '{print $1}')
 
     local BINDER_MAJOR_ID=$(cat /proc/devices | grep binder | awk '{print $1}')
@@ -831,6 +808,15 @@ function start_box() {
         echo "c $BINDER_MAJOR_ID:* rwm" >$(ls -d /sys/fs/cgroup/devices/default/$cid*/devices.allow)
         echo 1 > /sys/fs/cgroup/cpuset/default/$cid*/cgroup.clone_children
     fi
+
+    if [ $DEFAULT_RUNTIME == "containerd" ]; then
+        $RUNTIME_CMD exec -i ${BOX_NAME} ln -s /dev/net/tun /dev/tun
+    fi
+
+    container_id=$($RUNTIME_CMD ps --filter "name=$BOX_NAME" --format "{{.ID}}")
+    echo $container_id > $THISDIR/containerid_${BOX_NAME}
+    $RUNTIME_CMD cp $THISDIR/containerid_${BOX_NAME} ${BOX_NAME}:/data/containerid
+    rm -f $THISDIR/containerid_${BOX_NAME}
 
     if [[ $ENABLE_RENDER_LAYER == "1" ]]; then
         # 渲染中间层
@@ -1101,6 +1087,19 @@ function restart_box() {
         $RUNTIME_CMD stop -t 0 ${BOX_NAME}
         echo "${BOX_NAME} begins restarting the $i times!"
         $RUNTIME_CMD start ${BOX_NAME}
+        local cid=$($RUNTIME_CMD ps | grep -w " ${BOX_NAME}" | awk '{print $1}')
+        local BINDER_MAJOR_ID=$(cat /proc/devices | grep binder | awk '{print $1}')
+        if [ $DEFAULT_RUNTIME == "docker" ]; then
+            # 赋予容器binder设备节点cgroup devices权限
+            echo "c $BINDER_MAJOR_ID:* rwm" >$(ls -d /sys/fs/cgroup/devices/docker/$cid*/devices.allow)
+            echo "c 13:* rwm" >$(ls -d /sys/fs/cgroup/devices/docker/$cid*/devices.allow)
+            echo 1 > /sys/fs/cgroup/cpuset/docker/$cid*/cgroup.clone_children
+        else
+            # 赋予容器binder设备节点cgroup devices权限
+            echo "c $BINDER_MAJOR_ID:* rwm" >$(ls -d /sys/fs/cgroup/devices/default/$cid*/devices.allow)
+            echo "c 13:* rwm" >$(ls -d /sys/fs/cgroup/devices/default/$cid*/devices.allow)
+            echo 1 > /sys/fs/cgroup/cpuset/default/$cid*/cgroup.clone_children
+        fi
 
         if [ $DEFAULT_RUNTIME == "containerd" ]; then
             $RUNTIME_CMD exec -i ${BOX_NAME} ln -s /dev/net/tun /dev/tun
@@ -1118,44 +1117,6 @@ function restart_box() {
         local execOneTime=true
         local VA_SGPU100_ID=":0200"
           
-        if [ -n "$(lspci -n | grep ${VA_SGPU100_ID} | awk '{print $3}')" ] && [ execOneTime ]; then
-            $RUNTIME_CMD cp ${BOX_NAME}:/system/vendor/build.prop build.prop_${BOX_NAME}
-            if [ $ENABLE_HARD_DECODE -eq 1 ];then
-                sed -i "s/ro.hardware.omxsoftdecode=1/ro.hardware.omxsoftdecode=0/g" build.prop_${BOX_NAME}
-            else
-                sed -i "s/ro.hardware.omxsoftdecode=0/ro.hardware.omxsoftdecode=1/g" build.prop_${BOX_NAME}
-            fi
-            $RUNTIME_CMD cp build.prop_${BOX_NAME} ${BOX_NAME}:/system/vendor/build.prop
-            rm -rf ./build.prop_${BOX_NAME}
-            execOneTime=false
-        fi
-        local cid=$($RUNTIME_CMD ps | grep -w " ${BOX_NAME}" | awk '{print $1}')
-        local BINDER_MAJOR_ID=$(cat /proc/devices | grep binder | awk '{print $1}')
-        if [ $DEFAULT_RUNTIME == "docker" ]; then
-            # 赋予容器binder设备节点cgroup devices权限
-            echo "c $BINDER_MAJOR_ID:* rwm" >$(ls -d /sys/fs/cgroup/devices/docker/$cid*/devices.allow)
-            echo "c 13:* rwm" >$(ls -d /sys/fs/cgroup/devices/docker/$cid*/devices.allow)
-            echo 1 > /sys/fs/cgroup/cpuset/docker/$cid*/cgroup.clone_children
-        else
-            # 赋予容器binder设备节点cgroup devices权限
-            echo "c $BINDER_MAJOR_ID:* rwm" >$(ls -d /sys/fs/cgroup/devices/default/$cid*/devices.allow)
-            echo "c 13:* rwm" >$(ls -d /sys/fs/cgroup/devices/default/$cid*/devices.allow)
-            echo 1 > /sys/fs/cgroup/cpuset/default/$cid*/cgroup.clone_children
-        fi
-
-        # 支持Android系统属性可定制
-        # local.prop用于修改定制属性，但该文件不是一定存在，需要用户手动生成。
-        if [ -e "$CURRENT_DIR/local.prop" ]; then
-            $RUNTIME_CMD cp $CURRENT_DIR/local.prop ${BOX_NAME}:/data
-            $RUNTIME_CMD exec ${BOX_NAME} chmod 400 /data/local.prop
-        fi
-
-        if [ $DEFAULT_RUNTIME == "docker" ]; then
-            $RUNTIME_CMD exec -itd ${BOX_NAME} /kbox-init.sh
-        else
-            $RUNTIME_CMD exec -d ${BOX_NAME} /kbox-init.sh 1
-        fi
-
         local count_time=0
         while true; do
             local cmd="$RUNTIME_CMD exec -i ${BOX_NAME} getprop sys.boot_completed | grep 1 &"

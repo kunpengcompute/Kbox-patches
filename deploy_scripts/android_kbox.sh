@@ -207,7 +207,6 @@ function get_closest_numas() {
 
 function wait_container_ready() {
     local KBOX_NAME=$1
-    docker exec -itd ${KBOX_NAME} /kbox-init.sh
     local starttime=$(date +'%Y-%m-%d %H:%M:%S')
     local start_seconds=$(date --date="${starttime}" +%s)
     local res=0
@@ -437,6 +436,29 @@ function start_box_by_id() {
 
     # 调试端口
     local PORTS=("$((8500+$TAG_NUMBER)):5555")
+    if [ -f build.prop ]; then
+	    rm -rf build.prop
+    fi
+    echo "ro.hardware.enableC2decode=0" >> build.prop
+    echo "ro.hardware.omxsoftdecode=1" >> build.prop
+    # 配置是否使能C2解码器
+    if lspci | grep -q "Radeon PRO W6800"; then
+        if [ ${ENABLE_AMD_C2_DECODE} -eq 1 ];then
+            sed -i "s/ro.hardware.enableC2decode=0/ro.hardware.enableC2decode=1/g" build.prop
+            sudo chmod 666 /dev/dma_heap/system
+        else
+            sed -i "s/ro.hardware.enableC2decode=1/ro.hardware.enableC2decode=0/g" build.prop
+        fi
+    fi
+
+    # VA GPU需要配置相关属性、修改设备的权限, 否则会导致容器无法启动, 当前VA GPU仅支持一张卡，故使用 GPUS_RENDER[0]
+    if [ -n "$(lspci -n | grep ${VA_SGPU100_ID} | awk '{print $3}')" ]; then
+        if [ $ENABLE_HARD_DECODE -eq 1 ];then
+            sed -i "s/ro.hardware.omxsoftdecode=1/ro.hardware.omxsoftdecode=0/g" build.prop
+        else
+            sed -i "s/ro.hardware.omxsoftdecode=0/ro.hardware.omxsoftdecode=1/g" build.prop
+        fi
+    fi
 
     # docker额外启动参数
     local EXTRA_RUN_OPTION=""
@@ -474,6 +496,12 @@ function start_box_by_id() {
     --system_size_mb "$SYSTEM_PARTITION_SIZE_MB" \
     --enable_nfs "$enable_nfs" \
     --nfs_dir "$NFS_DIR"
+
+    # 新增拦截：判断上方的 base_box.sh 是否成功执行
+    if [ $? -ne 0 ]; then
+        echo -e "\033[1;31m[ERROR] ${CONTAINER_NAME} 基础环境准备失败，终止后续拉起流程！\033[0m"
+        return 1
+    fi
 
     enable_hard_decoder $TAG_NUMBER
 
