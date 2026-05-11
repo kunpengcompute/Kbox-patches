@@ -60,6 +60,28 @@ function check_devices() {
     fi
 }
 
+function check_nfs_mount() {
+    local nfs_dir=$1
+    
+    if [ ! -d "$nfs_dir" ]; then
+        echo -e "\033[1;31m[ERROR] NFS目录 ${nfs_dir} 不存在！\033[0m"
+        exit 1
+    fi
+    
+    if ! mountpoint -q "$nfs_dir"; then
+        echo -e "\033[1;31m[ERROR] NFS目录 ${nfs_dir} 不是挂载点！\033[0m"
+        exit 1
+    fi
+    
+    if ! mount | grep " ${nfs_dir} " | grep -qE " type nfs| type nfs4"; then
+        echo -e "\033[1;31m[ERROR] NFS目录 ${nfs_dir} 不是NFS远端挂载目录！\033[0m"
+        exit 1
+    fi
+    
+    echo "NFS目录 ${nfs_dir} 检查通过"
+    return 0
+}
+
 function check_paras() {
     set +e
 
@@ -341,8 +363,9 @@ function netint_run_option() {
 }
 
 function start_box_by_id() {
-    local enabel_nfs=0
+    local enable_nfs=0
     if [ "$1" = "nstart" ];then
+        check_nfs_mount "$NFS_DIR"
         enable_nfs=1
     fi
 
