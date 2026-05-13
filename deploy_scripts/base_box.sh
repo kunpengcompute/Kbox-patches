@@ -583,10 +583,11 @@ function start_box() {
 
     ########################## 3.环境初始化 ##########################
     if [ $DEFAULT_RUNTIME == "docker" ]; then
-        CONTAINER_DATA_PATH="/var/lib/docker"
+        # 如果未通过参数指定，则动态获取 Docker 根目录，失败时降级到默认路径
+        CONTAINER_DATA_PATH=$($RUNTIME_CMD info --format '{{.DockerRootDir}}' 2>/dev/null || echo "/var/lib/docker")
     else
         CONTAINER_DATA_PATH="/var/lib/containerd"
-        SYSTEM_SIZE_MB=0
+        SYSTEM_SIZE_MB=0          
     fi
 
     # HOOK_PATH
@@ -1053,6 +1054,16 @@ function restart_box() {
         SYSTEM_SIZE_MB=$7
     fi
 
+    # --- 新增获取 CONTAINER_DATA_PATH 的逻辑 ---
+    local CONTAINER_DATA_PATH=""
+    if [ "$DEFAULT_RUNTIME" == "docker" ]; then
+        CONTAINER_DATA_PATH=$($RUNTIME_CMD info --format '{{.DockerRootDir}}' 2>/dev/null || echo "/var/lib/docker")
+    else
+        CONTAINER_DATA_PATH="/var/lib/containerd"
+        SYSTEM_SIZE_MB=0
+    fi
+    # --------------------------------------------
+
     set +e
     if [ -z ${USER_DATA_PATH} ]; then
         USER_DATA_PATH="/root/mount"
@@ -1070,7 +1081,7 @@ function restart_box() {
     fi
 
     if [ "$SYSTEM_SIZE_MB" -ne 0 ]; then
-        check_system_size_modify "/var/lib/docker"
+        check_system_size_modify "$CONTAINER_DATA_PATH"
     fi
 
     mock_cpu
