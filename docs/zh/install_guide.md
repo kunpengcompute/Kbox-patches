@@ -24,8 +24,8 @@ Kbox云手机容器环境部署的硬件环境配置方案要求如[**表 1** Kb
 |Riser卡|RISER1与RISER2模组相同，均为：PCIe X16 + PCIe X8|RISER1与RISER2模组相同，均为：PCIe X8\*3|前置Riser（x8\*2）\*2+后置Riser（x8\*2）\*2+Riser3（x8\*2）\*1|后置Riser（x16+x8*2）\*2+Riser3（x8\*2）\*1|
 |编码卡|1 \* NETINT Quadra T2A（X8）|无|无|无|
 |GPU|2\*AMD W6800|4\*道客DC 1000|8\*道客DC 1000|8\*道客DC1000|
-|操作系统|openEuler 24.03 LTS SP1|openEuler 24.03 LTS SP1|openEuler 24.03 LTS SP1|openEuler 22.03 LTS SP4|
-|系统/内核版本|6.6.0-72.0.0|6.6.0-72.0.0|6.6.0-72.0.0|5.10.0-216.0.0|
+|操作系统|openEuler 24.03 LTS SP1|openEuler 24.03 LTS SP1|openEuler 24.03 LTS SP1|openEuler 24.03 LTS SP1|
+|系统/内核版本|6.6.0-72.0.0|6.6.0-72.0.0|6.6.0-72.0.0|6.6.0-72.0.0|
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >
