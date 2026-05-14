@@ -192,10 +192,10 @@ docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
 
 此前云手机容器内文件格式是服务器常用ext4格式，和真机的f2fs格式不同，下面步骤说明如何使能云手机支持以f2fs文件格式启动，使其和真实手机采用一样的文件系统，提高仿真能力
 
-#### 1.4.1  **环境准备。**
+#### 1.4.1  **环境准备**
    环境准备的步骤可以参照feature_guide.md的[8.2.1.1环境准备](feature_guide.md#ZH-CN_TOPIC_000000254986594100)章节
   
-#### 1.4.2. **使能配置项。**<a name="ZH-CN_TOPIC_0000002549832549"></a>
+#### 1.4.2. **使能配置项**<a name="ZH-CN_TOPIC_0000002549832549"></a>
 
    将配置文件的kbox_config.cfg中的ENABLE_F2FS设置为1
 
@@ -203,7 +203,7 @@ docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
    ENABLE_F2FS=1
    ```
 
-#### 1.4.3. **校验是否生效。**
+#### 1.4.3. **校验是否生效**
 
    启动容器后，进入容器环境查看挂载点信息。
 
@@ -220,7 +220,7 @@ docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
 #### 1.5.1. **环境准备**
    环境准备部分请参照feature_guide.md的[9.2 使用介绍](feature_guide.md#ZH-CN_TOPIC_0000002549865942)章节执行
 
-#### 1.5.2 **触发分区扩容逻辑。**<a name="ZH-CN_TOPIC_0000002549832550"></a>
+#### 1.5.2 **触发分区扩容逻辑**<a name="ZH-CN_TOPIC_0000002549832550"></a>
 
    在云手机配置文件kbox_config.cfg里，将SYSTEM_PARTITION_SIZE_MB设置为预期要实现的/system分区大小值，单位为MB
 
@@ -228,7 +228,7 @@ docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
    SYSTEM_PARTITION_SIZE_MB=${预期要实现的/system分区大小值(MB)}
    ```
 
-#### 1.5.3 **校验是否生效。**
+#### 1.5.3 **校验是否生效**
 
    启动容器后，在容器内执行下面命令检查系统分区的实际容量。
 
@@ -282,7 +282,7 @@ cat /tmp/nfs/data/kbox_1/data/containerd
    echo ${预期修改的值} > /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/cpuinfo_cur_freq
    ```
 
-#### 1.7.3. **校验是否生效。**
+#### 1.7.3. **校验是否生效**
    启动容器后，在容器内安装如“手机设备信息大全”的app，查看cpu频率是否等于预期，若等于预期值即表示cpu频率调节生效。
 
 ## 2 SCRCPY测试<a name="ZH-CN_TOPIC_0000002549865635"></a>
