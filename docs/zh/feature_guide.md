@@ -224,7 +224,7 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 ### 8.2 使用介绍<a name="ZH-CN_TOPIC_0000002549865941"></a>
 
-#### 8.2.1  **使用介绍。**
+#### 8.2.1  **使用介绍**
 
 ##### 8.2.1.1  环境准备<a name="ZH-CN_TOPIC_000000254986594100"></a>
 
@@ -244,7 +244,7 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 如果回显为空，说明当前内核不支持f2fs文件格式，则需要重新编一个支持f2fs格式的内核，编译时在”配置内核编译选项“步骤中需要把.config文件里的CONFIG_F2FS_FS设置为Y，重新编内核的步骤可以参照install_guide.md的[编译及安装内核](install_guide.md#ZH-CN_TOPIC_0000002518385420)章节
 
-##### 8.2.1.2 **新建f2fs磁盘并挂载指定目录。**
+##### 8.2.1.2 **新建f2fs磁盘并挂载指定目录**
 
 输入下面命令查找当前环境磁盘情况
 
@@ -327,7 +327,7 @@ mount | grep -i /data
 
 #### 9.2.1 安装特性<a name="ZH-CN_TOPIC_0000002518386093"></a>
 
-##### 9.2.1.1 **新建xfs盘并挂载。**
+##### 9.2.1.1 **新建xfs盘并挂载**
 
    输入下面命令查找当前环境磁盘情况
 
@@ -335,7 +335,7 @@ mount | grep -i /data
    lsblk -f
    ```
 
-如果已经有xfs格式的硬盘挂载在/var/lib/docker目录，那么可以直接跳到[触发分区扩容逻辑](ZH-CN_TOPIC_0000002549832550)章节继续执行
+如果已经有xfs格式的硬盘挂载在docker的根目录，一般默认是/var/lib/docker目录，那么可以直接跳到[触发分区扩容逻辑](ZH-CN_TOPIC_0000002549832550)章节继续执行
 
 输入如下命令新建物理盘分区
 
@@ -372,7 +372,7 @@ mount | grep -i /data
 输入如下挂载信息
 
    ```text
-   UUID=${UUID} /var/lib/docker  xfs defaults,pquota 0 2
+   UUID=${UUID} ${docker_root_dir}  xfs defaults,pquota 0 2
    ```
 
 挂载新分区，先启动xfs驱动，随后使能新分区挂载生效
@@ -383,7 +383,7 @@ mount | grep -i /data
    systemctl daemon-reload
    ```
 
-##### 9.2.1.2 **触发分区扩容逻辑。**<a name="ZH-CN_TOPIC_0000002549832550"></a>
+##### 9.2.1.2 **触发分区扩容逻辑**<a name="ZH-CN_TOPIC_0000002549832550"></a>
 
    在云手机配置文件kbox_config.cfg里，将SYSTEM_PARTITION_SIZE_MB设置为预期要实现的/system分区大小值，单位为MB
 
