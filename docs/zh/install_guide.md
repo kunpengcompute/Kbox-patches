@@ -128,11 +128,11 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 **配置Performance相关选项<a name="section18236319121"></a>**
 
-1. 在BIOS设置界面，依次选择“Advanced \> Performance Config“。
+1. 在BIOS设置界面，依次选择“Advanced \> Performance Config”。
 
     ![](figures/BIOS6.png)
 
-2. 进入Performance Config设置页面后，将“Power Policy“选项设置为“Performance“后保存并退出。
+2. 进入Performance Config设置页面后，将“Power Policy”选项设置为“Performance”后保存并退出。
 
     ![](figures/BIOS7.png)
 
@@ -150,9 +150,9 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 使用硬件配置方案一并需要使能编码卡硬件解码功能时，需要通过配置PCIe选项，完成编码卡分叉选项的配置，使编码卡在不同应用场景中具有更好的性能和兼容性。
 
 1. 在BIOS设置界面，依次选择“Advanced \> PCIe Config”。
-2. 进入PCIe Config设置页面后，首先配置PCIe分叉选项：将NETINT编码卡Quadra所在Slot的分叉设置为“x4“后保存并退出BIOS配置。
+2. 进入PCIe Config设置页面后，首先配置PCIe分叉选项：将NETINT编码卡Quadra所在Slot的分叉设置为“x4”后保存并退出BIOS配置。
 
-    例如Quadra安装在Slot3时，需要将“Slot3 BandWidth Splitting“选项设置为“x4”。
+    例如Quadra安装在Slot3时，需要将“Slot3 BandWidth Splitting”选项设置为“x4”。
 
     ![](figures/zh-cn_image_0000002549745303.png)
 
