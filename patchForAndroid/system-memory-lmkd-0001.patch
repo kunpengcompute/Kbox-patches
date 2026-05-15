@@ -1,5 +1,5 @@
 diff --git a/lmkd.cpp b/lmkd.cpp
-index 3515fdb..0450872 100644
+index 3515fdb..ae342ae 100644
 --- a/lmkd.cpp
 +++ b/lmkd.cpp
 @@ -37,6 +37,7 @@
@@ -407,7 +407,7 @@ index 3515fdb..0450872 100644
 +
 +static void get_containerdata(char* buf, const char* path, ssize_t bytes) {
 +    //确保container文件在读取前一定生成
-+    int redo_time = 5;
++    int redo_time = 60;
 +    int pathFd = -1;
 +    while ((pathFd = open(path, O_RDONLY | O_CLOEXEC)) < 0 && --redo_time >= 0) {
 +        sleep(1);
