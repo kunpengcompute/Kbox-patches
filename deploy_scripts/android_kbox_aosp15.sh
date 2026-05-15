@@ -482,7 +482,6 @@ function start_box_by_id() {
     --extra_run_option "$EXTRA_RUN_OPTION" \
     --image "$IMAGE_NAME" \
     --user_data_path "$MOUNT_DIR" \
-    --container_data_path "/var/lib/docker" \
     --enable_render_layer "$ENABLE_RENDER_LAYER"\
     --enable_f2fs "$ENABLE_F2FS"\
     --system_size_mb "$SYSTEM_PARTITION_SIZE_MB" \
