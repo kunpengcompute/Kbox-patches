@@ -457,7 +457,8 @@ cat /tmp/nfs/data/kbox_1/data/containerd
    echo ${预期修改的值} > /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/cpuinfo_cur_freq
    ```
 
-#### 1.8.3. **校验是否生效。**
+#### 1.8.3. **校验是否生效**
+
    启动容器后，在容器内安装如“手机设备信息大全”的app，查看cpu频率是否等于预期，若等于预期值即表示cpu频率调节生效。
 
 ## 2 ARDC测试<a name="ZH-CN_TOPIC_0000002549712565"></a>
