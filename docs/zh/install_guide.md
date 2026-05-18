@@ -24,8 +24,8 @@ Kbox云手机容器环境部署的硬件环境配置方案要求如[**表 1** Kb
 |Riser卡|RISER1与RISER2模组相同，均为：PCIe X16 + PCIe X8|RISER1与RISER2模组相同，均为：PCIe X8\*3|前置Riser（x8\*2）\*2+后置Riser（x8\*2）\*2+Riser3（x8\*2）\*1|后置Riser（x16+x8*2）\*2+Riser3（x8\*2）\*1|
 |编码卡|1 \* NETINT Quadra T2A（X8）|无|无|无|
 |GPU|2\*AMD W6800|4\*道客DC 1000|8\*道客DC 1000|8\*道客DC1000|
-|操作系统|openEuler 24.03 LTS SP1|openEuler 24.03 LTS SP1|openEuler 24.03 LTS SP1|openEuler 22.03 LTS SP4|
-|系统/内核版本|6.6.0-72.0.0|6.6.0-72.0.0|6.6.0-72.0.0|5.10.0-216.0.0|
+|操作系统|openEuler 24.03 LTS SP1|openEuler 24.03 LTS SP1|openEuler 24.03 LTS SP1|openEuler 24.03 LTS SP1|
+|系统/内核版本|6.6.0-72.0.0|6.6.0-72.0.0|6.6.0-72.0.0|6.6.0-72.0.0|
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >
@@ -128,11 +128,11 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 **配置Performance相关选项<a name="section18236319121"></a>**
 
-1. 在BIOS设置界面，依次选择“Advanced \> Performance Config“。
+1. 在BIOS设置界面，依次选择“Advanced \> Performance Config”。
 
     ![](figures/BIOS6.png)
 
-2. 进入Performance Config设置页面后，将“Power Policy“选项设置为“Performance“后保存并退出。
+2. 进入Performance Config设置页面后，将“Power Policy”选项设置为“Performance”后保存并退出。
 
     ![](figures/BIOS7.png)
 
@@ -150,9 +150,9 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 使用硬件配置方案一并需要使能编码卡硬件解码功能时，需要通过配置PCIe选项，完成编码卡分叉选项的配置，使编码卡在不同应用场景中具有更好的性能和兼容性。
 
 1. 在BIOS设置界面，依次选择“Advanced \> PCIe Config”。
-2. 进入PCIe Config设置页面后，首先配置PCIe分叉选项：将NETINT编码卡Quadra所在Slot的分叉设置为“x4“后保存并退出BIOS配置。
+2. 进入PCIe Config设置页面后，首先配置PCIe分叉选项：将NETINT编码卡Quadra所在Slot的分叉设置为“x4”后保存并退出BIOS配置。
 
-    例如Quadra安装在Slot3时，需要将“Slot3 BandWidth Splitting“选项设置为“x4”。
+    例如Quadra安装在Slot3时，需要将“Slot3 BandWidth Splitting”选项设置为“x4”。
 
     ![](figures/zh-cn_image_0000002549745303.png)
 
@@ -599,7 +599,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
 
     |配置项|配置要求|配置结果对照|.config中显示的配置结果|
     |--|--|--|--|
-    |CONFIG_F2FS_FS|Y|[\*] Support for F2FS files|CONFIG_F2FS_FS=y|  
+    |CONFIG_F2FS_FS|Y|[\*] F2FS filesystem support|CONFIG_F2FS_FS=y|  
 
     如果要使能容器支持以f2fs文件格式启动，则还要进行上面内核编译选项的配置
 

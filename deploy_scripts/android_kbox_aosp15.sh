@@ -83,8 +83,8 @@ function check_paras() {
         if [ $# -gt 4 ]; then
             echo "the number of parameters exceeds 4!"
             echo "Usage: "
-            echo "./android_kbox.sh $1 <image_id> <start_container_id> <end_container_id>"
-            echo "./android_kbox.sh $1 <image_id> <container_id>"
+            echo "./android_kbox_aosp15.sh $1 <image_id> <start_container_id> <end_container_id>"
+            echo "./android_kbox_aosp15.sh $1 <image_id> <container_id>"
             exit 1;
         fi
 
@@ -123,8 +123,8 @@ function check_paras() {
         if [ $# -gt 3 ]; then
             echo "the number of parameters exceeds 3!"
             echo "Usage: "
-            echo "./android_kbox.sh $1 <start_container_id> <end_container_id>"
-            echo "./android_kbox.sh $1 <container_id>"
+            echo "./android_kbox_aosp15.sh $1 <start_container_id> <end_container_id>"
+            echo "./android_kbox_aosp15.sh $1 <container_id>"
             exit 1
         fi
 
@@ -146,8 +146,8 @@ function check_paras() {
         if [ $# -gt 3 ]; then
             echo "the number of parameters exceeds 3!"
             echo "Usage: "
-            echo "./android_kbox.sh restart <start_container_id> <end_container_id>"
-            echo "./android_kbox.sh restart <container_id>"
+            echo "./android_kbox_aosp15.sh restart <start_container_id> <end_container_id>"
+            echo "./android_kbox_aosp15.sh restart <container_id>"
             exit 1
         fi
 
@@ -490,12 +490,17 @@ function start_box_by_id() {
     --extra_run_option "$EXTRA_RUN_OPTION" \
     --image "$IMAGE_NAME" \
     --user_data_path "$MOUNT_DIR" \
-    --container_data_path "/var/lib/docker" \
     --enable_render_layer "$ENABLE_RENDER_LAYER"\
     --enable_f2fs "$ENABLE_F2FS"\
     --system_size_mb "$SYSTEM_PARTITION_SIZE_MB" \
     --enable_nfs "$enable_nfs" \
     --nfs_dir "$NFS_DIR"
+
+    # 新增拦截：判断上方的 base_box_aosp15.sh 是否成功执行
+    if [ $? -ne 0 ]; then
+        echo -e "\033[1;31m[ERROR] ${CONTAINER_NAME} 基础环境准备失败，终止后续拉起流程！\033[0m"
+        return 1
+    fi
 
     enable_hard_decoder $TAG_NUMBER
 
