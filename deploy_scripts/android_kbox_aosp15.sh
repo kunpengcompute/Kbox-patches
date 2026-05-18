@@ -237,6 +237,14 @@ function wait_container_ready() {
     local start_seconds=$(date --date="${starttime}" +%s)
     local res=0
     local has_restart=0
+    local MOUNT_SOURCE=$(docker inspect --format='{{range .Mounts}}{{if eq .Destination "/data"}}{{.Source}}{{end}}{{end}}' ${KBOX_NAME})
+    local MOUNT_DIR
+    if [ -n "$MOUNT_SOURCE" ]; then
+        MOUNT_DIR=$(echo "$MOUNT_SOURCE" | sed "s|/data/${KBOX_NAME}/data$||")
+        if [ "$MOUNT_DIR" == "$MOUNT_SOURCE" ]; then
+            MOUNT_DIR=$(dirname "$MOUNT_SOURCE")
+        fi
+    fi
     if [ $? -eq 0 ]; then
         count_time=0
         set +e
@@ -540,11 +548,22 @@ function main() {
             if [ -z "$(docker ps -a --format {{.Names}} | grep "kbox_$TAG_NUMBER$")" ]; then
                 echo "no container kbox_$TAG_NUMBER!"
             else
-                local MOUNT_DIR=${KBOX_MOUNT_MAP[TAG_NUMBER - 1]}
+                local CONTAINER_NAME="kbox_$TAG_NUMBER"
+                local MOUNT_SOURCE=$(docker inspect --format='{{range .Mounts}}{{if eq .Destination "/data"}}{{.Source}}{{end}}{{end}}' "$CONTAINER_NAME")
+                local MOUNT_DIR
+                if [ -n "$MOUNT_SOURCE" ]; then
+                    MOUNT_DIR=$(echo "$MOUNT_SOURCE" | sed "s|/data/${CONTAINER_NAME}/data$||")
+                    if [ "$MOUNT_DIR" == "$MOUNT_SOURCE" ]; then
+                        MOUNT_DIR=$(dirname "$MOUNT_SOURCE")
+                    fi
+                else
+                    MOUNT_DIR=${KBOX_MOUNT_MAP[TAG_NUMBER - 1]}
+                fi
                 if [ $1 = "ndelete" ]; then
                     MOUNT_DIR=$NFS_DIR
                 fi
-                bash $CURRENT_DIR/base_box_aosp15.sh delete "kbox_$TAG_NUMBER" "$MOUNT_DIR"
+                echo "delete using mount path: $MOUNT_DIR"
+                bash $CURRENT_DIR/base_box_aosp15.sh delete "$CONTAINER_NAME" "$MOUNT_DIR"
             fi
         done
     elif [ $1 = "restart" ]; then
@@ -558,11 +577,22 @@ function main() {
                 echo "no container kbox_$TAG_NUMBER!"
             else
                 set +e
-                local MOUNT_DIR=${KBOX_MOUNT_MAP[TAG_NUMBER - 1]}
-                bash $CURRENT_DIR/base_box_aosp15.sh restart "kbox_$TAG_NUMBER" "$MOUNT_DIR" 3 ${ENABLE_HARD_DECODE} $ENABLE_RENDER_LAYER $ENABLE_F2FS $SYSTEM_PARTITION_SIZE_MB
+                local CONTAINER_NAME="kbox_$TAG_NUMBER"
+                local MOUNT_SOURCE=$(docker inspect --format='{{range .Mounts}}{{if eq .Destination "/data"}}{{.Source}}{{end}}{{end}}' "$CONTAINER_NAME")
+                local MOUNT_DIR
+                if [ -n "$MOUNT_SOURCE" ]; then
+                    MOUNT_DIR=$(echo "$MOUNT_SOURCE" | sed "s|/data/${CONTAINER_NAME}/data$||")
+                    if [ "$MOUNT_DIR" == "$MOUNT_SOURCE" ]; then
+                        MOUNT_DIR=$(dirname "$MOUNT_SOURCE")
+                    fi
+                else
+                    MOUNT_DIR=${KBOX_MOUNT_MAP[TAG_NUMBER - 1]}
+                fi
+                echo "restart using mount path: $MOUNT_DIR"
+                bash $CURRENT_DIR/base_box_aosp15.sh restart "$CONTAINER_NAME" "$MOUNT_DIR" 3 ${ENABLE_HARD_DECODE} $ENABLE_RENDER_LAYER $ENABLE_F2FS $SYSTEM_PARTITION_SIZE_MB
                 [ ${?} -eq 1 ] && continue
-                mount_lxcfs "kbox_$TAG_NUMBER"
-                enable_netint "kbox_$TAG_NUMBER"
+                mount_lxcfs "$CONTAINER_NAME"
+                enable_netint "$CONTAINER_NAME"
                 set -e
             fi
         done
