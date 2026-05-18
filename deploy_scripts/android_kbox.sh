@@ -376,6 +376,14 @@ function start_box_by_id() {
         check_nfs_mount "$NFS_DIR"
         enable_nfs=1
     fi
+    
+    # 检查F2FS和NFS冲突
+    if [ "$ENABLE_F2FS" == "1" ] && [ "$enable_nfs" == "1" ]; then
+        echo -e "\033[1;31m[ERROR] 不可以同时使能F2FS和NFS！\033[0m"
+        echo -e "\033[1;31m[ERROR] 当前配置：ENABLE_F2FS=1，使用nstart命令（NFS挂载）\033[0m"
+        echo -e "\033[1;31m[ERROR] 请将ENABLE_F2FS设置为0，或使用start命令（本地挂载）\033[0m"
+        exit 1
+    fi
 
     # 镜像名
     local IMAGE_NAME=$2
