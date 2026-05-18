@@ -1,5 +1,5 @@
 diff --git a/lmkd.cpp b/lmkd.cpp
-index 3515fdb..79498d9 100644
+index 3515fdb..09a0e31 100644
 --- a/lmkd.cpp
 +++ b/lmkd.cpp
 @@ -37,6 +37,7 @@
@@ -415,10 +415,10 @@ index 3515fdb..79498d9 100644
 +                ALOGI("MemInfo:[%s]", mem_info_line);
 +            } else {
 +                if (m_containerid[0] == '\0') {
-+		    ALOGI("containerid empty, read again");
-+		    get_containerdata(m_containerid, CONTAINERID_PATH, BUFFER_SIZE_13, 1);
-+	        }
-+	        get_vmem_info(buf, mem_info_line, m_containerid);
++                    ALOGI("containerid empty, read again");
++                    get_containerdata(m_containerid, CONTAINERID_PATH, BUFFER_SIZE_13, 1);
++                }
++                get_vmem_info(buf, mem_info_line, m_containerid);
 +                ALOGI("VMemInfo:[%s]", mem_info_line);
 +            }
 +        }
