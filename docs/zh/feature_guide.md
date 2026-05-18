@@ -342,7 +342,7 @@ NFS采用典型的**客户端/服务器（C/S）**架构，客户端/服务器�
 cat /lib/modules/$(uname -r)/build/.config | grep NFS
 ```
 
-期望CONFIG_NFS_FS、CONFIG_NFS_V4、CONFIG_NFSD为m则需要执行如下命令加载该模块。其他值则需要改成y或m重新编译内核。
+期望CONFIG_NFS_FS、CONFIG_NFS_V4、CONFIG_NFSD为m需要执行如下命令加载该模块。
 
 ```shell
 modprobe nfs
