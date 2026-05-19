@@ -1,5 +1,5 @@
 diff --git a/lmkd.cpp b/lmkd.cpp
-index 3515fdb..0450872 100644
+index 3515fdb..09a0e31 100644
 --- a/lmkd.cpp
 +++ b/lmkd.cpp
 @@ -37,6 +37,7 @@
@@ -302,7 +302,7 @@ index 3515fdb..0450872 100644
      ALOGI("Process polling is %s", pidfd_supported ? "supported" : "not supported" );
  
      return 0;
-@@ -3154,12 +3181,136 @@ static void call_handler(struct event_handler_info* handler_info,
+@@ -3154,12 +3181,138 @@ static void call_handler(struct event_handler_info* handler_info,
      }
  }
  
@@ -367,6 +367,23 @@ index 3515fdb..0450872 100644
 +    }
 +}
 +
++static void get_containerdata(char* buf, const char* path, ssize_t bytes, int redo_time) {
++    //确保container文件在读取前一定生成
++    int pathFd = -1;
++    while ((pathFd = open(path, O_RDONLY | O_CLOEXEC)) < 0 && --redo_time >= 0) {
++        sleep(1);
++    }
++    if (pathFd < 0) {
++        ALOGE("%s file open fail", path);
++        return;
++    }
++    ssize_t bytesRead = read(pathFd, buf, bytes - 1);
++    if (bytesRead < 0) {
++        ALOGE("Read %s flie fail", path);
++    }
++    close_fd(pathFd);
++}
++
 +static void get_vmem_info(char* m_buf, char* m_line, const char* m_containerid) {
 +    char *line, *rest = NULL;
 +    line = strtok_r(m_buf, PARSE_LINE_BREAK, &rest);
@@ -380,7 +397,7 @@ index 3515fdb..0450872 100644
 +    }
 +}
 +
-+static void print_meminfo(const char* m_file, const char* m_containerid = NULL) {
++static void print_meminfo(const char* m_file, char* m_containerid = NULL) {
 +    int file_fd = -1;
 +    char* buf = NULL;
 +    char mem_info_line[BUFFER_SIZE_256] = {0};
@@ -397,32 +414,17 @@ index 3515fdb..0450872 100644
 +                get_mem_info(buf, mem_info_line);
 +                ALOGI("MemInfo:[%s]", mem_info_line);
 +            } else {
-+                get_vmem_info(buf, mem_info_line, m_containerid); 
++                if (m_containerid[0] == '\0') {
++                    ALOGI("containerid empty, read again");
++                    get_containerdata(m_containerid, CONTAINERID_PATH, BUFFER_SIZE_13, 1);
++                }
++                get_vmem_info(buf, mem_info_line, m_containerid);
 +                ALOGI("VMemInfo:[%s]", mem_info_line);
 +            }
 +        }
 +        close_fd(file_fd);
 +    }
 +}
-+
-+static void get_containerdata(char* buf, const char* path, ssize_t bytes) {
-+    //确保container文件在读取前一定生成
-+    int redo_time = 5;
-+    int pathFd = -1;
-+    while ((pathFd = open(path, O_RDONLY | O_CLOEXEC)) < 0 && --redo_time >= 0) {
-+        sleep(1);
-+    }
-+    if (pathFd < 0) {
-+        ALOGE("%s file open fail", path);
-+        return;
-+    }
-+    ssize_t bytesRead = read(pathFd, buf, bytes - 1);
-+    if (bytesRead < 0) {
-+        ALOGE("Read %s flie fail", path);
-+    }
-+    close_fd(pathFd);
-+}
-+
 +
  static void mainloop(void) {
      struct event_handler_info* handler_info;
@@ -432,14 +434,14 @@ index 3515fdb..0450872 100644
      long delay = -1;
 +    long delayEpollTime = 20000;
 +    int time_difference = property_get_int32("sys.lmk.time_difference", 30);
-+    char container_id[BUFFER_SIZE_13] = {0};
++    char container_id[BUFFER_SIZE_13] = "";
 +
-+    get_containerdata(container_id, CONTAINERID_PATH, BUFFER_SIZE_13);
++    get_containerdata(container_id, CONTAINERID_PATH, BUFFER_SIZE_13, 5);
 +    std::time_t timeTemp = std::time(nullptr);
  
      poll_params.poll_handler = NULL;
      poll_params.paused_handler = NULL;
-@@ -3185,7 +3336,6 @@ static void mainloop(void) {
+@@ -3185,7 +3338,6 @@ static void mainloop(void) {
  
                  /* Wait for events until the next polling timeout */
                  nevents = epoll_wait(epollfd, events, maxevents, delay);
@@ -447,7 +449,7 @@ index 3515fdb..0450872 100644
                  /* Update current time after wait */
                  clock_gettime(CLOCK_MONOTONIC_COARSE, &curr_tm);
                  poll_now = (get_time_diff_ms(&poll_params.last_poll_tm, &curr_tm) >=
-@@ -3210,8 +3360,8 @@ static void mainloop(void) {
+@@ -3210,8 +3362,8 @@ static void mainloop(void) {
                      }
                  }
              } else {
@@ -458,7 +460,7 @@ index 3515fdb..0450872 100644
              }
          }
  
-@@ -3251,6 +3401,17 @@ static void mainloop(void) {
+@@ -3251,6 +3403,17 @@ static void mainloop(void) {
                  call_handler(handler_info, &poll_params, evt->events);
              }
          }
