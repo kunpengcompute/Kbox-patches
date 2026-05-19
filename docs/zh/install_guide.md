@@ -611,7 +611,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
     |CONFIG_NFSD|M|[\*] NFS server support|CONFIG_NFSD=m|
     |CONFIG_NFS_V4|M|[\*] NFS client support for NFS version 4|CONFIG_NFS_V4=m|
 
-    如果要使能容器支持以nfs挂载启动，则还要进行上面内核编译选项的配置
+    如果要使能容器支持以nfs挂载启动，则还要进行上面内核编译选项的配置。
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >配置方法说明：
