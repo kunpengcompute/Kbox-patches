@@ -411,13 +411,13 @@ Kbox云手机容器支持使能图形加速层，通过将kbox\_config.cfg配置
 
 #### 1.7.2 **NFS挂载**
 
-容器配置文件kbox_config.cfg中配置NFS_DIR属性为/tmp/nfs，启动云手机使用nstart命令
+容器配置文件kbox_config.cfg中配置NFS_DIR属性为/tmp/nfs，启动云手机使用nstart命令。
 
 ```shell
 ./android_kbox.sh nstart kbox:origin 1
 ```
 
-删除云手机使用ndelete命令
+删除云手机使用ndelete命令。
 
 ```shell
 ./android_kbox.sh ndelete kbox:origin 1

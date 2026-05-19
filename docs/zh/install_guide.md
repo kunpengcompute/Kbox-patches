@@ -654,7 +654,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
     |--|--|--|--|
     |CONFIG_F2FS_FS|Y|[\*] F2FS filesystem support|CONFIG_F2FS_FS=y|  
 
-    如果要使能容器支持以f2fs文件格式启动，则还要进行上面内核编译选项的配置
+    如果要使能容器支持以f2fs文件格式启动，则还要进行上面内核编译选项的配置。
 
     **表 3** （可选）使能nfs内核编译选项配置说明<a id="使能f2fs内核编译选项配置说明"></a>
 
@@ -664,7 +664,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
     |CONFIG_NFSD|M|[\*] NFS server support|CONFIG_NFSD=m|
     |CONFIG_NFS_V4|M|[\*] NFS client support for NFS version 4|CONFIG_NFS_V4=m|
 
-    如果要使能容器支持以nfs挂载启动，则还要进行上面内核编译选项的配置
+    如果要使能容器支持以nfs挂载启动，则还要进行上面内核编译选项的配置。
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >配置方法说明：
