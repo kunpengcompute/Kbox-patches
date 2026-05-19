@@ -218,6 +218,7 @@ docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
 此前使用检测工具发现云手机容器内system分区大小和宿主机内根目录下空间大小一致，达到将近1T大小，和真机差距巨大，下面步骤说明如何调节云手机/system分区大小，使其和真实手机的/system分区大小相近，提高仿真能力
 
 #### 1.5.1. **环境准备**
+
    环境准备部分请参照feature_guide.md的[9.2 使用介绍](feature_guide.md#ZH-CN_TOPIC_0000002549865942)章节执行
 
 #### 1.5.2 **触发分区扩容逻辑**<a name="ZH-CN_TOPIC_0000002549832550"></a>
@@ -254,7 +255,14 @@ docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
 ./android_kbox.sh nstart kbox:origin 1
 ```
 
+删除云手机使用ndelete命令。
+
+```shell
+./android_kbox.sh ndelete 1
+```
+
 #### 1.6.3 **校验是否生效**
+
 查看挂载目录下对应data/containerd内容是否跟容器id一致
 
 ```shell
@@ -266,6 +274,7 @@ cat /tmp/nfs/data/kbox_1/data/containerd
 在真机中，系统为了平衡负载和功耗，会动态调节 CPU 的运行频率，而云机依托于服务器宿主机的容器化环境运行，其底层物理 CPU 的频率通常处于恒定状态，与真机存在差异。下面步骤说明如何实现云手机cpu频率动态调节，提高仿真能力
 
 #### 1.7.1. **环境准备**
+
    环境准备部分请参照feature_guide.md的"CPU频率动态模拟与调节"章节里的[安装特性](feature_guide.md#ZH-CN_TOPIC_0000002518386097)章节执行
 
 #### 1.7.2. **实施修改**<a name="ZH-CN_TOPIC_000000254983255011"></a>
