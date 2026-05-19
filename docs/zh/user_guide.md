@@ -411,10 +411,16 @@ Kbox云手机容器支持使能图形加速层，通过将kbox\_config.cfg配置
 
 #### 1.7.2 **NFS挂载**
 
-容器配置文件kbox_config.cfg中配置NFS_DIR属性为/tmp/nfs，启动云手机使用nstart命令
+容器配置文件kbox_config.cfg中配置NFS_DIR属性为/tmp/nfs，启动云手机使用nstart命令。
 
 ```shell
 ./android_kbox.sh nstart kbox:origin 1
+```
+
+删除云手机使用ndelete命令。
+
+```shell
+./android_kbox.sh ndelete kbox:origin 1
 ```
 
 #### 1.7.3 **校验是否生效**
@@ -430,6 +436,7 @@ cat /tmp/nfs/data/kbox_1/data/containerd
 在真机中，系统为了平衡负载和功耗，会动态调节 CPU 的运行频率，而云机依托于服务器宿主机的容器化环境运行，其底层物理 CPU 的频率通常处于恒定状态，与真机存在差异。下面步骤说明如何实现云手机cpu频率动态调节，提高仿真能力
 
 #### 1.8.1. **环境准备**
+
    环境准备部分请参照feature_guide.md的"CPU频率动态模拟与调节"章节的[安装特性](feature_guide.md#ZH-CN_TOPIC_0000002518386097)章节执行
 
 #### 1.8.2. **实施修改**<a name="ZH-CN_TOPIC_000000254983255011"></a>
@@ -462,6 +469,7 @@ cat /tmp/nfs/data/kbox_1/data/containerd
    ```
 
 #### 1.8.3. **校验是否生效**
+
    启动容器后，在容器内安装如“手机设备信息大全”的app，查看cpu频率是否等于预期，若等于预期值即表示cpu频率调节生效。
 
 ## 2 ARDC测试<a name="ZH-CN_TOPIC_0000002549712565"></a>
