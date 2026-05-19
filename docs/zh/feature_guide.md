@@ -513,10 +513,13 @@ cat /tmp/nfs/data/kbox_1/data/containerd
 
 ##### 11.2.1.1 **权限检测**
 
-   输入下面命令查找目标数据路径是否具备写入权限,若权限不足，会直接导致数据写入失败
+   在容器内输入下面命令查找目标数据路径中的目标文件是否具备写入权限,若权限不足，会直接导致数据写入失败
 
    ```shell
-   ls -ld /sys/devices/system/cpu/cpu${需要查询权限的cpu的编号}/cpufreq/
+   ls -ld /sys/devices/system/cpu/cpu${需要查询权限的cpu的编号}/cpufreq/scaling_cur_freq
+   ```
+   ```shell
+   ls -ld /sys/devices/system/cpu/cpu${需要查询权限的cpu的编号}/cpufreq/cpuinfo_cur_freq
    ```
 
 如果包含 w（如 -rw-r--r--），说明文件的所有者（通常是 root）拥有写入权限。请直接跳到[文件说明](feature_guide.md#ZH-CN_TOPIC_0000002549832553)
@@ -524,14 +527,14 @@ cat /tmp/nfs/data/kbox_1/data/containerd
 如果没有 w（如 -r--r--r--），说明它是只读的，此时权限不足，无法直接写入。请按照如下步骤
 
 ##### 11.2.1.2 **新增权限**<a name="ZH-CN_TOPIC_0000002549832559"></a>
-输入如下命令进入 root 用户身份
-```shell
-su root
-```
 
-输入如下命令添加写入（w）权限
+输入如下命令给scaling_cur_freq添加写入（w）权限
 ```shell
-chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufreq/
+chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufreq/scaling_cur_freq
+```
+输入如下命令给cpuinfo_cur_freq添加写入（w）权限
+```shell
+chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufreq/cpuinfo_cur_freq
 ```
 
 ##### 11.2.1.3 **文件说明**<a name="ZH-CN_TOPIC_0000002549832553"></a>
@@ -568,4 +571,19 @@ chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufre
 
    ```shell
    echo ${预期修改的值} > /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/cpuinfo_cur_freq
+   ```
+   如果容器重启，那么之前的修改值会失效，CPU频率值会恢复默认。
+   要实现cpu频率的动态调节，可以将如下shell命令直接复制粘贴到容器内任意路径中执行，即可在如“手机设备信息大全”这样的第三方应用中观察到cpu频率的动态变化，此处的“sleep 1”表示每隔1s变化一次，此处的“1”可以修改为其他时间值，FREQS数组里存放的是CPU频率的可能值，CPU_ID存放的是预期进行修改的CPU的编号，这三个值可以根据实际需求进行修改
+   ```shell
+   CPU_ID=0
+   FREQS=(554000 860000 956000 1042000 1128000 1224000 1320000 1397000 1512000 1628000 1748000 1858000 1954000)
+
+   while true; do
+      for FREQ in "${FREQS[@]}"; do
+         echo $FREQ > /sys/devices/system/cpu/cpu${CPU_ID}/cpufreq/scaling_cur_freq 2>/dev/null
+         echo $FREQ > /sys/devices/system/cpu/cpu${CPU_ID}/cpufreq/cpuinfo_cur_freq 2>/dev/null
+         echo "CPU${CPU_ID} 频率已动态调节为: $FREQ"
+         sleep 1
+      done
+   done
    ```
