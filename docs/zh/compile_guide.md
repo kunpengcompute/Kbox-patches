@@ -147,7 +147,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
         exit()
         ```
 
-5. 在用户目录下创建“buildtools“目录，并为目录拥有者添加读、写和可执行权限。
+5. 在用户目录下创建“buildtools”目录，并为目录拥有者添加读、写和可执行权限。
 
     ```shell
     mkdir ~/buildtools
@@ -156,7 +156,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
 6. 安装Meson。
 
-    请参见[1.2-软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，将源码包中的“meson-1.1.0.tar.gz“文件上传至“~/buildtools“目录并解压。
+    请参见[1.2-软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，将源码包中的“meson-1.1.0.tar.gz”文件上传至“~/buildtools”目录并解压。
 
     ```shell
     cd ~/buildtools
@@ -165,7 +165,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
     ```
 
 7. 设置环境变量。
-    1. 在“~/.bashrc“文件末尾添加如下内容。
+    1. 在“~/.bashrc”文件末尾添加如下内容。
 
         ```shell
         cat >> ~/.bashrc <<EOF
@@ -185,7 +185,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
 Kbox安卓镜像使用AOSP 15进行编译，请参考本节操作步骤下载源码。
 
-1. 在用户目录下创建“aosp“目录，并为目录拥有者添加读、写和可执行权限。
+1. 在用户目录下创建“aosp”目录，并为目录拥有者添加读、写和可执行权限。
 
     ```shell
     mkdir ~/aosp
@@ -207,14 +207,14 @@ Kbox安卓镜像使用AOSP 15进行编译，请参考本节操作步骤下载源
 
 Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作步骤下载源码。
 
-1. 在用户目录下创建“sourcecode“目录，并为目录拥有者添加读、写和可执行权限。
+1. 在用户目录下创建“sourcecode”目录，并为目录拥有者添加读、写和可执行权限。
 
     ```shell
     mkdir ~/sourcecode
     chmod -R 700 ~/sourcecode
     ```
 
-2. 请参见[1.2-软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载Mesa源码包后，将源码包上传至“~/sourcecode“目录，解压并重命名后，复制到“aosp/external“目录。
+2. 请参见[1.2-软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载Mesa源码包后，将源码包上传至“~/sourcecode”目录，解压并重命名后，复制到“aosp/external”目录。
 
     ```shell
     cd ~/sourcecode
@@ -230,7 +230,7 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
 
 1. 下载Kbox安卓补丁源码。
 
-    请参见[1.2-软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，将源码包上传至“~/sourcecode“目录，并解压。
+    请参见[1.2-软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，将源码包上传至“~/sourcecode”目录，并解压。
 
     ```shell
     cd ~/sourcecode
@@ -253,7 +253,7 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
 
 在AOSP源码包中合入Kbox二进制软件包。
 
-1. 请参见[1.2-软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，解压二进制文件包（BoostKit-boostcph-kbox_\*_15.zip），获得Kbox-\*-aosp15.0-binary.zip压缩包，将此压缩包中的“product_prebuilt“、“products“目录上传至“~/dependency“目录。
+1. 请参见[1.2-软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，解压二进制文件包（BoostKit-boostcph-kbox_\*_15.zip），获得Kbox-\*-aosp15.0-binary.zip压缩包，将此压缩包中的“product_prebuilt”、“products”目录上传至“~/dependency”目录。
 
     请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
 
@@ -264,7 +264,7 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
     cp -rf product_prebuilt ~/aosp/
     ```
 
-3. 在AOSP源码目录创建“vendor/kbox“目录，拷贝“products“目录至该目录。
+3. 在AOSP源码目录创建“vendor/kbox”目录，拷贝“products”目录至该目录。
 
     ```shell
     mkdir -p ~/aosp/vendor/kbox
@@ -273,7 +273,7 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
     cp -rf products ~/aosp/vendor/kbox
     ```
 
-4. 在“~/aosp/vendor/kbox/products“目录下，通过以下命令修改kbox.mk文件里的DNS地址。
+4. 在“~/aosp/vendor/kbox/products”目录下，通过以下命令修改kbox.mk文件里的DNS地址。
 
     此命令中的net.dns1=xxx.xxx.xxx.xxx需要替换成配置容器的DNS地址。需保证配置的地址可用，否则可能导致编译获得的镜像不可用。
 
@@ -283,16 +283,16 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >- 示例仅作为格式参考，请根据实际情况自行配置可用的公共DNS地址，以保证容器连接网络正常。
-    >- DNS地址也可以通过修改Kbox容器内部文件“/system/vendor/build.prop“配置，容器重启后配置生效。
+    >- DNS地址也可以通过修改Kbox容器内部文件“/system/vendor/build.prop”配置，容器重启后配置生效。
     >- 如配置时有疑问，请联系华为运维人员支撑。
 
 **基于KBOX源码**
 
-1. 请参见[1.2-软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载KBOX源码包后，解压后上传至“~/dependency“目录。
+1. 请参见[1.2-软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载KBOX源码包后，解压后上传至“~/dependency”目录。
 
     请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
 
-2. 在AOSP源码目录创建“vendor“目录，拷贝“./Kbox/src/vendor/kbox“目录至该目录。
+2. 在AOSP源码目录创建“vendor”目录，拷贝“./Kbox/src/vendor/kbox”目录至该目录。
 
     ```shell
     mkdir -p ~/aosp/vendor
@@ -301,7 +301,7 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
     cp -rf ./Kbox/src/vendor/kbox ~/aosp/vendor
     ```
 
-3. 在“~/aosp/vendor/kbox/products“目录下，通过以下命令修改kbox.mk文件里的DNS地址。
+3. 在“~/aosp/vendor/kbox/products”目录下，通过以下命令修改kbox.mk文件里的DNS地址。
 
     此命令中的net.dns1=xxx.xxx.xxx.xxx需要替换成配置容器的DNS地址。需保证配置的地址可用，否则可能导致编译获得的镜像不可用。
 
@@ -311,7 +311,7 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >- 示例仅作为格式参考，请根据实际情况自行配置可用的公共DNS地址，以保证容器连接网络正常。
-    >- DNS地址也可以通过修改Kbox容器内部文件“/system/vendor/build.prop“配置，容器重启后配置生效。
+    >- DNS地址也可以通过修改Kbox容器内部文件“/system/vendor/build.prop”配置，容器重启后配置生效。
     >- 如配置时有疑问，请联系华为运维人员支撑。
 
 ### 4.5 编译AOSP并生成镜像<a name="ZH-CN_TOPIC_0000002549826011"></a>
@@ -331,7 +331,7 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
         >![](public_sys-resources/icon-note.gif) **说明：** 
         >在执行**make_key**命令时，会提示输入密码，可以直接按回车跳过。
         >**make_key**命令参数介绍如下：
-        >- “build/target/product/security/releasekey“表示要生成key的名字。
+        >- “build/target/product/security/releasekey”表示要生成key的名字。
         >- 后面的参数表示公司相关信息，请根据实际情况填写，含义解释如[**表 1** **make_key**参数说明](#make_key参数说明)所示。
 
         **表 1** **make_key**参数说明<a id="make_key参数说明"></a>
@@ -359,7 +359,7 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
         ```
 
         >![](public_sys-resources/icon-note.gif) **说明：** 
-        >- 若需要采用userdebug模式编译镜像，请将上述**lunch**命令后的选项后缀由“user“修改为“userdebug“。以“kbox_arm64“为例：
+        >- 若需要采用userdebug模式编译镜像，请将上述**lunch**命令后的选项后缀由“user”修改为“userdebug”。以“kbox_arm64”为例：
         >
         > ```shell
         > lunch kbox_arm64-trunk_staging-userdebug
@@ -389,11 +389,11 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
         >可不指定核数，直接执行**make**命令，则默认用1个核进行编译，也可用“-j”参数指定核数进行编译，可指定的数字最大为服务器实际的CPU核数，本文以64核为例进行说明。
         >正常情况下，能够编译完成。有时可能由于并发编译顺序导致编译出现问题，可尝试重新执行**make**命令。
 
-2. 请参见[1.2-软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，解压Kbox-patches-AOSP15.zip（与[4.3-合入Kbox安卓补丁](#合入Kbox安卓补丁)相同），将Kbox-patches-AOSP15文件夹中的“make_img_sample“目录上传至“~/dependency“目录。
+2. 请参见[1.2-软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，解压Kbox-patches-AOSP15.zip（与[4.3-合入Kbox安卓补丁](#合入Kbox安卓补丁)相同），将Kbox-patches-AOSP15文件夹中的“make_img_sample”目录上传至“~/dependency”目录。
 
     请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
 
-3. 拷贝生成镜像脚本至“~/aosp“目录，并添加可执行权限。
+3. 拷贝生成镜像脚本至“~/aosp”目录，并添加可执行权限。
 
     ```shell
     cd ~/dependency/make_img_sample/kbox15_android_build

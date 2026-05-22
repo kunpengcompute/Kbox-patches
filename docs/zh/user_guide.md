@@ -16,7 +16,7 @@
 
 **Kbox Demo镜像挂载<a name="section16531422174717"></a>**
 
-上传Kbox Demo镜像包至“~/dependency“目录（本文以此目录作为示例，用户可自行设置目录），并挂载。
+上传Kbox Demo镜像包至“~/dependency”目录（本文以此目录作为示例，用户可自行设置目录），并挂载。
 
 镜像的名称和tag可以自行定义，格式为“\{名称\}:\{tag\}”，此处设置镜像名为kbox:demo。
 
@@ -37,9 +37,9 @@ docker import android.tar kbox:demo
 >- 硬件配置方案一：可跳过该小节的全部步骤。
 >- 硬件配置方案二、三、四：可跳过该小节的步骤2。
 
-1. 解压Kbox-patches-AOSP15.zip，将Kbox-patches-AOSP15文件夹中的“deploy_scripts“目录上传至服务器的“~/dependency“目录。
-2. 上传Android Kbox二进制文件包BoostKit-boostcph-kbox_\*_15.zip到“~/dependency/deploy_scripts“目录。
-3. （硬件配置方案二、三、四）使用硬件配置方案二、三、四时需要解压显卡驱动压缩包VAGPU-25.03.01.01-RC13-A15.tgz，获取va_driver.tgz，上传到服务器的“~/dependency/deploy_scripts“目录。
+1. 解压Kbox-patches-AOSP15.zip，将Kbox-patches-AOSP15文件夹中的“deploy_scripts”目录上传至服务器的“~/dependency”目录。
+2. 上传Android Kbox二进制文件包BoostKit-boostcph-kbox_\*_15.zip到“~/dependency/deploy_scripts”目录。
+3. （硬件配置方案二、三、四）使用硬件配置方案二、三、四时需要解压显卡驱动压缩包VAGPU-25.03.01.01-RC13-A15.tgz，获取va_driver.tgz，上传到服务器的“~/dependency/deploy_scripts”目录。
 4. 制作包含Android Kbox二进制的Kbox镜像，其中kbox:demo为上一步导入的官方Kbox Demo镜像，kbox:origin为包含Android Kbox二进制的新镜像。
     - 硬件配置方案一：
 
@@ -74,9 +74,9 @@ docker import android.tar kbox:demo
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >为确保Kbox云手机的稳定运行与最佳性能，请保障每个容器所绑定的CPU物理核和GPU渲染节点同属于一个CPU片。
 
-Kbox云手机容器支持使能图形加速层，通过修改kbox_config.cfg配置文件中的“ENABLE_RENDER_LAYER”为1进行使能。打开“~/dependency/deploy_scripts“路径下的“kbox_render_accelerating_configuration.xml”配置文件，对应用的图形加速层功能进行配置。具体配置项描述请参见《[视频流引擎 用户指南（Android 15）](https://gitcode.com/boostkit/vmi/blob/CloudPhone15/docs/zh/user_guide.md)》中的“图形加速层配置项”章节。首次启动云手机容器后，若需要修改图形加速层功能的配置，修改配置文件中应用对应的配置，手动将其拷贝到云手机容器“/data/local/tmp“路径，重启应用生效。
+Kbox云手机容器支持使能图形加速层，通过修改kbox_config.cfg配置文件中的“ENABLE_RENDER_LAYER”为1进行使能。打开“~/dependency/deploy_scripts”路径下的“kbox_render_accelerating_configuration.xml”配置文件，对应用的图形加速层功能进行配置。具体配置项描述请参见《[视频流引擎 用户指南（Android 15）](https://gitcode.com/boostkit/vmi/blob/CloudPhone15/docs/zh/user_guide.md)》中的“图形加速层配置项”章节。首次启动云手机容器后，若需要修改图形加速层功能的配置，修改配置文件中应用对应的配置，手动将其拷贝到云手机容器“/data/local/tmp”路径，重启应用生效。
 
-1. 解压Kbox-patches-AOSP15.zip，将Kbox-patches-AOSP15文件夹中的“deploy_scripts“目录上传至服务器的“~/dependency“目录。
+1. 解压Kbox-patches-AOSP15.zip，将Kbox-patches-AOSP15文件夹中的“deploy_scripts”目录上传至服务器的“~/dependency”目录。
 2. （可选）若需要启动使能了C2解码器的视频流云手机实例（硬件配置方案一可用），则需要设置“deploy_scripts”目录下的kbox_config.cfg文件，将“**ENABLE_AMD_C2_DECODE**”设置位“1”，其他值不使能，默认为0。必须再容器第一次启动时配置开/关C2解码器，不支持中途切换。云手机内置应用会根据自身需要自行选择解码器
 
     ```shell
@@ -119,20 +119,20 @@ Kbox云手机容器支持使能图形加速层，通过修改kbox_config.cfg配�
     > cat /sys/kernel/kbox/kbox_enable
     >    ```
     >
-    > 回显为“1“，表示Kbox内核动态开关为打开状态；回显为“0“，表示Kbox内核动态开关为关闭状态。
+    > 回显为“1”，表示Kbox内核动态开关为打开状态；回显为“0”，表示Kbox内核动态开关为关闭状态。
     > 若查询发现Kbox内核动态开关为关闭状态，请通过以下指令手动打开该开关。
     >
     > ```shell
     > echo 1 > /sys/kernel/kbox/kbox_enable
     >    ```
 
-4. 执行如下命令确认Kbox容器是否启动成功，其中“$\{index\}“为启动实例的编号。
+4. 执行如下命令确认Kbox容器是否启动成功，其中“$\{index\}”为启动实例的编号。
 
     ```shell
     docker exec -it kbox_${index} getprop | grep boot_completed
     ```
 
-    若回显信息中的sys.boot_completed显示为“1“，则启动成功。
+    若回显信息中的sys.boot_completed显示为“1”，则启动成功。
 
 5. 停止并删除Kbox容器的方法。
 
@@ -182,7 +182,7 @@ Component Version: 8.0.RC1
 Component AppendInfo: 15.0.0_r17
 ```
 
-方法二：使用如下命令查询已启动的容器内的版本信息，其中“$\{index\}“为启动实例的编号，回显示例参见方法一的查询结果。
+方法二：使用如下命令查询已启动的容器内的版本信息，其中“$\{index\}”为启动实例的编号，回显示例参见方法一的查询结果。
 
 ```shell
 docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
@@ -363,29 +363,29 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 **为容器创建单独分区、使能容器IPv6<a name="section66764141138"></a>**
 
-1. Docker的默认目录是“/var/lib/docker“，所有Docker相关文件，包括镜像，都存放在这个目录下。这个目录可能很快就会被占满，届时Docker和主机可能无法使用。因此，建议创建一个单独的分区（逻辑卷），用来存放Docker文件。
+1. Docker的默认目录是“/var/lib/docker”，所有Docker相关文件，包括镜像，都存放在这个目录下。这个目录可能很快就会被占满，届时Docker和主机可能无法使用。因此，建议创建一个单独的分区（逻辑卷），用来存放Docker文件。
 2. Docker默认未开启IPv6，而一些应用依赖于IPv6协议，缺少IPv6的支持可能会导致这些应用的部分功能出现异常。以下提供了一种方法以使能Docker的IPv6协议。
 
 建议修改方式：
 
-1. 新建一个目录存放Docker相关文件，并mount一个未被挂载且文件系统类型为ext4的磁盘作为独立的分区，这里以“sda“为例。
+1. 新建一个目录存放Docker相关文件，并mount一个未被挂载且文件系统类型为ext4的磁盘作为独立的分区，这里以“sda”为例。
 
-    新建目录“/root/sda/docker“，并在“/etc/fstab“文件中添加一行“/dev/sda /root/sda/docker ext4 defaults 0 0“。若“/dev/sda“已被挂载或非ext4类型文件系统，则按实际情况选择未被挂载且文件系统类型为ext4的磁盘，下列命令中的sda根据实际可挂载的磁盘名称更改。
+    新建目录“/root/sda/docker”，并在“/etc/fstab”文件中添加一行“/dev/sda /root/sda/docker ext4 defaults 0 0”。若“/dev/sda”已被挂载或非ext4类型文件系统，则按实际情况选择未被挂载且文件系统类型为ext4的磁盘，下列命令中的sda根据实际可挂载的磁盘名称更改。
 
     ```shell
     mkdir -p /root/sda/docker
     echo "/dev/sda /root/sda/docker ext4 defaults 0 0" >> /etc/fstab
     ```
 
-2. 选择“/root/sda/docker“路径。
+2. 选择“/root/sda/docker”路径。
 
-    1. 打开“/etc/docker/daemon.json“文件。
+    1. 打开“/etc/docker/daemon.json”文件。
 
         ```shell
         vim /etc/docker/daemon.json
         ```
 
-    2. 按“i“进入编辑模式，在文件中添加属性“"data-root": "/root/sda/docker", "ipv6": true,"fixed-cidr-v6": "2001:db8::/64"“，以配置Docker的数据存储位置、使能IPv6协议。该文件需要遵循JSON格式。
+    2. 按“i”进入编辑模式，在文件中添加属性“"data-root": "/root/sda/docker", "ipv6": true,"fixed-cidr-v6": "2001:db8::/64"”，以配置Docker的数据存储位置、使能IPv6协议。该文件需要遵循JSON格式。
 
         ```shell
         {
@@ -396,10 +396,10 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
         }
         ```
 
-    3. 按“Esc“键，输入**:wq!**，按“Enter“保存并退出编辑。
+    3. 按“Esc”键，输入**:wq!**，按“Enter”保存并退出编辑。
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
-    >修改“/etc/docker/daemon.json“文件，若“/etc/docker/daemon.json“文件不存在，则使用以下命令自行创建该文件并将内容写入。
+    >修改“/etc/docker/daemon.json”文件，若“/etc/docker/daemon.json”文件不存在，则使用以下命令自行创建该文件并将内容写入。
     >
     >```shell
     >touch /etc/docker/daemon.json
@@ -422,7 +422,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     systemctl restart docker
     ```
 
-4. 重新加载“/etc/fstab“文件中的内容。
+4. 重新加载“/etc/fstab”文件中的内容。
 
     ```shell
     mount -a
@@ -575,13 +575,13 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 本章节提供Telephony属性配置示例。
 
-1. 调用**setprop**方法设置“IMEI“值。
+1. 调用**setprop**方法设置“IMEI”值。
 
     ```shell
     setprop persist.sys.prop.writeimei 861456987456321
     ```
 
-    重启容器后，拨号界面输入“\*\#06\#“，获得如下提示。
+    重启容器后，拨号界面输入“\*\#06\#”，获得如下提示。
 
     ![](figures/zh-cn_image_0000002518225892.png)
 
@@ -610,7 +610,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     setprop persist.gsm.sim.operator.alphacph "China test1"
     ```
 
-    重启容器后，拨号界面输入“\*\#\*\#4636\#\*\#\*“，打开手机信息，可以查询到“IMSI”。
+    重启容器后，拨号界面输入“\*\#\*\#4636\#\*\#\*”，打开手机信息，可以查询到“IMSI”。
 
     ![](figures/zh-cn_image_0000002549865673.png)
 

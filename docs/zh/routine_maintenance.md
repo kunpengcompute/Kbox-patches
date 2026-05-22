@@ -40,14 +40,14 @@ Kbox云手机容器巡检项目参考[**表 1** Kbox云手机容器巡检项目�
 
 #### 2.3.1 启动时容器状态<a name="ZH-CN_TOPIC_0000002518185466"></a>
 
-启动Kbox云手机容器后，执行以下命令检查启动是否成功，其中“$\{index\}“为启动实例的编号。
+启动Kbox云手机容器后，执行以下命令检查启动是否成功，其中“$\{index\}”为启动实例的编号。
 
 ```shell
 docker exec -it kbox_${index} sh
 getprop | grep boot
 ```
 
-若回显信息中，sys.boot_completed显示为“1“，则表示启动成功，否则，说明容器启动失败，请联系华为技术支持。回显示例如下。
+若回显信息中，sys.boot_completed显示为“1”，则表示启动成功，否则，说明容器启动失败，请联系华为技术支持。回显示例如下。
 
 ```shell
 [service.bootanim.exit]: [1]
@@ -60,7 +60,7 @@ getprop | grep boot
 
 #### 2.3.2 运行时容器状态<a name="ZH-CN_TOPIC_0000002549825301"></a>
 
-在Kbox云手机容器运行过程中，可通过检查其进程状态来判断容器是否正常。执行以下命令，其中“$\{index\}“为启动实例的编号。
+在Kbox云手机容器运行过程中，可通过检查其进程状态来判断容器是否正常。执行以下命令，其中“$\{index\}”为启动实例的编号。
 
 ```shell
 docker exec -it kbox_${index} sh
@@ -151,7 +151,7 @@ Swap:        83888604           0    83888604
 df -h
 ```
 
-如下图所示Kbox云手机容器数据存储在“/root/mount/data/“下，红色矩形中为容器kbox_1的数据存储信息，其存储大小为“16G“，当前使用率为“1%“。若“Use%“的值不大于85%，则磁盘空间使用率正常，否则需要清理磁盘空间。
+如下图所示Kbox云手机容器数据存储在“/root/mount/data/”下，红色矩形中为容器kbox_1的数据存储信息，其存储大小为“16G”，当前使用率为“1%”。若“Use%”的值不大于85%，则磁盘空间使用率正常，否则需要清理磁盘空间。
 
 ![](figures/zh-cn_image_0000002518185698.png)
 
@@ -214,7 +214,7 @@ cat /sys/kernel/debug/dri/*/amdgpu_pm_info |grep Temp
 
 #### 4.2.1 容器元数据<a name="ZH-CN_TOPIC_0000002518345386"></a>
 
-可使用Docker提供的**inspect**命令查看容器的详细信息，如下命令，其中“$\{index\}“为启动实例的编号。
+可使用Docker提供的**inspect**命令查看容器的详细信息，如下命令，其中“$\{index\}”为启动实例的编号。
 
 ```shell
 docker inspect kbox_${index}
@@ -237,13 +237,13 @@ docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}
 
 #### 4.2.2 容器内logcat日志<a name="ZH-CN_TOPIC_0000002549825243"></a>
 
-当容器运行出现异常时，可以查询日志进行辅助定位。实时查询Kbox云手机容器的logcat日志，可执行如下命令，其中“$\{index\}“为启动实例的编号。
+当容器运行出现异常时，可以查询日志进行辅助定位。实时查询Kbox云手机容器的logcat日志，可执行如下命令，其中“$\{index\}”为启动实例的编号。
 
 ```shell
 docker exec -it kbox_${index} logcat
 ```
 
-若需要保存容器logcat日志，可执行如下命令，将日志保存到当前目录的“log.log“中。日志保存路径和名称可按照业务需要进行修改。
+若需要保存容器logcat日志，可执行如下命令，将日志保存到当前目录的“log.log”中。日志保存路径和名称可按照业务需要进行修改。
 
 ```shell
 docker exec -it kbox_${index} logcat -d >> ./log.log
@@ -251,7 +251,7 @@ docker exec -it kbox_${index} logcat -d >> ./log.log
 
 #### 4.2.3 容器内进程信息<a name="ZH-CN_TOPIC_0000002518345428"></a>
 
-在Kbox云手机容器中可执行如下命令列出当前正在运行的进程信息，其中“$\{index\}“为启动实例的编号。
+在Kbox云手机容器中可执行如下命令列出当前正在运行的进程信息，其中“$\{index\}”为启动实例的编号。
 
 ```shell
 docker exec -it kbox_${index} ps -elf
@@ -259,7 +259,7 @@ docker exec -it kbox_${index} ps -elf
 
 #### 4.2.4 容器内top信息<a name="ZH-CN_TOPIC_0000002549825273"></a>
 
-**top**命令是常用的性能分析工具，能够实时显示系统中各个进程的资源占用情况，在Kbox云手机容器中执行如下所示的**top**命令查询系统中进程的资源占用情况，其中“$\{index\}“为启动实例的编号。
+**top**命令是常用的性能分析工具，能够实时显示系统中各个进程的资源占用情况，在Kbox云手机容器中执行如下所示的**top**命令查询系统中进程的资源占用情况，其中“$\{index\}”为启动实例的编号。
 
 ```shell
 docker exec -it kbox_${index} top
@@ -267,11 +267,11 @@ docker exec -it kbox_${index} top
 
 #### 4.2.5 ANR时应用堆栈信息<a name="ZH-CN_TOPIC_0000002549825251"></a>
 
-在Kbox云手机容器内若出现了应用程序未响应（ANR，Application Not Responding）时，需要搜集相关应用堆栈信息，该信息保存在容器的“/data/anr/“路径下。
+在Kbox云手机容器内若出现了应用程序未响应（ANR，Application Not Responding）时，需要搜集相关应用堆栈信息，该信息保存在容器的“/data/anr/”路径下。
 
 #### 4.2.6 dumpsys信息<a name="ZH-CN_TOPIC_0000002549825235"></a>
 
-dumpsys是在Android设备上运行的工具，可提供有关系统服务的信息，执行如下命令获取容器的所有系统服务诊断输出，其中“$\{index\}“为启动实例的编号。
+dumpsys是在Android设备上运行的工具，可提供有关系统服务的信息，执行如下命令获取容器的所有系统服务诊断输出，其中“$\{index\}”为启动实例的编号。
 
 ```shell
 docker exec -it kbox_${index} dumpsys
@@ -297,7 +297,7 @@ docker exec -it kbox_${index} dumpsys
 
 #### 4.2.7 容器属性信息<a name="ZH-CN_TOPIC_0000002518345450"></a>
 
-可通过**getprop**命令从Kbox云手机容器中读取属性信息，命令如下所示，其中“$\{index\}“为启动实例的编号。
+可通过**getprop**命令从Kbox云手机容器中读取属性信息，命令如下所示，其中“$\{index\}”为启动实例的编号。
 
 ```shell
 docker exec -it kbox_${index} getprop
@@ -311,7 +311,7 @@ Kbox云手机容器出现异常时，需要搜集dmesg日志以便进行问题�
 
 dmesg日志中包含设备初始化日志、内核模块日志，还会记录应用崩溃的相关信息，对于后续根因分析和定位有很大帮助。
 
-dmesg日志一般保存在服务器的“/var/log/“路径下，也可直接执行如下命令获取。
+dmesg日志一般保存在服务器的“/var/log/”路径下，也可直接执行如下命令获取。
 
 ```shell
 dmesg -T
@@ -351,7 +351,7 @@ python3 kbox_maintainer.py log kbox_1
 ```
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
->在使用日志收集功能时，如果收集日志时间过长，原因可能是“/var/log“下的日志过多导致的，可按需进行清理。
+>在使用日志收集功能时，如果收集日志时间过长，原因可能是“/var/log”下的日志过多导致的，可按需进行清理。
 
 #### 4.4.3 资源检查<a name="ZH-CN_TOPIC_0000002518345418"></a>
 
