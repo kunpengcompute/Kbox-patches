@@ -8,7 +8,7 @@ Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的核心能力组件，
 
 Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的重要组成部分，是实现Android应用运行的基础软件。它将AOSP系统直接运行在容器内，实现GPS、加速度传感器、陀螺仪、IMEI、Wi-Fi等外设硬件的数据Mock功能，以及Gralloc&HWComposor模块，确保AOSP系统可以正常启动运行；以及一系列可选特性，用于在各种业务场景下增强云手机功能或性能。
 
-Kbox支持的所有基础功能和可选特性见[**表 1** Kbox基础功能清单](#Kbox基础功能清单)和[**表 2** Kbox可选特性清单](#Kbox可选特性清单)。对于Kbox基础功能，可按照[compile_guild](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/compile_guild.md)与[install_guide](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/install_guide.md)中描述集成Kbox云手机容器组件，即可支持。可选功能的相关信息在下文章节中详细描述。
+Kbox支持的所有基础功能和可选特性见[**表 1** Kbox基础功能清单](#Kbox基础功能清单)和[**表 2** Kbox可选特性清单](#Kbox可选特性清单)。对于Kbox基础功能，可按照[编译指南](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/compile_guide.md)与[安装指南](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/install_guide.md)中描述集成Kbox云手机容器组件，即可支持。可选功能的相关信息在下文章节中详细描述。
 
 **表 1** Kbox基础功能清单<a id="Kbox基础功能清单"></a>
 
@@ -39,21 +39,27 @@ Kbox支持的所有基础功能和可选特性见[**表 1** Kbox基础功能清�
 ### 2.1 特性介绍
 
 #### 2.1.1 简介
+
 在移动应用中ETC、ASTC等压缩纹理被大量使用，他们被移动端GPU原生支持，降低显存占用和节省带宽。然而，云手机部署在服务器上，而服务器级GPU不支持这些压缩纹理，需要先将这些纹理解压成RGBA纹理，导致显存占用显著增大，影响云手机在服务器上的部署密度。本特性支持在OpenGL ES和Vulkan应用中被解压出的RGBA纹理压缩成BC纹理，有效降低显存占用。
 
 #### 2.1.2 约束与限制
+
 1. 本特性Vulkan目前只支持ETC纹理解压并压缩成BC纹理；OpenGL ES目前只支持ASTC纹理解压并压缩成BC纹理。
 2. 本特性不支持在应用运行期间修改，如需修改，需先关闭应用，然后重新启动应用。
 3. 该功能不支持纹理后处理，如应用存在此种应用场景可能造成渲染异常，此时需关闭纹理压缩功能后重新打开应用。
 
 #### 2.1.3 应用场景
+
 本特性在大量使用ETC纹理的Vulkan应用、或者大量使用ASTC纹理的OpenGL ES应用使用效果最佳，其他场景或者没优化或者优化不明显。
 
 ### 2.2 安装特性
+
 该特性默认集成到安卓镜像中。
 
 ### 2.3 使用特性
+
 可按以下步骤使用该特性：
+
 1. 设置`sys.vmi.vk.texturecompress`为1，支持Vulkan应用的纹理压缩，默认已开启。
 2. 设置`sys.vmi.gl.texturecompress`为1，支持OpenGL ES应用的纹理压缩，默认已开启。
 
@@ -123,23 +129,30 @@ Kbox支持的所有基础功能和可选特性见[**表 1** Kbox基础功能清�
 ### 5.1 特性介绍
 
 #### 5.1.1 简介
+
 Android系统中默认包含了许多内置应用与系统服务进程，在系统启动流程中，这些系统进程会自动启动与运行，以提供基础的系统功能和服务。对于云手机解决方案，Android系统中部分系统服务是非必要的，而这些冗余的系统进程占用了一部分性能资源。现考虑到极致性能场景，提供了剪裁冗余系统进程的能力，从而最大化降低系统资源消耗，提升性能。
 
 #### 5.1.2 约束与限制
+
 无
 
 #### 5.1.3 应用场景
+
 本特性没有特别的应用场景限制。
 
 ### 5.2 安装特性
+
 请按照以下步骤使能本特性：
+
 1. 编译安卓镜像时，参考[编译指南](compile_guide.md)，选择`kbox_arm64_optimized-user`编译选项。
 2. 完成其余编译步骤，获得Kbox安卓轻量化裁剪镜像。
 
 ### 5.3 使用特性
+
 使用编译得到的Kbox安卓轻量化裁剪镜像文件android.tar部署云手机容器方案，启动的云手机即为轻量化裁剪Android系统。
 
 ### 5.4 特性收益
+
 挂机场景下，单路云手机启动后，降低5%+内存占用，进程数减少10+。
 
 ## 6 Android composer优化
@@ -178,21 +191,27 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 ### 7.1 特性介绍
 
 #### 7.1.1 简介
+
 通常大型移动应用在启动前会预构建一些着色器，但在大型应用涉及场景切换、模型特效加载时仍存在着色器处理行为，包括着色器源码加载、编译、链接等，部分着色器处理时间长导致渲染抖动。本特性通过预构建二进制着色器文件，依托云侧多容器文件共享，来消除着色器编译、链接等处理时间，提升大型应用场景下的渲染效率。同时让应用在启动前跳过编译着色器阶段，大幅降低游戏启动时间。本特性通过读取配置文件支持对缓存行为按应用级别进行定制。
 
 #### 7.1.2 约束与限制
+
 1. 本特性只适用于使用OpenGL ES 3.0及以上的应用。
 2. 在使能Shader Cache后，若应用没有在云侧缓存场景所需的二进制着色器文件，在首次运行该应用时会十分卡顿。可以先启动一路云手机预收集尽可能完整的着色器。
 3. 该特性没有缓存淘汰机制，若缓存文件系统存储已满，请清理整个文件系统的缓存并调大存储容量；若游戏版本更新，为避免旧版本的缓存的空间占用，需要清理旧版本的缓存文件。
 
 #### 7.1.3 应用场景
+
 本特性在某些运行过程中存在大量的着色器编译、链接的应用使用效果最佳，其他场景或者没优化或者优化不明显。
 
 ### 7.2 安装特性
+
 本特性仅提供二进制so文件，安装时需将 RenderAccLayer\.kbox\.so（取自BoostKit-boostcph-kbox_*.zip，见[软件环境](compile_guide.md#Kbox安卓镜像编译构建软件环境要求)））集成至安卓镜像的/system/vendor/lib64/hw/路径下。
 
 ### 7.3 使用特性
+
 该特性的使用步骤如下：
+
 1. 首先需要使能该特性，即将配置文件（Kbox镜像的配置文件为**kbox_config.cfg**，视频流镜像则为**cfct_config**）中的**ENABLE_RENDER_LAYER**设置为1；
 2. 从软件包Kbox-patches-AOSP11.zip中拷贝kbox_render_accelerating_configuration.xml配置文件到当前启动路径；
 3. 打开kbox_render_accelerating_configuration.xml配置文件，对应用的Shader缓存行为进行配置。具体配置项描述请参见[3.1.2 图形加速层配置项](https://gitcode.com/boostkit/vmi/blob/CloudPhone/docs/zh/user_guide.md#312-图形加速层配置项)。
@@ -359,9 +378,11 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
    ```
 
 输入如下命令查看新建的磁盘分区的UUID
+
    ```shell
    lsblk -f
    ```
+
 在UUID属性列看到的一串由数字和字母组成的id即为uuid
 
 输入如下挂载信息
@@ -399,17 +420,17 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 当前云手机方案采用的是存算一体，数据本地存储，存储无法复用。因此为了实现存算分离，存储复用，该特性支持将数据存储通过NFS挂载到远端。NFS是一种网络文件系统，它允许你像访问本地磁盘一样，通过网络访问远程服务器上的文件。
 
-#### 10.1.2约束与限制
+#### 10.1.2 约束与限制
 
 NFS采用典型的**客户端/服务器（C/S）**架构，客户端/服务器均需要包含内核模块nfs、nfsd、nfsv4，安装nfs-utils、rpcbind。
 
-#### 10.1.2 应用场景
+#### 10.1.3 应用场景
 
 存算分离，存储复用等场景
 
-### 10.2安装特性
+### 10.2 安装特性
 
-#### 2.1、客户端/服务器公共操作
+#### 10.2.1 客户端/服务器公共操作
 
 1、确认内核是否加载nfs模块。
 
@@ -431,7 +452,7 @@ modprobe nfsv4
 yum install nfs-utils rpcbind
 ```
 
-#### 2.2、服务器配置
+#### 10.2.2 服务器配置
 
 1、新建要导出的目录
 
@@ -461,7 +482,7 @@ exportfs
 
 期望有步骤2中编写的目录输出。
 
-#### 2.3、客户端配置
+#### 10.2.3 客户端配置
 
 1、创建挂载点
 
@@ -476,9 +497,9 @@ mount -t nfs4 192.168.20.XX:/nfs /tmp/nfs
 ```
 
 >![](public_sys-resources/icon-note.gif) **说明：**
->- 由于服务器的/etc/exports对/home目录配置了fsid=0，因此在客户端时不可见的，所以只需要挂载/nfs目录即可
+>由于服务器的/etc/exports对/home目录配置了fsid=0，因此在客户端时不可见的，所以只需要挂载/nfs目录即可
 
-### 3、使用特性
+### 10.3 使用特性
 
 1、在容器配置文件kbox_config.cfg中配置NFS_DIR属性为/tmp/nfs，启动云手机使用nstart命令
 
@@ -491,6 +512,7 @@ mount -t nfs4 192.168.20.XX:/nfs /tmp/nfs
 ```shell
 cat /tmp/nfs/data/kbox_1/data/containerd
 ```
+
 ## 11 CPU频率动态模拟与调节<a name="ZH-CN_TOPIC_00000025498659400"></a>
 
 ### 11.1 特性介绍<a name="ZH-CN_TOPIC_000000254986592"></a>
@@ -518,6 +540,7 @@ cat /tmp/nfs/data/kbox_1/data/containerd
    ```shell
    ls -ld /sys/devices/system/cpu/cpu${需要查询权限的cpu的编号}/cpufreq/scaling_cur_freq
    ```
+
    ```shell
    ls -ld /sys/devices/system/cpu/cpu${需要查询权限的cpu的编号}/cpufreq/cpuinfo_cur_freq
    ```
@@ -529,10 +552,13 @@ cat /tmp/nfs/data/kbox_1/data/containerd
 ##### 11.2.1.2 **新增权限**<a name="ZH-CN_TOPIC_0000002549832559"></a>
 
 输入如下命令给scaling_cur_freq添加写入（w）权限
+
 ```shell
 chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufreq/scaling_cur_freq
 ```
+
 输入如下命令给cpuinfo_cur_freq添加写入（w）权限
+
 ```shell
 chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufreq/cpuinfo_cur_freq
 ```
@@ -561,10 +587,13 @@ chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufre
 #### 11.2.2 实施修改 <a name="ZH-CN_TOPIC_0000002549745956"></a>
 
 当前第三方检测应用一般通过读取scaling_cur_freq和cpuinfo_cur_freq这两个文件来获取当前设备的cpu运行频率，为了提高云机设备的仿真能力，在修改前先输入如下命令读取cpu所支持的频率列表。并且要对这两个文件都进行修改
+
    ```shell
    cat /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/scaling_available_frequencies
    ```
+
    随后输入如下两个命令进行修改，输入的频率值最好是刚刚查询到的当前cpu支持的频率值
+
    ```shell
    echo ${预期修改的值} > /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/scaling_cur_freq
    ```
@@ -572,8 +601,10 @@ chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufre
    ```shell
    echo ${预期修改的值} > /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/cpuinfo_cur_freq
    ```
+
    如果容器重启，那么之前的修改值会失效，CPU频率值会恢复默认。
    要实现cpu频率的动态调节，可以将如下shell命令直接复制粘贴到容器内任意路径中执行，即可在如“手机设备信息大全”这样的第三方应用中观察到cpu频率的动态变化，此处的“sleep 1”表示每隔1s变化一次，此处的“1”可以修改为其他时间值，FREQS数组里存放的是CPU频率的可能值，CPU_ID存放的是预期进行修改的CPU的编号，这三个值可以根据实际需求进行修改
+
    ```shell
    CPU_ID=0
    FREQS=(554000 860000 956000 1042000 1128000 1224000 1320000 1397000 1512000 1628000 1748000 1858000 1954000)

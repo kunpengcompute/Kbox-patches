@@ -17,12 +17,12 @@ Kbox云手机容器环境部署的硬件环境配置方案要求如[**表 1** Kb
 |配置项|硬件配置方案一|硬件配置方案二|硬件配置方案三|硬件配置方案四|
 |--|--|--|--|--|
 |服务器|鲲鹏服务器|鲲鹏服务器|鲲鹏服务器|鲲鹏服务器|
-|CPU|2*鲲鹏920 7260处理器，64 <Core@2.6GHz>|2*鲲鹏920 7260处理器，64 <Core@2.6GHz>|2*鲲鹏920 7280Z处理器，80 <Core@2.9GHz>|2*鲲鹏920 7280W处理器，64 <Core@2.2GHz>|
-|内存|16*DDR4 RDIMM内存-32GB-2933MT/s|16*DDR4 RDIMM内存-32GB-2933MT/s|16*DDR5 DIMM内存-64GB-4800MT/s|16*DDR5 DIMM内存-64GB-5200MT/s|
+|CPU|2\*鲲鹏920 7260处理器，64 <Core@2.6GHz>|2\*鲲鹏920 7260处理器，64 <Core@2.6GHz>|2\*鲲鹏920 7280Z处理器，80 <Core@2.9GHz>|2\*鲲鹏920 7280W处理器，64 <Core@2.2GHz>|
+|内存|16\*DDR4 RDIMM内存-32GB-2933MT/s|16\*DDR4 RDIMM内存-32GB-2933MT/s|16\*DDR5 DIMM内存-64GB-4800MT/s|16\*DDR5 DIMM内存-64GB-5200MT/s|
 |硬盘|系统盘：2\*固态硬盘-480GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*ES3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：2\*固态硬盘-480GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*ES3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：1\*S3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*S3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：1\*固态硬盘-480GB-SATA 6Gb/s-2.5 inch height-读密集型<br>1\*S4510 固态硬盘-960GB-SATA 6Gb/s-读取密集型<br>数据盘：1\*ES3600P V6固态硬盘-6400GB-NVMe 64Gb/s<br>1\*ES3500P V5固态硬盘-4000GB-NVMe 32Gb/s|
 |网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-225GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-2\*25GE/10GE光口-4端口-SFP28（不含光模块）|
 |Riser卡|Riser1与Riser2模组相同，均为：PCIe X16 + PCIe X8|Riser1与Riser2模组相同，均为：PCIe X8\*3|前置Riser（x8\*2）\*2+后置Riser（x8\*2）\*2+Riser3（x8\*2）\*1|后置Riser（x16+x8\*2）\*2+Riser3（x8\*2）\*1|
-|编码卡|1 * NETINT Quadra T2A（X8）|无|无|无|
+|编码卡|1\*NETINT Quadra T2A（X8）|无|无|无|
 |GPU|2\*AMD W6800|4\*道客DC1000|8\*道客DC1000|8\*道客DC1000|
 |操作系统|openEuler 22.03 LTS SP4|openEuler 22.03 LTS SP4|openEuler 22.03 LTS SP4|openEuler 22.03 LTS SP4|
 |内核版本|5.10.0-216.0.0|5.10.0-216.0.0|5.10.0-216.0.0|5.10.0-216.0.0|
@@ -253,7 +253,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 2. 执行命令，查询网卡涉及的中断。
 
-    命令中的**$\{id_pci\}**为[1](#zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512)中查到的网卡设备号。
+    命令中的**\${id_pci}**为[1](#zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512)中查到的网卡设备号。
 
     ```shell
     cat /proc/interrupts | grep "${id_pci}" | awk -F: '{print $1}'
@@ -269,7 +269,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >若查询网卡涉及的中断时，回显包含多个中断号，则需要判断中断是否分散地绑在不同CPU上，根据判断结果来确定是否修改中断绑定的CPU。
 
-3. 查询中断绑定在哪个CPU上，命令中的\$\{break_value\}为查询到的网卡中断号。
+3. 查询中断绑定在哪个CPU上，命令中的\${break_value}为查询到的网卡中断号。
 
     ```shell
     cat /proc/irq/${break_value}/smp_affinity_list
@@ -280,7 +280,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 4. <a name="zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li1667182211497"></a>根据网卡的**pci设备号**，查看网卡所属的NUMA node。
 
-    命令中的\$\{id_pci\}为网卡设备号，可通过本节内容的[1](#zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512)进行查看。执行命令，回显中的NUMA node参数对应的值即为网卡所属的NUMA node。
+    命令中的\${id_pci}为网卡设备号，可通过本节内容的[1](#zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512)进行查看。执行命令，回显中的NUMA node参数对应的值即为网卡所属的NUMA node。
 
     ```shell
     lspci -vvvs ${id_pci}
@@ -301,15 +301,15 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 5. <a name="zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li1985492711497"></a>网卡中断绑定至预留CPU（优先网卡所属的NUMA node CPU）上。
 
-    命令中的\$\{break_1\}、$\{break_2\}依次为两个网卡中断的值。
+    命令中的\${break_1}、\${break_2}依次为两个网卡中断的值。
 
-    - 将中断$\{break_1\}绑定至1 CPU。
+    - 将中断\${break_1}绑定至1 CPU。
 
         ```shell
         echo 1 > /proc/irq/${break_1}/smp_affinity_list
         ```
 
-    - 将中断$\{break_2\}绑定至2 CPU。
+    - 将中断\${break_2}绑定至2 CPU。
 
         ```shell
         echo 2 > /proc/irq/${break_2}/smp_affinity_list
@@ -931,7 +931,7 @@ NUMA node: 2
     reboot
     ```
 
-### 8.3（硬件配置方案二、三、四）安装显卡驱动<a name="ZH-CN_TOPIC_0000002549832107" id="安装显卡驱动"></a>
+### 8.3 （硬件配置方案二、三、四）安装显卡驱动<a name="ZH-CN_TOPIC_0000002549832107" id="安装显卡驱动"></a>
 
 使用硬件配置方案二、三、四每次服务器重启后，都需要重新执行安装显卡驱动步骤。
 
@@ -1005,7 +1005,7 @@ NUMA node: 2
 > rmmod va_pci
 >    ```
 
-### 8.3 上传ExaGear转码包<a name="ZH-CN_TOPIC_0000002549712107"></a>
+### 8.4 上传ExaGear转码包<a name="ZH-CN_TOPIC_0000002549712107"></a>
 
 使用脚本启动Kbox容器时，会自动根据“~/dependency”目录下的ExaGear转码包自动使能ExaGear转码功能，因此需要提前将ExaGear转码包上传到对应目录，若自动使能失败，则需要手动进行ExaGear转码使能。
 
