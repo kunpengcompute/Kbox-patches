@@ -8,7 +8,7 @@ Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的核心能力组件，
 
 Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的重要组成部分，是实现Android应用运行的基础软件。它将AOSP系统直接运行在容器内，实现GPS、加速度传感器、陀螺仪、IMEI、Wi-Fi等外设硬件的数据Mock功能，以及Gralloc&HWComposor模块，确保AOSP系统可以正常启动运行；以及一系列可选特性，用于在各种业务场景下增强云手机功能或性能。
 
-Kbox支持的所有基础功能和可选特性见[**表 1** Kbox基础功能清单](#Kbox基础功能清单)和[**表 2** Kbox可选特性清单](#Kbox可选特性清单)。对于Kbox基础功能，可按照[compile_guild](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/compile_guild.md)与[install_guide](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/install_guide.md)中描述集成Kbox云手机容器组件，即可支持。可选功能的相关信息在下文章节中详细描述。
+Kbox支持的所有基础功能和可选特性见[**表 1** Kbox基础功能清单](#Kbox基础功能清单)和[**表 2** Kbox可选特性清单](#Kbox可选特性清单)。对于Kbox基础功能，可按照[编译指南](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/compile_guide.md)与[安装指南](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/install_guide.md)中描述集成Kbox云手机容器组件，即可支持。可选功能的相关信息在下文章节中详细描述。
 
 **表 1** Kbox基础功能清单<a id="Kbox基础功能清单"></a>
 
@@ -59,6 +59,7 @@ Kbox支持的所有基础功能和可选特性见[**表 1** Kbox基础功能清�
 ### 2.3 使用特性
 
 可按以下步骤使用该特性：
+
 1. 设置`sys.vmi.vk.texturecompress`为1，支持Vulkan应用的纹理压缩，默认已开启。
 2. 设置`sys.vmi.gl.texturecompress`为1，支持OpenGL ES应用的纹理压缩，默认已开启。
 
@@ -147,6 +148,7 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 ### 5.2 安装特性
 
 请按照以下步骤使能本特性：
+
 1. 编译安卓镜像时，参考[编译指南](compile_guide.md)，选择`kbox_arm64_optimized-trunk_staging-user`编译选项。
 2. 完成其余编译步骤，获得Kbox安卓轻量化裁剪镜像。
 
@@ -214,6 +216,7 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 ### 7.3 使用特性
 
 该特性的使用步骤如下：
+
 1. 首先需要使能该特性，即将配置文件（Kbox镜像的配置文件为**kbox_config.cfg**，视频流镜像则为**cfct_config**）中的**ENABLE_RENDER_LAYER**设置为1；
 2. 从软件包Kbox-patches-AOSP11.zip中拷贝kbox_render_accelerating_configuration.xml配置文件到当前启动路径；
 3. 打开kbox_render_accelerating_configuration.xml配置文件，对应用的Shader缓存行为进行配置。具体配置项描述请参见[3.1.2 图形加速层配置项](https://gitcode.com/boostkit/vmi/blob/CloudPhone15/docs/zh/user_guide.md#312-图形加速层配置项)。
@@ -351,7 +354,7 @@ mount | grep -i /data
    lsblk -f
    ```
 
-如果已经有xfs格式的硬盘挂载在docker的根目录，一般默认是/var/lib/docker目录，那么可以直接跳到[触发分区扩容逻辑](ZH-CN_TOPIC_0000002549832550)章节继续执行
+如果已经有xfs格式的硬盘挂载在docker的根目录，一般默认是/var/lib/docker目录，那么可以直接跳到[触发分区扩容逻辑](#ZH-CN_TOPIC_0000002549832550)章节继续执行
 
 输入如下命令新建物理盘分区
 
