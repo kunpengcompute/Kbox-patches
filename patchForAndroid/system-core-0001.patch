@@ -209,7 +209,7 @@ index 021557697..4668c5342 100644
  
      SetStdioToDevNull(argv);
 diff --git a/init/init.cpp b/init/init.cpp
-index 29859c5f5..6362e5b5b 100644
+index 29859c5f5..94c786938 100644
 --- a/init/init.cpp
 +++ b/init/init.cpp
 @@ -38,6 +38,7 @@
@@ -294,7 +294,7 @@ index 29859c5f5..6362e5b5b 100644
      Keychords keychords;
      am.QueueBuiltinAction(
              [&epoll, &keychords](const BuiltinArguments& args) -> Result<void> {
-@@ -825,9 +831,87 @@ int SecondStageMain(int argc, char** argv) {
+@@ -825,9 +831,88 @@ int SecondStageMain(int argc, char** argv) {
      // Trigger all the boot actions to get us started.
      am.QueueEventTrigger("init");
  
@@ -377,6 +377,7 @@ index 29859c5f5..6362e5b5b 100644
 +
 +        // **3. 重新挂载 /proc/sys 为只读**
 +        CHECKCALL(mount("none", "/proc/sys", "proc", MS_REMOUNT | MS_RDONLY, nullptr) == 0);
++        CHECKCALL(mount("none", "/proc", "proc", MS_REMOUNT, nullptr) == 0);
 +    }
 +
 +    // // Repeat mix_hwrng_into_linux_rng in case /dev/hw_random or /dev/random
@@ -385,7 +386,7 @@ index 29859c5f5..6362e5b5b 100644
  
      // Don't mount filesystems or start core system services in charger mode.
      std::string bootmode = GetProperty("ro.bootmode", "");
-@@ -840,6 +924,7 @@ int SecondStageMain(int argc, char** argv) {
+@@ -840,6 +925,7 @@ int SecondStageMain(int argc, char** argv) {
      // Run all property triggers based on current state of the properties.
      am.QueueBuiltinAction(queue_property_triggers_action, "queue_property_triggers");
  

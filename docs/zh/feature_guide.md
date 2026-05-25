@@ -234,7 +234,7 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 #### 8.1.3 应用场景
 
-本特性没有特别的应用场景限制
+本特性没有特别的应用场景限制。
 
 ### 8.2 使用介绍
 
@@ -248,7 +248,7 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
    yum install f2fs-tools
    ```
 
-   检查当前内核是否支持f2fs
+   检查当前内核是否支持f2fs。
 
    ```shell
    cat /proc/filesystems | grep f2fs
@@ -260,27 +260,29 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 ##### 8.2.1.2 **新建f2fs磁盘并挂载指定目录**
 
-输入下面命令查找当前环境磁盘情况
+注意：该步骤并非必要操作，如果数据卷目录下的data目录没有挂载f2fs格式磁盘，在打开f2fs文件系统开关之后，可能会对性能产生影响。
+
+输入下面命令查找当前环境磁盘情况。
 
    ```shell
    lsblk -f
    ```
 
-如果已经有f2fs格式的硬盘挂载在数据卷目录下的data目录，那么可以直接跳到下方[使用特性](feature_guide.md#ZH-CN_TOPIC_0000002549745952)章节继续执行
+如果已经有f2fs格式的硬盘挂载在数据卷目录下的data目录，那么可以直接跳到下方[使用特性](feature_guide.md#ZH-CN_TOPIC_0000002549745952)章节继续执行。
 
-输入如下命令新建物理盘分区
+输入如下命令新建物理盘分区。
 
    ```shell
    fdisk /dev/${打算新建分区的物理盘名字}
    ```
 
-系统重新读取分区表
+系统重新读取分区表。
 
    ```shell
    partprobe /dev/${打算新建分区的物理盘名字}
    ```
 
-将新分区设置为f2fs格式
+将新分区设置为f2fs格式。
 
    ```shell
    mkfs.f2fs /dev/${新创建的逻辑盘名字}
@@ -288,19 +290,19 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 修改挂载配置文件，确保使用 `f2fs` 类型挂载。
    
-输入如下命令编辑挂载信息
+输入如下命令编辑挂载信息。
 
    ```shell
    vim /etc/fstab
    ```
 
-输入如下挂载信息
+输入如下挂载信息。
 
    ```text
    UUID=${UUID} ${data_disk_mount_dir}/data  f2fs defaults
    ```
 
-挂载新分区，使能新分区挂载生效
+挂载新分区，使能新分区挂载生效。
 
    ```shell
    mount -a
@@ -331,11 +333,11 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 1. 底层文件系统强依赖：宿主机用于承载云机容器数据的目标磁盘，必须被格式化为 XFS 格式。若文件系统不支持该特性，容量配置将直接失效。
 2. 挂载选项合规性：负责挂载该数据盘的运维脚本或 /etc/fstab 配置中，必须包含并成功应用了 pquota 参数。若磁盘以默认参数挂载，即使底层是 XFS，Docker 在尝试应用  --storage-opt size 参数启动云机时也会抛出异常或导致配额下发失败。
-3. 参数配置限制：system分区可设置的大小并不是无限大，当设置的参数大于docker根目录的大小的时候，设置给system分区的大小会自动变成docker根目录的大小
+3. 参数配置限制：system分区可设置的大小并不是无限大，当设置的参数大于docker根目录的大小的时候，设置给system分区的大小会自动变成docker根目录的大小。
 
 #### 9.1.3 应用场景<a name="ZH-CN_TOPIC_0000002518226174"></a>
 
-本特性没有特别的应用场景限制
+本特性没有特别的应用场景限制。
 
 ### 9.2 使用介绍<a name="ZH-CN_TOPIC_0000002549865942"></a>
 
@@ -343,27 +345,27 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 ##### 9.2.1.1 **新建xfs盘并挂载**
 
-   输入下面命令查找当前环境磁盘情况
+   输入下面命令查找当前环境磁盘情况。
 
    ```shell
    lsblk -f
    ```
 
-如果已经有xfs格式的硬盘挂载在docker的根目录，一般默认是/var/lib/docker目录，那么可以直接跳到[触发分区扩容逻辑](feature_guide.md#ZH-CN_TOPIC_0000002549832550)章节继续执行
+如果已经有xfs格式的硬盘挂载在docker的根目录，一般默认是/var/lib/docker目录，那么可以直接跳到[触发分区扩容逻辑](feature_guide.md#ZH-CN_TOPIC_0000002549832550)章节继续执行。
 
-输入如下命令新建物理盘分区
+输入如下命令新建物理盘分区。
 
    ```shell
    fdisk /dev/${打算新建分区的所在物理盘名字}
    ```
 
-系统重新读取分区表
+系统重新读取分区表。
 
    ```shell
    partprobe /dev/${打算新建分区的所在物理盘名字}
    ```
 
-将新分区设置为xfs格式
+将新分区设置为xfs格式。
 
    ```shell
    mkfs.xfs /dev/${新创建的逻辑盘分区名字}
@@ -371,13 +373,13 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 修改挂载配置文件，确保使用 `xfs` 类型挂载。
    
-输入如下命令编辑挂载信息
+输入如下命令编辑挂载信息。
 
    ```shell
    vim /etc/fstab
    ```
 
-输入如下命令查看新建的磁盘分区的UUID
+输入如下命令查看新建的磁盘分区的UUID。
 
    ```shell
    lsblk -f
@@ -385,13 +387,13 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 在UUID属性列看到的一串由数字和字母组成的id即为uuid
 
-输入如下挂载信息
+输入如下挂载信息。
 
    ```text
    UUID=${UUID} ${docker_root_dir}  xfs defaults,pquota 0 2
    ```
 
-挂载新分区，输入如下命令使能新分区挂载生效
+挂载新分区，输入如下命令使能新分区挂载生效。
 
    ```shell
    mount -a
@@ -400,7 +402,7 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 ##### 9.2.1.2 **触发分区扩容逻辑**<a name="ZH-CN_TOPIC_0000002549832550"></a>
 
-   在云手机配置文件kbox_config.cfg里，将SYSTEM_PARTITION_SIZE_MB设置为预期要实现的/system分区大小值，单位为MB
+   在云手机配置文件kbox_config.cfg里，将SYSTEM_PARTITION_SIZE_MB设置为预期要实现的/system分区大小值，单位为MB。
 
    ```txt
    SYSTEM_PARTITION_SIZE_MB=${预期要实现的/system分区大小值(MB)}
@@ -527,7 +529,7 @@ cat /tmp/nfs/data/kbox_1/data/containerd
 
 #### 11.1.3 应用场景<a name="ZH-CN_TOPIC_0000002518226175"></a>
 
-本特性没有特别的应用场景限制
+本特性没有特别的应用场景限制。
 
 ### 11.2 使用介绍<a name="ZH-CN_TOPIC_00000025498659431"></a>
 
@@ -535,7 +537,7 @@ cat /tmp/nfs/data/kbox_1/data/containerd
 
 ##### 11.2.1.1 **权限检测**
 
-   在容器内输入下面命令查找目标数据路径中的目标文件是否具备写入权限,若权限不足，会直接导致数据写入失败
+   在容器内输入下面命令查找目标数据路径中的目标文件是否具备写入权限,若权限不足，会直接导致数据写入失败。
 
    ```shell
    ls -ld /sys/devices/system/cpu/cpu${需要查询权限的cpu的编号}/cpufreq/scaling_cur_freq
@@ -545,19 +547,19 @@ cat /tmp/nfs/data/kbox_1/data/containerd
    ls -ld /sys/devices/system/cpu/cpu${需要查询权限的cpu的编号}/cpufreq/cpuinfo_cur_freq
    ```
 
-如果包含 w（如 -rw-r--r--），说明文件的所有者（通常是 root）拥有写入权限。请直接跳到[文件说明](feature_guide.md#ZH-CN_TOPIC_0000002549832553)
+如果包含 w（如 -rw-r--r--），说明文件的所有者（通常是 root）拥有写入权限。请直接跳到[文件说明](feature_guide.md#ZH-CN_TOPIC_0000002549832553)。
 
-如果没有 w（如 -r--r--r--），说明它是只读的，此时权限不足，无法直接写入。请按照如下步骤
+如果没有 w（如 -r--r--r--），说明它是只读的，此时权限不足，无法直接写入。请按照如下步骤。
 
 ##### 11.2.1.2 **新增权限**<a name="ZH-CN_TOPIC_0000002549832559"></a>
 
-输入如下命令给scaling_cur_freq添加写入（w）权限
+输入如下命令给scaling_cur_freq添加写入（w）权限。
 
 ```shell
 chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufreq/scaling_cur_freq
 ```
 
-输入如下命令给cpuinfo_cur_freq添加写入（w）权限
+输入如下命令给cpuinfo_cur_freq添加写入（w）权限。
 
 ```shell
 chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufreq/cpuinfo_cur_freq
@@ -572,7 +574,7 @@ chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufre
 | **`scaling_cur_freq`** | **内核调优器（Governor）决定的当前运行频率。** 绝大多数 App 和安全风控系统会读取此文件来判断设备的实时运行状态 |  如果进行cpu频率动态调节，核心是往该文件覆写数值。 |
 | **`scaling_governor`** | 当前的 CPU 频率调节策略（调度器） |   |
 | **`scaling_setspeed`** | 用户空间请求的目标频率 | |
-| **`scaling_available_frequencies`** | **当前硬件及驱动所支持的所有可用频率档位列表。**（例如：`300000 600000 1000000 ...`） | 在进行频率调节时，切勿写入随机瞎编的数字。建议读取此文件，并在这些支持的频率列表中选取数值进行写入，以防被风控系统通过“非法频段”识别。 |
+| **`scaling_available_frequencies`** | **当前硬件及驱动所支持的所有可用频率档位列表。**（例如：`300000 600000 1000000 ...`） | 在进行频率调节时，切勿写入任意数字。建议读取此文件，并在这些支持的频率列表中选取数值进行写入，以防被风控系统通过“非法频段”识别。 |
 | **`scaling_available_governors`** | **系统当前支持的所有调节策略（调度器）列表。** |   |
 | **`scaling_max_freq`** | **软件策略允许达到的最高频率限制。** | **频率上限封顶。** 如果要实现“降频省电”或“模拟低端设备”功能时，则可能会修改此文件，确保模拟出的最高频率不超过此设定值 |
 | **`scaling_min_freq`** | **软件策略允许达到的最低频率限制。** | **频率下限托底。** 如果要实现“性能保底”或“模拟高性能设备待机”功能，则可能会修改此文件，防止频率降得过低导致伪装失真 |
@@ -586,13 +588,13 @@ chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufre
 
 #### 11.2.2 实施修改 <a name="ZH-CN_TOPIC_0000002549745956"></a>
 
-当前第三方检测应用一般通过读取scaling_cur_freq和cpuinfo_cur_freq这两个文件来获取当前设备的cpu运行频率，为了提高云机设备的仿真能力，在修改前先输入如下命令读取cpu所支持的频率列表。并且要对这两个文件都进行修改
+当前第三方检测应用一般通过读取scaling_cur_freq和cpuinfo_cur_freq这两个文件来获取当前设备的cpu运行频率，为了提高云机设备的仿真能力，在修改前先输入如下命令读取cpu所支持的频率列表。并且要对这两个文件都进行修改。
 
    ```shell
    cat /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/scaling_available_frequencies
    ```
 
-   随后输入如下两个命令进行修改，输入的频率值最好是刚刚查询到的当前cpu支持的频率值
+   随后输入如下两个命令进行修改，输入的频率值最好是刚刚查询到的当前cpu支持的频率值。
 
    ```shell
    echo ${预期修改的值} > /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/scaling_cur_freq
@@ -603,7 +605,7 @@ chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufre
    ```
 
    如果容器重启，那么之前的修改值会失效，CPU频率值会恢复默认。
-   要实现cpu频率的动态调节，可以将如下shell命令直接复制粘贴到容器内任意路径中执行，即可在如“手机设备信息大全”这样的第三方应用中观察到cpu频率的动态变化，此处的“sleep 1”表示每隔1s变化一次，此处的“1”可以修改为其他时间值，FREQS数组里存放的是CPU频率的可能值，CPU_ID存放的是预期进行修改的CPU的编号，这三个值可以根据实际需求进行修改
+   要实现cpu频率的动态调节，可以将如下shell命令直接复制粘贴到容器内任意路径中执行，即可在如“手机设备信息大全”这样的第三方应用中观察到cpu频率的动态变化，此处的“sleep 1”表示每隔1s变化一次，此处的“1”可以修改为其他时间值，FREQS数组里存放的是CPU频率的可能值，CPU_ID存放的是预期进行修改的CPU的编号，这三个值可以根据实际需求进行修改。
 
    ```shell
    CPU_ID=0
