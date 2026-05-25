@@ -18,7 +18,7 @@
 
 上传Kbox Demo镜像包至“~/dependency”目录（本文以此目录作为示例，用户可自行设置目录），并挂载。
 
-镜像的名称和tag可以自行定义，格式为“\{名称\}:\{tag\}”，此处设置镜像名为kbox:demo。
+镜像的名称和tag可以自行定义，格式为“{名称}:{tag}”，此处设置镜像名为kbox:demo。
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >镜像名以及tag名中只可包含数字与字母，镜像名的首字符必须为小写字母或数字。
@@ -102,7 +102,7 @@ Kbox云手机容器支持使能图形加速层，通过修改kbox_config.cfg配�
     |绑核策略|2容器/2核|
     |内存|6GB|
     |系统存储|16GB|
-    |分辨率|720*1280|
+    |分辨率|720\*1280|
 
     启动脚本使用示例：启动一个编号为1的实例。
 
@@ -112,7 +112,7 @@ Kbox云手机容器支持使能图形加速层，通过修改kbox_config.cfg配�
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >- 启动容器的过程中可能会出现“writing syncT "procError"”、“exec /system/bin/chmod: no such file”等类似报错，该类报错不影响正常功能，忽略即可。
-    >- 启动容器时，指定的$\{index1\}对应容器绑定的端口，例如index1=10时，对应使用端口8010/8510。在启动时需要确保对应的端口没有被占用。
+    >- 启动容器时，指定的\${index1}对应容器绑定的端口，例如index1=10时，对应使用端口8010/8510。在启动时需要确保对应的端口没有被占用。
     >- 可以通过以下指令查询Kbox内核动态开关状态。
     >
     > ```shell
@@ -126,7 +126,7 @@ Kbox云手机容器支持使能图形加速层，通过修改kbox_config.cfg配�
     > echo 1 > /sys/kernel/kbox/kbox_enable
     >    ```
 
-4. 执行如下命令确认Kbox容器是否启动成功，其中“$\{index\}”为启动实例的编号。
+4. 执行如下命令确认Kbox容器是否启动成功，其中“\${index}”为启动实例的编号。
 
     ```shell
     docker exec -it kbox_${index} getprop | grep boot_completed
@@ -140,7 +140,7 @@ Kbox云手机容器支持使能图形加速层，通过修改kbox_config.cfg配�
 
     使用android_kbox_aosp15.sh脚本，停止并删除正在运行的Kbox容器。
 
-    停止并删除编号为$\{index\}的容器。
+    停止并删除编号为\${index}的容器。
 
     ```shell
     ./android_kbox_aosp15.sh delete ${index}
@@ -152,7 +152,7 @@ Kbox云手机容器支持使能图形加速层，通过修改kbox_config.cfg配�
 
     使用android_kbox_aosp15.sh脚本重启Kbox容器。
 
-    重启编号为$\{index\}的容器。
+    重启编号为\${index}的容器。
 
     ```shell
     ./android_kbox_aosp15.sh restart ${index}
@@ -182,20 +182,21 @@ Component Version: 8.0.RC1
 Component AppendInfo: 15.0.0_r17
 ```
 
-方法二：使用如下命令查询已启动的容器内的版本信息，其中“$\{index\}”为启动实例的编号，回显示例参见方法一的查询结果。
+方法二：使用如下命令查询已启动的容器内的版本信息，其中“\${index}”为启动实例的编号，回显示例参见方法一的查询结果。
 
 ```shell
 docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
 ```
 
-### 1.4（可选） 使能容器以F2FS文件系统启动<a name="ZH-CN_TOPIC_0000002549832548"></a>
+### 1.4 （可选） 使能容器以F2FS文件系统启动<a name="ZH-CN_TOPIC_0000002549832548"></a>
 
 此前云手机容器内文件格式是服务器常用ext4格式，和真机的f2fs格式不同，下面步骤说明如何使能云手机支持以f2fs文件格式启动，使其和真实手机采用一样的文件系统，提高仿真能力
 
 #### 1.4.1  **环境准备**
+
    环境准备的步骤可以参照feature_guide.md的[8.2.1.1环境准备](feature_guide.md#ZH-CN_TOPIC_000000254986594100)章节
   
-#### 1.4.2. **使能配置项**<a name="ZH-CN_TOPIC_0000002549832549"></a>
+#### 1.4.2 . **使能配置项**<a name="ZH-CN_TOPIC_0000002549832549"></a>
 
    将配置文件的kbox_config.cfg中的ENABLE_F2FS设置为1
 
@@ -203,7 +204,7 @@ docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
    ENABLE_F2FS=1
    ```
 
-#### 1.4.3. **校验是否生效**
+#### 1.4.3 . **校验是否生效**
 
    启动容器后，进入容器环境查看挂载点信息。
 
@@ -213,11 +214,11 @@ docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
 
    若输出显示对应的分区挂载类型为 `f2fs`，即说明使能成功。
 
-### 1.5（可选） 实现容器内/system分区大小可调节<a name="ZH-CN_TOPIC_0000002549132549"></a>
+### 1.5 （可选） 实现容器内/system分区大小可调节<a name="ZH-CN_TOPIC_0000002549132549"></a>
 
 此前使用检测工具发现云手机容器内system分区大小和宿主机内根目录下空间大小一致，达到将近1T大小，和真机差距巨大，下面步骤说明如何调节云手机/system分区大小，使其和真实手机的/system分区大小相近，提高仿真能力
 
-#### 1.5.1. **环境准备**
+#### 1.5.1 . **环境准备**
 
    环境准备部分请参照feature_guide.md的[9.2 使用介绍](feature_guide.md#ZH-CN_TOPIC_0000002549865942)章节执行
 
@@ -239,7 +240,7 @@ docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
 
    确认 `Size` 列显示的大小(MB)与您配置的参数大小(MB)一致，即表示分区调节生效。
 
-### 1.6（可选） 使能容器支持NFS挂载启动
+### 1.6 （可选） 使能容器支持NFS挂载启动
 
 该特性支持将数据存储通过NFS挂载到远端，实现存算分离，存储复用。
 
@@ -269,20 +270,24 @@ docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
 cat /tmp/nfs/data/kbox_1/data/containerd
 ```
 
-### 1.7（可选） 实现云机cpu频率动态调整<a name="ZH-CN_TOPIC_000000254983254923"></a>
+### 1.7 （可选） 实现云机cpu频率动态调整<a name="ZH-CN_TOPIC_000000254983254923"></a>
 
 在真机中，系统为了平衡负载和功耗，会动态调节 CPU 的运行频率，而云机依托于服务器宿主机的容器化环境运行，其底层物理 CPU 的频率通常处于恒定状态，与真机存在差异。下面步骤说明如何实现云手机cpu频率动态调节，提高仿真能力
 
-#### 1.7.1. **环境准备**
+#### 1.7.1 . **环境准备**
 
    环境准备部分请参照feature_guide.md的"CPU频率动态模拟与调节"章节里的[安装特性](feature_guide.md#ZH-CN_TOPIC_0000002518386097)章节执行
 
-#### 1.7.2. **实施修改**<a name="ZH-CN_TOPIC_000000254983255011"></a>
+#### 1.7.2 . **实施修改**<a name="ZH-CN_TOPIC_000000254983255011"></a>
+
    当前第三方检测应用一般通过读取scaling_cur_freq和cpuinfo_cur_freq这两个文件来获取当前设备的cpu运行频率，为了提高云机设备的仿真能力，在修改前先在容器内输入如下命令读取cpu所支持的频率列表。并且要对这两个文件都进行修改
+
    ```shell
    cat /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/scaling_available_frequencies
    ```
+
    随后在容器内输入如下两个命令进行修改，输入的频率值最好是刚刚查询到的当前cpu支持的频率值
+
    ```shell
    echo ${预期修改的值} > /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/scaling_cur_freq
    ```
@@ -294,6 +299,7 @@ cat /tmp/nfs/data/kbox_1/data/containerd
    如果容器重启，那么之前的修改值会失效，CPU频率值会恢复默认。
 
    要实现cpu频率的动态调节，可以将如下shell命令直接复制粘贴到容器内任意路径中执行，即可在如“手机设备信息大全”这样的第三方应用中观察到cpu频率的动态变化，此处的“sleep 1”表示每隔1s变化一次，此处的“1”可以修改为其他时间值，FREQS数组里存放的是CPU频率的可能值，CPU_ID存放的是预期进行修改的CPU的编号，这三个值可以根据实际需求进行修改
+
    ```shell
    CPU_ID=0
    FREQS=(554000 860000 956000 1042000 1128000 1224000 1320000 1397000 1512000 1628000 1748000 1858000 1954000)
@@ -308,7 +314,8 @@ cat /tmp/nfs/data/kbox_1/data/containerd
    done
    ```
 
-#### 1.7.3. **校验是否生效**
+#### 1.7.3 . **校验是否生效**
+
    启动容器后，在容器内安装如“手机设备信息大全”的app，查看cpu频率是否等于预期，若等于预期值即表示cpu频率调节生效。
 
 ## 2 SCRCPY测试<a name="ZH-CN_TOPIC_0000002549865635"></a>
@@ -536,7 +543,6 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     根据返回值判断GPS属性是否生效。示例回显如下。
 
     ```shell
-          
     last location=Location[gps 30.188433,120.193818 hAcc=20.0 et=+3d21h54m53s533ms alt=0.0 mslAlt=-8.068903955722352 vel=0.0 bear=0.0 {Bundle[{satellites=0, maxCn0=0, meanCn0=0}]}]
     ```
 
@@ -674,7 +680,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 | persist.sensors.mock.gyro.data.z | 当配置项为persist.sensors.mock.gyro.data.z，表示沿z轴的旋转速率 | float | [-3.402823466e+38,3.402823466e+38] | 陀螺仪的z轴默认值均为0.101028，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.gyro.data.z上。但由于Android 15将底层采集的数据与resolution值一起计算量化成新值，陀螺仪resolution=1/1000 | 当设置persist.sensors.mock.gyro.data.z的值包含非数字/小数点字符的非法字符时，设置无效采用默认值。注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题 |
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
->Android 15数值转换公式：输入value是float类型，resolution是double类型，double incRes = 0.125 \* resolution；value = round\(static_cast<double\>\(value\) / incRes\) \* incRes，round是指double类型取整。
+>Android 15数值转换公式：输入value是float类型，resolution是double类型，double incRes = 0.125 \*resolution；value = round\(static_cast<double\>\(value\) / incRes\) \*incRes，round是指double类型取整。
 
 ##### 4.2.3.2 配置属性示例<a name="ZH-CN_TOPIC_0000002549745641"></a>
 

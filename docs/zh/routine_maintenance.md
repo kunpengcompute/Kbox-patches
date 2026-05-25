@@ -40,7 +40,7 @@ Kbox云手机容器巡检项目参考[**表 1** Kbox云手机容器巡检项目�
 
 #### 2.3.1 启动时容器状态<a name="ZH-CN_TOPIC_0000002518185466"></a>
 
-启动Kbox云手机容器后，执行以下命令检查启动是否成功，其中“$\{index\}”为启动实例的编号。
+启动Kbox云手机容器后，执行以下命令检查启动是否成功，其中“\${index}”为启动实例的编号。
 
 ```shell
 docker exec -it kbox_${index} sh
@@ -60,7 +60,7 @@ getprop | grep boot
 
 #### 2.3.2 运行时容器状态<a name="ZH-CN_TOPIC_0000002549825301"></a>
 
-在Kbox云手机容器运行过程中，可通过检查其进程状态来判断容器是否正常。执行以下命令，其中“$\{index\}”为启动实例的编号。
+在Kbox云手机容器运行过程中，可通过检查其进程状态来判断容器是否正常。执行以下命令，其中“\${index}”为启动实例的编号。
 
 ```shell
 docker exec -it kbox_${index} sh
@@ -214,7 +214,7 @@ cat /sys/kernel/debug/dri/*/amdgpu_pm_info |grep Temp
 
 #### 4.2.1 容器元数据<a name="ZH-CN_TOPIC_0000002518345386"></a>
 
-可使用Docker提供的**inspect**命令查看容器的详细信息，如下命令，其中“$\{index\}”为启动实例的编号。
+可使用Docker提供的**inspect**命令查看容器的详细信息，如下命令，其中“\${index}”为启动实例的编号。
 
 ```shell
 docker inspect kbox_${index}
@@ -237,7 +237,7 @@ docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}
 
 #### 4.2.2 容器内logcat日志<a name="ZH-CN_TOPIC_0000002549825243"></a>
 
-当容器运行出现异常时，可以查询日志进行辅助定位。实时查询Kbox云手机容器的logcat日志，可执行如下命令，其中“$\{index\}”为启动实例的编号。
+当容器运行出现异常时，可以查询日志进行辅助定位。实时查询Kbox云手机容器的logcat日志，可执行如下命令，其中“\${index}”为启动实例的编号。
 
 ```shell
 docker exec -it kbox_${index} logcat
@@ -251,7 +251,7 @@ docker exec -it kbox_${index} logcat -d >> ./log.log
 
 #### 4.2.3 容器内进程信息<a name="ZH-CN_TOPIC_0000002518345428"></a>
 
-在Kbox云手机容器中可执行如下命令列出当前正在运行的进程信息，其中“$\{index\}”为启动实例的编号。
+在Kbox云手机容器中可执行如下命令列出当前正在运行的进程信息，其中“\${index}”为启动实例的编号。
 
 ```shell
 docker exec -it kbox_${index} ps -elf
@@ -259,7 +259,7 @@ docker exec -it kbox_${index} ps -elf
 
 #### 4.2.4 容器内top信息<a name="ZH-CN_TOPIC_0000002549825273"></a>
 
-**top**命令是常用的性能分析工具，能够实时显示系统中各个进程的资源占用情况，在Kbox云手机容器中执行如下所示的**top**命令查询系统中进程的资源占用情况，其中“$\{index\}”为启动实例的编号。
+**top**命令是常用的性能分析工具，能够实时显示系统中各个进程的资源占用情况，在Kbox云手机容器中执行如下所示的**top**命令查询系统中进程的资源占用情况，其中“\${index}”为启动实例的编号。
 
 ```shell
 docker exec -it kbox_${index} top
@@ -271,7 +271,7 @@ docker exec -it kbox_${index} top
 
 #### 4.2.6 dumpsys信息<a name="ZH-CN_TOPIC_0000002549825235"></a>
 
-dumpsys是在Android设备上运行的工具，可提供有关系统服务的信息，执行如下命令获取容器的所有系统服务诊断输出，其中“$\{index\}”为启动实例的编号。
+dumpsys是在Android设备上运行的工具，可提供有关系统服务的信息，执行如下命令获取容器的所有系统服务诊断输出，其中“\${index}”为启动实例的编号。
 
 ```shell
 docker exec -it kbox_${index} dumpsys
@@ -297,7 +297,7 @@ docker exec -it kbox_${index} dumpsys
 
 #### 4.2.7 容器属性信息<a name="ZH-CN_TOPIC_0000002518345450"></a>
 
-可通过**getprop**命令从Kbox云手机容器中读取属性信息，命令如下所示，其中“$\{index\}”为启动实例的编号。
+可通过**getprop**命令从Kbox云手机容器中读取属性信息，命令如下所示，其中“\${index}”为启动实例的编号。
 
 ```shell
 docker exec -it kbox_${index} getprop
@@ -526,5 +526,5 @@ python3 kbox_maintainer.py recover kbox_1
 | 3 | 稳定性 | 容器启动、连接、断连和删除交叉操作 | 按照满规格路数，启动、连接Kbox云手机容器，重启、连接Kbox云手机容器100次，成功率不低于99.9% |
 | 3 | 稳定性 | 容器连接断连成功率 | 按照满规格路数，连接断连Kbox云手机容器100次，成功率不低于99.9% |
 | 3 | 稳定性 | VInput设备接收事件成功率 | 按照满规格路数，同时向Kbox云手机容器的鼠标、触控设备、手柄1和手柄2发送某事件的按下与弹起1000次，验证均能成功收到 |
-| 3 | 稳定性 | 容器7*24小时稳定运行 | 按照满规格路数，Kbox云手机容器同时运行酷狗音乐7*24小时，Kbox云手机容器性能指标正常，服务器性能指标正常，且运行7*24小时后没有花屏、灰屏、绿屏、卡顿、无响应或闪退等问题 |
+| 3 | 稳定性 | 容器7\*24小时稳定运行 | 按照满规格路数，Kbox云手机容器同时运行酷狗音乐7\*24小时，Kbox云手机容器性能指标正常，服务器性能指标正常，且运行7\*24小时后没有花屏、灰屏、绿屏、卡顿、无响应或闪退等问题 |
 | 4 | 压力负载测试 | 容器运行情况 | 按照满规格路数，Kbox云手机容器安装并打开酷狗音乐，持续运行30min，酷狗音乐安装并打开成功，且运行30min后没有花屏、灰屏、绿屏、卡顿、无响应或闪退等问题 |
