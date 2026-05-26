@@ -859,7 +859,7 @@ function start_box() {
         $RUNTIME_CMD exec ${BOX_NAME} chmod 400 /data/local.prop
     fi
 
-    container_id=$($RUNTIME_CMD ps --filter "name=$BOX_NAME" --format "{{.ID}}")
+    container_id=$($RUNTIME_CMD ps --filter "name=$BOX_NAME" --format "{{.ID}}" | head -n 1)
     echo $container_id > $THISDIR/containerid_${BOX_NAME}
     $RUNTIME_CMD cp $THISDIR/containerid_${BOX_NAME} ${BOX_NAME}:/data/containerid
     rm -f $THISDIR/containerid_${BOX_NAME}
