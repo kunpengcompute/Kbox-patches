@@ -558,13 +558,13 @@ cat /tmp/nfs/data/kbox_1/data/containerd
 
 ##### 11.2.1.2 **新增权限**<a name="ZH-CN_TOPIC_0000002549832559"></a>
 
-输入如下命令给scaling_cur_freq添加写入（w）权限。
+在容器内输入如下命令给scaling_cur_freq添加写入（w）权限。
 
 ```shell
 chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufreq/scaling_cur_freq
 ```
 
-输入如下命令给cpuinfo_cur_freq添加写入（w）权限。
+在容器内输入如下命令给cpuinfo_cur_freq添加写入（w）权限。
 
 ```shell
 chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufreq/cpuinfo_cur_freq
@@ -576,30 +576,30 @@ chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufre
 
    | 文件名 | 记载的信息和作用 | 建议和说明（功能实现指南） |
 | :--- | :--- | :--- |
-| **`scaling_cur_freq`** | **内核调优器（Governor）决定的当前运行频率。** 绝大多数 App 和安全风控系统会读取此文件来判断设备的实时运行状态 | 如果进行cpu频率动态调节，核心是往该文件覆写数值 |
-| **`scaling_governor`** | 当前的 CPU 频率调节策略（调度器） |  |
-| **`scaling_setspeed`** | 用户空间请求的目标频率 |  |
-| **`scaling_available_frequencies`** | **当前硬件及驱动所支持的所有可用频率档位列表。**（例如：`300000 600000 1000000 ...`） | 在进行频率调节时，切勿写入任意数字。建议读取此文件，并在这些支持的频率列表中选取数值进行写入，以防被风控系统通过“非法频段”识别 |
+| **`scaling_cur_freq`** | **内核调优器（Governor）决定的当前运行频率。** 绝大多数 App 和安全风控系统会读取此文件来判断设备的实时运行状态。 | 如果进行cpu频率动态调节，核心是往该文件覆写数值。 |
+| **`scaling_governor`** | 当前的 CPU 频率调节策略（调度器）。 |  |
+| **`scaling_setspeed`** | 用户空间请求的目标频率。 |  |
+| **`scaling_available_frequencies`** | **当前硬件及驱动所支持的所有可用频率档位列表。**（例如：`300000 600000 1000000 ...`） | 在进行频率调节时，切勿写入任意数字。建议读取此文件，并在这些支持的频率列表中选取数值进行写入，以防被风控系统通过“非法频段”识别。 |
 | **`scaling_available_governors`** | **系统当前支持的所有调节策略（调度器）列表。** |  |
-| **`scaling_max_freq`** | **软件策略允许达到的最高频率限制。** | **频率上限封顶。** 如果要实现“降频省电”或“模拟低端设备”功能时，则可能会修改此文件，确保模拟出的最高频率不超过此设定值 |
-| **`scaling_min_freq`** | **软件策略允许达到的最低频率限制。** | **频率下限托底。** 如果要实现“性能保底”或“模拟高性能设备待机”功能，则可能会修改此文件，防止频率降得过低导致伪装失真 |
+| **`scaling_max_freq`** | **软件策略允许达到的最高频率限制。** | **频率上限封顶。** 如果要实现“降频省电”或“模拟低端设备”功能时，则可能会修改此文件，确保模拟出的最高频率不超过此设定值。 |
+| **`scaling_min_freq`** | **软件策略允许达到的最低频率限制。** | **频率下限托底。** 如果要实现“性能保底”或“模拟高性能设备待机”功能，则可能会修改此文件，防止频率降得过低导致伪装失真。 |
 | **`scaling_driver`** | **当前使用的 CPU 频率驱动程序名称。** |  |
-| **`cpuinfo_cur_freq`** | **CPU 硬件底层真实的当前运行频率。** | 如果仅修改 `scaling_cur_freq` 可能会被识别并拦截，因此在修改了scaling_cur_freq后建议同步修改该文件 |
-| **`cpuinfo_max_freq`** | **CPU 硬件物理支持的最大频率。** | 用于初始化时获取该云手机实例分配到的 CPU 物理性能上限 |
-| **`cpuinfo_min_freq`** | **CPU 硬件物理支持的最小频率。** | 用于辅助生成合理的频率波动曲线的下限边界 |
-| **`cpuinfo_transition_latency`** | **CPU 切换不同频率所需的时间延迟（纳秒）。** | 两次 `echo` 写入的时间间隔，不应低于此延迟数值 |
-| **`affected_cpus`** | **需要同时进行频率调整的 CPU 逻辑核列表。** 某些架构下，同一个簇（Cluster）的 CPU 频率必须绑定 | 在编写群控调频脚本时，需读取此文件。例如修改了 CPU0 的频率，必须确保此列表中的其他 CPU 也被同步修改或显示相同数值 |
-| **`related_cpus`** | **物理上属于同一组的所有 CPU 列表（无论当前是否在线/唤醒）。** | 与 `affected_cpus` 类似，主要用于分析底层 CPU 簇拓扑结构，指导多核频率仿真脚本的编写 |
+| **`cpuinfo_cur_freq`** | **CPU 硬件底层真实的当前运行频率。** | 如果仅修改 `scaling_cur_freq` 可能会被识别并拦截，因此在修改了scaling_cur_freq后建议同步修改该文件。 |
+| **`cpuinfo_max_freq`** | **CPU 硬件物理支持的最大频率。** | 用于初始化时获取该云手机实例分配到的 CPU 物理性能上限。 |
+| **`cpuinfo_min_freq`** | **CPU 硬件物理支持的最小频率。** | 用于辅助生成合理的频率波动曲线的下限边界。 |
+| **`cpuinfo_transition_latency`** | **CPU 切换不同频率所需的时间延迟（纳秒）。** | 两次 `echo` 写入的时间间隔，不应低于此延迟数值。 |
+| **`affected_cpus`** | **需要同时进行频率调整的 CPU 逻辑核列表。** 某些架构下，同一个簇（Cluster）的 CPU 频率必须绑定 | 在编写群控调频脚本时，需读取此文件。例如修改了 CPU0 的频率，必须确保此列表中的其他 CPU 也被同步修改或显示相同数值。 |
+| **`related_cpus`** | **物理上属于同一组的所有 CPU 列表（无论当前是否在线/唤醒）。** | 与 `affected_cpus` 类似，主要用于分析底层 CPU 簇拓扑结构，指导多核频率仿真脚本的编写。 |
 
 #### 11.2.2 实施修改 <a name="ZH-CN_TOPIC_0000002549745956"></a>
 
-当前第三方检测应用一般通过读取scaling_cur_freq和cpuinfo_cur_freq这两个文件来获取当前设备的cpu运行频率，为了提高云机设备的仿真能力，在修改前先在容器内输入如下命令读取cpu所支持的频率列表。并且要对这两个文件都进行修改
+当前第三方检测应用一般通过读取scaling_cur_freq和cpuinfo_cur_freq这两个文件来获取当前设备的cpu运行频率，为了提高云机设备的仿真能力，在修改前先在容器内输入如下命令读取cpu所支持的频率列表。并且要对这两个文件都进行修改。
 
    ```shell
    cat /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/scaling_available_frequencies
    ```
 
-   随后输入如下两个命令进行修改，输入的频率值最好是刚刚查询到的当前cpu支持的频率值。
+   随后在容器内输入如下两个命令进行修改，输入的频率值最好是刚刚查询到的当前cpu支持的频率值。
 
    ```shell
    echo ${预期修改的值} > /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/scaling_cur_freq
