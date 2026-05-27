@@ -38,7 +38,7 @@ Kbox安卓镜像编译构建的软件环境要求如[**表 1** Kbox安卓镜像�
 |5|libva源码|版本：2.14.0|[获取链接](https://github.com/intel/libva/archive/refs/tags/2.14.0.tar.gz)|
 |6|[可选]BoostKit-boostcph-kbox_*.zip|Android Kbox二进制文件包|[获取链接](https://www.hikunpeng.com/zh/developer/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft)|
 |7|Kbox-patches-AOSP11.zip|Android代码补丁Demo包、编译脚本Demo包|[获取链接](https://raw.gitcode.com/boostkit/Kbox-patches/archive/refs/heads/AOSP11.zip)|
-|8|ExaGear_ARM32-ARM64_V2.5.tar.gz|ExaGear转码二进制包|[获取链接](https://www.hikunpeng.com/zh/developer/download?title=ARM%E5%8E%9F%E7%94%9F&subTitle=ExaGear%20AArch32%E6%8C%87%E4%BB%A4%E7%BF%BB%E8%AF%91%E8%BD%AF%E4%BB%B6&zhTitle=ARM%E5%8E%9F%E7%94%9F&zhSubTitle=ExaGear%20AArch32%E6%8C%87%E4%BB%A4%E7%BF%BB%E8%AF%91%E8%BD%AF%E4%BB%B6&enTitle=ARM%20Native&enSubTitle=ExaGear%20AArch32%20Instruction%20Translation%20Software)|
+|8|ExaGear_ARM32-ARM64_V2.5.tar.gz|ExaGear转码二进制包|[获取链接](https://kunpeng-repo.obs.cn-north-4.myhuaweicloud.com/Exagear%20ARM32-ARM64/Exagear%20ARM32-ARM64%20202.0.0/ExaGear_ARM32-ARM64_V2.5.tar.gz)|
 |9|Meson|0.63.2|[获取链接](https://github.com/mesonbuild/meson/releases/download/0.63.2/meson-0.63.2.tar.gz)|
 |10|vmi-CloudPhone.zip|华为VMI引擎云手机开源参考Demo分支：CloudPhone|[获取链接](https://raw.gitcode.com/boostkit/vmi/archive/refs/heads/CloudPhone.zip)|
 |11|[可选]Kbox源码|华为KBOX云手机容器分支：master|[获取链接](https://raw.gitcode.com/boostkit/Kbox/archive/refs/heads/master.zip)|
