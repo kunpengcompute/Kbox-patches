@@ -21,8 +21,8 @@ Kbox云手机容器环境部署的硬件环境配置方案要求如[**表 1** Kb
 |内存|16\*DDR4 RDIMM内存-32GB-2933MT/s|16\*DDR4 RDIMM内存-32GB-2933MT/s|16\*DDR5 DIMM内存-64GB-4800MT/s|16\*DDR5 DIMM内存-64GB-5200MT/s|
 |硬盘|系统盘：2\*固态硬盘-480GB-SATA 6Gb/s-读取密集型数据盘：2\*ES3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：2\*固态硬盘-480GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*ES3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：1\*S3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*S3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：1\*固态硬盘-480GB-SATA 6Gb/s-2.5 inch height-读密集型<br>1\*S4510 固态硬盘-960GB-SATA 6Gb/s-读取密集型<br>数据盘：1\*ES3600P V6固态硬盘-6400GB-NVMe 64Gb/s<br>1\*ES3500P V5固态硬盘-4000GB-NVMe 32Gb/s|
 |网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-2\*25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-2\*25GE/10GE光口-4端口-SFP28（不含光模块）|
-|Riser卡|RISER1与RISER2模组相同，均为：PCIe X16 + PCIe X8|RISER1与RISER2模组相同，均为：PCIe X8\*3|前置Riser（x8\*2）\*2+后置Riser（x8\*2）\*2+Riser3（x8\*2）\*1|后置Riser（x16+x8*2）\*2+Riser3（x8\*2）\*1|
-|编码卡|1 \* NETINT Quadra T2A（X8）|无|无|无|
+|Riser卡|RISER1与RISER2模组相同，均为：PCIe X16 + PCIe X8|RISER1与RISER2模组相同，均为：PCIe X8\*3|前置Riser（x8\*2）\*2+后置Riser（x8\*2）\*2+Riser3（x8\*2）\*1|后置Riser（x16+x8\*2）\*2+Riser3（x8\*2）\*1|
+|编码卡|1 \*NETINT Quadra T2A（X8）|无|无|无|
 |GPU|2\*AMD W6800|4\*道客DC 1000|8\*道客DC 1000|8\*道客DC1000|
 |操作系统|openEuler 24.03 LTS SP1|openEuler 24.03 LTS SP1|openEuler 24.03 LTS SP1|openEuler 24.03 LTS SP1|
 |系统/内核版本|6.6.0-72.0.0|6.6.0-72.0.0|6.6.0-72.0.0|6.6.0-72.0.0|
@@ -44,14 +44,14 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 |序号|软件包|说明|获取地址|配置方案一|配置方案二|配置方案三|配置方案四|
 |--|--|--|--|--|--|--|--|
-|1|android.tar|Kbox安卓镜像包。|自行编译（请参见[编译指南](compile_guide.md)进行编译）。|√|√|√|√|
-|2|BoostKit-boostcph-kbox_*_15.zip|Android Kbox二进制文件包。|[获取链接](https://www.hikunpeng.com/zh/developer/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft)|√|√|√|√|
-|3|kernel-6.6.0-72.0.0.zip|openEuler 24.03 LTS SP1 Kernel源码。|[获取链接](https://gitee.com/openeuler/kernel/repository/archive/6.6.0-72.0.0.zip)|√|√|√|√|
-|4|ExaGear_ARM32-ARM64.tar.gz|ExaGear转码二进制包。|请联系华为技术支持获取。|√|√|√|√|
-|5|Kbox-patches-AOSP15.zip|内核补丁Demo包、容器部署脚本Demo包。|[获取链接](https://gitcode.com/boostkit/Kbox-patches/tree/AOSP15)|√|√|√|√|
-|6|Quadra_V*XXX*.zip|NETINT编码卡Quadra软固件及文档包。配套版本V4.8.F-Android15。|[获取链接](https://www.netint.cn/quadra-firmware-downloads-android15/)<br>下载密码:test123|√|-|-|-|
-|7|VAGPU-25.03.01.01-RC13-A15.tgz|显卡驱动。|请联系华为技术支持获取。|-|√|√|√|
-|8|docker-24.0.0.tgz|Docker 24.0.0版本二进制包。|[获取链接](https://download.docker.com/linux/static/stable/aarch64/docker-24.0.0.tgz)|√|√|√|√|
+| 1 | android.tar | Kbox安卓镜像包 | 自行编译（请参见[编译指南](compile_guide.md)进行编译） | √ | √ | √ | √ |
+| 2 | BoostKit-boostcph-kbox_*_15.zip | Android Kbox二进制文件包 | [获取链接](https://www.hikunpeng.com/zh/developer/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft) | √ | √ | √ | √ |
+| 3 | kernel-6.6.0-72.0.0.zip | openEuler 24.03 LTS SP1 Kernel源码 | [获取链接](https://gitee.com/openeuler/kernel/repository/archive/6.6.0-72.0.0.zip) | √ | √ | √ | √ |
+| 4 | ExaGear_ARM32-ARM64.tar.gz | ExaGear转码二进制包 | 请联系华为技术支持获取 | √ | √ | √ | √ |
+| 5 | Kbox-patches-AOSP15.zip | 内核补丁Demo包、容器部署脚本Demo包 | [获取链接](https://gitcode.com/boostkit/Kbox-patches/tree/AOSP15) | √ | √ | √ | √ |
+| 6 | Quadra_V*XXX*.zip | NETINT编码卡Quadra软固件及文档包。配套版本V4.8.F-Android15 | [获取链接](https://www.netint.cn/quadra-firmware-downloads-android15/)<br>下载密码:test123 | √ | - | - | - |
+| 7 | VAGPU-25.03.01.01-RC13-A15.tgz | 显卡驱动 | 请联系华为技术支持获取 | - | √ | √ | √ |
+| 8 | docker-24.0.0.tgz | Docker 24.0.0版本二进制包 | [获取链接](https://download.docker.com/linux/static/stable/aarch64/docker-24.0.0.tgz) | √ | √ | √ | √ |
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >
@@ -100,7 +100,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 **重启服务器进入BIOS设置界面<a name="section2017525320112"></a>**
 
-1. 登录服务器远程管理平台。进入远程虚拟控制台，出现系统启动界面后，按下“Del“键或“F4“键。
+1. 登录服务器远程管理平台。进入远程虚拟控制台，出现系统启动界面后，按下“Del”键或“F4”键。
 
     ![](figures/zh-cn_image_0000002518385460.png)
 
@@ -112,15 +112,15 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 配置MISC中的“Support Smmu”和“Support 44Bit”选项。
 
-1. 在BIOS设置界面，依次选择“Advanced \> MISC Config“。
+1. 在BIOS设置界面，依次选择“Advanced \> MISC Config”。
 
     ![](figures/BIOS4.png)
 
-2. 进入MISC Config设置界面后，将“Support Smmu“选项设置为“Disabled“。
+2. 进入MISC Config设置界面后，将“Support Smmu”选项设置为“Disabled”。
 
     ![](figures/zh-cn_image_0000002518385458.png)
 
-3. （硬件配置方案一）仅对于硬件配置方案一，需要将“Support 44Bit“选项设置为“Enabled“。
+3. （硬件配置方案一）仅对于硬件配置方案一，需要将“Support 44Bit”选项设置为“Enabled”。
 
     ![](figures/zh-cn_image_0000002518225530.png)
 
@@ -141,7 +141,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 配置Memory中的“Memory Frequency”和“Custom Refresh Rate”选项。
 
 1. 在BIOS设置界面，依次选择“Advanced \> Memory Config”。
-2. 进入Memory Config设置页面后，将“Memory Frequency“选项设置为“2933”，将“Custom Refresh Rate“选项设置为“Auto”后保存并退出。
+2. 进入Memory Config设置页面后，将“Memory Frequency”选项设置为“2933”，将“Custom Refresh Rate”选项设置为“Auto”后保存并退出。
 
     ![](figures/zh-cn_image_0000002549745299.png)
 
@@ -188,7 +188,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 **重启服务器进入BIOS设置界面<a name="section2017525320112"></a>**
 
-1. 登录服务器远程管理平台。进入远程虚拟控制台，出现系统启动界面后，按下“Del“键或“F4“键。
+1. 登录服务器远程管理平台。进入远程虚拟控制台，出现系统启动界面后，按下“Del”键或“F4”键。
 
     ![](figures/BIOS设置界面.png)
 
@@ -200,21 +200,21 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 配置MISC中的“Support Smmu”选项。
 
-1. 在BIOS设置界面，依次选择“Advanced \> MISC Configuration“。
+1. 在BIOS设置界面，依次选择“Advanced \> MISC Configuration”。
 
     ![](figures/zh-cn_image_0000002549865321.png)
 
-2. 进入MISC Configuration设置界面后，将“Support Smmu“选项设置为“Disabled“后保存并退出。
+2. 进入MISC Configuration设置界面后，将“Support Smmu”选项设置为“Disabled”后保存并退出。
 
     ![](figures/zh-cn_image_0000002518225546.png)
 
 **配置Performance相关选项<a name="section18236319121"></a>**
 
-1. 在BIOS设置界面，依次选择“Advanced \> Power And Performance Configuration“。
+1. 在BIOS设置界面，依次选择“Advanced \> Power And Performance Configuration”。
 
     ![](figures/zh-cn_image_0000002549745317.png)
 
-2. 进入Power And Performance Configuration设置页面后，将“Power Policy“选项设置为“Performance“后保存并退出。
+2. 进入Power And Performance Configuration设置页面后，将“Power Policy”选项设置为“Performance”后保存并退出。
 
     ![](figures/zh-cn_image_0000002518225548.png)
 
@@ -226,7 +226,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
     ![](figures/zh-cn_image_0000002549865323.png)
 
-2. 进入Memory Configuration设置页面后，硬件配置方案三将**Memory Frequency**选项设置为“4800”，配置方案四将**Memory Frequency**选项设置为“5200”，将**“Custom Refresh Rate“**选项设置为“Auto”后保存BIOS配置并退出设置界面。
+2. 进入Memory Configuration设置页面后，硬件配置方案三将**Memory Frequency**选项设置为“4800”，配置方案四将**Memory Frequency**选项设置为“5200”，将**“Custom Refresh Rate”**选项设置为“Auto”后保存BIOS配置并退出设置界面。
 
     ![](figures/zh-cn_image_0000002549745319.png)
 
@@ -253,7 +253,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 2. 执行命令，查询网卡涉及的中断。
 
-    命令中的$\{id\_pci\}为[1](#zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512)中查到的网卡设备号。
+    命令中的\${id_pci}为[1](#zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512)中查到的网卡设备号。
 
     ```shell
     cat /proc/interrupts | grep "${id_pci}" | awk -F: '{print $1}'
@@ -269,7 +269,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >若查询网卡涉及的中断时，回显包含多个中断号，则需要判断中断是否分散地绑在不同CPU上，根据判断结果来确定是否修改中断绑定的CPU。
 
-3. 查询中断绑定在哪个CPU上，命令中的\$\{break\_value\}为查询到的网卡中断号。
+3. 查询中断绑定在哪个CPU上，命令中的\${break_value}为查询到的网卡中断号。
 
     ```shell
     cat /proc/irq/${break_value}/smp_affinity_list
@@ -280,7 +280,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 4. <a name="zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li1667182211497"></a>根据网卡的**pci设备号**，查看网卡所属的NUMA node。
 
-    命令中的\$\{id\_pci\}为网卡设备号，可通过本节内容的[1](#zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512)进行查看。执行命令，回显中的NUMA node参数对应的值即为网卡所属的NUMA node。
+    命令中的\${id_pci}为网卡设备号，可通过本节内容的[1](#zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512)进行查看。执行命令，回显中的NUMA node参数对应的值即为网卡所属的NUMA node。
 
     ```shell
     lspci -vvvs ${id_pci}
@@ -301,15 +301,15 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 5. <a name="zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li1985492711497"></a>网卡中断绑定至预留CPU（优先网卡所属的NUMA node CPU）上。
 
-    命令中的\$\{break\_1\}、$\{break\_2\}依次为两个网卡中断的值。
+    命令中的\${break_1}、\${break_2}依次为两个网卡中断的值。
 
-    - 将中断$\{break\_1\}绑定至1 CPU。
+    - 将中断\${break_1}绑定至1 CPU。
 
         ```shell
         echo 1 > /proc/irq/${break_1}/smp_affinity_list
         ```
 
-    - 将中断$\{break\_2\}绑定至2 CPU。
+    - 将中断\${break_2}绑定至2 CPU。
 
         ```shell
         echo 2 > /proc/irq/${break_2}/smp_affinity_list
@@ -329,7 +329,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
     >lscpu
     >```
     >
-    >如回显所示，NUMA node0其对应的core区间为0\~31。
+    >如回显所示，NUMA node0其对应的core区间为0~31。
     >
     >```shell
     >NUMA node0 CPU(s):               0-31
@@ -361,9 +361,9 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
 
 编译时请使用root账号登录和操作。
 
-1. 禁用警告“your kernel does not support swap memory limit...“，并生效cgroup v2。
+1. 禁用警告“your kernel does not support swap memory limit...”，并生效cgroup v2。
 
-    修改“/etc/default/grub“文件，在“GRUB\_CMDLINE\_LINUX”配置项的末尾添加参数“cgroup\_enable=memory swapaccount=1 systemd.unified\_cgroup\_hierarchy=1“。
+    修改“/etc/default/grub”文件，在“GRUB_CMDLINE_LINUX”配置项的末尾添加参数“cgroup_enable=memory swapaccount=1 systemd.unified_cgroup_hierarchy=1”。
 
     1. 查看现有配置。
 
@@ -419,7 +419,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
         ```
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
-    >- 若“/etc/selinux/config“文件不存在，则执行以下指令创建文件并写入SELinux规则。
+    >- 若“/etc/selinux/config”文件不存在，则执行以下指令创建文件并写入SELinux规则。
     >
     > ```shell
     > echo "SELINUX=disabled" > /etc/selinux/config
@@ -479,7 +479,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
 
 6. Docker升级到24.0.0版本。若**yum**安装的Docker版本低于24.0.0版本，则需要升级版本。
 
-    请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)中的下载链接，下载docker-24.0.0.tgz文件。在任意目录下，解压，并将二进制包中的文件拷贝到“/usr/bin“下。
+    请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)中的下载链接，下载docker-24.0.0.tgz文件。在任意目录下，解压，并将二进制包中的文件拷贝到“/usr/bin”下。
 
     ```shell
     tar -xvf docker-24.0.0.tgz
@@ -501,7 +501,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
 
 请参见该章节获取正确的内核源码版本并解压内核源码，为内核编译做准备。
 
-1. 请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)中的下载链接获取Kernel源码文件kernel-6.6.0-72.0.0.zip，本地下载后上传至服务器的“/usr/src/kernels“目录，并解压内核源码。
+1. 请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)中的下载链接获取Kernel源码文件kernel-6.6.0-72.0.0.zip，本地下载后上传至服务器的“/usr/src/kernels”目录，并解压内核源码。
 
     ```shell
     cd /usr/src/kernels
@@ -526,7 +526,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
     chmod -R 700 ~/dependency
     ```
 
-2. 解压Kbox-patches-AOSP15.zip，将Kbox-patches-AOSP15文件夹中的“patchForKernel“目录、“patchForExagear“目录上传至服务器的“\~/dependency“目录下。请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
+2. 解压Kbox-patches-AOSP15.zip，将Kbox-patches-AOSP15文件夹中的“patchForKernel”目录、“patchForExagear”目录上传至服务器的“~/dependency”目录下。请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
 3. 拷贝转码补丁到内核源码目录。
 
     ```shell
@@ -552,11 +552,11 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
 
 生成.config文件并进行内核编译选项的配置。该文件用于指定需要使能的功能和特性。
 
-1. 拷贝“/boot“目录下的config文件到源码目录，并重命名为.config。
+1. 拷贝“/boot”目录下的config文件到源码目录，并重命名为.config。
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
-    >- 命令中的“/boot“目录下的config文件名称仅为示例，实际的文件名称要通过**uname -r**命令确认，拷贝的config文件版本要与操作系统的内核版本保持一致。
-    >- 若“/boot“目录下不存在config-\`uname -r\`文件，可以将“/boot“目录下的任意一个config-前缀的文件拷贝至服务器的Kernel源码目录，并重命名为.config。
+    >- 命令中的“/boot”目录下的config文件名称仅为示例，实际的文件名称要通过**uname -r**命令确认，拷贝的config文件版本要与操作系统的内核版本保持一致。
+    >- 若“/boot”目录下不存在config-\`uname -r\`文件，可以将“/boot”目录下的任意一个config-前缀的文件拷贝至服务器的Kernel源码目录，并重命名为.config。
 
     ```shell
     cp /boot/config-`uname -r` /usr/src/kernels/kernel-6.6.0-72.0.0/.config
@@ -569,11 +569,11 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
     make menuconfig
     ```
 
-3. 执行命令后，在出现的界面中选择“Load“，如图所示。
+3. 执行命令后，在出现的界面中选择“Load”，如图所示。
 
     ![](figures/内核configure_load.png)
 
-4. 出现如图所示的界面时，选择“OK“。
+4. 出现如图所示的界面时，选择“OK”。
 
     ![](figures/zh-cn_image_0000002549865311.png)
 
@@ -616,42 +616,42 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >配置方法说明：
     >- 键盘的上下左右键进行菜单导航。
-    >- “Enter“键选择子菜单或编辑选中项内容。
-    >- 连按2次“Esc“退出。
-    >- “/“用于搜索。
-    >- “Y“将选中项编译进内核，对应项显示为：\[\*\]。
-    >- “N“将选中项排除，对应项显示为：\[\]。
-    >- “M“键将选中的项编译成模块（编译成ko的形式），对应项显示为：<M\>。
+    >- “Enter”键选择子菜单或编辑选中项内容。
+    >- 连按2次“Esc”退出。
+    >- “/”用于搜索。
+    >- “Y”将选中项编译进内核，对应项显示为：\[\*\]。
+    >- “N”将选中项排除，对应项显示为：\[\]。
+    >- “M”键将选中的项编译成模块（编译成ko的形式），对应项显示为：<M\>。
 
     配置示例如下：
 
-    1. 在配置界面，按“/“键打开搜索，输入“STAGING”，按回车进行确认，出现下图的搜索结果。
+    1. 在配置界面，按“/”键打开搜索，输入“STAGING”，按回车进行确认，出现下图的搜索结果。
 
         ![](figures/Snipaste_2023-08-14_15-01-18.jpg)
 
-    2. 确认配置项的编号，如图中的“（1）”，按数字“1“进行选择。
+    2. 确认配置项的编号，如图中的“（1）”，按数字“1”进行选择。
 
         ![](figures/Snipaste_2023-08-14_15-01-52.jpg)
 
-    3. 按“y“键将选中项调整为编译进内核，然后使用左右键导航到“<Exit\>“，按“<Enter\>“确认返回。
+    3. 按“y”键将选中项调整为编译进内核，然后使用左右键导航到“<Exit\>”，按“<Enter\>”确认返回。
 
         ![](figures/Snipaste_2023-08-14_15-02-39.jpg)
 
     4. 返回到内核配置首页，进行下一项的配置。
 
-6. 完成配置后，在内核配置首页选择，选择“Save“。
+6. 完成配置后，在内核配置首页选择，选择“Save”。
 
     ![](figures/内核configure_save.png)
 
-7. 出现如图所示的界面时，选择“Ok“。
+7. 出现如图所示的界面时，选择“Ok”。
 
     ![](figures/zh-cn_image_0000002549865307.png)
 
-8. 出现如图所示的界面时，选择“Exit“。
+8. 出现如图所示的界面时，选择“Exit”。
 
     ![](figures/zh-cn_image_0000002518225536.png)
 
-9. 执行完上述操作，进入如图所示的初始界面，选择“Exit“，当前文件夹下即可生成.config文件。
+9. 执行完上述操作，进入如图所示的初始界面，选择“Exit”，当前文件夹下即可生成.config文件。
 
     ![](figures/内核configure_exit.png)
 
@@ -836,7 +836,7 @@ NUMA node: 2
 NUMA node: 2
 ```
 
-当前回显表示/dev/dri/目录下的渲染节点renderD128\~143中，renderD128\~135属于NUMA0，renderD136\~143属于NUMA2。
+当前回显表示/dev/dri/目录下的渲染节点renderD128~143中，renderD128~135属于NUMA0，renderD136~143属于NUMA2。
 
 ### 8.2 （硬件配置方案一，可选）升级NVMe固件版本<a name="ZH-CN_TOPIC_0000002549745271"></a>
 
@@ -864,7 +864,7 @@ NUMA node: 2
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >NVMe固件版本比较的规则是：数字越大，字母越靠后，版本越新。
 
-2. 请从**Quadra\_V_XXX_.zip**（其中，XXX为版本号信息，仅做示例使用，下列步骤请按实际名称解压）中获取4.8.F-Android15固件升级包并升级固件**。**
+2. 请从**Quadra_V_XXX_.zip**（其中，XXX为版本号信息，仅做示例使用，下列步骤请按实际名称解压）中获取4.8.F-Android15固件升级包并升级固件**。**
 
     ```shell
     unzip Quadra_VXXX.zip
@@ -887,7 +887,7 @@ NUMA node: 2
 
 使用硬件配置方案二、三、四每次服务器重启后，都需要重新执行安装显卡驱动步骤。
 
-1. 请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)获取VAGPU-25.03.01.01-RC13-A15.tgz，上传至“\~/dependency/“目录，解压后获取显卡内核态驱动。
+1. 请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)获取VAGPU-25.03.01.01-RC13-A15.tgz，上传至“~/dependency/”目录，解压后获取显卡内核态驱动。
 
     ```shell
     cd ~/dependency/
@@ -901,7 +901,7 @@ NUMA node: 2
     insmod va_pci.ko
     ```
 
-3. 将驱动包里的固件拷贝到系统的“/lib/firmware/“目录。
+3. 将驱动包里的固件拷贝到系统的“/lib/firmware/”目录。
 
     ```shell
     cp rgx* /lib/firmware/
@@ -959,9 +959,9 @@ NUMA node: 2
 
 ### 8.4 上传ExaGear转码包<a name="ZH-CN_TOPIC_0000002549745297"></a>
 
-使用脚本启动Kbox容器时，会自动根据“\~/dependency“目录下的ExaGear转码包自动使能ExaGear转码功能，因此需要提前将ExaGear转码包上传到对应目录，若自动使能失败，则需要手动进行ExaGear转码使能。
+使用脚本启动Kbox容器时，会自动根据“~/dependency”目录下的ExaGear转码包自动使能ExaGear转码功能，因此需要提前将ExaGear转码包上传到对应目录，若自动使能失败，则需要手动进行ExaGear转码使能。
 
-1. 将ExaGear转码包（ExaGear\_ARM32-ARM64.tar.gz）上传至“\~/dependency“目录。请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
+1. 将ExaGear转码包（ExaGear_ARM32-ARM64.tar.gz）上传至“~/dependency”目录。请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
 2. <a name="li178196349414"></a>解压转码包，并调整权限。
 
     ```shell
@@ -971,13 +971,13 @@ NUMA node: 2
     ```
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
-    >“\~/dependency“目录下只允许保留一份ExaGear转码包，旧版本的ExaGear转码包需要删除，否则在后续启动Kbox容器时会出现“Many ubt\_a32a64 files exist!”报错。
+    >“~/dependency”目录下只允许保留一份ExaGear转码包，旧版本的ExaGear转码包需要删除，否则在后续启动Kbox容器时会出现“Many ubt_a32a64 files exist!”报错。
 
 一般情况下无需进行以下步骤。
 
 仅当ExaGear转码未能成功自动使能时，请在解压转码包（即执行完[步骤2](#li178196349414)）后执行以下步骤，以手动使能ExaGear转码。
 
-1. 挂载binfmt\_misc文件系统。
+1. 挂载binfmt_misc文件系统。
 
     默认已挂载，如未挂载，请手动执行。
 
@@ -985,14 +985,14 @@ NUMA node: 2
     mount -t binfmt_misc none /proc/sys/fs/binfmt_misc
     ```
 
-2. 创建“/opt/exagear”目录，用于存放ubt\_a32a64文件。
+2. 创建“/opt/exagear”目录，用于存放ubt_a32a64文件。
 
     ```shell
     mkdir -p /opt/exagear 
     chmod -R 700 /opt/exagear
     ```
 
-3. 将ubt\_a32a64文件拷贝至“/opt/exagear”目录。
+3. 将ubt_a32a64文件拷贝至“/opt/exagear”目录。
 
     ```shell
     cp ~/dependency/ExaGear_ARM32-ARM64/ubt_a32a64 /opt/exagear/
@@ -1004,7 +1004,7 @@ NUMA node: 2
     echo ":ubt_a32a64:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/opt/exagear/ubt_a32a64:POCF" > /proc/sys/fs/binfmt_misc/register
     ```
 
-5. 查看ExaGear规则是否注册成功，确保“/opt/exagear/ubt\_a32a64”路径信息一致。
+5. 查看ExaGear规则是否注册成功，确保“/opt/exagear/ubt_a32a64”路径信息一致。
 
     ```shell
     cat /proc/sys/fs/binfmt_misc/ubt_a32a64
