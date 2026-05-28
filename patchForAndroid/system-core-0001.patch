@@ -419,7 +419,7 @@ index 000000000..71b98e237
 +}
 diff --git a/init/ipconfigstore/ipconfig.cpp b/init/ipconfigstore/ipconfig.cpp
 new file mode 100644
-index 000000000..4cd75dd41
+index 000000000..19dc5c2a7
 --- /dev/null
 +++ b/init/ipconfigstore/ipconfig.cpp
 @@ -0,0 +1,206 @@
@@ -596,7 +596,7 @@ index 000000000..4cd75dd41
 +    writePackedUInt32(0, out);
 +    writePackedUInt32(1, out);
 +
-+    std::string gateway = execute_command("ip route show table all | grep default | awk -F \"[: ]\" '{print $3}'");
++    std::string gateway = execute_command("ip -4 route show table all | grep default | awk -F \"[: ]\" '{print $3}'");
 +    if (gateway.empty()) {
 +        LOG(ERROR) << "Failed to get gateway";
 +        return 1;
