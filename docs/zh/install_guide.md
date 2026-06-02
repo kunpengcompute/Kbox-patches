@@ -488,11 +488,24 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
     ```
 
 7. （可选）（硬件配置方案二、三）容器密度较大时，由于需要处理loop设备，宿主机上的udev-worker进程可能有周期性CPU占用冲高现象，可通过以下命令禁用udev功能以规避。
+    
+    以下操作仅供参考，默认会在容器启动脚本中自动执行，无需手动执行。
 
+    停止相关服务，以下指令服务器重启后需重新执行
     ```shell
-    sudo systemctl disable systemd-udevd.service
-    sudo systemctl disable systemd-udevd-control.socket
-    sudo systemctl disable systemd-udevd-kernel.socket
+    sudo systemctl stop systemd-udevd-control.socket
+    sudo systemctl stop systemd-udevd-kernel.socket
+    sudo systemctl stop systemd-udevd.service
+    ```
+    查看服务是否按照预期停止
+    ```shell
+    sudo systemctl status systemd-udevd-control.socket | grep 'Active:'
+    sudo systemctl status systemd-udevd-kernel.socket | grep 'Active:'
+    sudo systemctl status systemd-udevd.service | grep 'Active:'
+    ```
+    预期回显
+    ```shell
+    Active: inactive (dead) since ...
     ```
 
 ### 7.2 编译及安装内核<a name="ZH-CN_TOPIC_0000002549745269"></a>
