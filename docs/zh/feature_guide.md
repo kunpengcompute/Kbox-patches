@@ -437,7 +437,7 @@ NFS采用典型的**客户端/服务器（C/S）**架构，客户端/服务器�
 1、确认内核是否加载nfs模块。
 
 ```shell
-cat /lib/modules/$(name -r)/build/.config
+cat /lib/modules/$(name -r)/build/.config | grep NFS
 ```
 
 CONFIG_NFS_FS、CONFIG_NFS_V4、CONFIG_NFSD为m需要执行如下命令加载该模块。
