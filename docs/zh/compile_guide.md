@@ -96,7 +96,22 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
     unzip Kbox-patches-AOSP11.zip
     ```
 
-4. 修改编译配置。
+4. [可选] 若需要基于Kbox源码进行编译，则参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)下载Kbox源码到本地，上传到服务器的“/home/auto_compile”目录，并解压，得到“/home/auto_compile/Kbox”目录。
+
+5. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)下载Android Kbox二进制文件包或Kbox源码、ExaGear转码包、Meson、Mesa源码、LLVM源码、libdrm源码、libva源码和Cloudphone应用安装包到本地。在如下指定目录中创建“package”文件夹。
+
+    ```shell
+    cd /home/auto_compile/Kbox-patches-AOSP11/make_img_sample/kbox11_android_build
+    mkdir -p package
+    ```
+
+    将下载的文件上传至服务器的“/home/auto_compile/Kbox-patches-AOSP11/make_img_sample/kbox11_android_build/package”目录。
+
+    ![](figures/zh-cn_image_0000002549705429.png)
+
+    需保持下载的第三方库源码（Mesa、LLVM、libdrm、libva）及解压出的文件夹名与“/home/auto_compile/Kbox-patches-AOSP11/make_img_sample/00_kbox_prepare.sh”文件中配置的“<package\>_version”或“<package\>_src”变量值一致。若不一致可重命名源码文件夹再重新打包。
+
+6. 修改编译配置。
     1. 编辑build.conf脚本。
 
         ```shell
@@ -112,20 +127,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
     3. 按“Esc”键，输入**:wq!**，按“Enter”保存并退出编辑。
 
-5. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)下载Android Kbox二进制文件包或Kbox源码、ExaGear转码包、Meson、Mesa源码、LLVM源码、libdrm源码、libva源码和Cloudphone应用安装包到本地。在如下指定目录中创建“package”文件夹。
-
-    ```shell
-    cd /home/auto_compile/Kbox-patches-AOSP11/make_img_sample/kbox11_android_build
-    mkdir -p package
-    ```
-
-    将下载的文件上传至服务器的“/home/auto_compile/Kbox-patches-AOSP11/make_img_sample/kbox11_android_build/package”目录。
-
-    ![](figures/zh-cn_image_0000002549705429.png)
-
-    需保持下载的第三方库源码（Mesa、LLVM、libdrm、libva）及解压出的文件夹名与“/home/auto_compile/Kbox-patches-AOSP11/make_img_sample/00_kbox_prepare.sh”文件中配置的“<package\>_version”或“<package\>_src”变量值一致。若不一致可重命名源码文件夹再重新打包。
-
-6. 执行kbox11_android_build.sh自动化脚本完成Kbox编译。
+7. 执行kbox11_android_build.sh自动化脚本完成Kbox编译。
 
     ```shell
     cd /home/auto_compile/Kbox-patches-AOSP11/make_img_sample/kbox11_android_build && chmod +x kbox11_android_build.sh
