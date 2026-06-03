@@ -196,7 +196,7 @@ docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
 
    环境准备的步骤可以参照feature_guide.md的[8.2.1.1环境准备](feature_guide.md#ZH-CN_TOPIC_000000254986594100)章节。
   
-#### 1.4.2 . **使能配置项**<a name="ZH-CN_TOPIC_0000002549832549"></a>
+#### 1.4.2  **使能配置项**<a name="ZH-CN_TOPIC_0000002549832549"></a>
 
    将配置文件的kbox_config.cfg中的ENABLE_F2FS设置为1。
 
@@ -204,7 +204,7 @@ docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
    ENABLE_F2FS=1
    ```
 
-#### 1.4.3 . **校验是否生效**
+#### 1.4.3  **校验是否生效**
 
    启动容器后，进入容器环境查看挂载点信息。
 
@@ -218,13 +218,13 @@ docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
 
 此前使用检测工具发现云手机容器内system分区大小和宿主机内根目录下空间大小一致，达到将近1T大小，和真机差距巨大，下面步骤说明如何调节云手机/system分区大小，使其和真实手机的/system分区大小相近，提高仿真能力。
 
-#### 1.5.1 . **环境准备**
+#### 1.5.1  **环境准备**
 
-   环境准备部分请参照feature_guide.md的[9.2 使用介绍](feature_guide.md#ZH-CN_TOPIC_0000002549865942)章节执行
+   环境准备部分请参照feature_guide.md的[9.2 使用介绍](feature_guide.md#ZH-CN_TOPIC_0000002549865942)章节执行。
 
 #### 1.5.2 **触发分区扩容逻辑**<a name="ZH-CN_TOPIC_0000002549832550"></a>
 
-   在云手机配置文件kbox_config.cfg里，将SYSTEM_PARTITION_SIZE_MB设置为预期要实现的/system分区大小值，单位为MB
+   在云手机配置文件kbox_config.cfg里，将SYSTEM_PARTITION_SIZE_MB设置为预期要实现的/system分区大小值，单位为MB。
 
    ```txt
    SYSTEM_PARTITION_SIZE_MB=${预期要实现的/system分区大小值(MB)}
@@ -272,21 +272,21 @@ cat /tmp/nfs/data/kbox_1/data/containerd
 
 ### 1.7 （可选） 实现云机cpu频率动态调整<a name="ZH-CN_TOPIC_000000254983254923"></a>
 
-在真机中，系统为了平衡负载和功耗，会动态调节 CPU 的运行频率，而云机依托于服务器宿主机的容器化环境运行，其底层物理 CPU 的频率通常处于恒定状态，与真机存在差异。下面步骤说明如何实现云手机cpu频率动态调节，提高仿真能力
+在真机中，系统为了平衡负载和功耗，会动态调节 CPU 的运行频率，而云机依托于服务器宿主机的容器化环境运行，其底层物理 CPU 的频率通常处于恒定状态，与真机存在差异。下面步骤说明如何实现云手机cpu频率动态调节，提高仿真能力。
 
-#### 1.7.1 . **环境准备**
+#### 1.7.1 **环境准备**
 
-   环境准备部分请参照feature_guide.md的"CPU频率动态模拟与调节"章节里的[安装特性](feature_guide.md#ZH-CN_TOPIC_0000002518386097)章节执行
+   环境准备部分请参照feature_guide.md的"CPU频率动态模拟与调节"章节里的[安装特性](feature_guide.md#ZH-CN_TOPIC_0000002518386097)章节执行。
 
-#### 1.7.2 . **实施修改**<a name="ZH-CN_TOPIC_000000254983255011"></a>
+#### 1.7.2 **实施修改**<a name="ZH-CN_TOPIC_000000254983255011"></a>
 
-   当前第三方检测应用一般通过读取scaling_cur_freq和cpuinfo_cur_freq这两个文件来获取当前设备的cpu运行频率，为了提高云机设备的仿真能力，在修改前先在容器内输入如下命令读取cpu所支持的频率列表。并且要对这两个文件都进行修改
+   当前第三方检测应用一般通过读取scaling_cur_freq和cpuinfo_cur_freq这两个文件来获取当前设备的cpu运行频率，为了提高云机设备的仿真能力，在修改前先在容器内输入如下命令读取cpu所支持的频率列表。并且要对这两个文件都进行修改。
 
    ```shell
    cat /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/scaling_available_frequencies
    ```
 
-   随后在容器内输入如下两个命令进行修改，输入的频率值最好是刚刚查询到的当前cpu支持的频率值
+   随后在容器内输入如下两个命令进行修改，输入的频率值最好是刚刚查询到的当前cpu支持的频率值。
 
    ```shell
    echo ${预期修改的值} > /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/scaling_cur_freq
