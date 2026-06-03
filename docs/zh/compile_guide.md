@@ -44,6 +44,7 @@ Kbox安卓镜像编译构建的软件环境要求如[**表 1** Kbox安卓镜像�
 |11|[可选]Kbox源码|华为KBOX云手机容器分支：master|[获取链接](https://raw.gitcode.com/boostkit/Kbox/archive/refs/heads/master.zip)|
 
 >![](public_sys-resources/icon-note.gif) **说明：** <br>
+>
 >1、以上软件包名仅供参考，部分下载方式可能会导致软件包名与表格产生差异。请以获取的实际包名为准，参考表格适当进行更名，以方便后续步骤中的使用。<br>
 >2、提供2种编译方式可选：基于Kbox二进制 prebuilt时必须下载(6)BoostKit-boostcph-kbox_*.zip；基于Kbox源码编译时必须下载(11)Kbox源码
 
@@ -59,6 +60,7 @@ Kbox安卓镜像编译构建的软件环境要求如[**表 1** Kbox安卓镜像�
 3. 使用[2](#li1273482318125)获取到的签名验证指南文档对下载的软件包进行PGP数字签名校验。
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
+>
 >如果校验失败，请不要使用该软件包，先联系华为技术支持工程师解决。
 >使用软件包安装或升级之前，也需要按上述过程先验证软件包的数字签名，确保软件包未被篡改。
 >使用软件包前请先阅读《[鲲鹏应用使能套件BoostKit用户许可协议 2.0](https://www.hikunpeng.com/zh/legal/developer/boostkit/software/protocol)》，如确认继续使用，则默认同意协议的条款和条件。
@@ -81,6 +83,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 1. 首先在“/home”目录下手动创建“auto_compile”目录，用于存放AOSP源码以及自动化脚本。
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >请确保“/home”目录的剩余空间大于250GB，可通过**df -h**命令查看磁盘空间情况。
 
     ```shell
@@ -215,6 +218,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
     ```
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
+>
 >执行kbox11_android_build.sh自动化脚本时也可能出现依赖缺失类报错， 这类报错同样可能由于软件包内容更新产生的新的依赖导致。遇到该类型的报错，直接在环境上安装缺失的包即可。
 
 ## 4 安装编译依赖包<a name="安装编译依赖包"></a>
@@ -340,6 +344,7 @@ Kbox安卓镜像使用AOSP 11进行编译，请参考本节操作步骤下载源
     ```
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >用户目录剩余空间要求大于300GB，AOSP源码约130GB，编译后接近300GB。
 
 2. 按照[谷歌官方指导](https://android.googlesource.com/tools/repo)，下载并安装repo工具，然后下载AOSP源码，版本为android-11.0.0_r48，并进行编译。
@@ -480,6 +485,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
     ```
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
+>
 >为了方便用户快速体验和部署Kbox云手机套件，提供了Kbox安卓补丁。该补丁仅作为功能性参考，不是商用交付范围，不提供商业承诺，建议客户或ISV在商用前进行必要的安全评估，若选择使用鲲鹏BoostKit云手机参考方案需自行承担安全风险。
 
 ### 5.5 合入二进制内容或Kbox源码<a name="ZH-CN_TOPIC_0000002549825259"></a>
@@ -520,6 +526,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
     ```
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >- 示例仅作为格式参考，请根据实际情况自行配置可用的公共DNS地址，以保证容器连接网络正常。
     >- DNS地址也可以通过修改Kbox容器内部文件“/system/vendor/build.prop”配置，容器重启后配置生效。
     >- 如配置时有疑问，请联系华为运维人员支撑。
@@ -548,6 +555,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
     ```
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >- 示例仅作为格式参考，请根据实际情况自行配置可用的公共DNS地址，以保证容器连接网络正常。
     >- DNS地址也可以通过修改Kbox容器内部文件“/system/vendor/build.prop”配置，容器重启后配置生效。
     >- 如配置时有疑问，请联系华为运维人员支撑。
@@ -567,6 +575,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
         ```
 
         >![](public_sys-resources/icon-note.gif) **说明：** 
+        >
         >在执行**make_key**命令时，会提示输入密码，可以直接按回车跳过。
         >**make_key**命令参数介绍如下：
         >- “build/target/product/security/releasekey”表示要生成key的名字。
@@ -597,6 +606,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
         ```
 
         >![](public_sys-resources/icon-note.gif) **说明：** 
+        >
         >- 若需要采用userdebug模式编译镜像，请将上述**lunch**命令后的选项后缀由“user”修改为“userdebug”。以“kbox_arm64”为例：
         >
         >    ```shell
@@ -618,6 +628,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
         ```
 
         >![](public_sys-resources/icon-note.gif) **说明：** 
+        >
         >在执行上述命令时，“-j”后的数字参数要根据服务器实际的CPU核数来定。CPU核数可通过以下命令查询。
         >
         > ```shell
@@ -643,6 +654,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 4. 运行脚本，生成Kbox安卓镜像。
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >制作镜像的时候需要root权限，请用root用户执行脚本，且执行脚本时，目录需要使用绝对路径。
 
     ```shell
