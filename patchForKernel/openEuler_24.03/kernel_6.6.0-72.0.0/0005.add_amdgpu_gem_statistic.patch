@@ -1,17 +1,3 @@
-From 6bdebec1c18a21e394caf5b89e67df83d9fffb9c Mon Sep 17 00:00:00 2001
-From: k8s-slave2 <root@k8s-slave2.local>
-Date: Tue, 2 Jun 2026 17:20:37 +0800
-Subject: [PATCH] 1
-
----
- drivers/gpu/drm/Makefile                      |   1 +
- drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c       | 235 +++++++
- drivers/gpu/drm/statistics/Makefile           |   1 +
- .../gpu/drm/statistics/amdgpu_statistics.c    | 585 ++++++++++++++++++
- 4 files changed, 822 insertions(+)
- create mode 100644 drivers/gpu/drm/statistics/Makefile
- create mode 100644 drivers/gpu/drm/statistics/amdgpu_statistics.c
-
 diff --git a/drivers/gpu/drm/Makefile b/drivers/gpu/drm/Makefile
 index b120267fb..41c1f2f88 100644
 --- a/drivers/gpu/drm/Makefile
