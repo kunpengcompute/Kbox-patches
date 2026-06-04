@@ -499,6 +499,7 @@ mount -t nfs4 192.168.20.XX:/nfs /tmp/nfs
 ```
 
 >![](public_sys-resources/icon-note.gif) **说明：**
+>
 >由于服务器的/etc/exports对/home目录配置了fsid=0，因此在客户端时不可见的，所以只需要挂载/nfs目录即可
 
 ### 10.3 使用特性
@@ -567,7 +568,7 @@ chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufre
 
 ##### 11.2.1.3 **文件说明**<a name="ZH-CN_TOPIC_0000002549832553"></a>
 
-   容器内的/sys/devices/system/cpu/cpu\${需要查询权限的cpu的编号}/cpufreq/目录下一般有如下文件，下面表格对各个文件的作用进行说明。
+   容器内的/sys/devices/system/cpu/cpu${需要查询权限的cpu的编号}/cpufreq/目录下一般有如下文件，下面表格对各个文件的作用进行说明。
 
    | 文件名 | 记载的信息和作用 | 建议和说明（功能实现指南） |
 | :--- | :--- | :--- |
