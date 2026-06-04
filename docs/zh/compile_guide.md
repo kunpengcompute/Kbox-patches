@@ -530,11 +530,11 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 
 在AOSP源码包中合入Kbox源码。
 
-1. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)获取KBOX源码，上传至“~/dependency”目录。
+1. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)获取KBOX源码，上传至“~/dependency”目录，解压后将得到的文件夹重命名为Kbox。
 
     请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
 
-2. 将KBOX源码的./src/vendor/kbox文件夹拷贝到AOSP源码的./vendor目录下。
+2. 将~/dependency/Kbox/src/vendor/kbox文件夹拷贝到AOSP源码的./vendor目录下。
 
     ```shell
     cd ~/dependency
