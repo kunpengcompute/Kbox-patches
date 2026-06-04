@@ -1,0 +1,27 @@
+diff --git a/services/core/java/com/android/server/notification/ScheduleConditionProvider.java b/services/core/java/com/android/server/notification/ScheduleConditionProvider.java
+index 6efe88f6a155..8df11f619f19 100644
+--- a/services/core/java/com/android/server/notification/ScheduleConditionProvider.java
++++ b/services/core/java/com/android/server/notification/ScheduleConditionProvider.java
+@@ -124,14 +124,15 @@ public class ScheduleConditionProvider extends SystemConditionProviderService {
+     @Override
+     public void onSubscribe(Uri conditionId) {
+         if (DEBUG) Slog.d(TAG, "onSubscribe " + conditionId);
+-        if (!ZenModeConfig.isValidScheduleConditionId(conditionId)) {
+-            notifyCondition(createCondition(conditionId, Condition.STATE_ERROR, "invalidId"));
+-            return;
+-        }
+-        synchronized (mSubscriptions) {
+-            mSubscriptions.put(conditionId, ZenModeConfig.toScheduleCalendar(conditionId));
++        ScheduleCalendar cal = ZenModeConfig.toScheduleCalendar(conditionId);
++        // 忽略注册的日程，防止全量云手机同时触发导致性能尖峰
++        if (DEBUG) {
++            if (cal != null) {
++                Slog.d(TAG, String.format("Ignoring  subscription cal=%s", cal));
++            } else {
++                Slog.d(TAG, "Ignoring all subscription - invalid conditionId=" + conditionId);
++            }
+         }
+-        evaluateSubscriptions();
+     }
+ 
+     @Override
