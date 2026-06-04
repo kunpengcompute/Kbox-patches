@@ -180,6 +180,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
         ```
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >- 1张NETINT Quadra卡有2颗芯片，对应2个设备节点。以上回显中为1张NETINT Quadra卡，对应2个设备节点。
 
 ### 4.3 （硬件配置方案三、四）配置BIOS<a name="ZH-CN_TOPIC_0000002518385436"></a>
@@ -253,7 +254,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 2. 执行命令，查询网卡涉及的中断。
 
-    命令中的\${id_pci}为[1](#zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512)中查到的网卡设备号。
+    命令中的${id_pci}为[1](#zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512)中查到的网卡设备号。
 
     ```shell
     cat /proc/interrupts | grep "${id_pci}" | awk -F: '{print $1}'
@@ -267,9 +268,10 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
     ```
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >若查询网卡涉及的中断时，回显包含多个中断号，则需要判断中断是否分散地绑在不同CPU上，根据判断结果来确定是否修改中断绑定的CPU。
 
-3. 查询中断绑定在哪个CPU上，命令中的\${break_value}为查询到的网卡中断号。
+3. 查询中断绑定在哪个CPU上，命令中的${break_value}为查询到的网卡中断号。
 
     ```shell
     cat /proc/irq/${break_value}/smp_affinity_list
@@ -280,7 +282,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 4. <a name="zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li1667182211497"></a>根据网卡的**pci设备号**，查看网卡所属的NUMA node。
 
-    命令中的\${id_pci}为网卡设备号，可通过本节内容的[1](#zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512)进行查看。执行命令，回显中的NUMA node参数对应的值即为网卡所属的NUMA node。
+    命令中的${id_pci}为网卡设备号，可通过本节内容的[1](#zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512)进行查看。执行命令，回显中的NUMA node参数对应的值即为网卡所属的NUMA node。
 
     ```shell
     lspci -vvvs ${id_pci}
@@ -301,15 +303,15 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 5. <a name="zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li1985492711497"></a>网卡中断绑定至预留CPU（优先网卡所属的NUMA node CPU）上。
 
-    命令中的\${break_1}、\${break_2}依次为两个网卡中断的值。
+    命令中的${break_1}、${break_2}依次为两个网卡中断的值。
 
-    - 将中断\${break_1}绑定至1 CPU。
+    - 将中断${break_1}绑定至1 CPU。
 
         ```shell
         echo 1 > /proc/irq/${break_1}/smp_affinity_list
         ```
 
-    - 将中断\${break_2}绑定至2 CPU。
+    - 将中断${break_2}绑定至2 CPU。
 
         ```shell
         echo 2 > /proc/irq/${break_2}/smp_affinity_list
@@ -323,6 +325,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
     ```
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >查询得到网卡所属的NUMA node后，NUMA node对应的core区间可执行如下命令查看。
     >
     >```shell
@@ -396,6 +399,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
         ```
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >该配置在系统重启后生效。重启步骤可以暂缓执行，待完成章节[编译并安装Kernel](#编译并安装Kernel)后一并进行重启操作。
 
 2. 禁用SELinux。
@@ -419,6 +423,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
         ```
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >- 若“/etc/selinux/config”文件不存在，则执行以下指令创建文件并写入SELinux规则。
     >
     > ```shell
@@ -465,6 +470,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
     ```
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >如果安装过程中有获取包失败的情况，请根据提示中的网址，手动获取安装包进行安装，安装成功后，继续安装尚未安装的依赖包。
 
 5. 安装Docker组件与lxcfs，并启动lxcfs服务，设置lxcfs为开机自启动。如已自定义安装Docker与lxcfs，可跳过此步骤。
@@ -475,6 +481,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
     ```
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >如遇到lxcfs启动报错，请尝试重启服务，或者联系华为技术支持工程师协助解决。
 
 6. Docker升级到24.0.0版本。若**yum**安装的Docker版本低于24.0.0版本，则需要升级版本。
@@ -555,6 +562,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
 1. 拷贝“/boot”目录下的config文件到源码目录，并重命名为.config。
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >- 命令中的“/boot”目录下的config文件名称仅为示例，实际的文件名称要通过**uname -r**命令确认，拷贝的config文件版本要与操作系统的内核版本保持一致。
     >- 若“/boot”目录下不存在config-\`uname -r\`文件，可以将“/boot”目录下的任意一个config-前缀的文件拷贝至服务器的Kernel源码目录，并重命名为.config。
 
@@ -614,6 +622,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
     如果要使能容器支持以nfs挂载启动，则还要进行上面内核编译选项的配置。
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >配置方法说明：
     >- 键盘的上下左右键进行菜单导航。
     >- “Enter”键选择子菜单或编辑选中项内容。
@@ -667,6 +676,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
     ```
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >若编译过程中存在如下提示信息，则需要确保服务器系统时间为最新时间。
     >
     >```shell
@@ -709,6 +719,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
     ```
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >- 在安装内核前，请确保系统中没有安装dkms，否则可能会导致安装内核时出现报错信息：“Error! Bad return status for module build on kernel: ...”，解决方法如下：
     > 1. 查看系统中是否已安装dkms。
     >
@@ -761,6 +772,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
     ```
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >如果重启后未能进入新编译的内核，请在BIOS进入grub启动后选择新编译的内核进入系统，或者联系技术支持工程师协助解决。
     >如果重启后，amdgpu内核模块未能成功安装，可以使用**modprobe amdgpu**命令手动安装。
 
@@ -862,6 +874,7 @@ NUMA node: 2
     如果固件版本（最右侧的FW Rev一栏）与4.8.F-Android15配套固件版本不一致，请参见以下步骤对编码卡上的固件进行升级。
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >NVMe固件版本比较的规则是：数字越大，字母越靠后，版本越新。
 
 2. 请从**Quadra_V_XXX_.zip**（其中，XXX为版本号信息，仅做示例使用，下列步骤请按实际名称解压）中获取4.8.F-Android15固件升级包并升级固件**。**
@@ -947,6 +960,7 @@ NUMA node: 2
     ```
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
+>
 >更换驱动版本时，需要卸载驱动后重新安装其他版本驱动。
 >
 >1. 删掉所有的容器，解除对驱动的占用。
@@ -971,6 +985,7 @@ NUMA node: 2
     ```
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >“~/dependency”目录下只允许保留一份ExaGear转码包，旧版本的ExaGear转码包需要删除，否则在后续启动Kbox容器时会出现“Many ubt_a32a64 files exist!”报错。
 
 一般情况下无需进行以下步骤。

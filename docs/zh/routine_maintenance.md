@@ -40,7 +40,7 @@ Kbox云手机容器巡检项目参考[**表 1** Kbox云手机容器巡检项目�
 
 #### 2.3.1 启动时容器状态<a name="ZH-CN_TOPIC_0000002518185466"></a>
 
-启动Kbox云手机容器后，执行以下命令检查启动是否成功，其中“\${index}”为启动实例的编号。
+启动Kbox云手机容器后，执行以下命令检查启动是否成功，其中“${index}”为启动实例的编号。
 
 ```shell
 docker exec -it kbox_${index} sh
@@ -60,7 +60,7 @@ getprop | grep boot
 
 #### 2.3.2 运行时容器状态<a name="ZH-CN_TOPIC_0000002549825301"></a>
 
-在Kbox云手机容器运行过程中，可通过检查其进程状态来判断容器是否正常。执行以下命令，其中“\${index}”为启动实例的编号。
+在Kbox云手机容器运行过程中，可通过检查其进程状态来判断容器是否正常。执行以下命令，其中“${index}”为启动实例的编号。
 
 ```shell
 docker exec -it kbox_${index} sh
@@ -90,6 +90,7 @@ docker stats
 ![](figures/zh-cn_image_0000002549705419.png)
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
+>
 >CPU使用率和内存使用率超过总量的80%时，可能会出现容器反应卡顿的情况，此时建议清理后台应用。
 
 ## 3 监控<a name="ZH-CN_TOPIC_0000002549705277"></a>
@@ -121,6 +122,7 @@ htop
 ![](figures/zh-cn_image_0000002518345562.png)
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
+>
 >当Host OS为openEuler时，使用htop工具时需要先安装，安装命令如下。
 >
 >```shell
@@ -214,7 +216,7 @@ cat /sys/kernel/debug/dri/*/amdgpu_pm_info |grep Temp
 
 #### 4.2.1 容器元数据<a name="ZH-CN_TOPIC_0000002518345386"></a>
 
-可使用Docker提供的**inspect**命令查看容器的详细信息，如下命令，其中“\${index}”为启动实例的编号。
+可使用Docker提供的**inspect**命令查看容器的详细信息，如下命令，其中“${index}”为启动实例的编号。
 
 ```shell
 docker inspect kbox_${index}
@@ -237,7 +239,7 @@ docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}
 
 #### 4.2.2 容器内logcat日志<a name="ZH-CN_TOPIC_0000002549825243"></a>
 
-当容器运行出现异常时，可以查询日志进行辅助定位。实时查询Kbox云手机容器的logcat日志，可执行如下命令，其中“\${index}”为启动实例的编号。
+当容器运行出现异常时，可以查询日志进行辅助定位。实时查询Kbox云手机容器的logcat日志，可执行如下命令，其中“${index}”为启动实例的编号。
 
 ```shell
 docker exec -it kbox_${index} logcat
@@ -251,7 +253,7 @@ docker exec -it kbox_${index} logcat -d >> ./log.log
 
 #### 4.2.3 容器内进程信息<a name="ZH-CN_TOPIC_0000002518345428"></a>
 
-在Kbox云手机容器中可执行如下命令列出当前正在运行的进程信息，其中“\${index}”为启动实例的编号。
+在Kbox云手机容器中可执行如下命令列出当前正在运行的进程信息，其中“${index}”为启动实例的编号。
 
 ```shell
 docker exec -it kbox_${index} ps -elf
@@ -259,7 +261,7 @@ docker exec -it kbox_${index} ps -elf
 
 #### 4.2.4 容器内top信息<a name="ZH-CN_TOPIC_0000002549825273"></a>
 
-**top**命令是常用的性能分析工具，能够实时显示系统中各个进程的资源占用情况，在Kbox云手机容器中执行如下所示的**top**命令查询系统中进程的资源占用情况，其中“\${index}”为启动实例的编号。
+**top**命令是常用的性能分析工具，能够实时显示系统中各个进程的资源占用情况，在Kbox云手机容器中执行如下所示的**top**命令查询系统中进程的资源占用情况，其中“${index}”为启动实例的编号。
 
 ```shell
 docker exec -it kbox_${index} top
@@ -271,7 +273,7 @@ docker exec -it kbox_${index} top
 
 #### 4.2.6 dumpsys信息<a name="ZH-CN_TOPIC_0000002549825235"></a>
 
-dumpsys是在Android设备上运行的工具，可提供有关系统服务的信息，执行如下命令获取容器的所有系统服务诊断输出，其中“\${index}”为启动实例的编号。
+dumpsys是在Android设备上运行的工具，可提供有关系统服务的信息，执行如下命令获取容器的所有系统服务诊断输出，其中“${index}”为启动实例的编号。
 
 ```shell
 docker exec -it kbox_${index} dumpsys
@@ -297,7 +299,7 @@ docker exec -it kbox_${index} dumpsys
 
 #### 4.2.7 容器属性信息<a name="ZH-CN_TOPIC_0000002518345450"></a>
 
-可通过**getprop**命令从Kbox云手机容器中读取属性信息，命令如下所示，其中“\${index}”为启动实例的编号。
+可通过**getprop**命令从Kbox云手机容器中读取属性信息，命令如下所示，其中“${index}”为启动实例的编号。
 
 ```shell
 docker exec -it kbox_${index} getprop
@@ -324,6 +326,7 @@ dmesg -T
 为增强云手机原型的可测试性、可服务性和可维护性，Kbox云手机容器提供了Kbox_maintainer（维护工具）。该工具集成了日志收集、资源检查、故障恢复等多项功能，显著提升了云手机原型的整体性能。
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
+>
 >Kbox_maintainer工具包含在Kbox_AOSP15.zip中，Kbox_AOSP15.zip的获取方式请参见《install guide》文档中“环境准备”章节中的“[软件环境](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP15/docs/zh/install_guide.md#22-%E8%BD%AF%E4%BB%B6%E7%8E%AF%E5%A2%83)”小节。
 
 #### 4.4.2 日志收集<a name="ZH-CN_TOPIC_0000002518345380"></a>
@@ -351,6 +354,7 @@ python3 kbox_maintainer.py log kbox_1
 ```
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
+>
 >在使用日志收集功能时，如果收集日志时间过长，原因可能是“/var/log”下的日志过多导致的，可按需进行清理。
 
 #### 4.4.3 资源检查<a name="ZH-CN_TOPIC_0000002518345418"></a>
@@ -484,6 +488,7 @@ python3 kbox_maintainer.py recover kbox_1
 |网络状态检查|**ifconfig**<br>**ping**<br>**netstat**<br>**tcpdump**|
 
 > ![](public_sys-resources/icon-note.gif) **说明：** 
+>
 > 当Host OS为openEuler 22.03时，联网游戏场景需要打开防火墙的某些端口（端口号由游戏厂商定义，如王者荣耀使用的端口为50012)，否则会出现网络异常无法登录游戏的情况。防火墙配置方法如下。
 >
 > 1. 启用50012端口，用于王者荣耀。

@@ -21,6 +21,7 @@
 镜像的名称和tag可以自行定义，格式为“{名称}:{tag}”，此处设置镜像名为kbox:demo。
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
+>
 >镜像名以及tag名中只可包含数字与字母，镜像名的首字符必须为小写字母或数字。
 
 ```shell
@@ -31,6 +32,7 @@ docker import android.tar kbox:demo
 **制作Kbox镜像：合入商用二进制<a name="section8328138123920"></a>**
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
+>
 >用户使用华为镜像仓提供的官方Kbox Demo镜像时，需要通过该小节的操作确保镜像中包含Android Kbox二进制。
 >当用户使用自行编译的镜像时：
 >
@@ -72,6 +74,7 @@ docker import android.tar kbox:demo
 | KBOX_MOUNT_MAP | 通过修改map中对应路数的值来选择该路容器使用的数据卷存放路径 | 无 |
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
+>
 >为确保Kbox云手机的稳定运行与最佳性能，请保障每个容器所绑定的CPU物理核和GPU渲染节点同属于一个CPU片。
 
 Kbox云手机容器支持使能图形加速层，通过修改kbox_config.cfg配置文件中的“ENABLE_RENDER_LAYER”为1进行使能。打开“~/dependency/deploy_scripts”路径下的“kbox_render_accelerating_configuration.xml”配置文件，对应用的图形加速层功能进行配置。具体配置项描述请参见《[视频流引擎 用户指南（Android 15）](https://gitcode.com/boostkit/vmi/blob/CloudPhone15/docs/zh/user_guide.md)》中的“图形加速层配置项”章节。首次启动云手机容器后，若需要修改图形加速层功能的配置，修改配置文件中应用对应的配置，手动将其拷贝到云手机容器“/data/local/tmp”路径，重启应用生效。
@@ -111,8 +114,9 @@ Kbox云手机容器支持使能图形加速层，通过修改kbox_config.cfg配�
     ```
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >- 启动容器的过程中可能会出现“writing syncT "procError"”、“exec /system/bin/chmod: no such file”等类似报错，该类报错不影响正常功能，忽略即可。
-    >- 启动容器时，指定的\${index1}对应容器绑定的端口，例如index1=10时，对应使用端口8010/8510。在启动时需要确保对应的端口没有被占用。
+    >- 启动容器时，指定的${index1}对应容器绑定的端口，例如index1=10时，对应使用端口8010/8510。在启动时需要确保对应的端口没有被占用。
     >- 可以通过以下指令查询Kbox内核动态开关状态。
     >
     > ```shell
@@ -126,7 +130,7 @@ Kbox云手机容器支持使能图形加速层，通过修改kbox_config.cfg配�
     > echo 1 > /sys/kernel/kbox/kbox_enable
     >    ```
 
-4. 执行如下命令确认Kbox容器是否启动成功，其中“\${index}”为启动实例的编号。
+4. 执行如下命令确认Kbox容器是否启动成功，其中“${index}”为启动实例的编号。
 
     ```shell
     docker exec -it kbox_${index} getprop | grep boot_completed
@@ -140,7 +144,7 @@ Kbox云手机容器支持使能图形加速层，通过修改kbox_config.cfg配�
 
     使用android_kbox_aosp15.sh脚本，停止并删除正在运行的Kbox容器。
 
-    停止并删除编号为\${index}的容器。
+    停止并删除编号为${index}的容器。
 
     ```shell
     ./android_kbox_aosp15.sh delete ${index}
@@ -152,7 +156,7 @@ Kbox云手机容器支持使能图形加速层，通过修改kbox_config.cfg配�
 
     使用android_kbox_aosp15.sh脚本重启Kbox容器。
 
-    重启编号为\${index}的容器。
+    重启编号为${index}的容器。
 
     ```shell
     ./android_kbox_aosp15.sh restart ${index}
@@ -182,7 +186,7 @@ Component Version: 8.0.RC1
 Component AppendInfo: 15.0.0_r17
 ```
 
-方法二：使用如下命令查询已启动的容器内的版本信息，其中“\${index}”为启动实例的编号，回显示例参见方法一的查询结果。
+方法二：使用如下命令查询已启动的容器内的版本信息，其中“${index}”为启动实例的编号，回显示例参见方法一的查询结果。
 
 ```shell
 docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
@@ -406,6 +410,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     3. 按“Esc”键，输入**:wq!**，按“Enter”保存并退出编辑。
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >修改“/etc/docker/daemon.json”文件，若“/etc/docker/daemon.json”文件不存在，则使用以下命令自行创建该文件并将内容写入。
     >
     >```shell
@@ -423,6 +428,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 3. 重启Docker服务。
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >重启Docker服务前需要确保没有其他容器运行，如果有需要清理。
 
     ```shell
@@ -467,6 +473,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     进入容器后即可执行相应的云手机参数配置命令。
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >在本文档使用的**adb**命令中，ip是指服务器IP地址，port是adb端口号。
 
 **服务器终端界面操作方式<a name="section473111277384"></a>**
@@ -489,6 +496,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 本章节介绍GPS系统属性配置项说明内容。
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
+>
 >对下表中的参数数据类型说明如下：
 >
 >- double类型参数有效值为15~16位，若设置的数据有效值超过15~16位，请采用科学计数法表示。由于double类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于双精度浮点数类型转换，在有效数字范围内也存在精度浮动问题。
@@ -528,6 +536,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     ```
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >在Windows系统上查询字符串文本，请使用命令**findstr**替代命令**grep**，如下所示。本章后续使用**grep**命令的场景，请用户根据实际业务场景自行处理。
     >
     >```shell
@@ -603,11 +612,13 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     ![](figures/zh-cn_image_0000002549865675.png)
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >aosp15中网络运营商代码46000与网络运营商名字“China Mobile”强绑定。当网络运营商为46000时，无法单独修改网络运营商名字。 对于其他的网络运营商代码，可以任意单独修改运营商名字。
 
 3. 调用**setprop**方法设置“IMSI”和“SIM卡运营商名字”。
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >aosp源码中有如下文件：packages/providers/TelephonyProvider/assets/latest_carrier_id/carrier_list.textpb
     >该文件中维护了部分sim卡运营商代码和sim卡运营商名字的映射，文件中维护的映射关系无法通过telephony mock手动修改，文件中没有维护的值可以任意配置
 
@@ -639,6 +650,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     ![](figures/zh-cn_image_0000002549745667.png)
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >1. 目前控制只能修改“SIM卡序列号”为国内序列号，要求前4位为8986， 否则会将“SIM卡序列号”设置为空。
     >2. 通过命令查询“SIM卡序列号”，如果编译Android镜像时选择user模式。
     >
@@ -680,6 +692,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 | persist.sensors.mock.gyro.data.z | 当配置项为persist.sensors.mock.gyro.data.z，表示沿z轴的旋转速率 | float | [-3.402823466e+38,3.402823466e+38] | 陀螺仪的z轴默认值均为0.101028，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.gyro.data.z上。但由于Android 15将底层采集的数据与resolution值一起计算量化成新值，陀螺仪resolution=1/1000 | 当设置persist.sensors.mock.gyro.data.z的值包含非数字/小数点字符的非法字符时，设置无效采用默认值。注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题 |
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
+>
 >Android 15数值转换公式：输入value是float类型，resolution是double类型，double incRes = 0.125 \*resolution；value = round\(static_cast<double\>\(value\) / incRes\) \*incRes，round是指double类型取整。
 
 ##### 4.2.3.2 配置属性示例<a name="ZH-CN_TOPIC_0000002549745641"></a>
@@ -699,6 +712,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     ![](figures/zh-cn_image_0000002518385810.png)
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
     >用户可自行查找相关应用进行验证。
 
 3. 调用**setprop**方法注入陀螺仪传感器数据。
@@ -856,6 +870,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 故障排除是指根据不同的故障原因清除故障的过程。故障排除包括检修设备、修改配置数据、重启相关进程、重启容器、重启服务器等。
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
+>
 >处理重大故障前，请先联系技术支持工程师协助解决。
 >在故障处理过程中，维护人员可能需要执行修改配置数据、重启虚拟机等重大操作，为确保数据安全，首先应该保存现场数据，备份相关数据库、告警信息和日志文件等。
 >当系统维护人员无法自行排除故障时，请联系技术支持工程师协助解决。

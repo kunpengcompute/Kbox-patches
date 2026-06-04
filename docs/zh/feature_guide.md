@@ -572,7 +572,7 @@ chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufre
 
 ##### 11.2.1.3 **文件说明**<a name="ZH-CN_TOPIC_0000002549832553"></a>
 
-   容器内的/sys/devices/system/cpu/cpu\${需要查询权限的cpu的编号}/cpufreq/目录下一般有如下文件，下面表格对各个文件的作用进行说明。
+   容器内的/sys/devices/system/cpu/cpu${需要查询权限的cpu的编号}/cpufreq/目录下一般有如下文件，下面表格对各个文件的作用进行说明。
 
    | 文件名 | 记载的信息和作用 | 建议和说明（功能实现指南） |
 | :--- | :--- | :--- |
