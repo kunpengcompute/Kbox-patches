@@ -523,10 +523,6 @@ function start_box_by_id() {
 
     enable_hard_decoder $TAG_NUMBER
 
-    # 调整vinput设备权限
-    cid=$(docker ps | grep -w ${CONTAINER_NAME} | awk '{print $1}')
-    echo "c 13:* rwm" >$(ls -d /sys/fs/cgroup/devices/docker/$cid*/devices.allow)
-
     if [ -n "$(docker ps -a --format {{.Names}} | grep "$CONTAINER_NAME$")" ]; then
         # 等待容器启动
         wait_container_ready ${CONTAINER_NAME}
@@ -624,9 +620,6 @@ function main() {
                 [ ${?} -eq 1 ] && continue
 
                 enable_netint "$CONTAINER_NAME"
-                # 调整vinput设备权限
-                cid=$(docker ps | grep -w "$CONTAINER_NAME" | awk '{print $1}')
-                echo "c 13:* rwm" >$(ls -d /sys/fs/cgroup/devices/docker/$cid*/devices.allow)
                 set -e
             fi
         done
