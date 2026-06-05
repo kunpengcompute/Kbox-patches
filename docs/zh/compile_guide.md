@@ -36,17 +36,15 @@ Kbox安卓镜像编译构建的软件环境要求如[**表 1** Kbox安卓镜像�
 |3|LLVM源码|版本：13.0.1|[获取链接](https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/llvm-13.0.1.src.tar.xz)|
 |4|libdrm源码|版本：2.4.111|[获取链接](https://gitlab.freedesktop.org/mesa/drm/-/archive/libdrm-2.4.111/drm-libdrm-2.4.111.zip)|
 |5|libva源码|版本：2.14.0|[获取链接](https://github.com/intel/libva/archive/refs/tags/2.14.0.tar.gz)|
-|6|[可选]BoostKit-boostcph-kbox_*.zip|Android Kbox二进制文件包|[获取链接](https://www.hikunpeng.com/zh/developer/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft)|
+|6|BoostKit-boostcph-kbox_*.zip|Android Kbox二进制文件包|[获取链接](https://www.hikunpeng.com/zh/developer/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft)|
 |7|Kbox-patches-AOSP11.zip|Android代码补丁Demo包、编译脚本Demo包|[获取链接](https://raw.gitcode.com/boostkit/Kbox-patches/archive/refs/heads/AOSP11.zip)|
 |8|ExaGear_ARM32-ARM64_V2.5.tar.gz|ExaGear转码二进制包|[获取链接](https://kunpeng-repo.obs.cn-north-4.myhuaweicloud.com/Exagear%20ARM32-ARM64/Exagear%20ARM32-ARM64%20202.0.0/ExaGear_ARM32-ARM64_V2.5.tar.gz)|
 |9|Meson|0.63.2|[获取链接](https://github.com/mesonbuild/meson/releases/download/0.63.2/meson-0.63.2.tar.gz)|
 |10|vmi-CloudPhone.zip|华为VMI引擎云手机开源参考Demo分支：CloudPhone|[获取链接](https://raw.gitcode.com/boostkit/vmi/archive/refs/heads/CloudPhone.zip)|
-|11|[可选]Kbox源码|华为KBOX云手机容器分支：master|[获取链接](https://raw.gitcode.com/boostkit/Kbox/archive/refs/heads/master.zip)|
 
 >![](public_sys-resources/icon-note.gif) **说明：** <br>
 >
 >1、以上软件包名仅供参考，部分下载方式可能会导致软件包名与表格产生差异。请以获取的实际包名为准，参考表格适当进行更名，以方便后续步骤中的使用。<br>
->2、提供2种编译方式可选：基于Kbox二进制 prebuilt时必须下载(6)BoostKit-boostcph-kbox_*.zip；基于Kbox源码编译时必须下载(11)Kbox源码
 
 **软件包完整性校验<a name="section12800195641510"></a>**
 
@@ -99,9 +97,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
     unzip Kbox-patches-AOSP11.zip
     ```
 
-4. [可选] 若需要基于Kbox源码进行编译，则参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)下载Kbox源码到本地，上传到服务器的“/home/auto_compile”目录，并解压，得到“/home/auto_compile/Kbox”目录。
-
-5. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)下载Android Kbox二进制文件包或Kbox源码、ExaGear转码包、Meson、Mesa源码、LLVM源码、libdrm源码、libva源码和Cloudphone应用安装包到本地。在如下指定目录中创建“package”文件夹。
+4. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)下载Android Kbox二进制文件包、ExaGear转码包、Meson、Mesa源码、LLVM源码、libdrm源码、libva源码和Cloudphone应用安装包到本地。在如下指定目录中创建“package”文件夹。
 
     ```shell
     cd /home/auto_compile/Kbox-patches-AOSP11/make_img_sample/kbox11_android_build
@@ -114,7 +110,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
     需保持下载的第三方库源码（Mesa、LLVM、libdrm、libva）及解压出的文件夹名与“/home/auto_compile/Kbox-patches-AOSP11/make_img_sample/00_kbox_prepare.sh”文件中配置的“<package\>_version”或“<package\>_src”变量值一致。若不一致可重命名源码文件夹再重新打包。
 
-6. 修改编译配置。
+5. 修改编译配置。
     1. 编辑build.conf脚本。
 
         ```shell
@@ -130,7 +126,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
     3. 按“Esc”键，输入**:wq!**，按“Enter”保存并退出编辑。
 
-7. 执行kbox11_android_build.sh自动化脚本完成Kbox编译。
+6. 执行kbox11_android_build.sh自动化脚本完成Kbox编译。
 
     ```shell
     cd /home/auto_compile/Kbox-patches-AOSP11/make_img_sample/kbox11_android_build && chmod +x kbox11_android_build.sh
@@ -490,9 +486,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 >
 >为了方便用户快速体验和部署Kbox云手机套件，提供了Kbox安卓补丁。该补丁仅作为功能性参考，不是商用交付范围，不提供商业承诺，建议客户或ISV在商用前进行必要的安全评估，若选择使用鲲鹏BoostKit云手机参考方案需自行承担安全风险。
 
-### 5.5 合入二进制内容或Kbox源码<a name="ZH-CN_TOPIC_0000002549825259"></a>
-
-**基于KBOX二进制**
+### 5.5 合入二进制内容<a name="ZH-CN_TOPIC_0000002549825259"></a>
 
 在AOSP源码包中合入Kbox二进制软件包。
 
@@ -520,35 +514,6 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
     ```
 
 4. 在“~/aosp/vendor/kbox/products”目录下，通过以下命令修改kbox.mk文件里的DNS地址。
-
-    此命令中的net.dns1=xxx.xxx.xxx.xxx需要替换成配置容器的DNS地址。需保证配置的地址可用，否则可能导致编译获得的镜像不可用。
-
-    ```shell
-    sed -i "s|net.dns1=.*|net.dns1=xxx.xxx.xxx.xxx \\\\|" ~/aosp/vendor/kbox/products/kbox.mk
-    ```
-
-    >![](public_sys-resources/icon-note.gif) **说明：** 
-    >
-    >- 示例仅作为格式参考，请根据实际情况自行配置可用的公共DNS地址，以保证容器连接网络正常。
-    >- DNS地址也可以通过修改Kbox容器内部文件“/system/vendor/build.prop”配置，容器重启后配置生效。
-    >- 如配置时有疑问，请联系华为运维人员支撑。
-
-**基于KBOX源码**
-
-在AOSP源码包中合入Kbox源码。
-
-1. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)获取KBOX源码，上传至“~/dependency”目录，解压后将得到的文件夹重命名为Kbox。
-
-    请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
-
-2. 将~/dependency/Kbox/src/vendor/kbox文件夹拷贝到AOSP源码的./vendor目录下。
-
-    ```shell
-    cd ~/dependency
-    cp -rf ./Kbox/src/vendor/kbox ~/aosp/vendor
-    ```
-
-3. 在“~/aosp/vendor/kbox/products”目录下，通过以下命令修改kbox.mk文件里的DNS地址。
 
     此命令中的net.dns1=xxx.xxx.xxx.xxx需要替换成配置容器的DNS地址。需保证配置的地址可用，否则可能导致编译获得的镜像不可用。
 
