@@ -796,7 +796,12 @@ function start_box() {
             RUN_OPTION+=" --device=/dev/dma_heap/system:/dev/dma_heap/system:rwm"
         fi
     fi
-    $RUNTIME_CMD run $RUN_OPTION $IMAGE_NAME init
+
+    # 给c 13 vinput设备设置访问权限
+    local cgroup_rule="--device-cgroup-rule=c 13:* rwm"
+
+    $RUNTIME_CMD run $RUN_OPTION "$cgroup_rule" $IMAGE_NAME init
+
     local cid=$($RUNTIME_CMD ps | grep -w " ${BOX_NAME}" | awk '{print $1}')
 
     local BINDER_MAJOR_ID=$(cat /proc/devices | grep binder | awk '{print $1}')
@@ -1102,12 +1107,10 @@ function restart_box() {
         if [ $DEFAULT_RUNTIME == "docker" ]; then
             # 赋予容器binder设备节点cgroup devices权限
             echo "c $BINDER_MAJOR_ID:* rwm" >$(ls -d /sys/fs/cgroup/devices/docker/$cid*/devices.allow)
-            echo "c 13:* rwm" >$(ls -d /sys/fs/cgroup/devices/docker/$cid*/devices.allow)
             echo 1 > /sys/fs/cgroup/cpuset/docker/$cid*/cgroup.clone_children
         else
             # 赋予容器binder设备节点cgroup devices权限
             echo "c $BINDER_MAJOR_ID:* rwm" >$(ls -d /sys/fs/cgroup/devices/default/$cid*/devices.allow)
-            echo "c 13:* rwm" >$(ls -d /sys/fs/cgroup/devices/default/$cid*/devices.allow)
             echo 1 > /sys/fs/cgroup/cpuset/default/$cid*/cgroup.clone_children
         fi
 
