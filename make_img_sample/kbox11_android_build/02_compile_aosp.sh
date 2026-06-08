@@ -51,7 +51,7 @@ function aosp_compile(){
     [ -e ~ ] && rm -rf $AOSP_PATH/out
     [ -e ~ ] && rm -rf $AOSP_PATH/create-package.sh
     # 修改kbox.mk文件中的网络配置
-    sed -i "s|net.dns1=.*|net.dns1=${DNS} \\\\|" $AOSP_PATH/vendor/kbox/products/kbox.mk
+    sed -i 's|^[[:space:]]*net\.dns1=.*|    net.dns1='"$DNS"' \\|' "${AOSP_PATH}/vendor/kbox/products/kbox.mk"
     # 生成release key
     rm -rf ./build/target/product/security/release*
     chmod +x ./development/tools/make_key || error "无法设置make_key为可执行"
