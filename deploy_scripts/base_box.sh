@@ -750,10 +750,11 @@ function start_box() {
     if [ -f $THISDIR/build.prop ]; then
         RUN_OPTION+=" --volume=$THISDIR/build.prop:/kbox_prop/build.prop:rw "
     fi
-    if [ -e "$CURRENT_DIR/local.prop" ]; then
-        chmod 400 $CURRENT_DIR/local.prop
-        RUN_OPTION+=" --volume=$CURRENT_DIR/local.prop:/data/local.prop:rw "
+    if [ ! -e "$CURRENT_DIR/local.prop" ]; then
+        touch $CURRENT_DIR/local.prop
     fi
+    chmod 600 $CURRENT_DIR/local.prop
+    RUN_OPTION+=" --volume=$CURRENT_DIR/local.prop:/data/local.prop:rw "
     if [[ $ENABLE_RENDER_LAYER == "1" ]]; then
         create_app_shader_filesystem ${BOX_NAME} RUN_OPTION
     fi
