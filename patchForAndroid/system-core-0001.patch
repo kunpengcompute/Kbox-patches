@@ -1308,7 +1308,7 @@ index a9d0ed08a..ac74a52a0 100644
    LOCAL_POST_INSTALL_CMD += ; mkdir -p $(TARGET_ROOT_OUT)/vendor
  else
 diff --git a/rootdir/init.rc b/rootdir/init.rc
-index a9af0b094..eda4fb4b4 100644
+index a9af0b094..9e3aacc55 100644
 --- a/rootdir/init.rc
 +++ b/rootdir/init.rc
 @@ -8,7 +8,7 @@ import /init.environ.rc
@@ -1329,26 +1329,27 @@ index a9af0b094..eda4fb4b4 100644
  
      symlink /dev/binderfs/binder /dev/binder
      symlink /dev/binderfs/hwbinder /dev/hwbinder
-@@ -457,7 +457,7 @@ on post-fs
+@@ -457,7 +457,6 @@ on post-fs
  
      # Once everything is setup, no need to modify /.
      # The bind+remount combination allows this to work in containers.
 -    mount rootfs rootfs / remount bind ro nodev
-+    mount rootfs rootfs / remount bind rw nodev
  
      # Make sure /sys/kernel/debug (if present) is labeled properly
      # Note that tracefs may be mounted under debug, so we need to cross filesystems
-@@ -791,6 +791,9 @@ on post-fs-data
+@@ -791,6 +790,11 @@ on post-fs-data
      # Enable FUSE by default
      setprop persist.sys.fuse true
  
 +    exec - root root -- /system/bin/ipconfigstore
 +    chown system system /data/misc/ethernet/ipconfig.txt
++    
++    mount rootfs rootfs / remount bind ro nodev
 +
  # Switch between sdcardfs and FUSE depending on persist property
  # TODO: Move this to ro property before launch because FDE devices
  # interact with persistent properties differently during boot
-@@ -811,7 +814,7 @@ on zygote-start && property:persist.sys.fuse=""
+@@ -811,7 +815,7 @@ on zygote-start && property:persist.sys.fuse=""
  # to start-zygote in device's init.rc to unblock zygote start.
  on zygote-start && property:ro.crypto.state=unencrypted
      # A/B update verifier that marks a successful boot.
@@ -1357,7 +1358,7 @@ index a9af0b094..eda4fb4b4 100644
      start statsd
      start netd
      start zygote
-@@ -819,7 +822,7 @@ on zygote-start && property:ro.crypto.state=unencrypted
+@@ -819,7 +823,7 @@ on zygote-start && property:ro.crypto.state=unencrypted
  
  on zygote-start && property:ro.crypto.state=unsupported
      # A/B update verifier that marks a successful boot.
@@ -1366,7 +1367,7 @@ index a9af0b094..eda4fb4b4 100644
      start statsd
      start netd
      start zygote
-@@ -827,7 +830,7 @@ on zygote-start && property:ro.crypto.state=unsupported
+@@ -827,7 +831,7 @@ on zygote-start && property:ro.crypto.state=unsupported
  
  on zygote-start && property:ro.crypto.state=encrypted && property:ro.crypto.type=file
      # A/B update verifier that marks a successful boot.
@@ -1375,7 +1376,7 @@ index a9af0b094..eda4fb4b4 100644
      start statsd
      start netd
      start zygote
-@@ -938,7 +941,7 @@ on boot
+@@ -938,7 +942,7 @@ on boot
      # Requires keystore (currently a core service) to be ready first.
      exec -- /system/bin/fsverity_init
  
@@ -1384,7 +1385,7 @@ index a9af0b094..eda4fb4b4 100644
      class_start main
      class_start late_start
  
-@@ -1050,8 +1053,8 @@ on property:ro.debuggable=1
+@@ -1050,8 +1054,8 @@ on property:ro.debuggable=1
      # Give reads to anyone for the window trace folder on debug builds.
      chmod 0775 /data/misc/wmtrace
  
