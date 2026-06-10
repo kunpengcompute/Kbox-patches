@@ -1,5 +1,5 @@
 diff --git a/drivers/gpu/drm/Makefile b/drivers/gpu/drm/Makefile
-index 81569009f..45bf62163 100644
+index 495448f93..fd8b479bd 100644
 --- a/drivers/gpu/drm/Makefile
 +++ b/drivers/gpu/drm/Makefile
 @@ -62,6 +62,7 @@ obj-$(CONFIG_DRM_MIPI_DBI) += drm_mipi_dbi.o
@@ -11,10 +11,10 @@ index 81569009f..45bf62163 100644
  obj-$(CONFIG_DRM_SCHED)	+= scheduler/
  obj-$(CONFIG_DRM_TDFX)	+= tdfx/
 diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
-index e8c76bd8c..c7ace3543 100644
+index 6aa9fd9cb..831f9acd3 100644
 --- a/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
 +++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
-@@ -937,8 +937,181 @@ static int amdgpu_debugfs_gem_info(struct seq_file *m, void *data)
+@@ -935,8 +935,200 @@ static int amdgpu_debugfs_gem_info(struct seq_file *m, void *data)
  	return 0;
  }
  
@@ -47,6 +47,25 @@ index e8c76bd8c..c7ace3543 100644
 +        container_id = kstrndup(id_str, 12, GFP_KERNEL);
 +    }
 +    return container_id;
++}
++
++char *extract_container_id_cri(const char *cgroup_path) {
++	const char *id_str = strstr(cgroup_path, "cri-containerd");
++	if (id_str == NULL) return NULL;
++	id_str += strlen("cri-containerd");
++	if (*id_str == '-' || *id_str == ':') {
++		id_str++;
++	} else {
++		return NULL;
++	}
++	size_t length = 0;
++	const char *end = id_str;
++	while (*end != '.' && *end != '/' && *end != '\0') {
++		end++;
++		length++;
++	}
++	if (length < 12) return NULL;
++	return kstrndup(id_str, 12, GFP_KERNEL);
 +}
 +
 +struct container_mem_stats {
@@ -141,8 +160,8 @@ index e8c76bd8c..c7ace3543 100644
 +		}
 +		if (strstr(cgroup_path, "/docker/") || strstr(cgroup_path, "/kubepods/")) {
 +            container_id = extract_container_id(cgroup_path, '/');
-+        } else if (strstr(cgroup_path, "cri-containerd:")) { //k8s用systemd驱动管理资源控制器
-+            container_id = extract_container_id(cgroup_path, ':');
++        } else if (strstr(cgroup_path, "cri-containerd")) { //k8s用systemd驱动管理资源控制器
++            container_id = extract_container_id_cri(cgroup_path);
 +        }
 +		if(container_id) {
 +			mutex_lock(&container_stats_mutex);
@@ -206,10 +225,10 @@ index 000000000..2175036af
 \ No newline at end of file
 diff --git a/drivers/gpu/drm/statistics/amdgpu_statistics.c b/drivers/gpu/drm/statistics/amdgpu_statistics.c
 new file mode 100644
-index 000000000..761342854
+index 000000000..933441944
 --- /dev/null
 +++ b/drivers/gpu/drm/statistics/amdgpu_statistics.c
-@@ -0,0 +1,531 @@
+@@ -0,0 +1,550 @@
 +#include <linux/fs.h>
 +#include <linux/uio.h>
 +#include <linux/module.h>
@@ -232,7 +251,7 @@ index 000000000..761342854
 +#define AMD_VENDOR_ID 0x1002
 +#define MAX_FIELDS_LENGTH 64
 +#define VM_DEBUGFS_FILED_COUNT 7 // 瀚博显存统计节点有效的字段数
-+#define K8S_CONTAINER_FEATURE_CODE "cri-containerd:"
++#define K8S_CONTAINER_FEATURE_CODE "cri-containerd"
 +#define MAX_RECORD_LENGTH 64
 +#define VM_DEBUGFS_PATH "/sys/kernel/debug/va/gpu%02d/gpu_mem_stats"
 +#define AMD_DEBUGFS_FMT "/sys/kernel/debug/dri/%d/amdgpu_gem_statistics"
@@ -289,6 +308,25 @@ index 000000000..761342854
 +        container_id = kstrndup(id_str, 12, GFP_KERNEL);
 +    }
 +    return container_id;
++}
++
++char *extract_container_id_cri(const char *cgroup_path) {
++	const char *id_str = strstr(cgroup_path, "cri-containerd");
++	if (id_str == NULL) return NULL;
++	id_str += strlen("cri-containerd");
++	if (*id_str == '-' || *id_str == ':') {
++		id_str++;
++	} else {
++		return NULL;
++	}
++	size_t length = 0;
++	const char *end = id_str;
++	while (*end != '.' && *end != '/' && *end != '\0') {
++		end++;
++		length++;
++	}
++	if (length < 12) return NULL;
++	return kstrndup(id_str, 12, GFP_KERNEL);
 +}
 +
 +/* 
@@ -472,7 +510,7 @@ index 000000000..761342854
 +        if (strstr(cgroup_path, "/docker/") || strstr(cgroup_path, "/kubepods/")) {
 +            container_id = extract_container_id(cgroup_path, '/');
 +        } else if (strstr(cgroup_path, K8S_CONTAINER_FEATURE_CODE)) { //k8s用systemd驱动管理资源控制器
-+            container_id = extract_container_id(cgroup_path, ':');
++            container_id = extract_container_id_cri(cgroup_path);
 +        }
 +        if (container_id) {
 +            mutex_lock(&vm_container_stats_mutex);
@@ -741,7 +779,3 @@ index 000000000..761342854
 +module_exit(amd_module_exit);
 +
 +MODULE_LICENSE("GPL");
-\ No newline at end of file
--- 
-2.34.1
-
