@@ -33,6 +33,10 @@ function check_environment() {
         exit 1
     fi
 
+    if [ ! -f "local.prop" ]; then
+        touch local.prop
+    fi
+
     check_devices
 }
 
