@@ -17,7 +17,7 @@ Kbox云手机容器环境部署的硬件环境配置方案要求如[**表 1** Kb
 |配置项|硬件配置方案一|硬件配置方案二|硬件配置方案三|硬件配置方案四|
 |--|--|--|--|--|
 |服务器|鲲鹏服务器|鲲鹏服务器|鲲鹏服务器|鲲鹏服务器|
-|CPU|2\*鲲鹏920 7260处理器，64 <Core@2.6GHz>|2\*鲲鹏920 7260处理器，64 <Core@2.6GHz>|2\*鲲鹏920 7280Z处理器，80 <Core@2.9GHz>|2\*鲲鹏920 7260W处理器，64 Core@2.2GHz|
+|CPU|2\*鲲鹏920 7260处理器，64 Core\@2.6GHz|2\*鲲鹏920 7260处理器，64 Core\@2.6GHz|2\*鲲鹏920 7280Z处理器，80 Core\@2.9GHz|2\*鲲鹏920 7260W处理器，64 Core\@2.2GHz|
 |内存|16\*DDR4 RDIMM内存-32GB-2933MT/s|16\*DDR4 RDIMM内存-32GB-2933MT/s|16\*DDR5 DIMM内存-64GB-4800MT/s|16\*DDR5 DIMM内存-64GB-5200MT/s|
 |硬盘|系统盘：2\*固态硬盘-480GB-SATA 6Gb/s-读取密集型数据盘：2\*ES3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：2\*固态硬盘-480GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*ES3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：1\*S3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*S3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：1\*固态硬盘-480GB-SATA 6Gb/s-2.5 inch height-读密集型<br>1\*S4510 固态硬盘-960GB-SATA 6Gb/s-读取密集型<br>数据盘：1\*ES3600P V6固态硬盘-6400GB-NVMe 64Gb/s<br>1\*ES3500P V5固态硬盘-4000GB-NVMe 32Gb/s|
 |网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-2\*25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-2\*25GE/10GE光口-4端口-SFP28（不含光模块）|
@@ -46,7 +46,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 |--|--|--|--|--|--|--|--|
 | 1 | android.tar | Kbox安卓镜像包 | 自行编译（请参见[编译指南](compile_guide.md)进行编译） | √ | √ | √ | √ |
 | 2 | BoostKit-boostcph-kbox_*_15.zip | Android Kbox二进制文件包 | [获取链接](https://www.hikunpeng.com/zh/developer/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft) | √ | √ | √ | √ |
-| 3 | kernel-6.6.0-72.0.0.zip | openEuler 24.03 LTS SP1 Kernel源码 | [获取链接](https://gitee.com/openeuler/kernel/repository/archive/6.6.0-72.0.0.zip) | √ | √ | √ | √ |
+| 3 | kernel-6.6.0-72.0.0.zip | openEuler 24.03 LTS SP1 Kernel源码 | [获取链接](https://atomgit.com/openeuler/kernel/tree/6.6.0-72.0.0) | √ | √ | √ | √ |
 | 4 | ExaGear_ARM32-ARM64.tar.gz | ExaGear转码二进制包 | 请联系华为技术支持获取 | √ | √ | √ | √ |
 | 5 | Kbox-patches-AOSP15.zip | 内核补丁Demo包、容器部署脚本Demo包 | [获取链接](https://gitcode.com/boostkit/Kbox-patches/tree/AOSP15) | √ | √ | √ | √ |
 | 6 | Quadra_V*XXX*.zip | NETINT编码卡Quadra软固件及文档包。配套版本V4.8.F-Android15 | [获取链接](https://www.netint.cn/quadra-firmware-downloads-android15/)<br>下载密码:test123 | √ | - | - | - |
@@ -499,18 +499,23 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
     以下操作仅供参考，默认会在容器启动脚本中自动执行，无需手动执行。
 
     停止相关服务，以下指令服务器重启后需重新执行
+
     ```shell
     sudo systemctl stop systemd-udevd-control.socket
     sudo systemctl stop systemd-udevd-kernel.socket
     sudo systemctl stop systemd-udevd.service
     ```
+
     查看服务是否按照预期停止
+
     ```shell
     sudo systemctl status systemd-udevd-control.socket | grep 'Active:'
     sudo systemctl status systemd-udevd-kernel.socket | grep 'Active:'
     sudo systemctl status systemd-udevd.service | grep 'Active:'
     ```
+
     预期回显
+    
     ```shell
     Active: inactive (dead) since ...
     ```
