@@ -32,7 +32,7 @@ Kbox安卓镜像编译构建的软件环境要求如[**表 1** Kbox安卓镜像�
 |序号|软件|说明|获取地址|
 |--|--|--|--|
 |1|AOSP源码|版本：android-11.0.0_r48|[获取链接](https://android.googlesource.com/platform/manifest)|
-|2|Mesa源码|Mesa参考Demo版本：22.1.7| [获取链接](https://gitcode.com/boostkit/mesa)切换到22.1.7分支，并单击“下载zip”进行下载 |
+|2|Mesa源码|Mesa参考Demo版本：22.1.7| [获取链接](https://gitcode.com/boostkit/mesa) <br>切换到22.1.7分支，并单击“下载zip”进行下载 |
 |3|LLVM源码|版本：13.0.1|[获取链接](https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/llvm-13.0.1.src.tar.xz)|
 |4|libdrm源码|版本：2.4.111|[获取链接](https://gitlab.freedesktop.org/mesa/drm/-/archive/libdrm-2.4.111/drm-libdrm-2.4.111.zip)|
 |5|libva源码|版本：2.14.0|[获取链接](https://github.com/intel/libva/archive/refs/tags/2.14.0.tar.gz)|
@@ -44,7 +44,7 @@ Kbox安卓镜像编译构建的软件环境要求如[**表 1** Kbox安卓镜像�
 
 >![](public_sys-resources/icon-note.gif) **说明：** <br>
 >
->1、以上软件包名仅供参考，部分下载方式可能会导致软件包名与表格产生差异。请以获取的实际包名为准，参考表格适当进行更名，以方便后续步骤中的使用。<br>
+> - 以上软件包名仅供参考，部分下载方式可能会导致软件包名与表格产生差异。请以获取的实际包名为准，参考表格适当进行更名，以方便后续步骤中的使用。<br>
 
 **软件包完整性校验<a name="section12800195641510"></a>**
 
@@ -124,7 +124,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
         DNS=xx.xx.xx.xx
         ```
 
-    3. 按“Esc”键，输入**:wq!**，按“Enter”保存并退出编辑。
+    3. 按“Esc”键，输入**wq!**，按“Enter”保存并退出编辑。
 
 6. 执行kbox11_android_build.sh自动化脚本完成Kbox编译。
 
