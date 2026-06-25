@@ -55,7 +55,7 @@
 
 ## 版本使用注意事项<a name="ZH-CN_TOPIC_0000002549825861"></a>
 
-请参见相应版本的特性指南，例如《[feature guide](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/feature_guide.md)》。
+请参见相应版本的特性指南，例如《[特性指南](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP15/docs/zh/feature_guide.md)》。
 
 ## V7.3.0_15<a name="ZH-CN_TOPIC_0000002549705869"></a>
 
@@ -126,15 +126,15 @@
 
 |序号|文档名称|内容简介|下载方法|
 |--|--|--|--|
-| 1 | best practices | 本文档向用户介绍Kbox云手机容器的最佳实践 | [best practices](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/best_practices.md) |
-| 2 | compile guide | 本文档向用户介绍Kbox云手机容器的编译方法 | [compile guide](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/compile_guide.md) |
-| 3 | feature guide | 本文档向用户介绍Kbox云手机容器的特性说明 | [feature guide](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/feature_guide.md) |
-| 4 | install guide | 本文档向用户介绍Kbox云手机容器的安装指南 | [install guide](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/install_guide.md) |
-| 5 | release notes | 本文档向用户介绍Kbox云手机容器的版本相关信息 | [release notes](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/release_notes.md) |
-| 6 | test guide | 本文档向用户介绍Kbox云手机容器的测试方法 | [test guide](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/test_guide.md) |
-| 7 | troubleshooting | 本文档向用户介绍Kbox云手机容器的故障案例 | [troubleshooting](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/troubleshooting.md) |
-| 8 | user guide | 本文档向用户介绍Kbox云手机容器的用户指南 | [user guide](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/user_guide.md) |
-| 9 | routine maintenance | 本文档向用户介绍Kbox云手机容器的维护方法和维护工具 | [routine maintenance](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/%E4%BE%8B%E8%A1%8C%E7%BB%B4%E6%8A%A4.md) |
+| 1 | best practices | 本文档向用户介绍Kbox云手机容器的最佳实践 | [最佳实践](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP15/docs/zh/best_practices.md) |
+| 2 | compile guide | 本文档向用户介绍Kbox云手机容器的编译方法 | [编译指南](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP15/docs/zh/compile_guide.md) |
+| 3 | feature guide | 本文档向用户介绍Kbox云手机容器的特性说明 | [特性指南](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP15/docs/zh/feature_guide.md) |
+| 4 | install guide | 本文档向用户介绍Kbox云手机容器的安装指南 | [安装指南](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP15/docs/zh/install_guide.md) |
+| 5 | release notes | 本文档向用户介绍Kbox云手机容器的版本相关信息 | [版本说明书](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP15/docs/zh/release_notes.md) |
+| 6 | test guide | 本文档向用户介绍Kbox云手机容器的测试方法 | [验收测试指南](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP15/docs/zh/test_guide.md) |
+| 7 | troubleshooting | 本文档向用户介绍Kbox云手机容器的故障案例 | [故障案例](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP15/docs/zh/troubleshooting.md) |
+| 8 | user guide | 本文档向用户介绍Kbox云手机容器的用户指南 | [用户指南](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP15/docs/zh/user_guide.md) |
+| 9 | routine maintenance | 本文档向用户介绍Kbox云手机容器的维护方法和维护工具 | [例行维护](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP15/docs/zh/routine_maintenance.md) |
 
 ### 获取文档方式<a name="ZH-CN_TOPIC_0000002549825867"></a>
 
