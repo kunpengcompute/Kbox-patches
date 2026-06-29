@@ -134,7 +134,7 @@
 | 测试目的 | 验证IMEI Mock功能。 |
 | 测试组网 | 无 |
 | 预置条件 | 1. Kbox云手机基本环境已部署完成。<br>2. 已创建Kbox云手机容器，并使用SCRCPY连接显示云手机界面。 |
-| 测试步骤 | 1. 在云手机拨号界面输入<b>`#06#`</b> <br>2. 服务器端使用命令`docker exec -it kbox_<x> setprop persist.sys.prop.writeimei imei_num`修改IMEI的值，修改的值需要是一个合法的15位数字。重启kbox云手机，重新查询IMEI的值。<br>3. 在setprop设置完之后。在服务器端使用命令`docker exec -it kbox_<x> getprop persist.sys.prop.writeimei`，查询IMEI的值。<br> 说明：<br> 其中x代表容器编号数字部分。 |
+| 测试步骤 | 1. 在云手机拨号界面输入<b>`*#06#`</b> <br>2. 服务器端使用命令`docker exec -it kbox_<x> setprop persist.sys.prop.writeimei imei_num`修改IMEI的值，修改的值需要是一个合法的15位数字。重启kbox云手机，重新查询IMEI的值。<br>3. 在setprop设置完之后。在服务器端使用命令`docker exec -it kbox_<x> getprop persist.sys.prop.writeimei`，查询IMEI的值。<br> 说明：<br> 其中x代表容器编号数字部分。 |
 | 预期结果 | 1. 显示当前Kbox云手机容器预置的IMEI码。<br>2. 服务端修改IMEI值后，再次查询显示为修改之后的IMEI值。 |
 | 测试结果 |  |
 | 备注 |  |
