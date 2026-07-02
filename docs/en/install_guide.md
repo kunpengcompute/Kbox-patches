@@ -48,7 +48,7 @@ Currently, the Kbox Android container supports Android 11. [**Table 2**](#softwa
 |2|BoostKit-boostcph-kbox_*.zip| Android Kbox binary package, which contains required components.|Contact Huawei technical support.|√|√|√|√|
 |3|kernel-5.10.0-216.0.0.zip| openEuler 22.03 LTS SP4 kernel source code.|[Link](https://gitee.com/openeuler/kernel/repository/archive/5.10.0-216.0.0.zip)|√|√|√|√|
 |4|ExaGear_ARM32-ARM64_V2.5.tar.gz| Binary package for ExaGear transcoding.||√|√|√|√|
-|5|linux-firmware-20210919.tar.gz| Firmware for running Kbox.|[Link](https://mirrors.edge.kernel.org/pub/linux/kernel/firmware/linux-firmware-20210919.tar.gz)|√|-|-|-|
+|5|linux-firmware-20210919.tar.gz| Firmware for running Kbox.|[Link](https://mirrors.aliyun.com/linux-kernel/firmware/linux-firmware-20210919.tar.gz)|√|-|-|-|
 |6|Kbox-patches-AOSP11.zip| Demo kernel patch package and demo container deployment script package.|[Link](https://gitcode.com/boostkit/Kbox-patches)<br>Click the download icon on the AOSP11 branch page.|√|√|√|√|
 |7|NETINT-vXXX.tar.gz| NETINT codec library. This software package is required for enabling hardware decoding. The matching version is 4.8.F-adapt.|[Link](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)<br>Download password: test123|√|-|-|-|
 |8|Quadra_V*XXX*.zip| Quadra software, firmware, and document packages of the NETINT encoding card.|[Link](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)<br>Download password: test123|√|-|-|-|
