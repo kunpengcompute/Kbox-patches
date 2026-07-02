@@ -48,7 +48,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 |2|BoostKit-boostcph-kbox_\*.zip| Android Kbox二进制文件包，包含运行所需组件 |[获取链接](https://www.hikunpeng.com/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft)|√|√|√|√|
 |3|kernel-5.10.0-216.0.0.zip| openEuler 22.03 LTS SP4 Kernel源码 |[获取链接](https://gitcode.com/openeuler/kernel/tree/5.10.0-216.0.0)|√|√|√|√|
 |4|ExaGear_ARM32-ARM64_V2.5.tar.gz| ExaGear转码二进制包 |[获取链接](https://www.hikunpeng.com/zh/developer/download?title=%E4%BA%91%E6%89%8B%E6%9C%BA&subTitle=ExaGear%2BAArch32%E6%8C%87%E4%BB%A4%E7%BF%BB%E8%AF%91%E8%BD%AF%E4%BB%B6&zhTitle=%E4%BA%91%E6%89%8B%E6%9C%BA&zhSubTitle=ExaGear%2BAArch32%E6%8C%87%E4%BB%A4%E7%BF%BB%E8%AF%91%E8%BD%AF%E4%BB%B6&enTitle=ARM%2BNative&enSubTitle=ExaGear%2BAArch32%2BInstruction%2BTranslation%2BSoftware)|√|√|√|√|
-|5|linux-firmware-20210919.tar.gz| 包含Kbox运行所需相关固件 |[获取链接](https://mirrors.edge.kernel.org/pub/linux/kernel/firmware/linux-firmware-20210919.tar.gz)|√|-|-|-|
+|5|linux-firmware-20210919.tar.gz| 包含Kbox运行所需相关固件 |[获取链接](https://mirrors.aliyun.com/linux-kernel/firmware/linux-firmware-20210919.tar.gz)|√|-|-|-|
 |6|Kbox-patches-AOSP11.zip| 包含内核补丁Demo包、容器部署脚本Demo包 |[获取链接](https://gitcode.com/boostkit/Kbox-patches)切换到AOSP11分支，并单击“下载zip”进行下载。|√|√|√|√|
 |7|NETINT-vXXX.tar.gz| NETINT编解码库，当使能硬解的时候获取该软件包，配套版本4.8.F-adapt |[获取链接](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)下载密码：test123|√|-|-|-|
 |8|Quadra_V*XXX*.zip| 包含NETINT编码卡Quadra软固件及文档包 |[获取链接](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)下载密码：test123|√|-|-|-|
