@@ -327,7 +327,7 @@ To enhance the testability, serviceability, and maintainability of the cloud pho
 
 >![](public_sys-resources/icon-note.gif) **NOTE:**
 >
->The Kbox_maintainer tool is contained in **Kbox_AOSP15.zip**. For details about how to obtain the **Kbox_AOSP15.zip** package, see [Software Environment](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP15/docs/en/install_guide.md#22-%E8%BD%AF%E4%BB%B6%E7%8E%AF%E5%A2%83)" in chapter "Environment Setup" in the *Installation Guide*.
+>The Kbox_maintainer tool is contained in **Kbox_AOSP15.zip**. For details about how to obtain the **Kbox_AOSP15.zip** package, see [Software Environment](https://gitcode.com/wyc3111/Kbox-patches/blob/AOSP15/docs/en/install_guide.md#22-%E8%BD%AF%E4%BB%B6%E7%8E%AF%E5%A2%83)" in chapter "Environment Setup" in the *Installation Guide*.
 
 #### 4.4.2 Collecting Logs<a name="ZH-CN_TOPIC_0000002518345380"></a>
 

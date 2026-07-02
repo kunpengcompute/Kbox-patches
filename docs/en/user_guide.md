@@ -77,7 +77,7 @@ You can change map configurations (see [**Table 1** Parameters for configuring t
 >
 >To ensure the stable running and optimal performance of the Kbox cloud phone, ensure that the physical CPU cores and GPU rendering nodes bound to a container belong to the same CPU socket.
 
-The Kbox cloud phone container supports the graphics acceleration layer. You can enable this feature by setting **ENABLE_RENDER_LAYER** in the **kbox_config.cfg** file to **1**. You can also configure the graphics acceleration layer in the **kbox_render_accelerating_configuration.xml** file in the **~/dependency/deploy_scripts** directory. For details about the configuration items, see section "Configuration Items of the Graphics Acceleration Layer" in [Video Stream Engine User Guide (Android 15)](https://gitcode.com/boostkit/vmi/blob/CloudPhone15/docs/en/user_guide.md). If you need to modify the configuration of the graphics acceleration layer after starting the cloud phone container for the first time, modify the application-specific settings in the configuration file, manually copy the file to the **/data/local/tmp** directory of the cloud phone container, and restart the application for the modification to take effect.
+The Kbox cloud phone container supports the graphics acceleration layer. You can enable this feature by setting **ENABLE_RENDER_LAYER** in the **kbox_config.cfg** file to **1**. You can also configure the graphics acceleration layer in the **kbox_render_accelerating_configuration.xml** file in the **~/dependency/deploy_scripts** directory. For details about the configuration items, see section "Configuration Items of the Graphics Acceleration Layer" in [Video Stream Engine User Guide (Android 15)](https://gitcode.com/wyc3111/vmi/blob/CloudPhone15/docs/en/user_guide.md). If you need to modify the configuration of the graphics acceleration layer after starting the cloud phone container for the first time, modify the application-specific settings in the configuration file, manually copy the file to the **/data/local/tmp** directory of the cloud phone container, and restart the application for the modification to take effect.
 
 1. Decompress **Kbox-patches-AOSP15.zip** and upload the **deploy_scripts** directory in the **Kbox-patches-AOSP15** folder to the **~/dependency** directory on the server.
 2. (Optional) To start a video stream cloud phone instance with the C2 decoder enabled (applicable to configuration scheme 1), set **ENABLE_AMD_C2_DECODE** to **1** in the **kbox_config.cfg** file in the **deploy_scripts** directory. **0** (default) and any other values indicate disabled. The C2 decoder needs to be enabled or disabled during the initial container startup; dynamic switching is not supported. Built-in cloud phone applications will automatically select the appropriate decoder based on their specific requirements.
@@ -168,7 +168,7 @@ This section provides two methods to obtain the Kbox version information.
 
 Method 1: using the obtained software package
 
-Obtain **BoostKit-boostcph-kbox_\*_15.zip** by referring to [Software Environment](compile_guide.md#software_requirements) and decompress it. Query the **kbox_version.txt** file to obtain the version of the software package.
+Obtain **BoostKit-boostcph-kbox_\*_15.zip** by referring to [Software Environment](./compile_guide.md#12-software-environment) and decompress it. Query the **kbox_version.txt** file to obtain the version of the software package.
 
 ```shell
 unzip BoostKit-boostcph-kbox_*_15.zip
