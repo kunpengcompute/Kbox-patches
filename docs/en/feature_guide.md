@@ -8,7 +8,7 @@ The cloud phone solution is a virtual phone service virtualized based on the Arm
 
 As the foundational software for running Android applications, the Kbox cloud phone container is an important part of the cloud phone Turbo toolkit in Kunpeng BoostKit. It directly runs the AOSP system in a container, mocks peripheral hardware such as the GPS sensor, acceleration sensor, gyroscope, international mobile equipment identity (IMEI), and Wi-Fi, and implements the Gralloc and HWComposer (HWC) modules, ensuring normal startup and running of the AOSP system. With a series of optional features, the Kbox cloud phone container can enhance the functions or performance of cloud phones in various service scenarios.
 
-[**Table 1**](#kbox-core-functions) lists the core functions of Kbox and [**Table 2**](#optional-features-of-kbox) details its the optional features. To enable Kbox core functions, simply integrate the Kbox cloud phone container by following the instructions in [Compilation Guide](https://gitcode.com/wyc3111/Kbox-patches/blob/AOSP11/docs/en/compile_guide.md) and [Installation Guide](https://gitcode.com/wyc3111/Kbox-patches/blob/AOSP11/docs/en/install_guide.md). Information on the optional features is detailed in the sections below.
+[**Table 1**](#kbox-core-functions) lists the core functions of Kbox and [**Table 2**](#optional-features-of-kbox) details its the optional features. To enable Kbox core functions, simply integrate the Kbox cloud phone container by following the instructions in [Compilation Guide](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/en/compile_guide.md) and [Installation Guide](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/en/install_guide.md). Information on the optional features is detailed in the sections below.
 
 **Table 1** Kbox core functions<a id="kbox-core-functions"></a>
 
@@ -214,7 +214,7 @@ To use this feature, perform the following steps:
 
 1. Enable the feature by setting `ENABLE_RENDER_LAYER` to `1` in the main configuration file (`kbox_config.cfg` for Kbox images or `cfct_config` for video stream images).
 2. Copy the `kboxrenderaccelerating_configuration.xml` configuration file from the `Kbox-patches-AOSP11.zip` package to your current startup directory.
-3. Open the `kboxrenderaccelerating_configuration.xml` file to configure the shader caching behavior for specific applications. For details about the configuration items, see [3.1.2 Configuration Items of the Graphics Acceleration Layer](https://gitcode.com/wyc3111/vmi/blob/CloudPhone/docs/en/user_guide.md#312-configuration-items-of-the-graphics-acceleration-layer).
+3. Open the `kboxrenderaccelerating_configuration.xml` file to configure the shader caching behavior for specific applications. For details about the configuration items, see [3.1.2 Configuration Items of the Graphics Acceleration Layer](https://gitcode.com/boostkit/vmi/blob/CloudPhone/docs/en/user_guide.md#312-configuration-items-of-the-graphics-acceleration-layer).
 4. Launch a cloud phone and run the configured application. Verify that the corresponding application cache files have been generated in the `vender/shader_cache` directory on the container.
    > **Note**: Enabling this feature or modifying the `SHADER_CACHE_DIR_SIZE` parameter requires launching a new cloud phone to take effect.
 5. To modify the Shader Cache mode, update the `SHADER_CACHE_MODE` parameter in the `kbox_render_accelerating_configuration.xml` file, copy it to the `/data/local/tmp/` directory within the cloud phone container, and restart the target application.
