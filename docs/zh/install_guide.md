@@ -925,20 +925,13 @@ NUMA node: 2
     tar -zxvf VAGPU-25.03.01.01-RC13-A15.tgz
     ```
 
-2. 安装显卡PCIe驱动。
-
-    ```shell
-    cd ~/dependency/VAGPU-25.03.01.01-RC13-A15/openEuler-6.6.0+/ko_fw
-    insmod va_pci.ko
-    ```
-
-3. 将驱动包里的固件拷贝到系统的“/lib/firmware/”目录。
+2. 将驱动包里的固件拷贝到系统的“/lib/firmware/”目录。
 
     ```shell
     cp rgx* /lib/firmware/
     ```
 
-4. 安装显卡图形驱动。
+3. 安装显卡图形驱动。
 
     GPU驱动会为每个显卡节点启动一个kworker进程，道客DC 1000单卡有4个节点。为保障kworker进程性能，建议使用kworkerCores参数为每个kworker进程绑定CPU，kworkerCores参数依次表示每个显卡节点对应kworker进程的绑核。
 
@@ -946,25 +939,29 @@ NUMA node: 2
 
     以下绑核方式仅作为参考，请依据实际情况做出调整。
 
+    ```shell
+    cd ~/dependency/VAGPU-A15-C-F-xxx/kmd/GUEST/openEuler-6.6.0+
+    ```
+    
     硬件配置方案二（鲲鹏920 7260处理器 + 4\*道客DC 1000）：
 
     ```shell
-    insmod va_gfx.ko kworkerCores=0,0,1,1,32,32,33,33,64,64,65,65,96,96,97,97
+    insmod va_gpu.ko kworkerCores=0,0,1,1,32,32,33,33,64,64,65,65,96,96,97,97
     ```
 
     硬件配置方案三（鲲鹏920 7280Z处理器 + 8\*道客DC 1000）：
 
     ```shell
-    insmod va_gfx.ko kworkerCores=80,80,81,81,82,82,83,83,0,0,1,1,2,2,3,3,240,240,241,241,242,242,243,243,160,160,161,161,162,162,163,163
+    insmod va_gpu.ko kworkerCores=80,80,81,81,82,82,83,83,0,0,1,1,2,2,3,3,240,240,241,241,242,242,243,243,160,160,161,161,162,162,163,163
     ```
 
     硬件配置方案四（鲲鹏920 7260W处理器 + 8\*道客DC 1000）：
 
     ```shell
-    insmod va_gfx.ko kworkerCores=64,64,65,65,66,66,67,67,0,0,1,1,2,2,3,3,192,192,193,193,194,194,195,195,128,128,129,129,130,130,131,131
+    insmod va_gpu.ko kworkerCores=64,64,65,65,66,66,67,67,0,0,1,1,2,2,3,3,192,192,193,193,194,194,195,195,128,128,129,129,130,130,131,131
     ```
 
-5. 等待脚本执行完成，查看内核日志。
+4. 等待脚本执行完成，查看内核日志。
 
     ```shell
     dmesg | grep VAGPU | grep version
@@ -983,10 +980,18 @@ NUMA node: 2
 >
 >1. 删掉所有的容器，解除对驱动的占用。
 >2. 顺序卸载驱动。
+>3. 新版本的DC驱动取消了va_gfx.ko和va_pci.ko, 合并为了va_gpu.ko, 新版的DC驱动只需要卸载va_gpu.ko即可。
+>
+>
+> ```shell
+> rmmod va_gpu
+>    ```
+>
+> 旧版驱动指令如下：
 >
 > ```shell
 > rmmod va_gfx
-> rmmod va_pci
+> rmmod va_pci 
 >    ```
 
 ### 8.4 上传ExaGear转码包<a name="ZH-CN_TOPIC_0000002549745297"></a>

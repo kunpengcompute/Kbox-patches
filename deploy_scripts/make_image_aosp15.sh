@@ -16,6 +16,7 @@ CUR_PATH=$(cd $(dirname "${0}");pwd)
 
 GPUTYPE=""
 GPU_DRIVER_PACKAGE=
+VAGPU_ROUTE_TYPE=0
 TMP_PACKAGE_DIR=${CUR_PATH}/imageFile
 DOCKER_FILE_DIR=${CUR_PATH}/Dockerfiles
 DOCKER_FILE_BAK=${CUR_PATH}/Dockerfile.bak
@@ -46,7 +47,15 @@ function gen_docker_file()
 
 function gen_vagpu_package()
 {
-    cp -rp ${TMP_PACKAGE_DIR}/va_driver/system/* ${TMP_PACKAGE_DIR}/system/
+    if [ "$VAGPU_ROUTE_TYPE" = "1" ]; then
+        if [ -d "${GPU_DRIVER_PACKAGE}/umd/binaries/system" ]; then
+            cp -rp ${GPU_DRIVER_PACKAGE}/umd/binaries/system/* ${TMP_PACKAGE_DIR}/system/
+        else
+            echo -e "\033[1;36m[INFO] VAGPU ${GPU_DRIVER_PACKAGE}/umd/binaries/system is not exist. \033[0m" && return -1
+        fi
+    else
+        cp -rp ${TMP_PACKAGE_DIR}/va_driver/system/* ${TMP_PACKAGE_DIR}/system/
+    fi
     rm -rf ${TMP_PACKAGE_DIR}/system/vendor/bin/displayServer
 }
 
@@ -107,11 +116,17 @@ function prepare_gpu_driver()
         echo -e "\033[1;31m[ERROR] ${DOCKER_FILE_DIR} is not exist. \033[0m" && return -1
     fi
 
+    # 兼容新老版本驱动
     if [ ${GPUTYPE} != "amd" ]; then
-        # 解压GPU驱动包（注意：通过--no-same-owner保证解压后的文件属组为当前操作用户（root）文件属组）
-        cmd="tar --no-same-owner -zxvf ${GPU_DRIVER_PACKAGE} -C ${TMP_PACKAGE_DIR}"
-        echo -e "\033[1;36m[INFO] "$cmd" \033[0m"
-        $cmd > /dev/null
+        if [ -d "${GPU_DRIVER_PACKAGE}" ]; then
+            VAGPU_ROUTE_TYPE=1
+            echo -e "\033[1;36m[INFO] VAGPU_ROUTE_TYPE is directory \033[0m"
+        else 
+            # 解压GPU驱动包（注意：通过--no-same-owner保证解压后的文件属组为当前操作用户（root）文件属组） 
+            cmd="tar --no-same-owner -zxvf ${GPU_DRIVER_PACKAGE} -C ${TMP_PACKAGE_DIR}"
+            echo -e "\033[1;36m[INFO] "$cmd" \033[0m"
+            $cmd > /dev/null
+        fi
     fi
 
     if [ $GPUTYPE == "awm" ]; then
@@ -198,7 +213,8 @@ function detect_gpu_type()
         fi
     elif [ 0 -ne ${#va_gpus[@]} ]; then
         GPUTYPE="va"
-        if [ "${GPU_DRIVER_PACKAGE}" != "va"* ] || [ -z $(ls | grep "${GPU_DRIVER_PACKAGE}") ]; then
+        ## 判断文件是否是tar.gz格式 还是 VAGPU的文件夹格式
+        if [[ "${GPU_DRIVER_PACKAGE}" != va* ]] || [[ -z "$(ls | grep "${GPU_DRIVER_PACKAGE}")" ]] && [[ "${GPU_DRIVER_PACKAGE}" != *VAGPU* ]]; then
             echo -e -n "\033[1;31m[ERROR] please check gpu driver package "
             echo -e "and make sure it match the gpu type. \033[0m" && exit -1
         fi
