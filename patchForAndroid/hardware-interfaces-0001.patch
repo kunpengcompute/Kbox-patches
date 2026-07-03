@@ -1,5 +1,5 @@
 diff --git a/graphics/composer/2.1/utils/hwc2on1adapter/HWC2On1Adapter.cpp b/graphics/composer/2.1/utils/hwc2on1adapter/HWC2On1Adapter.cpp
-index 3702171..09386f5 100644
+index 37021716c3..09386f56ec 100644
 --- a/graphics/composer/2.1/utils/hwc2on1adapter/HWC2On1Adapter.cpp
 +++ b/graphics/composer/2.1/utils/hwc2on1adapter/HWC2On1Adapter.cpp
 @@ -2583,6 +2583,23 @@ void HWC2On1Adapter::hwc1Vsync(int hwc1DisplayId, int64_t timestamp) {
@@ -26,3 +26,19 @@ index 3702171..09386f5 100644
      if (hwc1DisplayId != HWC_DISPLAY_EXTERNAL) {
          ALOGE("hwc1Hotplug: Received hotplug for non-external display");
          return;
+diff --git a/graphics/composer/2.1/utils/passthrough/include/composer-passthrough/2.1/HwcHal.h b/graphics/composer/2.1/utils/passthrough/include/composer-passthrough/2.1/HwcHal.h
+index 5826b126bb..5e292f2c0b 100644
+--- a/graphics/composer/2.1/utils/passthrough/include/composer-passthrough/2.1/HwcHal.h
++++ b/graphics/composer/2.1/utils/passthrough/include/composer-passthrough/2.1/HwcHal.h
+@@ -590,8 +590,9 @@ class HwcHalImpl : public Hal {
+     static void hotplugHook(hwc2_callback_data_t callbackData, hwc2_display_t display,
+                             int32_t connected) {
+         auto hal = static_cast<HwcHalImpl*>(callbackData);
+-        hal->mEventCallback->onHotplug(display,
+-                                       static_cast<IComposerCallback::Connection>(connected));
++        auto connection = (connected == 0) ? IComposerCallback::Connection::DISCONNECTED
++                                      : IComposerCallback::Connection::CONNECTED;
++        hal->mEventCallback->onHotplug(display, connection);
+     }
+ 
+     static void refreshHook(hwc2_callback_data_t callbackData, hwc2_display_t display) {
