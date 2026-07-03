@@ -1,8 +1,8 @@
-# 编译指南<a name="ZH-CN_TOPIC_0000002552663613"></a>
+# 编译指南<a id="ZH-CN_TOPIC_0000002552663613"></a>
 
-## 1 环境准备<a name="ZH-CN_TOPIC_0000002549825291"></a>
+## 环境准备<a id="ZH-CN_TOPIC_0000002549825291"></a>
 
-### 1.1 硬件环境<a name="ZH-CN_TOPIC_0000002549705339"></a>
+### 硬件环境<a id="ZH-CN_TOPIC_0000002549705339"></a>
 
 Kbox安卓镜像的编译仅支持在x86服务器下进行，服务器要求的操作系统为Ubuntu 22.04 LTS，编译前请确保您的硬件环境满足要求。
 
@@ -11,26 +11,26 @@ Kbox安卓镜像编译构建的硬件环境要求如[**表 1** Kbox安卓镜像�
 **表 1** Kbox安卓镜像编译构建硬件环境要求<a id="Kbox安卓镜像编译构建硬件环境要求"></a>
 
 |设备型号|用途|服务器OS版本|
-|--|--|--|
+|---|---|---|
 |x86_64服务器|Kbox安卓镜像编译制作|Ubuntu 22.04 LTS推荐：ubuntu-22.04-live-server-amd64.iso|
 
->![](public_sys-resources/icon-note.gif) **说明：** 
+>![](public_sys-resources/icon-note.gif) **说明：**
 >
 >- 本文档测试服务器型号为2288H V5。
 >- 服务器需有访问外网权限，以方便下载OS镜像。
 
-### 1.2 软件环境<a name="ZH-CN_TOPIC_0000002518345466"></a>
+### 软件环境<a id="ZH-CN_TOPIC_0000002518345466"></a>
 
 编译Kbox安卓镜像需要使用AOSP、Mesa、LLVM等源码包，华为提供的Kbox二进制文件包和ExaGear转码包，您需要通过本节提供的渠道获取相应的源码包并对华为提供的软件包进行完整性校验，以便进行后续的编译步骤。
 
-**获取软件包<a name="section038565445713"></a>**
+#### 获取软件包<a id="section038565445713"></a>
 
 Kbox安卓镜像编译构建的软件环境要求如[**表 1** Kbox安卓镜像编译构建软件环境要求](#Kbox安卓镜像编译构建软件环境要求)所示。
 
 **表 1** Kbox安卓镜像编译构建软件环境要求<a id="Kbox安卓镜像编译构建软件环境要求"></a>
 
 |序号|软件|说明|获取地址|
-|--|--|--|--|
+|---|---|---|---|
 |1|AOSP源码|版本：android-11.0.0_r48|[获取链接](https://android.googlesource.com/platform/manifest)|
 |2|Mesa源码|Mesa参考Demo版本：22.1.7| [获取链接](https://gitcode.com/boostkit/mesa) <br>切换到22.1.7分支，并单击“下载zip”进行下载 |
 |3|LLVM源码|版本：13.0.1|[获取链接](https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/llvm-13.0.1.src.tar.xz)|
@@ -42,11 +42,11 @@ Kbox安卓镜像编译构建的软件环境要求如[**表 1** Kbox安卓镜像�
 |9|Meson|0.63.2|[获取链接](https://github.com/mesonbuild/meson/releases/download/0.63.2/meson-0.63.2.tar.gz)|
 |10|vmi-CloudPhone.zip|华为VMI引擎云手机开源参考Demo分支：CloudPhone|[获取链接](https://raw.gitcode.com/boostkit/vmi/archive/refs/heads/CloudPhone.zip)|
 
->![](public_sys-resources/icon-note.gif) **说明：** <br>
+>![](public_sys-resources/icon-note.gif) **说明：**
 >
-> - 以上软件包名仅供参考，部分下载方式可能会导致软件包名与表格产生差异。请以获取的实际包名为准，参考表格适当进行更名，以方便后续步骤中的使用。<br>
+> - 以上软件包名仅供参考，部分下载方式可能会导致软件包名与表格产生差异。请以获取的实际包名为准，参考表格适当进行更名，以方便后续步骤中的使用。
 
-**软件包完整性校验<a name="section12800195641510"></a>**
+#### 软件包完整性校验<a id="section12800195641510"></a>
 
 为了防止软件包在传递过程或存储期间被恶意篡改，从鲲鹏社区获取软件包时需下载对应的数字签名文件用于完整性验证。
 
@@ -54,25 +54,25 @@ Kbox安卓镜像编译构建的软件环境要求如[**表 1** Kbox安卓镜像�
 
     请参见[**表 1** Kbox安卓镜像编译构建软件环境要求](#Kbox安卓镜像编译构建软件环境要求)。
 
-2. <a name="li1273482318125"></a>从[华为企业业务网站](https://support.huawei.com/enterprise/zh/tool/pgp-verify-TL1000000054)或[运营商网站](http://support.huawei.com/carrier/digitalSignatureAction)获取校验工具和校验方法。
+2. <a id="li1273482318125"></a>从[华为企业业务网站](https://support.huawei.com/enterprise/zh/tool/pgp-verify-TL1000000054)或[运营商网站](http://support.huawei.com/carrier/digitalSignatureAction)获取校验工具和校验方法。
 3. 使用[2](#li1273482318125)获取到的签名验证指南文档对下载的软件包进行PGP数字签名校验。
 
->![](public_sys-resources/icon-note.gif) **说明：** 
+>![](public_sys-resources/icon-note.gif) **说明：**
 >
 >如果校验失败，请不要使用该软件包，先联系华为技术支持工程师解决。
 >使用软件包安装或升级之前，也需要按上述过程先验证软件包的数字签名，确保软件包未被篡改。
 >使用软件包前请先阅读《[鲲鹏应用使能套件BoostKit用户许可协议 2.0](https://www.hikunpeng.com/zh/legal/developer/boostkit/software/protocol)》，如确认继续使用，则默认同意协议的条款和条件。
 
-## 2 编译构建流程<a name="ZH-CN_TOPIC_0000002549825249"></a>
+## 编译构建流程<a id="ZH-CN_TOPIC_0000002549825249"></a>
 
 了解Kbox安卓镜像编译构建流程，可以帮助您更好地理解编译过程中的各个环节。
 
 Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建流程](#Kbox安卓镜像编译构建流程)所示。
 
-**图 1** Kbox安卓镜像编译构建流程<a name="fig19747839194513"></a><a id="Kbox安卓镜像编译构建流程"></a>
-![](figures/Kbox安卓镜像编译构建流程.png "Kbox安卓镜像编译构建流程")
+**图 1** Kbox安卓镜像编译构建流程<a id="fig19747839194513"></a><a id="Kbox安卓镜像编译构建流程"></a>
+![Kbox安卓镜像编译构建流程](./figures/Kbox安卓镜像编译构建流程.png "Kbox安卓镜像编译构建流程")
 
-## 3 镜像一键式编译脚本<a name="ZH-CN_TOPIC_0000002549825281"></a>
+## 镜像一键式编译脚本<a id="ZH-CN_TOPIC_0000002549825281"></a>
 
 华为提供一键式编译Kbox安卓镜像的自动化脚本。一键式编译脚本包含了编译构建的全部流程，若参考本章节使用了一键式编译脚本进行镜像编译，则可以跳过软件编译后续章节直接进行软件部署。
 
@@ -80,7 +80,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
 1. 首先在“/home”目录下手动创建“auto_compile”目录，用于存放AOSP源码以及自动化脚本。
 
-    >![](public_sys-resources/icon-note.gif) **说明：** 
+    >![](public_sys-resources/icon-note.gif) **说明：**
     >
     >请确保“/home”目录的剩余空间大于250GB，可通过**df -h**命令查看磁盘空间情况。
 
@@ -97,7 +97,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
     unzip Kbox-patches-AOSP11.zip
     ```
 
-4. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)下载Android Kbox二进制文件包、ExaGear转码包、Meson、Mesa源码、LLVM源码、libdrm源码、libva源码和Cloudphone应用安装包到本地。在如下指定目录中创建“package”文件夹。
+4. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)下载Android Kbox二进制文件包、ExaGear转码包、Meson、Mesa源码、LLVM源码、libdrm源码、libva源码和CloudPhone应用安装包到本地。在如下指定目录中创建“package”文件夹。
 
     ```shell
     cd /home/auto_compile/Kbox-patches-AOSP11/make_img_sample/kbox11_android_build
@@ -106,9 +106,9 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
     将下载的文件上传至服务器的“/home/auto_compile/Kbox-patches-AOSP11/make_img_sample/kbox11_android_build/package”目录。
 
-    ![](figures/zh-cn_image_0000002549705429.png)
+![Kbox安卓镜像编译构建流程](./figures/Kbox安卓镜像编译构建流程.png "Kbox安卓镜像编译构建流程")
 
-    需保持下载的第三方库源码（Mesa、LLVM、libdrm、libva）及解压出的文件夹名与“/home/auto_compile/Kbox-patches-AOSP11/make_img_sample/00_kbox_prepare.sh”文件中配置的“<package\>_version”或“<package\>_src”变量值一致。若不一致可重命名源码文件夹再重新打包。
+    需保持下载的第三方库源码（Mesa、LLVM、libdrm、libva）及解压出的文件夹名与“/home/auto_compile/Kbox-patches-AOSP11/make_img_sample/00_kbox_prepare.sh”文件中配置的“`<package>_version`”或“`<package>_src`”变量值一致。若不一致可重命名源码文件夹再重新打包。
 
 5. 修改编译配置。
     1. 编辑build.conf脚本。
@@ -143,7 +143,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
     至此，Kbox安卓镜像制作完成，在AOSP源码目录下会生成名为“android.tar”的Kbox镜像。
 
-**故障处理<a name="section173361345459"></a>**
+### 故障处理<a id="section173361345459"></a>
 
 **问题现象一：**
 
@@ -190,7 +190,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
 执行kbox11_android_build.sh自动化脚本时，可能出现“No such file or directory”类报错， 原因为依赖包解压所得文件夹名称发生变化比如附加后缀，一键式脚本中无法识别到解压出来的文件夹名称，导致编译失败。
 
-![](figures/zh-cn_image_0000002518345560.png)
+![Kbox安卓镜像编译构建流程](./figures/Kbox安卓镜像编译构建流程.png "Kbox安卓镜像编译构建流程")
 
 解决步骤：
 
@@ -215,11 +215,11 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
     zip -r drm-libdrm-2.4.111.zip  drm-libdrm-2.4.111
     ```
 
->![](public_sys-resources/icon-note.gif) **说明：** 
+>![](public_sys-resources/icon-note.gif) **说明：**
 >
 >执行kbox11_android_build.sh自动化脚本时也可能出现依赖缺失类报错， 这类报错同样可能由于软件包内容更新产生的新的依赖导致。遇到该类型的报错，直接在环境上安装缺失的包即可。
 
-## 4 安装编译依赖包<a name="安装编译依赖包"></a>
+## 安装编译依赖包<a id="安装编译依赖包"></a>
 
 进行编译前，需要为环境配置源，安装Python3的mako模块以及Meson等依赖包。
 
@@ -239,28 +239,28 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
     sudo apt-get install libc6-dev-i386 libx11-dev libncurses5-dev lib32ncurses5-dev x11proto-core-dev
     sudo apt-get install libxml2-utils unzip m4 lib32z-dev ccache libssl-dev gettext python3-mako libncurses5
     sudo apt-get install python3-chardet python3-markupsafe python3-packaging python3-pkg-resources python3-pygments
-    sudo apt-get install python3-pyparsing python3-six python3-yaml python2 python2.7 
-    sudo apt-get install python3 python3-apport python3-apt python3-attr python3-automat 
-    sudo apt-get install python3-blinker python3-certifi python3-cffi-backend 
-    sudo apt-get install python3-click python3-colorama python3-commandnotfound 
-    sudo apt-get install python3-configobj python3-constantly 
-    sudo apt-get install python3-cryptography python3-dbus python3-debconf 
-    sudo apt-get install python3-debian python3-dev python3-distro python3-distro-info 
+    sudo apt-get install python3-pyparsing python3-six python3-yaml python2 python2.7
+    sudo apt-get install python3 python3-apport python3-apt python3-attr python3-automat
+    sudo apt-get install python3-blinker python3-certifi python3-cffi-backend
+    sudo apt-get install python3-click python3-colorama python3-commandnotfound
+    sudo apt-get install python3-configobj python3-constantly
+    sudo apt-get install python3-cryptography python3-dbus python3-debconf
+    sudo apt-get install python3-debian python3-dev python3-distro python3-distro-info
     sudo apt-get install python3-distupgrade python3-distutils python3-entrypoints
-    sudo apt-get install python3-gdbm python3-gi python3-hamcrest python3-httplib2 
-    sudo apt-get install python3-hyperlink python3-idna python3-importlib-metadata 
-    sudo apt-get install python3-incremental python3-jinja2 python3-json-pointer 
-    sudo apt-get install python3-jsonpatch python3-jsonschema python3-jwt 
-    sudo apt-get install python3-keyring python3-launchpadlib python3-lazr.restfulclient 
+    sudo apt-get install python3-gdbm python3-gi python3-hamcrest python3-httplib2
+    sudo apt-get install python3-hyperlink python3-idna python3-importlib-metadata
+    sudo apt-get install python3-incremental python3-jinja2 python3-json-pointer
+    sudo apt-get install python3-jsonpatch python3-jsonschema python3-jwt
+    sudo apt-get install python3-keyring python3-launchpadlib python3-lazr.restfulclient
     sudo apt-get install python3-lazr.uri python3-lib2to3
-    sudo apt-get install python3-more-itertools python3-nacl python3-netifaces python3-newt 
-    sudo apt-get install python3-oauthlib python3-openssl python3-pip 
+    sudo apt-get install python3-more-itertools python3-nacl python3-netifaces python3-newt
+    sudo apt-get install python3-oauthlib python3-openssl python3-pip
     sudo apt-get install python3-problem-report python3-pyasn1
-    sudo apt-get install python3-pyasn1-modules python3-pymacaroons python3-pyrsistent 
-    sudo apt-get install python3-requests python3-requests-unixsocket python3-secretstorage 
+    sudo apt-get install python3-pyasn1-modules python3-pymacaroons python3-pyrsistent
+    sudo apt-get install python3-requests python3-requests-unixsocket python3-secretstorage
     sudo apt-get install python3-serial python3-service-identity
     sudo apt-get install python3-setuptools python3-simplejson
-    sudo apt-get install python3-software-properties python3-systemd python3-twisted 
+    sudo apt-get install python3-software-properties python3-systemd python3-twisted
     sudo apt-get install python3-update-manager python3-urllib3 python3-wadllib
     sudo apt-get install python3-wheel python3-zipp python3-zope.interface
     sudo apt-get install python-is-python3 ninja-build autoconf
@@ -268,7 +268,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
     若遇到如下图所示的提示信息，选择“Cancel”即可。
 
-    ![](figures/zh-cn_image_0000002518345612.png)
+![Kbox安卓镜像编译构建流程](./figures/Kbox安卓镜像编译构建流程.png "Kbox安卓镜像编译构建流程")
 
 4. 确认服务器的Python3环境是否包含mako模块。若无，请为服务器的Python3环境安装mako模块。
     1. 执行如下命令，进入Python3环境。
@@ -277,7 +277,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
         python3
         ```
 
-        ![](figures/zh-cn_image_0000002518185682.png)
+![Kbox安卓镜像编译构建流程](./figures/Kbox安卓镜像编译构建流程.png "Kbox安卓镜像编译构建流程")
 
     2. 进入Python3环境后，执行如下命令，查看包含的模块信息。
 
@@ -285,11 +285,11 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
         help("modules")
         ```
 
-        ![](figures/zh-cn_image_0000002518345610.png)
+![Kbox安卓镜像编译构建流程](./figures/Kbox安卓镜像编译构建流程.png "Kbox安卓镜像编译构建流程")
 
         如图所示，若回显中包含mako模块，则可继续后文步骤。若不包含，可通过执行“pip3 install mako”安装mako模块。请确保Python3环境中包含mako模块，再继续后文的步骤。
 
-        ![](figures/zh-cn_image_0000002549825457.png)
+![Kbox安卓镜像编译构建流程](./figures/Kbox安卓镜像编译构建流程.png "Kbox安卓镜像编译构建流程")
 
     3. 退出python命令模式。
 
@@ -328,9 +328,9 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
         source ~/.bashrc
         ```
 
-## 5 编译AOSP源码与镜像生成<a name="ZH-CN_TOPIC_0000002518185476" id="编译AOSP源码与镜像生成"></a>
+## 编译AOSP源码与镜像生成<a id="ZH-CN_TOPIC_0000002518185476" id="编译AOSP源码与镜像生成"></a>
 
-### 5.1 下载AOSP源码<a name="ZH-CN_TOPIC_0000002549705281"></a>
+### 下载AOSP源码<a id="ZH-CN_TOPIC_0000002549705281"></a>
 
 Kbox安卓镜像使用AOSP 11进行编译，请参考本节操作步骤下载源码。
 
@@ -341,7 +341,7 @@ Kbox安卓镜像使用AOSP 11进行编译，请参考本节操作步骤下载源
     chmod -R 700 ~/aosp
     ```
 
-    >![](public_sys-resources/icon-note.gif) **说明：** 
+    >![](public_sys-resources/icon-note.gif) **说明：**
     >
     >用户目录剩余空间要求大于300GB，AOSP源码约130GB，编译后接近300GB。
 
@@ -360,7 +360,7 @@ Kbox安卓镜像使用AOSP 11进行编译，请参考本节操作步骤下载源
     rm -rf external/mesa3d external/libdrm device/generic/arm64
     ```
 
-### 5.2 下载Mesa、LLVM、libdrm、libva、Media源码<a name="ZH-CN_TOPIC_0000002518185496"></a>
+### 下载Mesa、LLVM、libdrm、libva、Media源码<a id="ZH-CN_TOPIC_0000002518185496"></a>
 
 Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本节操作步骤下载源码。
 
@@ -426,6 +426,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
     cp -r ./vmi-CloudPhone/CloudPhoneService/VideoEngine/Media/vendor ~/aosp/external/
     ```
 
+<<<<<<< HEAD
 >![](public_sys-resources/icon-note.gif) **说明：**
 >
 >执行命令可能会出现“No such file or directory”类报错，原因为依赖包解压所得文件夹名称发生变化，需以实际文件夹名称为准。
@@ -439,6 +440,9 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 >```
 
 ### 5.3 合入ExaGear转码补丁<a name="ZH-CN_TOPIC_0000002549705327"></a>
+=======
+### 合入ExaGear转码补丁<a id="ZH-CN_TOPIC_0000002549705327"></a>
+>>>>>>> 00847ef (version 0703)
 
 在AOSP源码包中合入ExaGear转码补丁包。
 
@@ -456,8 +460,8 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 4. 解压补丁包，并调整权限。
 
     ```shell
-    cd ~/dependency/ 
-    sudo tar -xzvf ExaGear_ARM32-ARM64_V2.5.tar.gz 
+    cd ~/dependency/
+    sudo tar -xzvf ExaGear_ARM32-ARM64_V2.5.tar.gz
     ```
 
 5. 将“~/dependency/ExaGear_ARM32-ARM64”目录下的preubt_a32a64_a64、preubt_a32a64_x64、ubt_a32a64文件拷贝至“~/dependency/patchForExagear/guestOS/aosp11/vendor/huawei/exagear/prebuilts”目录。
@@ -474,7 +478,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
     cp -r ./vendor ~/aosp/
     ```
 
-### 5.4 合入Kbox安卓补丁<a name="ZH-CN_TOPIC_0000002518345478"></a>
+### 合入Kbox安卓补丁<a id="ZH-CN_TOPIC_0000002518345478"></a>
 
 在AOSP源码包中合入Kbox安卓补丁包。
 
@@ -494,11 +498,11 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
     done
     ```
 
->![](public_sys-resources/icon-note.gif) **说明：** 
+>![](public_sys-resources/icon-note.gif) **说明：**
 >
 >为了方便用户快速体验和部署Kbox云手机套件，提供了Kbox安卓补丁。该补丁仅作为功能性参考，不是商用交付范围，不提供商业承诺，建议客户或ISV在商用前进行必要的安全评估，若选择使用鲲鹏BoostKit云手机参考方案需自行承担安全风险。
 
-### 5.5 合入二进制内容<a name="ZH-CN_TOPIC_0000002549825259"></a>
+### 合入二进制内容<a id="ZH-CN_TOPIC_0000002549825259"></a>
 
 在AOSP源码包中合入Kbox二进制软件包。
 
@@ -533,13 +537,13 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
     sed -i "s|net.dns1=.*|net.dns1=xxx.xxx.xxx.xxx \\\\|" ~/aosp/vendor/kbox/products/kbox.mk
     ```
 
-    >![](public_sys-resources/icon-note.gif) **说明：** 
+    >![](public_sys-resources/icon-note.gif) **说明：**
     >
     >- 示例仅作为格式参考，请根据实际情况自行配置可用的公共DNS地址，以保证容器连接网络正常。
     >- DNS地址也可以通过修改Kbox容器内部文件“/system/vendor/build.prop”配置，容器重启后配置生效。
     >- 如配置时有疑问，请联系华为运维人员支撑。
 
-### 5.6 编译AOSP并生成镜像<a name="ZH-CN_TOPIC_0000002518185486"></a>
+### 编译AOSP并生成镜像<a id="ZH-CN_TOPIC_0000002518185486"></a>
 
 编译AOSP源码生成Kbox安卓镜像。
 
@@ -553,7 +557,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
         ./development/tools/make_key build/target/product/security/releasekey '/C=xx/ST=xxx/L=xxx/O=xxx/OU=xx/CN=xxx/emailAddress=xxxxx@xxx.com'
         ```
 
-        >![](public_sys-resources/icon-note.gif) **说明：** 
+        >![](public_sys-resources/icon-note.gif) **说明：**
         >
         >在执行**make_key**命令时，会提示输入密码，可以直接按回车跳过。
         >**make_key**命令参数介绍如下：
@@ -584,7 +588,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
         lunch kbox_arm64-user
         ```
 
-        >![](public_sys-resources/icon-note.gif) **说明：** 
+        >![](public_sys-resources/icon-note.gif) **说明：**
         >
         >- 若需要采用userdebug模式编译镜像，请将上述**lunch**命令后的选项后缀由“user”修改为“userdebug”。以“kbox_arm64”为例：
         >
@@ -606,7 +610,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
         make -j
         ```
 
-        >![](public_sys-resources/icon-note.gif) **说明：** 
+        >![](public_sys-resources/icon-note.gif) **说明：**
         >
         >在执行上述命令时，“-j”后的数字参数要根据服务器实际的CPU核数来定。CPU核数可通过以下命令查询。
         >
@@ -632,7 +636,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 
 4. 运行脚本，生成Kbox安卓镜像。
 
-    >![](public_sys-resources/icon-note.gif) **说明：** 
+    >![](public_sys-resources/icon-note.gif) **说明：**
     >
     >制作镜像的时候需要root权限，请用root用户执行脚本，且执行脚本时，目录需要使用绝对路径。
 

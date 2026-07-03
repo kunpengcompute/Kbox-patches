@@ -1,10 +1,10 @@
-# 例行维护<a name="ZH-CN_TOPIC_0000002552623629"></a>
+# 例行维护<a id="ZH-CN_TOPIC_0000002552623629"></a>
 
-## 1 运维概述<a name="ZH-CN_TOPIC_0000002518346014"></a>
+## 运维概述<a id="ZH-CN_TOPIC_0000002518346014"></a>
 
 Kbox云手机容器是基于Docker容器技术，使能Android系统的虚拟化方案，通过云服务器提供云服务的虚拟手机。Kbox云手机容器可凭借自带的Android系统及厂商架设的网络终端，通过网络应用在云托管、云应用和云终端等业务场景。
 
-Kbox云手机为满足高密度低成本的业务诉求，采用容器直通架构，基于容器的方法在Linux系统上启动完整Android系统。Kbox云手机容器架构图如![](figures/zh-cn_image_0000002512069213.png)所示。
+    ![Kbox云手机容器架构图](./figures/内核configure_exit.png)
 
 本文档主要用于描述Kbox云手机容器例行维护相关内容。
 
@@ -16,26 +16,26 @@ Kbox云手机为满足高密度低成本的业务诉求，采用容器直通架�
 
     提供对运维对象的巡检、监控、日志管理、高危操作和日常维护等能力。
 
-## 2 巡检<a name="ZH-CN_TOPIC_0000002549705881"></a>
+## 巡检<a id="ZH-CN_TOPIC_0000002549705881"></a>
 
-### 2.1 简介<a name="ZH-CN_TOPIC_0000002518186100"></a>
+### 简介<a id="ZH-CN_TOPIC_0000002518186100"></a>
 
 本章主要介绍对Kbox云手机容器及其运行环境的巡检操作，检查Kbox云手机容器部署环境，实时监控容器运行状况及其资源占用，及时发现并处理影响容器正常运行的问题，保证Kbox云手机容器稳定运行。
 
-### 2.2 巡检项目和周期<a name="ZH-CN_TOPIC_0000002549705885"></a>
+### 巡检项目和周期<a id="ZH-CN_TOPIC_0000002549705885"></a>
 
 Kbox云手机容器巡检项目参考[**表 1** Kbox云手机容器巡检项目和周期](#Kbox云手机容器巡检项目和周期)。
 
 **表 1** Kbox云手机容器巡检项目和周期<a id="Kbox云手机容器巡检项目和周期"></a>
 
 |检查项|巡检周期|
-|--|--|
+|---|---|
 | 容器状态，包括容器运行状态和容器内进程状态等 |运行时|
 | 容器资源消耗，如Kbox云手机容器使用的内存、CPU和存储等 |运行时|
 
-### 2.3 检查容器状态<a name="ZH-CN_TOPIC_0000002549825871"></a>
+### 检查容器状态<a id="ZH-CN_TOPIC_0000002549825871"></a>
 
-#### 2.3.1 启动时容器状态<a name="ZH-CN_TOPIC_0000002549705877"></a>
+#### 启动时容器状态<a id="ZH-CN_TOPIC_0000002549705877"></a>
 
 启动Kbox云手机容器后，执行以下命令检查启动是否成功，其中“${index}”为启动实例的编号。
 
@@ -55,7 +55,7 @@ getprop | grep boot
 [sys.rescue_boot_count]: [1]
 ```
 
-#### 2.3.2 运行时容器状态<a name="ZH-CN_TOPIC_0000002549825873"></a>
+#### 运行时容器状态<a id="ZH-CN_TOPIC_0000002549825873"></a>
 
 在Kbox云手机容器运行过程中，可通过检查其进程状态来判断容器是否正常。执行以下命令，其中“${index}”为启动实例的编号。
 
@@ -66,7 +66,7 @@ ps -elf
 
 若超过10个进程的父进程变为进程sh（进程号为1），如下图所示，则说明容器内发生了crash，容器当前处于异常情况，请重启容器或联系华为技术支持。
 
-![](figures/zh-cn_image_0000002518186124.png)
+    ![容器进程异常状态](./figures/内核configure_exit.png)
 
 重启容器命令如下：
 
@@ -74,7 +74,7 @@ ps -elf
 ./android_kbox.sh restart ${index}
 ```
 
-### 2.4 检查容器资源消耗<a name="ZH-CN_TOPIC_0000002549825883"></a>
+### 检查容器资源消耗<a id="ZH-CN_TOPIC_0000002549825883"></a>
 
 在Kbox云手机容器运行的过程中，若需要及时掌握容器使用的系统资源，可以执行以下命令。
 
@@ -84,19 +84,19 @@ docker stats
 
 上述命令可动态显示Kbox云手机容器使用的资源消耗情况，包括CPU使用率、内存使用率、网络I/O数据以及磁盘I/O数据等，如下图所示。
 
-![](figures/zh-cn_image_0000002549825895.png)
+    ![容器资源消耗情况](./figures/内核configure_exit.png)
 
->![](public_sys-resources/icon-note.gif) **说明：** 
+>![](public_sys-resources/icon-note.gif) **说明：**
 >
 >CPU使用率和内存使用率超过总量的80%时，可能会出现容器反应卡顿的情况，此时建议清理后台应用。
 
-## 3 监控<a name="ZH-CN_TOPIC_0000002549825875"></a>
+## 监控<a id="ZH-CN_TOPIC_0000002549825875"></a>
 
-### 3.1 简介<a name="ZH-CN_TOPIC_0000002518346028"></a>
+### 简介<a id="ZH-CN_TOPIC_0000002518346028"></a>
 
 本章主要介绍Kbox云手机容器在运行过程中对服务器系统资源消耗的监控方法，让用户及时了解系统资源使用情况、趋势和告警。
 
-### 3.2 CPU使用详情<a name="ZH-CN_TOPIC_0000002518346032"></a>
+### CPU使用详情<a id="ZH-CN_TOPIC_0000002518346032"></a>
 
 在Kbox云手机容器运行过程中，可通过**top**命令查看系统中正在运行的进程的实时状态，包括各个进程的CPU占用率和内存消耗情况等，如下图所示。
 
@@ -104,7 +104,7 @@ docker stats
 top
 ```
 
-![](figures/zh-cn_image_0000002549825893.png)
+    ![系统进程实时状态](./figures/内核configure_exit.png)
 
 通过该命令，可以监控Kbox云手机容器中是否有CPU占用率过高的进程，若有，则需要进一步排查该进程是否异常。
 
@@ -116,9 +116,9 @@ htop
 
 如下图所示，除CPU负载、内存消耗以及交换空间的实时信息外，还显示了任务、线程、平均负载及系统运行时间信息，最下方列出了系统中的进程信息。
 
-![](figures/zh-cn_image_0000002518346036.png)
+    ![htop监控界面](./figures/内核configure_exit.png)
 
->![](public_sys-resources/icon-note.gif) **说明：** 
+>![](public_sys-resources/icon-note.gif) **说明：**
 >
 >当Host OS为openEuler时，使用htop工具时需要先安装，安装命令如下。
 >
@@ -126,7 +126,7 @@ htop
 >yum install htop
 >```
 
-### 3.3 系统内存<a name="ZH-CN_TOPIC_0000002518186120"></a>
+### 系统内存<a id="ZH-CN_TOPIC_0000002518186120"></a>
 
 使用**free**命令可查询到服务器内存使用情况，包括实体内存、虚拟的交换文件内存、共享内存区域以及系统核心使用的缓冲区等。
 
@@ -142,7 +142,7 @@ Mem:        527039424     4531436   518860944        4860     3647044   51995139
 Swap:        83888604           0    83888604
 ```
 
-### 3.4 系统存储<a name="ZH-CN_TOPIC_0000002549825891"></a>
+### 系统存储<a id="ZH-CN_TOPIC_0000002549825891"></a>
 
 使用**df**命令可查看Kbox云手机容器运行环境上文件系统磁盘使用情况统计。
 
@@ -152,13 +152,13 @@ df -h
 
 如下图所示Kbox云手机容器数据存储在“/root/mount/data/”下，红色矩形中为容器kbox_1的数据存储信息，其存储大小为“16G”，当前使用率为“1%”。若“Use%”的值不大于85%，则磁盘空间使用率正常，否则需要清理磁盘空间。
 
-![](figures/zh-cn_image_0000002518346038.png)
+    ![容器磁盘空间使用情况](./figures/内核configure_exit.png)
 
-### 3.5 GPU使用详情<a name="ZH-CN_TOPIC_0000002518186118"></a>
+### GPU使用详情<a id="ZH-CN_TOPIC_0000002518186118"></a>
 
-#### 3.5.1 AMD GPU状态查询<a name="ZH-CN_TOPIC_0000002549825889"></a>
+#### AMD GPU状态查询<a id="ZH-CN_TOPIC_0000002549825889"></a>
 
-**GPU使用状态<a name="section112831151115117"></a>**
+##### GPU使用状态<a id="section112831151115117"></a>
 
 使用radeontop工具可查看Kbox云手机容器运行环境上GPU使用状态。radeontop工具通过以下步骤下载并安装。
 
@@ -180,9 +180,9 @@ df -h
 
 4. 如下图所示，VRAM一行表示显存使用率。
 
-    ![](figures/unnaming.png)
+    ![GPU显存使用率](./figures/unnaming.png)
 
-**GPU温度<a name="section115451839147"></a>**
+##### GPU温度<a id="section115451839147"></a>
 
 在Kbox云手机容器运行过程中，若GPU温度过高，可能会导致服务器宕机的异常情况，因此在运行大型游戏或应用时，需要监控运行环境上GPU的温度。
 
@@ -194,24 +194,28 @@ cat /sys/kernel/debug/dri/*/amdgpu_pm_info |grep Temp
 
 如下图所示为查询结果。若温度长期高于80°C，请联系华为技术支持。
 
-![](figures/zh-cn_image_0000002518186122.png)
+    ![GPU温度查询结果](./figures/unnaming.png)
 
+<<<<<<< HEAD
 #### 3.5.2 道客DC1000/DC1000C状态查询<a name="ZH-CN_TOPIC_0000002518346034"></a>
+=======
+#### 道客DC 1000状态查询<a id="ZH-CN_TOPIC_0000002518346034"></a>
+>>>>>>> 00847ef (version 0703)
 
 使用GPU驱动包VAGPU-25.03.01.01-RC20.tgz中提供的工具，以查看GPU状态。
 
 1. 请参见《install guide》文档中“环境准备”章节中的“[软件环境](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/install_guide.md#22-%E8%BD%AF%E4%BB%B6%E7%8E%AF%E5%A2%83)”小节获取VAGPU-25.03.01.01-RC20.tgz包并解压，将解压获得的显卡工具包tools-3.2.2_sp1.tgz上传至服务器。
 2. 显卡工具包tools-3.2.2_sp1.tgz的具体使用方法可以请参见tools-doc-3.2.2_sp1.tgz压缩包中的说明文档。
 
-## 4 日志管理<a name="ZH-CN_TOPIC_0000002549705891"></a>
+## 日志管理<a id="ZH-CN_TOPIC_0000002549705891"></a>
 
-### 4.1 简介<a name="ZH-CN_TOPIC_0000002518186114"></a>
+### 简介<a id="ZH-CN_TOPIC_0000002518186114"></a>
 
 本章主要介绍在Kbox云手机容器运行过程中的日志管理方法，包括日志查询、转储等。
 
-### 4.2 Kbox云手机容器日志<a name="ZH-CN_TOPIC_0000002518346022"></a>
+### Kbox云手机容器日志<a id="ZH-CN_TOPIC_0000002518346022"></a>
 
-#### 4.2.1 容器元数据<a name="ZH-CN_TOPIC_0000002549705873"></a>
+#### 容器元数据<a id="ZH-CN_TOPIC_0000002549705873"></a>
 
 可使用Docker提供的**inspect**命令查看容器的详细信息，如下命令，其中“${index}”为启动实例的编号。
 
@@ -230,11 +234,11 @@ docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}
 **表 1** 常用容器数据查询命令<a id="常用容器数据查询命令"></a>
 
 |查询项|命令|
-|--|--|
+|---|---|
 |获取容器绑定的CPU|**docker inspect --format='{{.Name }} {{ .HostConfig.CpusetCpus }}' kbox_**|
 |获取容器的内存大小（单位为字节）|**docker inspect --format='{{.Name }} {{ .HostConfig.Memory }}' kbox_**|
 
-#### 4.2.2 容器内logcat日志<a name="ZH-CN_TOPIC_0000002518346018"></a>
+#### 容器内logcat日志<a id="ZH-CN_TOPIC_0000002518346018"></a>
 
 当容器运行出现异常时，可以查询日志进行辅助定位。实时查询Kbox云手机容器的logcat日志，可执行如下命令，其中“${index}”为启动实例的编号。
 
@@ -248,7 +252,7 @@ docker exec -it kbox_${index} logcat
 docker exec -it kbox_${index} logcat -d >> ./log.log
 ```
 
-#### 4.2.3 容器内进程信息<a name="ZH-CN_TOPIC_0000002518346012"></a>
+#### 容器内进程信息<a id="ZH-CN_TOPIC_0000002518346012"></a>
 
 在Kbox云手机容器中可执行如下命令列出当前正在运行的进程信息，其中“${index}”为启动实例的编号。
 
@@ -256,7 +260,7 @@ docker exec -it kbox_${index} logcat -d >> ./log.log
 docker exec -it kbox_${index} ps -elf
 ```
 
-#### 4.2.4 容器内top信息<a name="ZH-CN_TOPIC_0000002549825881"></a>
+#### 容器内top信息<a id="ZH-CN_TOPIC_0000002549825881"></a>
 
 **top**命令是常用的性能分析工具，能够实时显示系统中各个进程的资源占用情况，在Kbox云手机容器中执行如下所示的**top**命令查询系统中进程的资源占用情况，其中“${index}”为启动实例的编号。
 
@@ -264,11 +268,11 @@ docker exec -it kbox_${index} ps -elf
 docker exec -it kbox_${index} top
 ```
 
-#### 4.2.5 ANR时应用堆栈信息<a name="ZH-CN_TOPIC_0000002518186110"></a>
+#### ANR时应用堆栈信息<a id="ZH-CN_TOPIC_0000002518186110"></a>
 
 在Kbox云手机容器内若出现了应用程序未响应（ANR，Application Not Responding）时，需要搜集相关应用堆栈信息，该信息保存在容器的“/data/anr/”路径下。
 
-#### 4.2.6 dumpsys信息<a name="ZH-CN_TOPIC_0000002549825887"></a>
+#### dumpsys信息<a id="ZH-CN_TOPIC_0000002549825887"></a>
 
 dumpsys是在Android设备上运行的工具，可提供有关系统服务的信息，执行如下命令获取容器的所有系统服务诊断输出，其中“${index}”为启动实例的编号。
 
@@ -292,9 +296,9 @@ docker exec -it kbox_${index} dumpsys
 
     结果如下图所示。
 
-    ![](figures/zh-cn_image_0000002549705895.png)
+    ![容器内存信息查询结果](./figures/unnaming.png)
 
-#### 4.2.7 容器属性信息<a name="ZH-CN_TOPIC_0000002549705875"></a>
+#### 容器属性信息<a id="ZH-CN_TOPIC_0000002549705875"></a>
 
 可通过**getprop**命令从Kbox云手机容器中读取属性信息，命令如下所示，其中“${index}”为启动实例的编号。
 
@@ -302,9 +306,9 @@ docker exec -it kbox_${index} dumpsys
 docker exec -it kbox_${index} getprop
 ```
 
-### 4.3 运行环境日志<a name="ZH-CN_TOPIC_0000002549825885"></a>
+### 运行环境日志<a id="ZH-CN_TOPIC_0000002549825885"></a>
 
-#### 4.3.1 dmesg日志<a name="ZH-CN_TOPIC_0000002549705871"></a>
+#### dmesg日志<a id="ZH-CN_TOPIC_0000002549705871"></a>
 
 Kbox云手机容器出现异常时，需要搜集dmesg日志以便进行问题定位。
 
@@ -316,24 +320,24 @@ dmesg日志一般保存在服务器的“/var/log/”路径下，也可直接执
 dmesg -T
 ```
 
-### 4.4 维护工具<a name="ZH-CN_TOPIC_0000002549705887"></a>
+### 维护工具<a id="ZH-CN_TOPIC_0000002549705887"></a>
 
-#### 4.4.1 工具简介<a name="ZH-CN_TOPIC_0000002549705889"></a>
+#### 工具简介<a id="ZH-CN_TOPIC_0000002549705889"></a>
 
 为增强云手机原型的可测试性、可服务性和可维护性，Kbox云手机容器提供了Kbox_maintainer维护工具。该工具集成了日志收集、资源检查、故障恢复等多项功能，显著提升了云手机原型的整体性能。
 
->![](public_sys-resources/icon-note.gif) **说明：** 
+>![](public_sys-resources/icon-note.gif) **说明：**
 >
 >Kbox_maintainer工具包含在Kbox_AOSP11.zip中，Kbox_AOSP11.zip的获取方式请参见《install guide》文档中“环境准备”章节中的“[软件环境](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/install_guide.md#22-%E8%BD%AF%E4%BB%B6%E7%8E%AF%E5%A2%83)”小节。
 
-#### 4.4.2 日志收集<a name="ZH-CN_TOPIC_0000002518346024"></a>
+#### 日志收集<a id="ZH-CN_TOPIC_0000002518346024"></a>
 
 Kbox_maintainer维护工具收集的日志信息包括Android日志和服务器日志，请参考[**表 1** Kbox_maintainer日志收集](#Kbox_maintainer日志收集)。
 
 **表 1** Kbox_maintainer日志收集<a id="Kbox_maintainer日志收集"></a>
 
 |日志类别|详情|
-|--|--|
+|---|---|
 |Android日志| 通过**logcat**命令收集日志缓存区中日志 |
 |Android日志| 收集ANR时的应用堆栈信息（/data/anr） |
 |Android日志| 通过dumpsys activity，dumpsys meminfo，dumpsys input收集必要的dumpsys信息 |
@@ -350,18 +354,18 @@ python3 kbox_maintainer.py log
 python3 kbox_maintainer.py log kbox_1
 ```
 
->![](public_sys-resources/icon-note.gif) **说明：** 
+>![](public_sys-resources/icon-note.gif) **说明：**
 >
 >在使用日志收集功能时，如果收集日志时间过长，原因可能是“/var/log”下的日志过多导致的，可按需进行清理。
 
-#### 4.4.3 资源检查<a name="ZH-CN_TOPIC_0000002518346030"></a>
+#### 资源检查<a id="ZH-CN_TOPIC_0000002518346030"></a>
 
 Kbox_maintainer维护工具提供资源检查功能，收集Kbox云手机容器及服务器的内存、CPU、存储和GPU等信息，单独查询某项信息时请参见[**表 1** Kbox_maintainer资源检查](#Kbox_maintainer资源检查)详情中的命令（容器内运行相关命令即可），或者使用Kbox_maintainer工具批量收集所有数据。
 
 **表 1** Kbox_maintainer资源检查<a id="Kbox_maintainer资源检查"></a>
 
 |日志类别|详情（容器内运行相应命令）|
-|--|--|
+|---|---|
 |内存信息| 通过dumpsys meminfo命令获取 |
 |CPU信息| 通过top命令收集CPU占用率最高的前10个进程 |
 |CPU信息| 获取CPU基本信息（/proc/cpuinfo） |
@@ -376,14 +380,14 @@ python3 kbox_maintainer.py resource
 python3 kbox_maintainer.py resource kbox_1
 ```
 
-#### 4.4.4 故障检查及恢复<a name="ZH-CN_TOPIC_0000002518186116"></a>
+#### 故障检查及恢复<a id="ZH-CN_TOPIC_0000002518186116"></a>
 
 Kbox_maintainer维护工具支持查看Kbox云手机容器的服务状态，用于云手机日常的巡检和恢复，请参考[**表 1** Kbox_maintainer故障检查及恢复](#Kbox_maintainer故障检查及恢复)。
 
 **表 1** Kbox_maintainer故障检查及恢复<a id="Kbox_maintainer故障检查及恢复"></a>
 
 |检查类别|详情|
-|--|--|
+|---|---|
 |基础云手机状态|**getprop | grep sys.boot_completed**|
 
 Kbox_maintainer维护工具提供**check**命令字段，可通过容器号或容器名参数，检查指定容器的服务状态。不带容器号，默认检查所有容器状态。例如：
@@ -400,13 +404,13 @@ python3 kbox_maintainer.py recover
 python3 kbox_maintainer.py recover kbox_1
 ```
 
-## 5 高危操作<a name="ZH-CN_TOPIC_0000002518346016"></a>
+## 高危操作<a id="ZH-CN_TOPIC_0000002518346016"></a>
 
-### 5.1 禁用操作一览表<a name="ZH-CN_TOPIC_0000002549705883"></a>
+### 禁用操作一览表<a id="ZH-CN_TOPIC_0000002549705883"></a>
 
 暂无，如有疑问，请联系华为技术支持。
 
-### 5.2 高危操作一览表<a name="ZH-CN_TOPIC_0000002518186112"></a>
+### 高危操作一览表<a id="ZH-CN_TOPIC_0000002518186112"></a>
 
 风险操作由低到高等级划分如下：
 
@@ -419,7 +423,7 @@ python3 kbox_maintainer.py recover kbox_1
 **表 1** 硬件类高危操作<a id="硬件类高危操作"></a>
 
 |序号|高危操作描述|影响|风险等级|产品环境操作要求|测试环境操作要求|
-|--|--|--|--|--|--|
+|---|---|---|---|---|---|
 |1|更换服务器部件| 更换服务器部件需要严格按照操作指导执行，否则有可能导致功能异常甚至损坏硬件 |Critical| 必须在客户同意的维测时段操作。必须由维护人员执行。必须得到客户的同意后才可操作 |必须由维护人员执行或得到其同意。|
 |2|在CPLD升级过程中异常掉电| 升级CPLD过程中AC掉电可能导致CPLD文件损坏，影响功能，需要重新升级恢复 |Critical| 必须在客户同意的维测时段操作。必须由维护人员执行。必须得到客户的同意后才可操作 |必须由维护人员执行或得到其同意。|
 |3|在BIOS升级过程中异常掉电| 升级BIOS过程中AC掉电可能导致BIOS损坏，影响功能，需要重新升级恢复 |Critical| 必须在客户同意的维测时段操作。必须由维护人员执行。必须得到客户的同意后才可操作 |必须由维护人员执行或得到其同意。|
@@ -429,7 +433,7 @@ python3 kbox_maintainer.py recover kbox_1
 **表 2** 软件类高危操作<a id="软件类高危操作"></a>
 
 |序号|高危操作描述|操作入口|影响|风险等级|规避措施|产品环境操作要求|测试环境操作要求|
-|--|--|--|--|--|--|--|--|
+|---|---|---|---|---|---|---|---|
 |1| 在系统正常运行时主机上执行**service network restart**命令重启主机的网络进程 |登录主机系统，执行**service network restart**。| 可能导致主机故障、业务发放失败、虚拟机启动失败 |Critical|无| 必须在客户同意的维测时段操作。必须由维护人员执行。必须得到客户的同意后才可操作 |必须由维护人员执行或得到其同意。|
 |2| 在主机执行**ping -I**命令（指定网卡的**ping**命令） |登录主机系统，执行**ping -I**命令。| 通过指定网卡执行ping任务，可能导致主机网络中断。建议改为使用ping命令检查网络 |Critical|无| 必须在客户同意的维测时段操作。必须由维护人员执行。必须得到客户的同意后才可操作 |必须由维护人员执行或得到其同意。|
 |3| 直接手动删除或者修改message日志文件 |登录主机系统，执行**rm**命令删除/var/log目录下message日志。| 导致日志无法打印 |Critical|无| 必须在客户同意的维测时段操作。必须由维护人员执行。必须得到客户的同意后才可操作 |必须由维护人员执行或得到其同意。|
@@ -438,23 +442,23 @@ python3 kbox_maintainer.py recover kbox_1
 |6| 修改服务器IP地址 |登录主机系统，执行**ifconfig**命令修改网卡IP地址。| 该操作可能会影响主机的业务进程，影响当前业务操作 |Critical|无| 必须在客户同意的维测时段操作。必须由维护人员执行。必须得到客户的同意后才可操作 |必须由维护人员执行或得到其同意。|
 |7| 执行**rm -rf**命令删除文件 |登录主机系统，删除主机中的文件或者商用发布包所需要的文件。| 该操作可能会影响主机的业务进程和云手机业务 |Critical|无| 必须在客户同意的维测时段操作。必须由维护人员执行。必须得到客户的同意后才可操作 |必须由维护人员执行或得到其同意。|
 
-## 6 日常运维<a name="ZH-CN_TOPIC_0000002549825879"></a>
+## 日常运维<a id="ZH-CN_TOPIC_0000002549825879"></a>
 
-### 6.1 Docker信息查询<a name="ZH-CN_TOPIC_0000002549825877"></a>
+### Docker信息查询<a id="ZH-CN_TOPIC_0000002549825877"></a>
 
 **表 1** Docker信息查询<a id="Docker信息查询"></a>
 
 |相关信息|查询命令|
-|--|--|
+|---|---|
 |Docker软件信息|**docker info**|
 |Docker容器相关信息|**docker inspect**|
 
-### 6.2 Android信息查询<a name="ZH-CN_TOPIC_0000002549705879"></a>
+### Android信息查询<a id="ZH-CN_TOPIC_0000002549705879"></a>
 
 **表 1** Android信息查询<a id="Android信息查询"></a>
 
 |相关信息|查询命令|
-|--|--|
+|---|---|
 |Android日志信息|**logcat**|
 |Android进程信息|**ps -a**|
 |Android堆栈信息|**ls /data/anr/**|
@@ -463,12 +467,12 @@ python3 kbox_maintainer.py recover kbox_1
 |Android bugreport工具报告|**bugreport**|
 |Android dumpsys信息|**dumpsys**|
 
-### 6.3 服务器信息查询<a name="ZH-CN_TOPIC_0000002518186104"></a>
+### 服务器信息查询<a id="ZH-CN_TOPIC_0000002518186104"></a>
 
 **表 1** 服务器信息查询<a id="服务器信息查询"></a>
 
 |相关信息|查询命令|
-|--|--|
+|---|---|
 |服务器操作系统版本信息|**cat /etc/os-release**|
 |主机系统内核版本|**uname -r**|
 |NUMA信息|**numactl**|
@@ -484,7 +488,7 @@ python3 kbox_maintainer.py recover kbox_1
 |开机信息|**dmesg -T**|
 |网络状态检查|**ifconfig**<br>**ping**<br>**netstat**<br>**tcpdump**|
 
-> ![](public_sys-resources/icon-note.gif) **说明：** 
+> ![](public_sys-resources/icon-note.gif) **说明：**
 >
 > 当Host OS为openEuler 22.03时，联网游戏场景需要打开防火墙的某些端口（端口号由游戏厂商定义，如王者荣耀使用的端口为50012)，否则会出现网络异常无法登录游戏的情况。防火墙配置方法如下。
 >
@@ -501,7 +505,7 @@ python3 kbox_maintainer.py recover kbox_1
 >    ```
 >
 
-### 6.4 支持Android系统属性可定制<a name="ZH-CN_TOPIC_0000002518186102"></a>
+### 支持Android系统属性可定制<a id="ZH-CN_TOPIC_0000002518186102"></a>
 
 Kbox容器支持根据客户需求定制系统属性，以覆盖原有系统属性。如需使用定制属性，需要在启动路径中生成local.prop文件，文件内记录定制的系统属性参数和值，容器启动后的初始化过程会读取该文件内的属性并覆盖写入。local.prop文件格式如下所示：
 
@@ -535,14 +539,14 @@ Kbox容器内查询定制属性方法，以查询ro.product.system_ext.brand为�
 docker exec -it kbox_${index} getprop ro.product.system_ext.brand
 ```
 
-## 7 参考信息<a name="ZH-CN_TOPIC_0000002518346020"></a>
+## 参考信息<a id="ZH-CN_TOPIC_0000002518346020"></a>
 
-### 7.1 性能指标参考<a name="ZH-CN_TOPIC_0000002518186106"></a>
+### 性能指标参考<a id="ZH-CN_TOPIC_0000002518186106"></a>
 
 **表 1** Kbox云手机容器性能指标参考<a id="Kbox云手机容器性能指标参考"></a>
 
 |序号|性能分类|关键性能指标|参考值|
-|--|--|--|--|
+|---|---|---|---|
 |1|Kbox云手机容器性能|容器启动时间| 反复启动单个Kbox云手机容器100次，观察容器启动时间，容器的启动时间稳定，符合预期异常时长 |
 ||Kbox云手机容器性能|容器启动时间| 按照满规格路数，启动Kbox云手机容器3次，观察每一路的启动时间，容器的启动时间稳定，符合预期时长 |
 ||Kbox云手机容器性能|APP启动时间| 启动退出酷狗音乐1000次，记录每一次的启动时间，启动时间保持稳定，符合预期数值 |

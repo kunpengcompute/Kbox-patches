@@ -1,27 +1,27 @@
-# 用户指南<a name="ZH-CN_TOPIC_0000002521463654"></a>
+# 用户指南<a id="ZH-CN_TOPIC_0000002521463654"></a>
 
-## 1 启动和卸载云手机实例<a name="ZH-CN_TOPIC_0000002549712545"></a>
+## 启动和卸载云手机实例<a id="ZH-CN_TOPIC_0000002549712545"></a>
 
-### 1.1 挂载安卓镜像<a name="ZH-CN_TOPIC_0000002518192786"></a>
+### 挂载安卓镜像<a id="ZH-CN_TOPIC_0000002518192786"></a>
 
 华为镜像仓库提供的官方Kbox Demo镜像不包含Android Kbox二进制，所以使用该镜像无法正常启动容器。用户使用该Demo镜像时，应下载Android Kbox二进制到本地，并使用脚本制作可正常启动的Kbox原始镜像。如需使能硬解功能，在挂载Kbox原始镜像后，需继续制作合入NETINT编解码库的Kbox新镜像。
 
 **表 1** 镜像的获取方式与使用<a id="镜像的获取方式与使用"></a>
 
 |镜像名称+tag|获取方式|使用方法|
-|--|--|--|
+|---|---|---|
 |用户自行编译|用户自行编译| 请参见章节自行编译，已包含Android Kbox二进制，容器可正常启动 |
 |kbox:demo|华为镜像仓库提供的官方Kbox Demo镜像| 不包含Android Kbox二进制，容器无法正常启动，需要执行制作Kbox镜像：合入商用二进制步骤 |
 |kbox:origin|使用脚本制作| 基于kbox:demo和Android Kbox二进制制作的镜像，容器可以正常启动 |
 |kbox:latest|使用脚本制作的硬解镜像| 基于kbox:origin和编解码库制作的镜像，使能配置方案一的硬解功能，容器可正常启动 |
 
-**Kbox Demo镜像挂载<a name="section16531422174717"></a>**
+#### Kbox Demo镜像挂载<a id="section16531422174717"></a>
 
 请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)获取android.tar包上传至“~/dependency”目录（本文以此目录作为示例，用户可自行设置目录），并挂载。
 
 镜像的名称和tag可以自行定义，格式为“{名称}:{tag}”，此处设置镜像名为kbox:demo。
 
->![](public_sys-resources/icon-note.gif) **说明：** 
+>![](public_sys-resources/icon-note.gif) **说明：**
 >
 >镜像名以及tag名中只可包含数字与字母，镜像名的首字符必须为小写字母或数字。
 
@@ -30,9 +30,9 @@ cd ~/dependency
 docker import android.tar kbox:demo
 ```
 
-**制作Kbox镜像：合入商用二进制<a name="section8328138123920"></a>**
+#### 制作Kbox镜像：合入商用二进制<a id="section8328138123920"></a>
 
->![](public_sys-resources/icon-note.gif) **说明：** 
+>![](public_sys-resources/icon-note.gif) **说明：**
 >
 >用户使用华为镜像仓库提供的官方Kbox Demo镜像时，需要通过该小节的操作确保镜像中包含Android Kbox二进制。
 >当用户使用自行编译的镜像时：
@@ -41,7 +41,7 @@ docker import android.tar kbox:demo
 >- 硬件配置方案二、三、四：可跳过该小节的步骤2。
 
 1. 请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)获取Kbox-patches-AOSP11.zip，解压Kbox-patches-AOSP11.zip，将Kbox-patches-AOSP11文件夹中的deploy_scripts目录上传至服务器的“~/dependency”目录。
-2. 请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)获取Android Kbox二进制文件包Boostkit-boostcph-kbox_\*.zip并上传到“~/dependency/deploy_scripts”目录。
+2. 请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)获取Android Kbox二进制文件包BoostKit-boostcph-kbox_\*.zip并上传到“~/dependency/deploy_scripts”目录。
 3. （硬件配置方案二、三、四）使用硬件配置方案二、三、四时需要解压显卡驱动压缩包VAGPU-25.03.01.01-RC20.tgz(参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)获取)，获取va_driver.tgz，上传到服务器的“~/dependency/deploy_scripts”目录。
 4. 制作包含Android Kbox二进制的Kbox镜像，其中kbox:demo为上一步导入的官方Kbox Demo镜像，kbox:origin为包含Android Kbox二进制的新镜像。
     - 硬件配置方案一：
@@ -60,7 +60,7 @@ docker import android.tar kbox:demo
         ./make_image.sh kbox:demo kbox:origin va_driver.tgz
         ```
 
-**（硬件配置方案一，可选）制作Kbox镜像：使能硬解功能<a name="section1799111466509"></a>**
+#### （硬件配置方案一，可选）制作Kbox镜像：使能硬解功能<a id="section1799111466509"></a>
 
 若环境中未使用编码卡则不能制作并使用使能硬解功能的镜像。
 
@@ -72,7 +72,7 @@ docker import android.tar kbox:demo
     chmod +x Dockerfile make_image.sh
     ```
 
-    >![](public_sys-resources/icon-note.gif) **说明：** 
+    >![](public_sys-resources/icon-note.gif) **说明：**
     >
     >Quadra编码卡和T432配套的NETINT.tar.gz不同，请选择对应的NETINT.tar.gz。
 
@@ -86,7 +86,7 @@ docker import android.tar kbox:demo
 
     在启动实例时输入的参数需和此处制作的名称、tag保持一致。
 
-### 1.2 启动与卸载云手机实例<a name="ZH-CN_TOPIC_0000002518192802"></a>
+### 启动与卸载云手机实例<a id="ZH-CN_TOPIC_0000002518192802"></a>
 
 启动云手机实例路径下应存在kbox_config.cfg，hardware_bind.cfg配置文件。容器会使用该文件中的配置，因此使用时应确保kbox_config.cfg，hardware_bind.cfg中的配置正确。若启动路径中无该配置文件，则云手机将无法启动。
 
@@ -95,6 +95,7 @@ docker import android.tar kbox:demo
 **表 1** hardware_bind.cfg配置文件中容器使用的GPU、CPU配置说明<a id="kboxCPUGPU配置说明"></a>
 
 |参数名称|参数说明|配置说明|
+<<<<<<< HEAD
 |--|--|--|
 |VIDEO_GPU_MAP_AMDXXX（硬件配置一）VIDEO_GPU_MAP_HBXXX（硬件配置二、三、四）| 参数设置了不同规格服务器的GPU节点分配范围 |VIDEO_GPU_MAP_AMDXXX表示在硬件配置方案一的服务器上，为云手机容器分配的GPU节点范围；VIDEO_GPU_MAP_HBXXX表示在硬件配置方案二、三、四的服务器上，为云手机容器分配的GPU节点范围。节点的分配方式会根据服务器规格+容器的编号进行取模运算分配|
 |MODE0_CPUSXXX，MODE1_CPUSXXX| 参数设置了不同规格服务器的CPU核心分配范围 |MODE0_CPUSXXX表示绑核模式下CPU核心分配范围，MODE1_CPUSXXX表示绑定NUMA的CPU核心分配范围。容器启动时android_kbox.sh脚本会根据容器规格选择对应的CPU核心范围。|
@@ -104,8 +105,14 @@ docker import android.tar kbox:demo
 |参数名称|参数说明|配置说明|
 |--|--|--|
 |USERDATA| 该路径为云手机容器内的用户数据目录，用户数据会在容器启动时挂载到该目录下 |无|
+=======
+|---|---|---|
+|KBOX_GPU_MAP（硬件配置一）KBOX_VA_GPU_MAP（硬件配置二、三、四）| 通过修改map中对应路数的值来选择该路容器使用的GPU |KBOX_GPU_MAP列表里的第一个表示编号为1的Kbox云手机，分配的GPU节点（/dev/dri/renderD128），根据renderD128节点属于NUMA0，因此鲲鹏920 7260处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~31。KBOX_VA_GPU_MAP列表里的第一个表示编号为1的Kbox云手机，分配的GPU节点（/dev/dri/renderD128），根据renderD128~135属于NUMA0，因此对于鲲鹏920 7260处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~31。鲲鹏920 7280Z处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~79。|
+|KBOX_CPUSET_MAP| 通过修改map中对应路数的值来选择该路容器使用的CPU |同上|
+|KBOX_MOUNT_MAP| 通过修改map中对应路数的值来选择该路容器使用的数据卷存放路径 |无|
+>>>>>>> 00847ef (version 0703)
 
->![](public_sys-resources/icon-note.gif) **说明：** 
+>![](public_sys-resources/icon-note.gif) **说明：**
 >
 >为确保Kbox云手机的稳定运行与最佳性能，请保障每个容器所绑定的CPU物理核和GPU渲染节点同属于一个CPU片。
 
@@ -115,8 +122,19 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
 1. 解压Kbox-patches-AOSP11.zip，将Kbox-patches-AOSP11文件夹中的deploy_scripts目录上传至服务器的“~/dependency”目录。
 2. （可选）使能硬件解码（以下简称“硬解”）。
+<<<<<<< HEAD
     1. （硬件配置方案一）设置“deploy_scripts”目录下的kbox_config.cfg文件，将“T432_QUADRA_DECODE_ENABLE”设置为“1”。同时需参考以下步骤设置NETINT卡节点。
         1. 执行如下命令查看编码卡芯片对应节点号。
+=======
+    1. 设置“deploy_scripts”目录下的kbox_config.cfg文件，将“ENABLE_HARD_DECODE”设置为“1”。
+
+        >![](public_sys-resources/icon-note.gif) **说明：**
+        >
+        >若启动时为软件解码（以下简称“软解”）方式（设置ENABLE_HARD_DECODE=0），则重启时可切换为硬解方式（设置ENABLE_HARD_DECODE=1）。
+
+    2. （硬件配置方案一）同时若使用硬件配置方案一时需参考以下步骤设置NETINT卡节点。
+        1. <a id="li12677451102912"></a>执行如下命令查看编码卡芯片对应节点号。
+>>>>>>> 00847ef (version 0703)
 
             ```shell
             nvme list
@@ -172,7 +190,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
             NETINT1="/dev/nvme2,/dev/nvme2n1,/dev/nvme3,/dev/nvme3n1"
             ```
 
-            >![](public_sys-resources/icon-note.gif) **说明：** 
+            >![](public_sys-resources/icon-note.gif) **说明：**
             >
             >- 若第一次启动容器时NETINT的值为空，禁止设置T432_QUADRA_DECODE_ENABLE=1，且禁止重启时设置T432_QUADRA_DECODE_ENABLE=1，否则播放视频会有短暂黑屏的现象。
             >- 若需使能NETINT编码卡硬解，需要在kbox_config.cfg中设置T432_QUADRA_DECODE_ENABLE=1。
@@ -204,7 +222,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
     ```shell
     cd ~/dependency/deploy_scripts
     chmod +x android_kbox.sh
-    ./android_kbox.sh start {镜像名称：tag}  ${index1}  ${index2}  
+    ./android_kbox.sh start {镜像名称：tag}  ${index1}  ${index2}
     ```
 
     Kbox基础云手机的默认配置信息如[**表 2** Kbox基础云手机的默认配置信息](#Kbox基础云手机的默认配置信息)所示。
@@ -234,7 +252,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
         ./android_kbox.sh start kbox:origin  1 5
         ```
 
-        >![](public_sys-resources/icon-note.gif) **说明：** 
+        >![](public_sys-resources/icon-note.gif) **说明：**
         >
         >Kbox云手机容器启动时，一般情况下会自动打开Kbox内核动态开关，以使能必要的Linux Kernel功能。
         >可以通过以下指令查询Kbox内核动态开关状态。
@@ -294,11 +312,11 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
         ./android_kbox.sh restart ${index1} ${index2}
         ```
 
->![](public_sys-resources/icon-note.gif) **说明：** 
+>![](public_sys-resources/icon-note.gif) **说明：**
 >
 >使用硬件配置方案一时，必须在容器第一次启动时配置开/关C2解码器，不支持中途切换。云手机内置应用会根据自身需要自行选择解码器。
 
-### 1.3 查询版本号信息<a name="ZH-CN_TOPIC_0000002549832569"></a>
+### 查询版本号信息<a id="ZH-CN_TOPIC_0000002549832569"></a>
 
 本章节提供两种获取Kbox组件版本信息的方式，通过软件包查询和通过命令查询版本号信息。
 
@@ -328,7 +346,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
     docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
     ```
 
-### 1.4 （可选）使能内存超分特性<a name="ZH-CN_TOPIC_0000002549832547"></a>
+### （可选）使能内存超分特性<a id="ZH-CN_TOPIC_0000002549832547"></a>
 
 多个云手机实例使用相同的镜像在服务器进行容器化部署，存在较多相同的内存页，造成内存浪费。若使用openEuler 5.10.0-182.0.0或者5.10.0-216.0.0内核，可使能KSM（Kernel Samepage Merging，内核同页合并）特性，为容器使能数据去重功能，将相同的匿名页进行合并，释放内存空间。
 
@@ -365,15 +383,15 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
     echo 0 > /sys/fs/cgroup/memory/docker/CONTAINER_ID/memory.ksm
     ```
 
-### 1.5 （可选） 使能容器以F2FS文件系统启动<a name="ZH-CN_TOPIC_0000002549832548"></a>
+### （可选） 使能容器以F2FS文件系统启动<a id="ZH-CN_TOPIC_0000002549832548"></a>
 
 此前云手机容器内文件格式是服务器常用ext4格式，和真机的f2fs格式不同，下面步骤说明如何使能云手机支持以f2fs文件格式启动，使其和真实手机采用一样的文件系统，提高仿真能力。
 
-#### 1.5.1  **环境准备**
+#### 环境准备
 
    环境准备的步骤可以参照feature_guide.md的"以f2fs文件格式启动"章节里的[使用介绍](feature_guide.md#ZH-CN_TOPIC_0000002549865941)章节
-  
-#### 1.5.2 **使能配置项**<a name="ZH-CN_TOPIC_0000002549832549"></a>
+
+#### 使能配置项<a id="ZH-CN_TOPIC_0000002549832549"></a>
 
    将配置文件的kbox_config.cfg中的ENABLE_F2FS设置为1。
 
@@ -381,7 +399,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
    ENABLE_F2FS=1
    ```
 
-#### 1.5.3 **校验是否生效**
+#### 校验是否生效
 
    启动容器后，进入容器环境查看挂载点信息。
 
@@ -391,15 +409,15 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
    若输出显示对应的分区挂载类型为 `f2fs`，即说明使能成功。
 
-### 1.6 （可选） 实现容器内/system分区大小可调节<a name="ZH-CN_TOPIC_0000002549832549"></a>
+### （可选） 实现容器内/system分区大小可调节<a id="ZH-CN_TOPIC_0000002549832549"></a>
 
 此前使用检测工具发现云手机容器内system分区大小和宿主机内根目录下空间大小一致，达到将近1T大小，和真机差距巨大，下面步骤说明如何调节云手机/system分区大小，使其和真实手机的/system分区大小相近，提高仿真能力。
 
-#### 1.6.1 **环境准备部分**
+#### 环境准备部分
 
    环境准备部分请参照feature_guide.md的“容器内/system分区大小可调节”章节里的[使用介绍](feature_guide.md#ZH-CN_TOPIC_0000002549865942)章节执行。
 
-#### 1.6.2 **触发分区扩容逻辑**<a name="ZH-CN_TOPIC_0000002549832550"></a>
+#### 触发分区扩容逻辑<a id="ZH-CN_TOPIC_0000002549832550"></a>
 
    在云手机配置文件kbox_config.cfg里，将SYSTEM_PARTITION_SIZE_MB设置为预期要实现的/system分区大小值，单位为MB。
 
@@ -407,7 +425,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
    SYSTEM_PARTITION_SIZE_MB=${预期要实现的/system分区大小值(MB)}
    ```
 
-#### 1.6.3 **校验是否生效**
+#### 校验是否生效
 
    启动容器后，在容器内执行下面命令检查系统分区的实际容量。
 
@@ -417,15 +435,15 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
    确认 `Size` 列显示的大小与您配置的参数一致，即表示分区调节生效。
 
-### 1.7 （可选） 使能容器支持NFS挂载启动
+### （可选） 使能容器支持NFS挂载启动
 
 该特性支持将数据存储通过NFS挂载到远端，实现存算分离，存储复用。
 
-#### 1.7.1 **环境准备**
+#### 环境准备
 
 环境准备部分参考[支持NFS挂载](feature_guide.md#支持NFS挂载)章节执行。
 
-#### 1.7.2 **NFS挂载**
+#### NFS挂载
 
 容器配置文件kbox_config.cfg中配置NFS_DIR属性为/tmp/nfs，启动云手机使用nstart命令。
 
@@ -439,7 +457,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 ./android_kbox.sh ndelete kbox:origin 1
 ```
 
-#### 1.7.3 **校验是否生效**
+#### 校验是否生效
 
 执行如下命令。
 
@@ -447,17 +465,21 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 docker inspect kbox_1 | jq -r '.[].Mounts[] | select(.Destination=="/data") | .Source'
 ```
 
+<<<<<<< HEAD
 预期结果是`/tmp/nfs/data/kbox_1/data`。
 
 ### 1.8 （可选） 实现云机cpu频率动态调整<a name="ZH-CN_TOPIC_000000254983254923"></a>
+=======
+### （可选） 实现云机cpu频率动态调整<a id="ZH-CN_TOPIC_000000254983254923"></a>
+>>>>>>> 00847ef (version 0703)
 
 在真机中，系统为了平衡负载和功耗，会动态调节 CPU 的运行频率，而云机依托于服务器宿主机的容器化环境运行，其底层物理 CPU 的频率通常处于恒定状态，与真机存在差异。下面步骤说明如何实现云手机cpu频率动态调节，提高仿真能力。
 
-#### 1.8.1  **环境准备**
+#### 环境准备
 
    环境准备部分请参照feature_guide.md的"CPU频率动态模拟与调节"章节的[安装特性](feature_guide.md#ZH-CN_TOPIC_0000002518386097)章节执行。
 
-#### 1.8.2  **实施修改**<a name="ZH-CN_TOPIC_000000254983255011"></a>
+#### 实施修改<a id="ZH-CN_TOPIC_000000254983255011"></a>
 
    当前第三方检测应用一般通过读取scaling_cur_freq和cpuinfo_cur_freq这两个文件来获取当前设备的cpu运行频率，为了提高云机设备的仿真能力，在修改前先在容器内输入如下命令读取cpu所支持的频率列表。并且要对这两个文件都进行修改。
 
@@ -492,11 +514,11 @@ docker inspect kbox_1 | jq -r '.[].Mounts[] | select(.Destination=="/data") | .S
    done
    ```
 
-#### 1.8.3  **校验是否生效**
+#### 校验是否生效
 
    启动容器后，在容器内安装如“手机设备信息大全”的app，查看cpu频率是否等于预期，若等于预期值即表示cpu频率调节生效。
 
-## 2 ARDC测试<a name="ZH-CN_TOPIC_0000002549712565"></a>
+## ARDC测试<a id="ZH-CN_TOPIC_0000002549712565"></a>
 
 在Windows系统中，调试时推荐使用ARDC投屏软件，图形接入Kbox容器。ARDC投屏软件请从官方渠道获取并安装。
 
@@ -511,7 +533,7 @@ docker inspect kbox_1 | jq -r '.[].Mounts[] | select(.Destination=="/data") | .S
 
     如果连接成功会显示如图。
 
-    ![](figures/adb2.png)
+    ![ADB连接成功](./figures/adb2.png)
 
 3. 执行命令，查询当前ARDC已经成功连接的设备。
 
@@ -523,11 +545,11 @@ docker inspect kbox_1 | jq -r '.[].Mounts[] | select(.Destination=="/data") | .S
 5. 将待测试的APK拖入界面中，等待安装。
 6. APK安装成功后，运行APK，开始测试。
 
-## 3 （可选）Docker环境配置<a name="ZH-CN_TOPIC_0000002518352702"></a>
+## （可选）Docker环境配置<a id="ZH-CN_TOPIC_0000002518352702"></a>
 
 Docker不在本解决方案交付范围内，本章节提供的环境配置仅作为功能参考。不建议使用鲲鹏BoostKit云手机Demo作为商用方案。若选择使用鲲鹏BoostKit云手机参考方案需自行承担安全风险，客户或ISV在商用前请进行必要的安全评估。
 
-**为容器创建单独分区、使能容器IPv6<a name="section66764141138"></a>**
+### 为容器创建单独分区、使能容器IPv6<a id="section66764141138"></a>
 
 1. Docker的默认目录是“/var/lib/docker”，所有Docker相关文件，包括镜像，都存放在这个目录下。这个目录可能很快就会被占满，届时Docker和主机可能无法使用。因此，建议创建一个单独的分区（逻辑卷），用来存放Docker文件。
 2. Docker默认未开启IPv6，而一些应用依赖于IPv6协议，缺少IPv6的支持可能会导致这些应用的部分功能出现异常。以下提供了一种方法以使能Docker的IPv6协议。
@@ -564,7 +586,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     3. 按“Esc”键，输入**:wq!**，按“Enter”保存并退出编辑。
 
-    >![](public_sys-resources/icon-note.gif) **说明：** 
+    >![](public_sys-resources/icon-note.gif) **说明：**
     >
     >修改“/etc/docker/daemon.json”文件，若“/etc/docker/daemon.json”文件不存在，则使用以下命令自行创建该文件并将内容写入。
     >
@@ -582,7 +604,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 3. 重启Docker服务。
 
-    >![](public_sys-resources/icon-note.gif) **说明：** 
+    >![](public_sys-resources/icon-note.gif) **说明：**
     >
     >重启Docker服务前需要确保没有其他容器运行，如果有需要清理。
 
@@ -596,15 +618,15 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     mount -a
     ```
 
-## 4 仿真设备参数配置<a name="ZH-CN_TOPIC_0000002518352680"></a>
+## 仿真设备参数配置<a id="ZH-CN_TOPIC_0000002518352680"></a>
 
-### 4.1 配置属性操作方式<a name="ZH-CN_TOPIC_0000002518192812"></a>
+### 配置属性操作方式<a id="ZH-CN_TOPIC_0000002518192812"></a>
 
 在进行配置属性前，需要先连接容器、进入容器，然后进行相应的属性操作。
 
 本文提供两种进入容器的方式：[PC端命令行操作方式](#section155521166386)与[服务器终端界面操作方式](#section473111277384)，用户可根据实际情况任选一种。
 
-**PC端命令行操作方式<a name="section155521166386"></a>**
+#### PC端命令行操作方式<a id="section155521166386"></a>
 
 1. 正常启动Kbox容器。
 2. 在PC端的CMD界面，通过**adb**命令行连接容器实例。
@@ -627,11 +649,11 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     进入容器后即可执行相应的云手机参数配置命令。
 
-    >![](public_sys-resources/icon-note.gif) **说明：** 
+    >![](public_sys-resources/icon-note.gif) **说明：**
     >
     >在本文档使用的**adb**命令中，ip是指服务器IP地址，port是adb端口号。
 
-**服务器终端界面操作方式<a name="section473111277384"></a>**
+#### 服务器终端界面操作方式<a id="section473111277384"></a>
 
 1. 正常启动Kbox容器。
 2. 在服务器的后台终端界面，通过**docker**命令行方式直接进入容器内。
@@ -642,13 +664,13 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     进入容器后即可执行相应的云手机参数配置命令。
 
-### 4.2 配置系统属性<a name="ZH-CN_TOPIC_0000002549712553"></a>
+### 配置系统属性<a id="ZH-CN_TOPIC_0000002549712553"></a>
 
-#### 4.2.1 配置GPS系统属性<a name="ZH-CN_TOPIC_0000002549712537"></a>
+#### 配置GPS系统属性<a id="ZH-CN_TOPIC_0000002549712537"></a>
 
-##### 4.2.1.1 GPS属性说明<a name="ZH-CN_TOPIC_0000002518352678"></a>
+##### GPS属性说明<a id="ZH-CN_TOPIC_0000002518352678"></a>
 
->![](public_sys-resources/icon-note.gif) **说明：** 
+>![](public_sys-resources/icon-note.gif) **说明：**
 >
 >对下表中的参数数据类型说明如下：
 >
@@ -656,7 +678,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 >- float类型参数有效值为6~7位，若设置的数据有效值超过6~7位，请采用科学计数法表示。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题。
 
 |配置项名称|含义|类型|取值范围|默认值|说明|
-|--|--|--|--|--|--|
+|---|---|---|---|---|---|
 |persist.gps.mock.latitude| 纬度 |double|纬度范围是[-90,90]度|30.188433度| 默认值为杭州的纬度。Android 11因为代码限制，经纬度不能同时设置为零 |
 |persist.gps.mock.longitude| 经度 |double|经度范围是[-180,180]度|120.199818度| 初始值为杭州的经度。Android 11因为代码限制，经纬度不能同时设置为零 |
 |persist.gps.mock.altitude| 海拔高度，单位：米 |double|无限制，正负皆可|0米| 初始值表示当前海拔高度为0米 |
@@ -664,7 +686,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 |persist.gps.mock.bearing| 当前的移动导向角，单位：度 |float|范围[0,360)度|0度| 初始值表示正北方 |
 |persist.gps.mock.accuracy| 表示当前的定位精度，单位：米 |float|大于等于0米|20米| 初始值表示定位误差为正负20米 |
 
-##### 4.2.1.2 配置属性示例<a name="ZH-CN_TOPIC_0000002549712541"></a>
+##### 配置属性示例<a id="ZH-CN_TOPIC_0000002549712541"></a>
 
 1. 调用**setprop**方法设置当前属性的值，以gps.mock.latitude和gps.mock.longitude系统属性为例，其他属性设置方式相同。
 
@@ -686,7 +708,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     [persist.gps.mock.longitude]: [120.193818]
     ```
 
-    >![](public_sys-resources/icon-note.gif) **说明：** 
+    >![](public_sys-resources/icon-note.gif) **说明：**
     >
     >在Windows系统上查询字符串文本，请使用命令**findstr**替代命令**grep**，如下所示。本章后续使用**grep**命令的场景，请用户根据实际业务场景自行处理。
     >
@@ -717,12 +739,12 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 4. 检查Location Service的GPS数据值与设定值是否一致。
 
-#### 4.2.2 配置Telephony系统属性<a name="ZH-CN_TOPIC_0000002549832551"></a>
+#### 配置Telephony系统属性<a id="ZH-CN_TOPIC_0000002549832551"></a>
 
-##### 4.2.2.1 Telephony属性说明<a name="ZH-CN_TOPIC_0000002518352692"></a>
+##### Telephony属性说明<a id="ZH-CN_TOPIC_0000002518352692"></a>
 
 |配置项名称|含义|类型|取值范围|默认值|说明|
-|--|--|--|--|--|--|
+|---|---|---|---|---|---|
 |persist.sys.prop.writeimei| 国际移动设备识别码（IMEI） |int|15~17位数字|86+15位随机值|86表示中国|
 |persist.gsm.operator.alphacph| 网络运营商名字 |string|1~20位字母或数字|CMCC|-|
 |persist.gsm.operator.numericcph| 网络运营商代码 |int|5~6位数字|46000| 由3位网络运营商国家代码+2~3位移动网络代码组成，比如460表示中国（cn），00表示中国移动 |
@@ -731,12 +753,12 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 |persist.sys.prop.writesimserial| SIM卡序列号 |int|20位数字|898600+随机值| 89为国际代码，86表示中国，00表示中国移动 |
 |persist.sys.prop.writephonenum| 手机号码 |int|0~20位数字|空|-|
 
->![](public_sys-resources/icon-note.gif) **说明：** 
+>![](public_sys-resources/icon-note.gif) **说明：**
 >
 >- 所有属性设置后都需要重启容器才能生效。
 >- 容器启动过程中做参数合法性校验，只会判断字符和长度是否合法，判断非法则采用默认值。
 
-##### 4.2.2.2 配置属性示例<a name="ZH-CN_TOPIC_0000002549712549"></a>
+##### 配置属性示例<a id="ZH-CN_TOPIC_0000002549712549"></a>
 
 1. 调用**setprop**方法设置“IMEI”值。
 
@@ -746,7 +768,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     重启容器后，拨号界面输入“\*\#06\#”，获得如下提示。
 
-    ![](figures/zh-cn_image_0000002518352734.png)
+    ![IMEI查询结果](./figures/zh-cn_image_0000002518352734.png)
 
 2. 调用**setprop**方法设置“网络运营商名字”和“网络运营商代码”。
 
@@ -757,9 +779,9 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     重启容器后，在应用中查询设置结果。
 
-    ![](figures/zh-cn_image_0000002518352736.png)
+    ![网络运营商查询结果](./figures/zh-cn_image_0000002518352736.png)
 
-    >![](public_sys-resources/icon-note.gif) **说明：** 
+    >![](public_sys-resources/icon-note.gif) **说明：**
     >
     >用户可自行查找相关应用进行验证。
 
@@ -772,11 +794,11 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     重启容器后，拨号界面输入“\*\#\*\#4636\#\*\#\*”，打开手机信息，可以查询到“IMSI”。
 
-    ![](figures/zh-cn_image_0000002549712583.png)
+    ![IMSI查询结果](./figures/zh-cn_image_0000002549712583.png)
 
     在应用中查询到“SIM卡运营商名字”和“SIM卡运营商代码”。
 
-    ![](figures/zh-cn_image_0000002549832595.png)
+    ![SIM卡运营商查询结果](./figures/zh-cn_image_0000002549832595.png)
 
 4. 调用**setprop**方法设置“SIM卡序列号”。
 
@@ -790,13 +812,13 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     dumpsys isub | grep iccid
     ```
 
-    ![](figures/zh-cn_image_0000002549832593.png)
+    ![SIM卡序列号查询结果](./figures/zh-cn_image_0000002549832593.png)
 
     在应用中也可查询到设置结果。
 
-    ![](figures/zh-cn_image_0000002549712585.png)
+    ![SIM卡序列号应用查询结果](./figures/zh-cn_image_0000002549712585.png)
 
-    >![](public_sys-resources/icon-note.gif) **说明：** 
+    >![](public_sys-resources/icon-note.gif) **说明：**
     >
     >1. 通过命令查询“SIM卡序列号”，部分位置会出现星号遮挡，为正常现象不影响实际功能。
     >2. 用户可自行查找相关应用进行验证。
@@ -809,14 +831,14 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     重启容器后，在应用中查询设置结果。
 
-    ![](figures/zh-cn_image_0000002518192822.png)
+    ![手机号码查询结果](./figures/zh-cn_image_0000002518192822.png)
 
-#### 4.2.3 配置加速度陀螺仪系统属性<a name="ZH-CN_TOPIC_0000002549832553"></a>
+#### 配置加速度陀螺仪系统属性<a id="ZH-CN_TOPIC_0000002549832553"></a>
 
-##### 4.2.3.1 加速度陀螺仪属性说明<a name="ZH-CN_TOPIC_0000002518352686"></a>
+##### 加速度陀螺仪属性说明<a id="ZH-CN_TOPIC_0000002518352686"></a>
 
 |配置项名称|含义|类型|取值范围|默认值|说明|
-|--|--|--|--|--|--|
+|---|---|---|---|---|---|
 |persist.sensors.mock.delaytime| 数据采集频率（以微秒为单位） |int|[20000,1000000]|200000| 当设置的persist.sensors.mock.delaytime的值不在[20000,1000000]内时，实际采用默认值 |
 |persist.sensors.mock.acce.data.x| 当配置项为persist.sensors.mock.acce.data.x，表示沿x轴的加速力（包括重力），单位：m/s^2 |float|[-3.402823466e+38,3.402823466e+38]| 加速度和陀螺仪的x轴默认值均为9.833359，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.x或persist.sensors.mock.gyro.data.x上。但由于Android 11将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000 |当设置的persist.sensors.mock.acce.data.x或persist.sensors.mock.gyro.data.x的值包含非数字且非小数点字符的非法字符时，设置无效采用默认值。需注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题。|
 |persist.sensors.mock.gyro.data.x| 当配置项为persist.sensors.mock.acce.data.x，表示沿x轴的加速力（包括重力），单位：m/s^2 |float|[-3.402823466e+38,3.402823466e+38]| 加速度和陀螺仪的x轴默认值均为9.833359，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.x或persist.sensors.mock.gyro.data.x上。但由于Android 11将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000 |当设置的persist.sensors.mock.acce.data.x或persist.sensors.mock.gyro.data.x的值包含非数字且非小数点字符的非法字符时，设置无效采用默认值。需注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题。|
@@ -825,11 +847,11 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 |persist.sensors.mock.acce.data.z| 当配置项为persist.sensors.mock.acce.data.z，表示沿z轴的加速力（包括重力） |float|[-3.402823466e+38,3.402823466e+38]| 加速度和陀螺仪的z轴默认值均为0.101028，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.z或persist.sensors.mock.gyro.data.z上。但由于Android 11将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000 |当设置的persist.sensors.mock.acce.data.z或persist.sensors.mock.gyro.data.z的值包含非数字/小数点字符的非法字符时，设置无效采用默认值。需注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题。|
 |persist.sensors.mock.gyro.data.z| 当配置项为persist.sensors.mock.gyro.data.z，表示沿z轴的旋转速率 |float|[-3.402823466e+38,3.402823466e+38]| 加速度和陀螺仪的z轴默认值均为0.101028，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.z或persist.sensors.mock.gyro.data.z上。但由于Android 11将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000 |当设置的persist.sensors.mock.acce.data.z或persist.sensors.mock.gyro.data.z的值包含非数字/小数点字符的非法字符时，设置无效采用默认值。需注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题。|
 
->![](public_sys-resources/icon-note.gif) **说明：** 
+>![](public_sys-resources/icon-note.gif) **说明：**
 >
->Android 11数值转换公式：输入value是float类型，resolution是double类型，double incRes = 0.125 \*resolution；value = round\(static_cast<double\>\(value\) / incRes\) \*incRes，round是指double类型取整。
+>Android 11数值转换公式：输入value是float类型，resolution是double类型，`double incRes = 0.125 *resolution`；`value = round(static_cast<double>(value) / incRes) *incRes`，round是指double类型取整。
 
-##### 4.2.3.2 配置属性示例<a name="ZH-CN_TOPIC_0000002518192774"></a>
+##### 配置属性示例<a id="ZH-CN_TOPIC_0000002518192774"></a>
 
 1. 调用**setprop**方法注入加速度传感器数据。
 
@@ -841,9 +863,9 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 2. 在应用中可以查看设置的加速度数据。
 
-    ![](figures/zh-cn_image_0000002518192818.png)
+    ![加速度数据查询结果](./figures/zh-cn_image_0000002518192818.png)
 
-    >![](public_sys-resources/icon-note.gif) **说明：** 
+    >![](public_sys-resources/icon-note.gif) **说明：**
     >
     >用户可自行查找相关应用进行验证。
 
@@ -857,19 +879,19 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 4. 在应用中可查看陀螺仪数据。
 
-    ![](figures/zh-cn_image_0000002518352726.png)
+    ![陀螺仪数据查询结果](./figures/zh-cn_image_0000002518352726.png)
 
-#### 4.2.4 配置多VInput设备系统属性<a name="ZH-CN_TOPIC_0000002518352684"></a>
+#### 配置多VInput设备系统属性<a id="ZH-CN_TOPIC_0000002518352684"></a>
 
-##### 4.2.4.1 VInput属性说明<a name="ZH-CN_TOPIC_0000002549832585"></a>
+##### VInput属性说明<a id="ZH-CN_TOPIC_0000002549832585"></a>
 
 |配置项名称|含义|类型|取值要求|说明|
-|--|--|--|--|--|
+|---|---|---|---|---|
 |persist.sys.input.mouse.name| 创建鼠标设备标识属性 |string| 取值字符类型仅限字母、下划线、数字，字符长度范围为1～64位 |如果设置参数不符号要求，实际设置无效。|
 |persist.sys.input.gamepad1.name| 创建手柄1设备标识属性 |string| 取值字符类型仅限字母、下划线、数字，字符长度范围为1～64位 |如果设置参数不符号要求，实际设置无效。|
 |persist.sys.input.gamepad2.name| 创建手柄2设备标识属性 |string| 取值字符类型仅限字母、下划线、数字，字符长度范围为1～64位 |如果设置参数不符号要求，实际设置无效。|
 
-##### 4.2.4.2 配置属性示例<a name="ZH-CN_TOPIC_0000002518192790"></a>
+##### 配置属性示例<a id="ZH-CN_TOPIC_0000002518192790"></a>
 
 1. 调用**setprop**方法创建鼠标设备，通过**getevent**查看结果。
 
@@ -931,19 +953,19 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     could not get driver version for /dev/input/event1, Inappropriate ioctl for device
     ```
 
-### 4.3 系统功能参数配置<a name="ZH-CN_TOPIC_0000002518192782"></a>
+### 系统功能参数配置<a id="ZH-CN_TOPIC_0000002518192782"></a>
 
 |配置项名称|含义|类型|取值范围|默认值|说明|
-|--|--|--|--|--|--|
+|---|---|---|---|---|---|
 |sys.vmi.vk.texturecompress| 纹理压缩开关。支持Vulkan RGB和RGBA纹理压缩为BC7纹理以及支持先将ETC2纹理解码为RGBA格式，再压缩成BC7纹理 |int|0：关闭纹理压缩1：开启纹理压缩|1| 该功能不支持在应用运行期间修改，如需修改，需要先退出应用。该功能不支持纹理后处理，如应用存在此种应用场景可能造成渲染异常，此时需关闭纹理压缩功能后重新打开应用 |
 |sys.vmi.gl.texturecompress| 纹理压缩开关。支持将OpenGL ES ASTC纹理转为RGBA格式，然后再重新压缩成BC3纹理 |int|0：关闭纹理压缩1：开启纹理压缩|1| 该功能不支持在应用运行期间修改，如需修改，需要先退出应用 |
 |ro.vmi.adaptive.vsync| 自适应vsync功能开关，默认不使能 |int|0：关闭自适应vsync1：开启自适应vsync|0| 该功能修改后重启生效 |
 
-## 5 故障处理<a name="ZH-CN_TOPIC_0000002518352706"></a>
+## 故障处理<a id="ZH-CN_TOPIC_0000002518352706"></a>
 
-### 5.1 概述<a name="ZH-CN_TOPIC_0000002549712533"></a>
+### 概述<a id="ZH-CN_TOPIC_0000002549712533"></a>
 
-#### 5.1.1 故障处理原则<a name="ZH-CN_TOPIC_0000002518352700"></a>
+#### 故障处理原则<a id="ZH-CN_TOPIC_0000002518352700"></a>
 
 - 故障分析、定位和处理原则：
     - 以尽快恢复业务为原则。
@@ -971,22 +993,22 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     - 了解基本故障相关定位和处理方法。
     - 掌握远程接入方式的使用。
 
-#### 5.1.2 故障处理流程<a name="ZH-CN_TOPIC_0000002549712555"></a>
+#### 故障处理流程<a id="ZH-CN_TOPIC_0000002549712555"></a>
 
 故障处理总体流程主要分为四个过程：故障信息收集、故障判断、故障定位、故障排除。
 
-**图 1** 常见故障处理流程<a name="fig1890714518232"></a><a id="常见故障处理流程"></a>
-![](figures/常见故障处理流程.png "常见故障处理流程")
+**图 1** 常见故障处理流程<a id="fig1890714518232"></a><a id="常见故障处理流程"></a>
+![常见故障处理流程](./figures/常见故障处理流程.png "常见故障处理流程")
 
-**故障信息收集<a name="section196271610142212"></a>**
+##### 故障信息收集<a id="section196271610142212"></a>
 
 故障信息是故障处理的重要依据，系统维护人员应尽可能多地收集故障信息。
 
-**故障判断<a name="section4572941192214"></a>**
+##### 故障判断<a id="section4572941192214"></a>
 
 排除故障之前，系统维护人员根据收集的故障详细信息，对故障范围和类型进行判断。
 
-**故障定位<a name="section3895552182410"></a>**
+##### 故障定位<a id="section3895552182410"></a>
 
 故障定位是指从众多可能原因中找出故障原因的过程。通过一定的方法或手段分析、比较各种可能的故障成因，不断排除非可能因素，最终确定故障发生的具体原因。
 
@@ -999,28 +1021,28 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 - 查询操作日志，分析操作过程是否有误
 - 查看配置文件，检查数据配置是否正确
 
-**故障排除<a name="section18134350132614"></a>**
+##### 故障排除<a id="section18134350132614"></a>
 
 故障排除是指根据不同的故障原因清除故障的过程。故障排除包括检修设备、修改配置数据、重启相关进程、重启容器、重启服务器等。
 
->![](public_sys-resources/icon-note.gif) **说明：** 
+>![](public_sys-resources/icon-note.gif) **说明：**
 >
 >处理重大故障前，请先联系技术支持工程师协助解决。
 >在故障处理过程中，维护人员可能需要执行修改配置数据、重启虚拟机等重大操作，为确保数据安全，首先应该保存现场数据，备份相关数据库、告警信息和日志文件等。
 >当系统维护人员无法自行排除故障时，请联系技术支持工程师协助解决。
 
-### 5.2 信息收集<a name="ZH-CN_TOPIC_0000002518192810"></a>
+### 信息收集<a id="ZH-CN_TOPIC_0000002518192810"></a>
 
-#### 5.2.1 声明<a name="ZH-CN_TOPIC_0000002549712567"></a>
+#### 声明<a id="ZH-CN_TOPIC_0000002549712567"></a>
 
 在信息收集操作过程中，请严格遵守以下原则：
 
 - 任何维护操作必须得到客户的授权，禁止进行超出客户审批范围的任何维护操作。
 - 将问题定位数据传出客户网络必须得到客户的授权。
 
-#### 5.2.2 基本信息收集<a name="ZH-CN_TOPIC_0000002549712559"></a>
+#### 基本信息收集<a id="ZH-CN_TOPIC_0000002549712559"></a>
 
-**收集局点信息<a name="section4323131116418"></a>**
+##### 收集局点信息<a id="section4323131116418"></a>
 
 故障发生后，作为问题定位的首要条件，通过收集局点信息，让技术支持及研发人员快速了解现场的情况；同时，反馈现场工程师的联系电话，保证联络渠道的畅通。
 
@@ -1029,18 +1051,18 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 **表 1** 局点信息收集表<a id="局点信息收集表"></a>
 
 |运营商或企业|局点|组网图附件|现场工程师姓名/电话|客户姓名/电话|
-|--|--|--|--|--|
+|---|---|---|---|---|
 |版本信息|-|-|-|-|
 |远程维护信息|-|-|-|-|
 
-**收集基本故障信息<a name="section19389174953610"></a>**
+##### 收集基本故障信息<a id="section19389174953610"></a>
 
 通过基本故障信息，可初步了解现场发生的问题、目前的状态、产生故障前的设备状态和引起故障的可能因素。具体信息如下表所示。
 
 **表 2** 基本故障信息收集表<a id="基本故障信息收集表"></a>
 
 |待收集现场|现场反馈结果|
-|--|--|
+|---|---|
 |故障现象描述|-|
 |故障出现时间|-|
 |故障出现的频率|-|
@@ -1053,14 +1075,14 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 |现场有无明显的告警信息|-|
 |现场告警信息是否已经收集|-|
 
-**收集故障相关告警信息<a name="section350713449381"></a>**
+##### 收集故障相关告警信息<a id="section350713449381"></a>
 
 通过故障相关的告警信息，可进一步辅助故障的分析、定位和处理。具体信息如下表所示。
 
 **表 3** 故障相关告警信息收集表<a id="故障相关告警信息收集表"></a>
 
 |待收集参数|参数值|
-|--|--|
+|---|---|
 |告警ID|-|
 |告警级别|-|
 |告警名称|-|
@@ -1071,14 +1093,14 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 |可能原因|-|
 |附加信息|-|
 
-**收集日志信息<a name="section168781199405"></a>**
+##### 收集日志信息<a id="section168781199405"></a>
 
 收集系统的日志信息，可以通过日志，详细查看系统中用户的操作内容、操作时间等信息，从而进行故障的分析和定位。主要需要收集的日志如下表。
 
 **表 4** 日志收集项<a id="日志收集项"></a>
 
 |日志类别|详情|
-|--|--|
+|---|---|
 |Android日志| 通过**logcat**命令收集日志缓存区中日志 |
 | 收集ANR时的应用堆栈信息（/data/anr） |
 | 通过dumpsys activity，dumpsys meminfo，dumpsys input收集必要的dumpsys信息 |
