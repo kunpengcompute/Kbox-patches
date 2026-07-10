@@ -1344,6 +1344,7 @@ index a9af0b094..9e3aacc55 100644
 +    exec - root root -- /system/bin/ipconfigstore
 +    chown system system /data/misc/ethernet/ipconfig.txt
 +    
++on post-fs-data && property:ro.boot.start_share_data=0
 +    mount rootfs rootfs / remount bind ro nodev
 +
  # Switch between sdcardfs and FUSE depending on persist property
