@@ -59,6 +59,10 @@ docker import android.tar kbox:demo
         ./make_image_aosp15.sh kbox:demo kbox:origin va_driver.tgz
         ```
 
+>![](public_sys-resources/icon-note.gif) **说明：** 
+>
+> 在硬件配置方案二、三、四中使用DC新驱动时，由于DC的驱动包调整了目录结构，可以使用 `./make_image_aosp15.sh kbox:demo kbox:origin VAGPU-A15-C-F-xxx`命令用驱动包解压的文件夹来制作镜像，解压后的文件夹名由具体版本决定。
+
 ### 1.2 启动与卸载云手机实例<a name="ZH-CN_TOPIC_0000002518225854"></a>
 
 启动云手机实例路径下应存在kbox_config.cfg配置文件。容器会使用该文件中的配置，因此使用时应确保kbox_config.cfg配置文件中的配置正确。若启动路径下无该配置文件，云手机将禁止启动。
