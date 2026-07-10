@@ -94,7 +94,7 @@
 </tr>
 <tr id="row127912446459"><th class="firstcol" valign="top" width="20.830000000000002%" id="mcps1.1.3.3.1"><p id="p1927934434516"><a name="p1927934434516"></a><a name="p1927934434516"></a>问题描述</p>
 </th>
-<td class="cellrowborder" valign="top" width="79.17%" headers="mcps1.1.3.3.1 "><p id="p112791448452"><a name="p112791448452"></a><a name="p112791448452"></a>在DC1000环境上运行安卓15云机，使用RC13-A15版本驱动，打开自适应Vsync功能，收益不稳定。</p>
+<td class="cellrowborder" valign="top" width="79.17%" headers="mcps1.1.3.3.1 "><p id="p112791448452"><a name="p112791448452"></a><a name="p112791448452"></a>在道客DC 1000/1000C环境上运行安卓15云机，使用RC13-A15版本驱动，打开自适应Vsync功能，收益不稳定。</p>
 </td>
 </tr>
 <tr id="row16279344104517"><th class="firstcol" valign="top" width="20.830000000000002%" id="mcps1.1.3.4.1"><p id="p1027914446455"><a name="p1027914446455"></a><a name="p1027914446455"></a>根因分析</p>
