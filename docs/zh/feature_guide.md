@@ -149,7 +149,7 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 请按照以下步骤使能本特性：
 
-1. 编译安卓镜像时，参考[编译指南](compile_guide.md)，选择`kbox_arm64_optimized-trunk_staging-user`编译选项。
+1. 编译安卓镜像时，参考[编译指南](compile_guide.md)，选择`kbox_arm64_15_optimized-trunk_staging-user`编译选项。
 2. 完成其余编译步骤，获得Kbox安卓轻量化裁剪镜像。
 
 ### 5.3 使用特性

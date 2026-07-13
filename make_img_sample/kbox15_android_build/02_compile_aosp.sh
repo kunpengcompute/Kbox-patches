@@ -60,7 +60,7 @@ function aosp_compile(){
     echo -e "\n" | ./development/tools/make_key build/target/product/security/releasekey '/C=CN/O=Huawei/CN=kunpeng' ||
         true
     source build/envsetup.sh || error "无法加载build环境"
-    lunch kbox_arm64-trunk_staging-user || error "lunch命令执行失败"
+    lunch kbox_arm64_15-trunk_staging-user || error "lunch命令执行失败"
     export LC_ALL=C
     echo "2" > /proc/sys/kernel/randomize_va_space  #可信需求
     make clean && make -j${cpu_num}
@@ -82,7 +82,7 @@ function create_package(){
     cp -r "$CURRENT_DIR/create-package.sh" "$AOSP_PATH/" || error "无法复制create-package.sh到AOSP目录"
     cd $AOSP_PATH || error "无法切换到AOSP目录"
     chmod +x create-package.sh || error "无法设置create-package.sh为可执行"
-    ./create-package.sh $AOSP_PATH/out/target/product/kbox_arm64/system.img
+    ./create-package.sh $AOSP_PATH/out/target/product/kbox_arm64_15/system.img
     [ $? -ne 0 ] && error "生成Android镜像失败"
     echo "---------Success----------"
 }

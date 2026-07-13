@@ -329,22 +329,22 @@ Compile the AOSP source code to generate a Kbox Android image.
     3. Select a compilation mode.
 
         ```shell
-        lunch kbox_arm64-trunk_staging-user
+        lunch kbox_arm64_15-trunk_staging-user
         ```
 
         >![](public_sys-resources/icon-note.gif) **NOTE:**
         >
-        >- To compile the image in userdebug mode, change **user** to **userdebug** in the **lunch** command. The following uses **kbox_arm64** as an example.
+        >- To compile the image in userdebug mode, change **user** to **userdebug** in the **lunch** command. The following uses **kbox_arm64_15** as an example.
         >
         > ```shell
-        > lunch kbox_arm64-trunk_staging-userdebug
+        > lunch kbox_arm64_15-trunk_staging-userdebug
         >    ```
         >
         >- Kbox also provides a streamlined image in which some pre-installed applications are removed to achieve better memory utilization and performance.
         > Use the following option to compile a streamlined image:
         >
         > ```shell
-        > lunch kbox_arm64_optimized-trunk_staging-user
+        > lunch kbox_arm64_15_optimized-trunk_staging-user
         >    ```
 
     4. Perform the compilation.
@@ -385,7 +385,7 @@ Compile the AOSP source code to generate a Kbox Android image.
     >The root permission is required for creating an image. Execute the script as the **root** user. The directory must be an absolute path.
 
     ```shell
-    ./create-package.sh /home/aosp/out/target/product/kbox_arm64/system.img
+    ./create-package.sh /home/aosp/out/target/product/kbox_arm64_15/system.img
     ```
 
     The Kbox Android image is created. A Kbox image named **android.tar** is generated in the current directory.
