@@ -1337,7 +1337,7 @@ index a9af0b094..9e3aacc55 100644
  
      # Make sure /sys/kernel/debug (if present) is labeled properly
      # Note that tracefs may be mounted under debug, so we need to cross filesystems
-@@ -791,6 +790,11 @@ on post-fs-data
+@@ -791,6 +790,12 @@ on post-fs-data
      # Enable FUSE by default
      setprop persist.sys.fuse true
  
