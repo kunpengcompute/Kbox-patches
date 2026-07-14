@@ -23,7 +23,7 @@ Kbox云手机容器环境部署的硬件环境配置方案要求如[**表 1** Kb
 |网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-225GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-2\*25GE/10GE光口-4端口-SFP28（不含光模块）|
 |Riser卡|Riser1与Riser2模组相同，均为：PCIe X16 + PCIe X8|Riser1与Riser2模组相同，均为：PCIe X8\*3|前置Riser（x8\*2）\*2+后置Riser（x8\*2）\*2+Riser3（x8\*2）\*1|后置Riser（x16+x8\*2）\*2+Riser3（x8\*2）\*1|
 |编码卡|1\*NETINT Quadra T2A（X8）|无|无|无|
-|GPU|2\*AMD W6800|4\*道客DC1000|8\*道客DC1000|8\*道客DC1000|
+|GPU|2\*AMD W6800|4\*道客DC 1000|8\*道客DC 1000 或 8\*道客DC 1000C|8\*道客DC 1000|
 |操作系统|openEuler 22.03 LTS SP4|openEuler 22.03 LTS SP4|openEuler 22.03 LTS SP4|openEuler 22.03 LTS SP4|
 |内核版本|5.10.0-216.0.0|5.10.0-216.0.0|5.10.0-216.0.0|5.10.0-216.0.0|
 
@@ -876,7 +876,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 lspci -vvv -d :0200 | grep NUMA
 ```
 
-道客DC 1000每张单卡对应有4个GPU节点，以4\*道客DC 1000的配置为例，回显输出的每行和GPU节点（renderD节点，编号从128开始）顺序依次对应。示例回显如下：
+道客DC 1000/1000C每张单卡对应有4个GPU节点，以4\*道客DC 1000的配置为例，回显输出的每行和GPU节点（renderD节点，编号从128开始）顺序依次对应。示例回显如下：
 
 ```shell
 NUMA node: 0
@@ -971,11 +971,11 @@ NUMA node: 2
 
 4. 安装显卡图形驱动。
 
-    GPU驱动会为每个显卡节点启动一个kworker进程，DC1000单卡有4个节点。为保障kworker进程性能，建议使用kworkerCores参数为每个kworker进程绑定CPU，kworkerCores参数依次表示每个显卡节点对应kworker进程的绑核。
+    GPU驱动会为每个显卡节点启动一个kworker进程，道客DC 1000/1000C单卡有4个节点。为保障kworker进程性能，建议使用kworkerCores参数为每个kworker进程绑定CPU，kworkerCores参数依次表示每个显卡节点对应kworker进程的绑核。
 
     在安装显卡图形驱动绑核时，**请确保kworker进程绑定的CPU核和GPU渲染节点同属一个CPU片**。GPU渲染节点所属CPU片的查询方式请参见[确定GPU拓扑结构](#确定GPU拓扑结构)章节。
 
-    以下绑核方式仅作为参考，请依据实际情况做出调整。
+    以道客DC1000为例,以下绑核方式仅作为参考，请依据实际情况做出调整。
 
     硬件配置方案二（鲲鹏920 7260处理器 + 4\*道客DC 1000）：
 
