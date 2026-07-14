@@ -50,7 +50,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 | 4 | ExaGear_ARM32-ARM64.tar.gz | ExaGear转码二进制包 | 请联系华为技术支持获取 | √ | √ | √ | √ |
 | 5 | Kbox-patches-AOSP15.zip | 内核补丁Demo包、容器部署脚本Demo包 | [获取链接](https://gitcode.com/boostkit/Kbox-patches/tree/AOSP15) | √ | √ | √ | √ |
 | 6 | Quadra_V*XXX*.zip | NETINT编码卡Quadra软固件及文档包。配套版本V4.8.F-Android15 | [获取链接](https://www.netint.cn/quadra-firmware-downloads-android15/)<br>下载密码:test123 | √ | - | - | - |
-| 7 | VAGPU-25.03.01.01-RC13-A15.tgz | 显卡驱动 | 请联系华为技术支持获取 | - | √ | √ | √ |
+| 7 | VAGPU-A15-C-F-26.02.06.00.RC2.tgz | 显卡驱动 | 请联系华为技术支持获取 | - | √ | √ | √ |
 | 8 | docker-24.0.0.tgz | Docker 24.0.0版本二进制包 | [获取链接](https://download.docker.com/linux/static/stable/aarch64/docker-24.0.0.tgz) | √ | √ | √ | √ |
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
@@ -918,27 +918,26 @@ NUMA node: 2
 
 使用硬件配置方案二、三、四每次服务器重启后，都需要重新执行安装显卡驱动步骤。
 
-1. 请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)获取VAGPU-25.03.01.01-RC13-A15.tgz，上传至“~/dependency/”目录，解压后获取显卡内核态驱动。
+1. 请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)获取VAGPU-A15-C-F-26.02.06.00.RC2，上传至“~/dependency/”目录，解压后获取显卡内核态驱动。
 
     ```shell
     cd ~/dependency/
-    tar -zxvf VAGPU-25.03.01.01-RC13-A15.tgz
+    tar -zxvf VAGPU-A15-C-F-26.02.06.00.RC2
     ```
 
-2. 安装显卡PCIe驱动。
+2. 将驱动包里的固件拷贝到系统的“/lib/firmware/”目录。
 
     ```shell
-    cd ~/dependency/VAGPU-25.03.01.01-RC13-A15/openEuler-6.6.0+/ko_fw
-    insmod va_pci.ko
-    ```
-
-3. 将驱动包里的固件拷贝到系统的“/lib/firmware/”目录。
-
-    ```shell
+    cd ~/dependency/VAGPU-A15-C-F-26.02.06.00.RC2/fw
     cp rgx* /lib/firmware/
     ```
 
-4. 安装显卡图形驱动。
+3. 安装显卡图形驱动。
+
+    进入kmd所在目录
+    ```shell
+    cd ~/dependency/VAGPU-A15-C-F-26.02.06.00.RC2/kmd/GUEST/openEuler-6.6.0+
+    ```
 
     GPU驱动会为每个显卡节点启动一个kworker进程，道客DC 1000单卡有4个节点。为保障kworker进程性能，建议使用kworkerCores参数为每个kworker进程绑定CPU，kworkerCores参数依次表示每个显卡节点对应kworker进程的绑核。
 
@@ -949,19 +948,19 @@ NUMA node: 2
     硬件配置方案二（鲲鹏920 7260处理器 + 4\*道客DC 1000）：
 
     ```shell
-    insmod va_gfx.ko kworkerCores=0,0,1,1,32,32,33,33,64,64,65,65,96,96,97,97
+    insmod va_gpu.ko kworkerCores=0,0,1,1,32,32,33,33,64,64,65,65,96,96,97,97
     ```
 
     硬件配置方案三（鲲鹏920 7280Z处理器 + 8\*道客DC 1000）：
 
     ```shell
-    insmod va_gfx.ko kworkerCores=80,80,81,81,82,82,83,83,0,0,1,1,2,2,3,3,240,240,241,241,242,242,243,243,160,160,161,161,162,162,163,163
+    insmod va_gpu.ko kworkerCores=80,80,81,81,82,82,83,83,0,0,1,1,2,2,3,3,240,240,241,241,242,242,243,243,160,160,161,161,162,162,163,163
     ```
 
     硬件配置方案四（鲲鹏920 7260W处理器 + 8\*道客DC 1000）：
 
     ```shell
-    insmod va_gfx.ko kworkerCores=64,64,65,65,66,66,67,67,0,0,1,1,2,2,3,3,192,192,193,193,194,194,195,195,128,128,129,129,130,130,131,131
+    insmod va_gpu.ko kworkerCores=64,64,65,65,66,66,67,67,0,0,1,1,2,2,3,3,192,192,193,193,194,194,195,195,128,128,129,129,130,130,131,131
     ```
 
 5. 等待脚本执行完成，查看内核日志。
@@ -973,7 +972,7 @@ NUMA node: 2
     回显信息中显卡内核态驱动版本号和显卡固件版本号相同，如下加粗内容，则表明显卡驱动安装完成。
 
     ```shell
-    PVR_K:  28823: Meta firmware version: 1.18@6276027 build: release branch:  commit: 67e785a8 tag: VAGPU-25.03.01.01-RC13-A15
+    PVR_K:  28823: Meta firmware version: 1.18@6276027 build: release branch:  commit: 67e785a8 tag: VAGPU-A15-C-F-26.02.06.00.RC2
     ...
     ```
 
