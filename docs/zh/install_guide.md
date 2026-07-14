@@ -922,7 +922,7 @@ NUMA node: 2
 
     ```shell
     cd ~/dependency/
-    tar -zxvf VAGPU-A15-C-F-26.02.06.00.RC2
+    tar -zxvf VAGPU-A15-C-F-26.02.06.00.RC2.tgz
     ```
 
 2. 将驱动包里的固件拷贝到系统的“/lib/firmware/”目录。
@@ -933,12 +933,6 @@ NUMA node: 2
     ```
 
 3. 安装显卡图形驱动。
-
-    进入kmd所在目录
-    
-    ```shell
-    cd ~/dependency/VAGPU-A15-C-F-26.02.06.00.RC2/kmd/GUEST/openEuler-6.6.0+
-    ```
 
     GPU驱动会为每个显卡节点启动一个kworker进程，道客DC 1000单卡有4个节点。为保障kworker进程性能，建议使用kworkerCores参数为每个kworker进程绑定CPU，kworkerCores参数依次表示每个显卡节点对应kworker进程的绑核。
 
