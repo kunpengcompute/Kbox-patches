@@ -59,6 +59,10 @@ docker import android.tar kbox:demo
         ./make_image_aosp15.sh kbox:demo kbox:origin va_driver.tgz
         ```
 
+>![](public_sys-resources/icon-note.gif) **说明：** 
+>
+> 在硬件配置方案二、三、四中使用DC新驱动时，由于DC的驱动包调整了目录结构，可以使用 `./make_image_aosp15.sh kbox:demo kbox:origin VAGPU-A15-C-F-xxx`命令用驱动包解压的文件夹来制作镜像，解压后的文件夹名由具体版本决定。
+
 ### 1.2 启动与卸载云手机实例<a name="ZH-CN_TOPIC_0000002518225854"></a>
 
 启动云手机实例路径下应存在kbox_config.cfg配置文件。容器会使用该文件中的配置，因此使用时应确保kbox_config.cfg配置文件中的配置正确。若启动路径下无该配置文件，云手机将禁止启动。
@@ -655,14 +659,14 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     >2. 通过命令查询“SIM卡序列号”，如果编译Android镜像时选择user模式。
     >
     > ```shell
-    > lunch kbox_arm64-trunk_staging-user
+    > lunch kbox_arm64_15-trunk_staging-user
     >    ```
     >
     > 由于user模式的信息安全机制，序列号末尾的位置会出现星号遮挡，为正常现象不影响实际功能，用户可自行查找相关应用进行验证。
     > 编译Android镜像时，使用如下命令选择userdebug模式，即可看到完整的序列号。
     >
     > ```shell
-    > lunch kbox_arm64-trunk_staging-userdebug
+    > lunch kbox_arm64_15-trunk_staging-userdebug
     >    ```
 
 5. 调用**setprop**方法设置“手机号码”。

@@ -945,6 +945,10 @@ NUMA node: 2
 
     以下绑核方式仅作为参考，请依据实际情况做出调整。
 
+    ```shell
+    cd ~/dependency/VAGPU-A15-C-F-xxx/kmd/GUEST/openEuler-6.6.0+
+    ```
+    
     硬件配置方案二（鲲鹏920 7260处理器 + 4\*道客DC 1000）：
 
     ```shell
@@ -963,7 +967,7 @@ NUMA node: 2
     insmod va_gpu.ko kworkerCores=64,64,65,65,66,66,67,67,0,0,1,1,2,2,3,3,192,192,193,193,194,194,195,195,128,128,129,129,130,130,131,131
     ```
 
-5. 等待脚本执行完成，查看内核日志。
+4. 等待脚本执行完成，查看内核日志。
 
     ```shell
     dmesg | grep VAGPU | grep version
@@ -982,10 +986,18 @@ NUMA node: 2
 >
 >1. 删掉所有的容器，解除对驱动的占用。
 >2. 顺序卸载驱动。
+>3. 新版本的DC驱动取消了va_gfx.ko和va_pci.ko, 合并为了va_gpu.ko, 新版的DC驱动只需要卸载va_gpu.ko即可。
+>
+>
+> ```shell
+> rmmod va_gpu
+>    ```
+>
+> 旧版驱动指令如下：
 >
 > ```shell
 > rmmod va_gfx
-> rmmod va_pci
+> rmmod va_pci 
 >    ```
 
 ### 8.4 上传ExaGear转码包<a name="ZH-CN_TOPIC_0000002549745297"></a>

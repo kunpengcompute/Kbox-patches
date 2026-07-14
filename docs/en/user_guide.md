@@ -650,14 +650,14 @@ This section provides an example of configuring Telephony properties.
     >2. If you use the following command during Android image compilation:
     >
     > ```shell
-    > lunch kbox_arm64-trunk_staging-user
+    > lunch kbox_arm64_15-trunk_staging-user
     >    ```
     >
     > Due to the information security mechanism of the user mode, the end of the queried SIM card serial number is blocked by an asterisk (*). This is normal and does not affect the actual functions. You can use related applications for verification.
     > If you use the following command to specify the userdebug mode during Android image compilation, the complete serial number can be displayed.
     >
     > ```shell
-    > lunch kbox_arm64-trunk_staging-userdebug
+    > lunch kbox_arm64_15-trunk_staging-userdebug
     >    ```
 
 5. Call the **setprop** method to set the phone number.

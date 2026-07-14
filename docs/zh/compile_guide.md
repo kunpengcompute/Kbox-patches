@@ -329,22 +329,22 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
     3. 选择编译模式。
 
         ```shell
-        lunch kbox_arm64-trunk_staging-user
+        lunch kbox_arm64_15-trunk_staging-user
         ```
 
         >![](public_sys-resources/icon-note.gif) **说明：** 
         >
-        >- 若需要采用userdebug模式编译镜像，请将上述**lunch**命令后的选项后缀由“user”修改为“userdebug”。以“kbox_arm64”为例：
+        >- 若需要采用userdebug模式编译镜像，请将上述**lunch**命令后的选项后缀由“user”修改为“userdebug”。以“kbox_arm64_15”为例：
         >
         > ```shell
-        > lunch kbox_arm64-trunk_staging-userdebug
+        > lunch kbox_arm64_15-trunk_staging-userdebug
         >    ```
         >
         >- Kbox还提供了精简版本镜像，在一般镜像的基础上去除了部分系统预装应用，以获得更好的内存占用与性能表现。
         > 使用如下编译选项以编译精简镜像：
         >
         > ```shell
-        > lunch kbox_arm64_optimized-trunk_staging-user
+        > lunch kbox_arm64_15_optimized-trunk_staging-user
         >    ```
 
     4. 执行编译。
@@ -385,7 +385,7 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
     >制作镜像的时候需要root权限，请用root用户执行脚本，且执行脚本时，目录需要使用绝对路径。
 
     ```shell
-    ./create-package.sh /home/aosp/out/target/product/kbox_arm64/system.img
+    ./create-package.sh /home/aosp/out/target/product/kbox_arm64_15/system.img
     ```
 
     至此，Kbox安卓镜像制作完成，在当前目录下会生成名为android.tar的Kbox镜像。

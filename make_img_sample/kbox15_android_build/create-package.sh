@@ -75,7 +75,7 @@ if [ -e android.tar ]; then
     mv android.tar "$SAVETO"
 fi
 
-sudo cp "$destdir"/out/target/product/kbox_arm64/obj/MESON_MESA3D/install/usr/local/lib/dri/radeonsi_drv_video.so $rootfs/system/vendor/lib64/dri/
+sudo cp "$destdir"/out/target/product/kbox_arm64_15/obj/MESON_MESA3D/install/usr/local/lib/dri/radeonsi_drv_video.so $rootfs/system/vendor/lib64/dri/
 
 cd "$rootfs"
 sudo tar --numeric-owner -cf "$destdir"/android.tar ./
