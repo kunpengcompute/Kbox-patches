@@ -263,12 +263,13 @@ function start_box_by_id() {
         bb_wait_container_ready ${CONTAINER_NAME}
         [ ${?} -eq 1 ] && return
 
-        set -e
-        enable_netint ${CONTAINER_NAME}
+        (    set -e
+            enable_netint ${CONTAINER_NAME}
 
-        # 更改容器内部accept_redirects参数配置，禁止ipv6的icmp重定向功能
-        disable_ipv6_icmp ${CONTAINER_NAME}
-        echo -e "---------------------- done ----------------------\n"
+            # 更改容器内部accept_redirects参数配置，禁止ipv6的icmp重定向功能
+            disable_ipv6_icmp ${CONTAINER_NAME}
+            echo -e "---------------------- done ----------------------\n"
+        )
     fi
     if [[ $ENABLE_RENDER_LAYER == "1" ]]; then
         # 渲染中间层，放在base_box.sh会set property失败
