@@ -935,6 +935,7 @@ NUMA node: 2
 3. 安装显卡图形驱动。
 
     进入kmd所在目录
+    
     ```shell
     cd ~/dependency/VAGPU-A15-C-F-26.02.06.00.RC2/kmd/GUEST/openEuler-6.6.0+
     ```
