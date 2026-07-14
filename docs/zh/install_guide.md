@@ -52,7 +52,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 |6|Kbox-patches-AOSP11.zip| 包含内核补丁Demo包、容器部署脚本Demo包 |[获取链接](https://gitcode.com/boostkit/Kbox-patches)切换到AOSP11分支，并单击“下载zip”进行下载。|√|√|√|√|
 |7|NETINT-vXXX.tar.gz| NETINT编解码库，当使能硬解的时候获取该软件包，配套版本4.8.F-adapt |[获取链接](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)下载密码：test123|√|-|-|-|
 |8|Quadra_V*XXX*.zip| 包含NETINT编码卡Quadra软固件及文档包 |[获取链接](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)下载密码：test123|√|-|-|-|
-|9|VAGPU-25.03.01.01-RC20.tgz| 显卡驱动 |请联系华为技术支持获取。|-|√|√|√|
+|9|VAGPU-25.03.01.01-RC24.tgz| 显卡驱动 |请联系华为技术支持获取。|-|√|√|√|
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >
