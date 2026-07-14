@@ -84,6 +84,8 @@ function kbox_src(){
     mkdir -p "$AOSP_PATH/vendor/kbox" || error "无法创建目录 $AOSP_PATH/vendor/kbox"
     chmod -R 700 "$AOSP_PATH/vendor/kbox" || error "无法修改权限为 700 $AOSP_PATH/vendor/kbox"
     cp -r "$KBOX_SRC_PATH"/src/vendor/kbox/* "$AOSP_PATH"/vendor/kbox/ || error "无法复制文件到 $AOSP_PATH/vendor/kbox"
+    rm -rf "$AOSP_PATH"/vendor/kbox/products/ || error "无法删除目录 $AOSP_PATH/vendor/kbox/products"
+    mv "$AOSP_PATH"/vendor/kbox/products_15/ "$AOSP_PATH"/vendor/kbox/products/  || error "无法更名目录 $AOSP_PATH/vendor/kbox/products_15"
 
     echo "---------Success----------"
 }

@@ -659,14 +659,14 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     >2. 通过命令查询“SIM卡序列号”，如果编译Android镜像时选择user模式。
     >
     > ```shell
-    > lunch kbox_arm64-trunk_staging-user
+    > lunch kbox_arm64_15-trunk_staging-user
     >    ```
     >
     > 由于user模式的信息安全机制，序列号末尾的位置会出现星号遮挡，为正常现象不影响实际功能，用户可自行查找相关应用进行验证。
     > 编译Android镜像时，使用如下命令选择userdebug模式，即可看到完整的序列号。
     >
     > ```shell
-    > lunch kbox_arm64-trunk_staging-userdebug
+    > lunch kbox_arm64_15-trunk_staging-userdebug
     >    ```
 
 5. 调用**setprop**方法设置“手机号码”。

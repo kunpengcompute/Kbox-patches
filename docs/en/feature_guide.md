@@ -149,7 +149,7 @@ This feature has no specific application scenario restrictions.
 
 Perform the following steps to enable this feature:
 
-1. When compiling the Android image, follow the instructions in [Compilation Guide](compile_guide.md) and select the `kbox_arm64_optimized-trunk_staging-user` compilation option.
+1. When compiling the Android image, follow the instructions in [Compilation Guide](compile_guide.md) and select the `kbox_arm64_15_optimized-trunk_staging-user` compilation option.
 2. Complete the remaining compilation steps to obtain the lightweight trimmed Kbox Android image.
 
 ### 5.3 Using the Feature
