@@ -949,17 +949,17 @@ NUMA node: 2
 
 使用硬件配置方案二、三、四每次服务器重启后，都需要重新执行安装显卡驱动步骤。
 
-1. 获取VAGPU-25.03.01.01-RC20.tgz，上传至“~/dependency/”目录，解压后获取显卡内核态驱动。
+1. 获取VAGPU-25.03.01.01-RC24.tgz，上传至“~/dependency/”目录，解压后获取显卡内核态驱动。
 
     ```shell
     cd ~/dependency/
-    tar -zxvf VAGPU-25.03.01.01-RC20.tgz
+    tar -zxvf VAGPU-25.03.01.01-RC24.tgz
     ```
 
 2. 安装显卡PCIe驱动。
 
     ```shell
-    cd ~/dependency/VAGPU-25.03.01.01-RC20/openEuler-5.10.0/ko_fw/
+    cd ~/dependency/VAGPU-25.03.01.01-RC24/openEuler-5.10.0/ko_fw/
     insmod va_pci.ko
     ```
 
@@ -1004,7 +1004,7 @@ NUMA node: 2
     回显信息中显卡内核态驱动版本号和显卡固件版本号相同，如下命令中加粗的内容，则表明显卡驱动安装完成。
 
     ```shell
-    PVR_K:  12554: Meta firmware version: 1.18@6276027 build: release branch:  commit: aca60d56 tag: VAGPU-25.03.01.01-RC20
+    PVR_K:  12554: Meta firmware version: 1.18@6276027 build: release branch:  commit: aca60d56 tag: VAGPU-25.03.01.01-RC24
     ...
     ```
 
