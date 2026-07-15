@@ -176,6 +176,7 @@ function prepare_kbox_binary()
 
     cp ${BinaryPath}/RenderAccLayer/lib/hw/RenderAccLayer.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
     cp ${BinaryPath}/RenderAccLayer/lib64/hw/RenderAccLayer.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
+    cp ${BinaryPath}/RenderAccLayer/lib64/hw/AdaptiveVsync.kbox.so ${TMP_PACKAGE_DIR}/system/lib64/
 }
 
 function prepare_file_system()
