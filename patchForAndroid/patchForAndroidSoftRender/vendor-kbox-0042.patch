@@ -1,29 +1,3 @@
-From 1f7d77ca4299675be028076e9de4402a588452fc Mon Sep 17 00:00:00 2001
-From: maoyue730 <maoyue5@huawei.com>
-Date: Mon, 25 Aug 2025 11:23:22 +0800
-Subject: [PATCH] =?UTF-8?q?=E8=BD=AF=E6=B8=B2=E6=9F=93gralloc=E6=A8=A1?=
- =?UTF-8?q?=E5=9D=97=E9=80=82=E9=85=8D?=
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-
----
- soft_gralloc/Android.mk      |  39 ++++
- soft_gralloc/CleanSpec.mk    |   1 +
- soft_gralloc/framebuffer.cpp | 355 +++++++++++++++++++++++++++++++++++
- soft_gralloc/gr.h            |  60 ++++++
- soft_gralloc/gralloc.cpp     | 253 +++++++++++++++++++++++++
- soft_gralloc/gralloc_priv.h  | 120 ++++++++++++
- soft_gralloc/mapper.cpp      | 187 ++++++++++++++++++
- 7 files changed, 1015 insertions(+)
- create mode 100644 soft_gralloc/Android.mk
- create mode 100644 soft_gralloc/CleanSpec.mk
- create mode 100644 soft_gralloc/framebuffer.cpp
- create mode 100644 soft_gralloc/gr.h
- create mode 100644 soft_gralloc/gralloc.cpp
- create mode 100644 soft_gralloc/gralloc_priv.h
- create mode 100644 soft_gralloc/mapper.cpp
-
 diff --git a/soft_gralloc/Android.mk b/soft_gralloc/Android.mk
 new file mode 100644
 index 0000000..3499b94
