@@ -88,17 +88,22 @@ docker import android.tar kbox:demo
 
 ### 1.2 启动与卸载云手机实例<a name="ZH-CN_TOPIC_0000002518192802"></a>
 
-启动云手机实例路径下应存在kbox_config.cfg配置文件。容器会使用该文件中的配置，因此使用时应确保kbox_config.cfg中的配置正确。若启动路径中无该配置文件，则云手机将无法启动。
+启动云手机实例路径下应存在kbox_config.cfg，hardware_bind.cfg配置文件。容器会使用该文件中的配置，因此使用时应确保kbox_config.cfg，hardware_bind.cfg中的配置正确。若启动路径中无该配置文件，则云手机将无法启动。
 
-通过修改如[**表 1** kbox_config.cfg配置文件中容器使用的GPU、CPU以及数据卷存放路径配置说明](#kbox配置说明)所示的map中对应路数的值来选择该路容器使用的GPU、CPU以及数据卷存放路径，灵活配置云手机使用的资源，使性能达到最优。
+通过修改如[**表 1** hardware_bind.cfg配置文件中容器使用的GPU、CPU以及数据卷存放路径配置说明](#kboxCPUGPU配置说明)所示的map中对应路数的值来选择该路容器使用的GPU、CPU。[**表 2** kbox_config.cfg配置文件中容器使用的数据卷存放路径配置说明](#kbox挂载配置说明)配置数据卷存放路径，灵活配置云手机使用的资源，使性能达到最优。
 
-**表 1** kbox_config.cfg配置文件中容器使用的GPU、CPU以及数据卷存放路径配置说明<a id="kbox配置说明"></a>
+**表 1** hardware_bind.cfg配置文件中容器使用的GPU、CPU配置说明<a id="kboxCPUGPU配置说明"></a>
 
 |参数名称|参数说明|配置说明|
 |--|--|--|
-|KBOX_GPU_MAP（硬件配置一）KBOX_VA_GPU_MAP（硬件配置二、三、四）| 通过修改map中对应路数的值来选择该路容器使用的GPU |KBOX_GPU_MAP列表里的第一个表示编号为1的Kbox云手机，分配的GPU节点（/dev/dri/renderD128），根据renderD128节点属于NUMA0，因此鲲鹏920 7260处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~31。KBOX_VA_GPU_MAP列表里的第一个表示编号为1的Kbox云手机，分配的GPU节点（/dev/dri/renderD128），根据renderD128~135属于NUMA0，因此对于鲲鹏920 7260处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~31。鲲鹏920 7280Z处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~79。|
-|KBOX_CPUSET_MAP| 通过修改map中对应路数的值来选择该路容器使用的CPU |同上|
-|KBOX_MOUNT_MAP| 通过修改map中对应路数的值来选择该路容器使用的数据卷存放路径 |无|
+|VIDEO_GPU_MAP_AMDXXX（硬件配置一）VIDEO_GPU_MAP_HBXXX（硬件配置二、三、四）| 参数设置了不同规格服务器的GPU节点分配范围 |VIDEO_GPU_MAP_AMDXXX表示在硬件配置方案一的服务器上，为云手机容器分配的GPU节点范围；VIDEO_GPU_MAP_HBXXX表示在硬件配置方案二、三、四的服务器上，为云手机容器分配的GPU节点范围。节点的分配方式会根据服务器规格+容器的编号进行取模运算分配|
+|MODE0_CPUSXXX，MODE1_CPUSXXX| 参数设置了不同规格服务器的CPU核心分配范围 |MODE0_CPUSXXX表示绑核模式下CPU核心分配范围，MODE1_CPUSXXX表示绑定NUMA的CPU核心分配范围。容器启动时android_kbox.sh脚本会根据容器规格选择对应的CPU核心范围。|
+
+**表 2** kbox_config.cfg配置文件中容器使用的数据卷存放路径配置说明<a id="kbox挂载配置说明"></a>
+
+|参数名称|参数说明|配置说明|
+|--|--|--|
+|USERDATA| 该路径为云手机容器内的用户数据目录，用户数据会在容器启动时挂载到该目录下 |无|
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >
@@ -161,7 +166,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
             NUMA node: 0
             ```
 
-        4. 根据编码卡NVMe设备节点对应的NUMA修改kbox_config.cfg文件中NETINT的值。
+        4. 根据编码卡NVMe设备节点对应的NUMA修改hardware_bind.cfg文件中NETINT的值。
 
             鲲鹏920 7260服务器：从属于0、1号NUMA的NVMe节点写在NETINT0字段中，从属于2、3号NUMA的NVMe节点写在NETINT1字段中。
 

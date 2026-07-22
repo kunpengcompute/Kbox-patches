@@ -196,7 +196,7 @@ cat /sys/kernel/debug/dri/*/amdgpu_pm_info |grep Temp
 
 ![](figures/zh-cn_image_0000002518186122.png)
 
-#### 3.5.2 道客DC 1000状态查询<a name="ZH-CN_TOPIC_0000002518346034"></a>
+#### 3.5.2 道客DC1000/DC1000C状态查询<a name="ZH-CN_TOPIC_0000002518346034"></a>
 
 使用GPU驱动包VAGPU-25.03.01.01-RC20.tgz中提供的工具，以查看GPU状态。
 
