@@ -41,7 +41,7 @@ docker import android.tar kbox:demo
 
 1. 解压Kbox-patches-AOSP15.zip，将Kbox-patches-AOSP15文件夹中的“deploy_scripts”目录上传至服务器的“~/dependency”目录。
 2. 上传Android Kbox二进制文件包BoostKit-boostcph-kbox_\*_15.zip到“~/dependency/deploy_scripts”目录。
-3. （硬件配置方案二、三、四）使用硬件配置方案二、三、四时需要解压显卡驱动压缩包VAGPU-25.03.01.01-RC13-A15.tgz，获取va_driver.tgz，上传到服务器的“~/dependency/deploy_scripts”目录。
+3. （硬件配置方案二、三、四）使用硬件配置方案二、三、四时需要解压显卡驱动压缩包VAGPU-A15-C-F-26.02.06.00.RC2.tgz，获取VAGPU-A15-C-F-26.02.06.00.RC2，上传到服务器的“~/dependency/deploy_scripts”目录。
 4. 制作包含Android Kbox二进制的Kbox镜像，其中kbox:demo为上一步导入的官方Kbox Demo镜像，kbox:origin为包含Android Kbox二进制的新镜像。
     - 硬件配置方案一：
 
@@ -56,26 +56,27 @@ docker import android.tar kbox:demo
         ```shell
         cd ~/dependency/deploy_scripts
         chmod +x make_image_aosp15.sh
-        ./make_image_aosp15.sh kbox:demo kbox:origin va_driver.tgz
+        ./make_image_aosp15.sh kbox:demo kbox:origin VAGPU-A15-C-F-26.02.06.00.RC2
         ```
-
->![](public_sys-resources/icon-note.gif) **说明：** 
->
-> 在硬件配置方案二、三、四中使用DC新驱动时，由于DC的驱动包调整了目录结构，可以使用 `./make_image_aosp15.sh kbox:demo kbox:origin VAGPU-A15-C-F-xxx`命令用驱动包解压的文件夹来制作镜像，解压后的文件夹名由具体版本决定。
 
 ### 1.2 启动与卸载云手机实例<a name="ZH-CN_TOPIC_0000002518225854"></a>
 
-启动云手机实例路径下应存在kbox_config.cfg配置文件。容器会使用该文件中的配置，因此使用时应确保kbox_config.cfg配置文件中的配置正确。若启动路径下无该配置文件，云手机将禁止启动。
+启动云手机实例路径下应存在kbox_config.cfg，hardware_bind.cfg配置文件。容器会使用该文件中的配置，因此使用时应确保kbox_config.cfg，hardware_bind.cfg中的配置正确。若启动路径中无该配置文件，则云手机将无法启动。
 
-通过修改中如[**表 1** kbox_config.cfg配置文件中容器使用的GPU、CPU以及数据卷存放路径配置说明](#kbox_config.cfg配置文件中容器使用的GPU、CPU以及数据卷存放路径配置说明)所示的map中对应路数的值来选择该路容器使用的GPU、CPU以及数据卷存放路径，灵活配置云手机使用的资源，使性能达到最优。
+通过修改如[**表 1** hardware_bind.cfg配置文件中容器使用的GPU、CPU以及数据卷存放路径配置说明](#kboxCPUGPU配置说明)所示的map中对应路数的值来选择该路容器使用的GPU、CPU。[**表 2** kbox_config.cfg配置文件中容器使用的数据卷存放路径配置说明](#kbox挂载配置说明)配置数据卷存放路径，灵活配置云手机使用的资源，使性能达到最优。
 
-**表 1** kbox_config.cfg配置文件中容器使用的GPU、CPU以及数据卷存放路径配置说明<a id="kbox_config.cfg配置文件中容器使用的GPU、CPU以及数据卷存放路径配置说明"></a>
+**表 1** hardware_bind.cfg配置文件中容器使用的GPU、CPU配置说明<a id="kboxCPUGPU配置说明"></a>
 
 |参数名称|参数说明|配置说明|
 |--|--|--|
-| KBOX_GPU_MAP（硬件配置一）KBOX_VA_GPU_MAP（硬件配置二、三、四） | 通过修改map中对应路数的值来选择该路容器使用的GPU | KBOX_GPU_MAP列表里的第一个代表编号为1的Kbox云手机，分配的GPU节点是/dev/dri/renderD128，根据，renderD128节点属于NUMA0，因此鲲鹏920 7260处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~31。KBOX_VA_GPU_MAP列表里的第一个代表编号为1的Kbox云手机，分配的GPU节点是/dev/dri/renderD128，根据，renderD128~135属于NUMA0，因此对于鲲鹏920 7260处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~31。鲲鹏920 7280Z处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~79 |
-| KBOX_CPUSET_MAP | 通过修改map中对应路数的值来选择该路容器使用的CPU | KBOX_GPU_MAP列表里的第一个代表编号为1的Kbox云手机，分配的GPU节点是/dev/dri/renderD128，根据，renderD128节点属于NUMA0，因此鲲鹏920 7260处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~31。KBOX_VA_GPU_MAP列表里的第一个代表编号为1的Kbox云手机，分配的GPU节点是/dev/dri/renderD128，根据，renderD128~135属于NUMA0，因此对于鲲鹏920 7260处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~31。鲲鹏920 7280Z处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~79 |
-| KBOX_MOUNT_MAP | 通过修改map中对应路数的值来选择该路容器使用的数据卷存放路径 | 无 |
+|VIDEO_GPU_MAP_AMDXXX（硬件配置一）VIDEO_GPU_MAP_HBXXX（硬件配置二、三、四）| 参数设置了不同规格服务器的GPU节点分配范围 |VIDEO_GPU_MAP_AMDXXX表示在硬件配置方案一的服务器上，为云手机容器分配的GPU节点范围；VIDEO_GPU_MAP_HBXXX表示在硬件配置方案二、三、四的服务器上，为云手机容器分配的GPU节点范围。节点的分配方式会根据服务器规格+容器的编号进行取模运算分配|
+|MODE0_CPUSXXX，MODE1_CPUSXXX| 参数设置了不同规格服务器的CPU核心分配范围 |MODE0_CPUSXXX表示绑核模式下CPU核心分配范围，MODE1_CPUSXXX表示绑定NUMA的CPU核心分配范围。容器启动时android_kbox.sh脚本会根据容器规格选择对应的CPU核心范围。|
+
+**表 2** kbox_config.cfg配置文件中容器使用的数据卷存放路径配置说明<a id="kbox挂载配置说明"></a>
+
+|参数名称|参数说明|配置说明|
+|--|--|--|
+|USERDATA| 该路径为云手机容器内的用户数据目录，用户数据会在容器启动时挂载到该目录下 |无|
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >

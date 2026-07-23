@@ -201,10 +201,10 @@ cat /sys/kernel/debug/dri/*/amdgpu_pm_info |grep Temp
 
 #### 3.5.2 道客DC 1000状态查询<a name="ZH-CN_TOPIC_0000002518185532"></a>
 
-使用GPU驱动包VAGPU-25.03.01.01-RC13-A15.tgz中提供的工具，以查看GPU状态。
+使用GPU驱动包VAGPU-A15-C-F-26.02.06.00.RC2.tgz中提供的工具，以查看GPU状态。
 
-1. 请参见《install guide》文档中“环境准备”章节中的“[软件环境](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/install_guide.md#22-%E8%BD%AF%E4%BB%B6%E7%8E%AF%E5%A2%83)”小节获取VAGPU-25.03.01.01-RC13-A15.tgz包并解压，将解压获得的显卡工具包tools-3.2.2_sp1.tgz上传至服务器。
-2. 显卡工具包tools-3.2.2_sp1.tgz的具体使用方法可以请参见tools-doc-3.2.2_sp1.tgz压缩包中的说明文档。
+1. 请参见《install guide》文档中“环境准备”章节中的“[软件环境](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/install_guide.md#22-%E8%BD%AF%E4%BB%B6%E7%8E%AF%E5%A2%83)”小节获取VAGPU-A15-C-F-26.02.06.00.RC2.tgz包并解压，将解压获得的显卡工具包VAGPU-A15-C-F-26.02.06.00.RC2/tools下的工具上传至服务器。
+2. 显卡工具包tools的具体使用方法可以请参见VAGPU-A15-C-F-26.02.06.00.RC2/docs/tools_guide中的说明文档。
 
 ## 4 日志管理<a name="ZH-CN_TOPIC_0000002518345474"></a>
 
