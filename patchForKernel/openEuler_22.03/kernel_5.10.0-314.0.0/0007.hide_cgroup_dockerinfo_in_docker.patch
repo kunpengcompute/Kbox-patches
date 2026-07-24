@@ -1,0 +1,34 @@
+diff --git a/kernel/cgroup/cgroup.c b/kernel/cgroup/cgroup.c
+old mode 100644
+new mode 100755
+index 21a46f616..7198eba90
+--- a/kernel/cgroup/cgroup.c
++++ b/kernel/cgroup/cgroup.c
+@@ -61,7 +61,7 @@
+ #include <linux/dynamic_hugetlb.h>
+ #include <net/sock.h>
+ #include <linux/backing-dev.h>
+-
++#include <linux/kbox_kernel_switch.h>
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/cgroup.h>
+ 
+@@ -6185,7 +6185,14 @@ int proc_cgroup_show(struct seq_file *m, struct pid_namespace *ns,
+ 			if (retval < 0)
+ 				goto out_unlock;
+ 
+-			seq_puts(m, buf);
++			if (kbox_enable) {
++				if (mem_cgroup_from_task(current)->memory.max == PAGE_COUNTER_MAX)
++					seq_puts(m, buf);
++				else
++					seq_puts(m, "/");
++			} else {
++					seq_puts(m, buf);
++			}
+ 		} else {
+ 			seq_puts(m, "/");
+ 		}
+-- 
+2.33.0
+

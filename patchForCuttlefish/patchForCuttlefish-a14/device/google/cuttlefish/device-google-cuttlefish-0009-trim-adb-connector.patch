@@ -1,0 +1,23 @@
+From f9854dd8 Mon Sep 17 00:00:00 2001
+From: kp-cvd-trim <kp@cuttlefish>
+Date: Sun, 20 Jul 2026 00:00:00 +0800
+Subject: [PATCH] disable adb_connector for manual ADB connection
+
+[PROCESS_TRIM] 禁用 adb_connector 自动连接。
+
+diff --git a/host/libs/config/adb/flags.cpp b/host/libs/config/adb/flags.cpp
+index 56451f7e4..4dfcc53e6 100644
+--- a/host/libs/config/adb/flags.cpp
++++ b/host/libs/config/adb/flags.cpp
+@@ -55,7 +55,10 @@ class AdbConfigFlagImpl : public AdbConfigFlag {
+   bool Process(std::vector<std::string>& args) override {
+     // Defaults
+     config_.SetModes({AdbMode::VsockHalfTunnel});
+-    bool run_adb_connector = !IsRunningInContainer();
++    // [PROCESS_TRIM] adb_connector 禁用：不再自动执行 'adb connect'。
++    // SocketVsockProxy 仍提供 TCP<->vsock ADB 数据通道，
++    // 使用手动 'adb connect localhost:<adb_host_port>' 建立连接。
++    bool run_adb_connector = false;
+     Flag run_flag = GflagsCompatFlag("run_adb_connector", run_adb_connector);
+     if (!ParseFlags({run_flag, mode_flag_}, args)) {
+       LOG(ERROR) << "Failed to parse adb config flags";
