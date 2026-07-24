@@ -1330,9 +1330,6 @@ function bb_create_build_prop() {
     echo "ro.hardware.enableC2decode=0" >> $BUILD_PROP
     echo "ro.hardware.omxsoftdecode=0" >> $BUILD_PROP
     echo "sys.cpu.limited=0" >> $BUILD_PROP
-    if [ $START_SHARE_DATA -eq 1 ]; then
-        echo "ro.boot.start_share_data=1" >> $BUILD_PROP
-    fi
     # 配置是否使能C2解码器（仅 AMD W6800 GPU）
     if bb_has_amd_w6800_gpu; then
         if [ ${ENABLE_AMD_C2_DECODE} -eq 1 ];then
