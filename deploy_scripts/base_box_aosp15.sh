@@ -697,7 +697,9 @@ function bb_start_box() {
 
     local data_path="${USER_DATA_PATH}/data/$BOX_NAME"
     RUN_OPTION+=" --volume=$data_path/cache:/cache:rw "
-    RUN_OPTION+=" --volume=$data_path/data:/data:rw "
+    if [ "$START_SHARE_DATA" == "0" ]; then
+        RUN_OPTION+=" --volume=$data_path/data:/data:rw "
+    fi
     RUN_OPTION+=" --volume=$INPUT_EVENT_PATH/event0:/dev/input/event0:rw "
     RUN_OPTION+=" --volume=$INPUT_EVENT_PATH/event1:/dev/input/event1:rw "
     RUN_OPTION+=" --volume=$(bb_get_lxcfs_path)/proc:/lxcfs-proc:ro "
