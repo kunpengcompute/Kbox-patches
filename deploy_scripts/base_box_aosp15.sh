@@ -284,8 +284,15 @@ function bb_prepare_media_codecs_for_amd() {
     if bb_has_amd_gpu; then
         if [ ${T432_QUADRA_DECODE_ENABLE} -ne 1 ]; then
             $RUNTIME_CMD cp ${container_name}:/system/vendor/etc/media_codecs.xml .
-            sed -i '81,100d' media_codecs.xml
-            chmod 644 media_codecs.xml
+            if ! grep -q '<!--.*<Decoders>' media_codecs.xml; then
+                sed -i '/<Decoders>/,/<\/Decoders>/s/<Decoders>/<!-- &/' media_codecs.xml
+                sed -i '/<Decoders>/,/<\/Decoders>/s/<\/Decoders>/& -->/' media_codecs.xml
+            fi
+            $RUNTIME_CMD cp ./media_codecs.xml ${container_name}:/system/vendor/etc/
+        else
+            $RUNTIME_CMD cp ${container_name}:/system/vendor/etc/media_codecs.xml .
+            sed -i '/<!--.*<Decoders>/s/^[[:space:]]*<!--[[:space:]]*//' media_codecs.xml
+            sed -i '/<Decoders>/,/<\/Decoders>/s/ -->$//' media_codecs.xml
             $RUNTIME_CMD cp ./media_codecs.xml ${container_name}:/system/vendor/etc/
         fi
     fi
