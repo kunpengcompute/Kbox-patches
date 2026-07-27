@@ -291,6 +291,28 @@ function bb_prepare_media_codecs_for_amd() {
     fi
 }
 
+function bb_prepare_media_codecs_c2() {
+    local container_name=$1
+    local enable_hard_decode=$2
+    bb_log_info "bb_prepare_media_codecs_c2: ENABLE_HARD_DECODE=${enable_hard_decode}"
+    if [ "${enable_hard_decode}" == "0" ]; then
+        $RUNTIME_CMD exec ${container_name} sh -c "[ -f /vendor/etc/media_codecs_c2.xml ]" 2>/dev/null
+        if [ $? -eq 0 ]; then
+            bb_log_info "Rename vendor/etc/media_codecs_c2.xml to media_codecs_c2.bak"
+            $RUNTIME_CMD exec ${container_name} mv /vendor/etc/media_codecs_c2.xml /vendor/etc/media_codecs_c2.bak
+        fi
+    elif [ "${enable_hard_decode}" == "1" ]; then
+        $RUNTIME_CMD exec ${container_name} sh -c "[ ! -f /vendor/etc/media_codecs_c2.xml ]" 2>/dev/null
+        if [ $? -eq 0 ]; then
+            $RUNTIME_CMD exec ${container_name} sh -c "[ -f /vendor/etc/media_codecs_c2.bak ]" 2>/dev/null
+            if [ $? -eq 0 ]; then
+                bb_log_info "Rename vendor/etc/media_codecs_c2.bak back to media_codecs_c2.xml"
+                $RUNTIME_CMD exec ${container_name} mv /vendor/etc/media_codecs_c2.bak /vendor/etc/media_codecs_c2.xml
+            fi
+        fi
+    fi
+}
+
 # 检查F2FS和NFS冲突，参数：enable_nfs (0/1)
 function bb_check_nfs_f2fs_conflict() {
     local enable_nfs=$1

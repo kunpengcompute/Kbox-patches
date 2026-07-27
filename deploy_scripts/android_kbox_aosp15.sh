@@ -254,6 +254,7 @@ function start_box_by_id() {
     fi
 
     bb_prepare_media_codecs_for_amd ${CONTAINER_NAME}
+    bb_prepare_media_codecs_c2 ${CONTAINER_NAME} ${ENABLE_HARD_DECODE}
 
     if [ -n "$(docker ps -a --format {{.Names}} | grep "$CONTAINER_NAME$")" ]; then
         # 等待容器启动
@@ -334,6 +335,7 @@ function cli_restart() {
             bb_log_info "restart using mount path: $MOUNT_DIR"
 
             bb_prepare_media_codecs_for_amd ${CONTAINER_NAME}
+            bb_prepare_media_codecs_c2 ${CONTAINER_NAME} ${ENABLE_HARD_DECODE}
             bb_create_build_prop
             BB_NAME="$CONTAINER_NAME"
             BB_USER_DATA_PATH="$MOUNT_DIR"
