@@ -209,7 +209,7 @@ index 021557697..4668c5342 100644
  
      SetStdioToDevNull(argv);
 diff --git a/init/init.cpp b/init/init.cpp
-index 29859c5f5..6362e5b5b 100644
+index 29859c5f5..94c786938 100644
 --- a/init/init.cpp
 +++ b/init/init.cpp
 @@ -38,6 +38,7 @@
@@ -294,7 +294,7 @@ index 29859c5f5..6362e5b5b 100644
      Keychords keychords;
      am.QueueBuiltinAction(
              [&epoll, &keychords](const BuiltinArguments& args) -> Result<void> {
-@@ -825,9 +831,87 @@ int SecondStageMain(int argc, char** argv) {
+@@ -825,9 +831,88 @@ int SecondStageMain(int argc, char** argv) {
      // Trigger all the boot actions to get us started.
      am.QueueEventTrigger("init");
  
@@ -377,6 +377,7 @@ index 29859c5f5..6362e5b5b 100644
 +
 +        // **3. 重新挂载 /proc/sys 为只读**
 +        CHECKCALL(mount("none", "/proc/sys", "proc", MS_REMOUNT | MS_RDONLY, nullptr) == 0);
++        CHECKCALL(mount("none", "/proc", "proc", MS_REMOUNT, nullptr) == 0);
 +    }
 +
 +    // // Repeat mix_hwrng_into_linux_rng in case /dev/hw_random or /dev/random
@@ -385,7 +386,7 @@ index 29859c5f5..6362e5b5b 100644
  
      // Don't mount filesystems or start core system services in charger mode.
      std::string bootmode = GetProperty("ro.bootmode", "");
-@@ -840,6 +924,7 @@ int SecondStageMain(int argc, char** argv) {
+@@ -840,6 +925,7 @@ int SecondStageMain(int argc, char** argv) {
      // Run all property triggers based on current state of the properties.
      am.QueueBuiltinAction(queue_property_triggers_action, "queue_property_triggers");
  
@@ -418,10 +419,10 @@ index 000000000..71b98e237
 +}
 diff --git a/init/ipconfigstore/ipconfig.cpp b/init/ipconfigstore/ipconfig.cpp
 new file mode 100644
-index 000000000..4cd75dd41
+index 000000000..1f13ad29f
 --- /dev/null
 +++ b/init/ipconfigstore/ipconfig.cpp
-@@ -0,0 +1,206 @@
+@@ -0,0 +1,243 @@
 +#include <fstream>
 +#include <set>
 +#include <string>
@@ -560,6 +561,21 @@ index 000000000..4cd75dd41
 +    return system_vendor_dns;
 +}
 +
++static bool WriteFileContent(const std::string& path, const std::string& content) {
++    int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
++    if (fd < 0) {
++        PLOG(WARNING) << "open failed: " << path;
++        return false;
++    }
++    ssize_t written = write(fd, content.c_str(), content.size());
++    close(fd);
++    if (written != static_cast<ssize_t>(content.size())) {
++        PLOG(WARNING) << "write failed: " << path;
++        return false;
++    }
++    return true;
++}
++
 +int main() {
 +    const std::string ipconfigfile = "/data/misc/ethernet/ipconfig.txt";
 +    const std::string ipconfigpath = "/data/misc/ethernet";
@@ -589,13 +605,35 @@ index 000000000..4cd75dd41
 +        LOG(ERROR) << "Failed to get IP address";
 +        return 1;
 +    }
++    char hostname[256] = {};
++    if (gethostname(hostname, sizeof(hostname)) != 0) {
++        PLOG(WARNING) << "gethostname failed";
++        return 1;
++    }
++
++    std::string hosts_content;
++    hosts_content.reserve(512);
++    hosts_content.append("### ip hostname ###\n");
++    hosts_content.append("127.0.0.1       localhost\n");
++    hosts_content.append(ip).append("       ").append(hostname).append("\n");
++    hosts_content.append("::1       ip6-localhost\n");
++    hosts_content.append("::1       ").append(hostname).append("\n");
++
++    const std::string hosts_path = "/system/etc/hosts";
++    if (!WriteFileContent("/system/etc/hosts", hosts_content)) {
++        PLOG(WARNING) << "Failed to write " << hosts_path;
++        return 1;
++    }
++
++    LOG(INFO) << "Written " << hosts_path << " with ip=" << ip << " hostname=" << hostname;
++
 +    writePackedString(ip, out);
 +    writePackedUInt32(24, out);
 +    writePackedString("gateway", out);
 +    writePackedUInt32(0, out);
 +    writePackedUInt32(1, out);
 +
-+    std::string gateway = execute_command("ip route show table all | grep default | awk -F \"[: ]\" '{print $3}'");
++    std::string gateway = execute_command("ip -4 route show table all | grep default | awk -F \"[: ]\" '{print $3}'");
 +    if (gateway.empty()) {
 +        LOG(ERROR) << "Failed to get gateway";
 +        return 1;
@@ -1270,7 +1308,7 @@ index a9d0ed08a..ac74a52a0 100644
    LOCAL_POST_INSTALL_CMD += ; mkdir -p $(TARGET_ROOT_OUT)/vendor
  else
 diff --git a/rootdir/init.rc b/rootdir/init.rc
-index a9af0b094..eda4fb4b4 100644
+index a9af0b094..9e3aacc55 100644
 --- a/rootdir/init.rc
 +++ b/rootdir/init.rc
 @@ -8,7 +8,7 @@ import /init.environ.rc
@@ -1291,26 +1329,28 @@ index a9af0b094..eda4fb4b4 100644
  
      symlink /dev/binderfs/binder /dev/binder
      symlink /dev/binderfs/hwbinder /dev/hwbinder
-@@ -457,7 +457,7 @@ on post-fs
+@@ -457,7 +457,6 @@ on post-fs
  
      # Once everything is setup, no need to modify /.
      # The bind+remount combination allows this to work in containers.
 -    mount rootfs rootfs / remount bind ro nodev
-+    mount rootfs rootfs / remount bind rw nodev
  
      # Make sure /sys/kernel/debug (if present) is labeled properly
      # Note that tracefs may be mounted under debug, so we need to cross filesystems
-@@ -791,6 +791,9 @@ on post-fs-data
+@@ -791,6 +790,12 @@ on post-fs-data
      # Enable FUSE by default
      setprop persist.sys.fuse true
  
 +    exec - root root -- /system/bin/ipconfigstore
 +    chown system system /data/misc/ethernet/ipconfig.txt
++    
++on post-fs-data && property:ro.boot.start_share_data=0
++    mount rootfs rootfs / remount bind ro nodev
 +
  # Switch between sdcardfs and FUSE depending on persist property
  # TODO: Move this to ro property before launch because FDE devices
  # interact with persistent properties differently during boot
-@@ -811,7 +814,7 @@ on zygote-start && property:persist.sys.fuse=""
+@@ -811,7 +815,7 @@ on zygote-start && property:persist.sys.fuse=""
  # to start-zygote in device's init.rc to unblock zygote start.
  on zygote-start && property:ro.crypto.state=unencrypted
      # A/B update verifier that marks a successful boot.
@@ -1319,7 +1359,7 @@ index a9af0b094..eda4fb4b4 100644
      start statsd
      start netd
      start zygote
-@@ -819,7 +822,7 @@ on zygote-start && property:ro.crypto.state=unencrypted
+@@ -819,7 +823,7 @@ on zygote-start && property:ro.crypto.state=unencrypted
  
  on zygote-start && property:ro.crypto.state=unsupported
      # A/B update verifier that marks a successful boot.
@@ -1328,7 +1368,7 @@ index a9af0b094..eda4fb4b4 100644
      start statsd
      start netd
      start zygote
-@@ -827,7 +830,7 @@ on zygote-start && property:ro.crypto.state=unsupported
+@@ -827,7 +831,7 @@ on zygote-start && property:ro.crypto.state=unsupported
  
  on zygote-start && property:ro.crypto.state=encrypted && property:ro.crypto.type=file
      # A/B update verifier that marks a successful boot.
@@ -1337,7 +1377,7 @@ index a9af0b094..eda4fb4b4 100644
      start statsd
      start netd
      start zygote
-@@ -938,7 +941,7 @@ on boot
+@@ -938,7 +942,7 @@ on boot
      # Requires keystore (currently a core service) to be ready first.
      exec -- /system/bin/fsverity_init
  
@@ -1346,7 +1386,7 @@ index a9af0b094..eda4fb4b4 100644
      class_start main
      class_start late_start
  
-@@ -1050,8 +1053,8 @@ on property:ro.debuggable=1
+@@ -1050,8 +1054,8 @@ on property:ro.debuggable=1
      # Give reads to anyone for the window trace folder on debug builds.
      chmod 0775 /data/misc/wmtrace
  

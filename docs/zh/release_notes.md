@@ -55,9 +55,9 @@
 
 ## 版本使用注意事项<a name="ZH-CN_TOPIC_0000002549705971"></a>
 
-请参考相应版本的特性指南，例如《[feature guide](https://gitcode.com/boostkit/Kbox/blob/AOSP11/docs/zh/feature_guide.md)》。
+请参考相应版本的特性指南，例如《[特性指南](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/feature_guide.md)》。
 
-## V7.3.0\_11<a name="ZH-CN_TOPIC_0000002549825973"></a>
+## V7.3.0_11<a name="ZH-CN_TOPIC_0000002549825973"></a>
 
 ### 更新说明<a name="ZH-CN_TOPIC_0000002518186202"></a>
 
@@ -65,7 +65,7 @@
 
 |编号|描述|目的|
 |--|--|--|
-|1|支持使能图形加速层|Kbox支持使能图形加速层，并提供相关功能使能步骤。|
+|1|支持使能图形加速层| Kbox支持使能图形加速层，并提供相关功能使能步骤 |
 
 **修改特性<a name="section540mcpsimp"></a>**
 
@@ -91,8 +91,8 @@
 
 |编号|描述|目的|
 |--|--|--|
-|1|自适应帧同步特性优化效果泛化|自适应帧同步特性效果泛化到大部分应用。|
-|2|支持线程级Shader Cache|通过预构建着色器二进制，大型OpenGL ES渲染应用首次启动时间减少40%，高动态场景下运行卡顿率降低50%。|
+|1|自适应帧同步特性优化效果泛化| 自适应帧同步特性效果泛化到大部分应用 |
+|2|支持线程级Shader Cache| 通过预构建着色器二进制，大型OpenGL ES渲染应用首次启动时间减少40%，高动态场景下运行卡顿率降低50% |
 
 **修改特性<a name="section540mcpsimp"></a>**
 
@@ -118,7 +118,7 @@
 
 |编号|描述|目的|
 |--|--|--|
-|1|新增内存超分特性|在满足GPU负载大于或等于90%，启动相同路数720P@30fps规格云手机，使用内存超分特性后相比使用前运行内存占用降低10%。|
+|1|新增内存超分特性| 在满足GPU负载大于或等于90%，启动相同路数720P@30fps规格云手机，使用内存超分特性后相比使用前运行内存占用降低10% |
 
 **修改特性<a name="section540mcpsimp"></a>**
 
@@ -144,9 +144,9 @@
 
 |编号|描述|目的|
 |--|--|--|
-|1|Android轻量化裁剪|Android系统的轻量化裁剪通过去除不必要的系统服务和内置应用来降低云手机的资源占用，从而提升系统性能、优化用户体验。|
-|2|支持动态帧率调整|在挂机场景下，云手机与客户端断开连接时，动态向下调整帧率以减少渲染性能开销。检测到云手机客户端断连，动态向下调整帧率。检测到云手机客户端连接，恢复到正常帧率。|
-|3|提供GPU显存、内存等资源监测能力|提供实时的GPU显存和内存资源监测能力，便于ISV根据资源的使用情况进行相应的处理。|
+|1|Android轻量化裁剪| Android系统的轻量化裁剪通过去除不必要的系统服务和内置应用来降低云手机的资源占用，从而提升系统性能、优化用户体验 |
+|2|支持动态帧率调整| 在挂机场景下，云手机与客户端断开连接时，动态向下调整帧率以减少渲染性能开销。检测到云手机客户端断连，动态向下调整帧率。检测到云手机客户端连接，恢复到正常帧率 |
+|3|提供GPU显存、内存等资源监测能力| 提供实时的GPU显存和内存资源监测能力，便于ISV根据资源的使用情况进行相应的处理 |
 
 **修改特性<a name="section540mcpsimp"></a>**
 
@@ -172,12 +172,12 @@
 
 |编号|描述|目的|
 |--|--|--|
-|1|Vulkan支持的ASTC纹理|实现Vulkan使用ASTC（Adaptive Scalable Texture Compression）自适应可缩放纹理压缩功能。|
-|2|支持纹理压缩|云手机支持纹理压缩，以降低显存占用。并提供开关支持纹理压缩功能可配置，默认启用纹理压缩。|
-|3|Gralloc模块支持YCbCr_420_888格式|在Kbox Gralloc模块中，增加YCbCr_420_888图像格式的实现。|
-|4|支持自适应帧同步|实现自适应vsync功能，在应用渲染完成一帧后，Surfaceflinger立即合成上屏，降低云侧时延15ms，并通过云侧时延度量，输出测试报告。|
-|5|支持摄像头仿真数据配置|支持通过**adb**命令配置摄像头仿真数据。|
-|6|ART DEX编译优化|通过优化DEX编译过程，减少应用启动时间。优化后的DEX编译提升应用在运行时的执行效率。在优化编译的同时，减少CPU和内存的消耗。|
+|1|Vulkan支持的ASTC纹理| 实现Vulkan使用ASTC（Adaptive Scalable Texture Compression）自适应可缩放纹理压缩功能 |
+|2|支持纹理压缩| 云手机支持纹理压缩，以降低显存占用。并提供开关支持纹理压缩功能可配置，默认启用纹理压缩 |
+|3|Gralloc模块支持YCbCr_420_888格式| 在Kbox Gralloc模块中，增加YCbCr_420_888图像格式的实现 |
+|4|支持自适应帧同步| 实现自适应vsync功能，在应用渲染完成一帧后，Surfaceflinger立即合成上屏，降低云侧时延15ms，并通过云侧时延度量，输出测试报告 |
+|5|支持摄像头仿真数据配置| 支持通过**adb**命令配置摄像头仿真数据 |
+|6|ART DEX编译优化| 通过优化DEX编译过程，减少应用启动时间。优化后的DEX编译提升应用在运行时的执行效率。在优化编译的同时，减少CPU和内存的消耗 |
 
 **修改特性<a name="section540mcpsimp"></a>**
 
@@ -204,8 +204,8 @@
 |编号|描述|目的|
 |--|--|--|
 |1|支持Android系统属性可定制|支持根据客户需求定制系统属性，以覆盖原有系统属性|
-|2|支持进程异常退出后进程重启恢复正常|交付二进制所属进程，支持崩溃、被强制终止等异常退出后，进程重启功能可恢复正常。|
-|3|提供相关资料文档|更新云手机相关资料中的服务器相关信息。|
+|2|支持进程异常退出后进程重启恢复正常| 交付二进制所属进程，支持崩溃、被强制终止等异常退出后，进程重启功能可恢复正常 |
+|3|提供相关资料文档| 更新云手机相关资料中的服务器相关信息 |
 
 **修改特性<a name="section540mcpsimp"></a>**
 
@@ -292,10 +292,10 @@
 
 |编号|描述|目的|
 |--|--|--|
-|1|Kbox Kernel定制patch整改|针对Kbox Kernel 5.15的定制ashmem/binder patch整改，减少内核Kernel定制，复用内核自身能力。|
-|2|Kbox实现网络仿真整改|针对Kbox网络相关功能的仿真，可以通过获取IP地址、网关、子网掩码、DNS信息，实现云手机可以正常访问网络。|
-|3|Kbox实现Telephony仿真整改|针对Kbox Telephony仿真进行Trable化整改，实现IMEI、IMSI、网络运营商信息、SIM卡等信息的仿真。|
-|4|Kbox实现音频仿真功能|Kbox原先不支持音频仿真，在运行依赖音频的应用时可能会出现兼容性问题。因此，现在需要在Kbox中增加音频仿真功能。约束：仅支持音频输出仿真，不支持输入仿真。|
+|1|Kbox Kernel定制patch整改| 针对Kbox Kernel 5.15的定制ashmem/binder patch整改，减少内核Kernel定制，复用内核自身能力 |
+|2|Kbox实现网络仿真整改| 针对Kbox网络相关功能的仿真，可以通过获取IP地址、网关、子网掩码、DNS信息，实现云手机可以正常访问网络 |
+|3|Kbox实现Telephony仿真整改| 针对Kbox Telephony仿真进行Trable化整改，实现IMEI、IMSI、网络运营商信息、SIM卡等信息的仿真 |
+|4|Kbox实现音频仿真功能| Kbox原先不支持音频仿真，在运行依赖音频的应用时可能会出现兼容性问题。因此，现在需要在Kbox中增加音频仿真功能。约束：仅支持音频输出仿真，不支持输入仿真 |
 
 **修改特性<a name="section540mcpsimp"></a>**
 
@@ -321,14 +321,14 @@
 
 |编号|描述|目的|
 |--|--|--|
-|1|基于编解码卡支持云手机视频播放硬件加速|基于NETINT T432硬件编解码卡，通过OMX媒体框架的适配，实现云手机视频播放H.264/H.265解码硬件加速特性。|
-|2|支持Kbox组件版本号查询和显示|Kbox组件版本号查询方式及回显规范。|
-|3|升级适配高版本Kernel|Kbox基础云手机相关Kernel patch适配Kernel 5.15版本进行修改。|
-|4|Kbox基础云手机适配Mesa 22.1.7|Kbox基础云手机适配Mesa 22.1.7新版本。|
-|5|视频流和Kbox相关资料刷新|视频流和Kbox相关资料刷新Mesa，Kernel和GPU相关的描述。|
-|6|Android系统运行异常检测和恢复|对云手机的SurfaceFlinger、SystemServer、Zygote关键进程和服务进行检查，出现异常时进行恢复。|
-|7|支持Vulkan RGB和RGBA纹理转DXT纹理|在Mesa开源软件基础上实现Vulkan RGB/RGBA纹理转DXT纹理压缩。|
-|8|堆栈保护和防漏洞利用|堆栈保护和防漏洞利用需求。|
+|1|基于编解码卡支持云手机视频播放硬件加速| 基于NETINT T432硬件编解码卡，通过OMX媒体框架的适配，实现云手机视频播放H.264/H.265解码硬件加速特性 |
+|2|支持Kbox组件版本号查询和显示| Kbox组件版本号查询方式及回显规范 |
+|3|升级适配高版本Kernel| Kbox基础云手机相关Kernel patch适配Kernel 5.15版本进行修改 |
+|4|Kbox基础云手机适配Mesa 22.1.7| Kbox基础云手机适配Mesa 22.1.7新版本 |
+|5|视频流和Kbox相关资料刷新| 视频流和Kbox相关资料刷新Mesa，Kernel和GPU相关的描述 |
+|6|Android系统运行异常检测和恢复| 对云手机的SurfaceFlinger、SystemServer、Zygote关键进程和服务进行检查，出现异常时进行恢复 |
+|7|支持Vulkan RGB和RGBA纹理转DXT纹理| 在Mesa开源软件基础上实现Vulkan RGB/RGBA纹理转DXT纹理压缩 |
+|8|堆栈保护和防漏洞利用| 堆栈保护和防漏洞利用需求 |
 
 **修改特性<a name="zh-cn_topic_0000001549282537_section540mcpsimp"></a>**
 
@@ -430,8 +430,8 @@
 
 |编号|描述|目的|
 |--|--|--|
-|1|支持Exagear+openEuler 22.03 LTS转码|支持Kbox运行Exagear适配openEuler 22.03 LTS。|
-|2|基于openEuler 22.03 LTS进行Kbox适配|增强操作系统兼容性。|
+|1|支持Exagear+openEuler 22.03 LTS转码| 支持Kbox运行Exagear适配openEuler 22.03 LTS |
+|2|基于openEuler 22.03 LTS进行Kbox适配| 增强操作系统兼容性 |
 
 **修改特性<a name="zh-cn_topic_0000001473962058_section540mcpsimp"></a>**
 
@@ -495,9 +495,9 @@
 
 |编号|描述|目的|
 |--|--|--|
-|1|GPU卡适配|增强硬件兼容性。|
-|2|提供基础云手机资料文档|指导用户使用Kbox云手机容器。|
-|3|Kbox Android 11云手机适配服务器|Kbox Android 11云手机支持新的硬件平台。|
+|1|GPU卡适配| 增强硬件兼容性 |
+|2|提供基础云手机资料文档| 指导用户使用Kbox云手机容器 |
+|3|Kbox Android 11云手机适配服务器| Kbox Android 11云手机支持新的硬件平台 |
 
 **修改特性<a name="zh-cn_topic_0000001468009680_section540mcpsimp"></a>**
 
@@ -525,7 +525,7 @@
 
 |编号|描述|目的|
 |--|--|--|
-|1|开源软件和Docker容器使用过程可信整改|针对开发过程中开源软件和Docker容器使用的可信要求进行整改。|
+|1|开源软件和Docker容器使用过程可信整改| 针对开发过程中开源软件和Docker容器使用的可信要求进行整改 |
 
 **修改特性<a name="zh-cn_topic_0000001420053428_section540mcpsimp"></a>**
 
@@ -655,19 +655,19 @@
 
 ## 版本配套文档<a name="ZH-CN_TOPIC_0000002549825961"></a>
 
-### V7.3.0\_11配套文档<a name="ZH-CN_TOPIC_0000002549825955"></a>
+### V7.3.0_11配套文档<a name="ZH-CN_TOPIC_0000002549825955"></a>
 
 |序号|文档名称|内容简介|下载方法|
 |--|--|--|--|
-|1|best practices|本文档向用户介绍Kbox云手机容器的最佳实践。|[best practices](https://gitcode.com/boostkit/Kbox/blob/AOSP11/docs/zh/best_practices.md)|
-|2|compile guide|本文档向用户介绍Kbox云手机容器的编译方法。|[compile guide](https://gitcode.com/boostkit/Kbox/blob/AOSP11/docs/zh/compile_guide.md)|
-|3|feature guide|本文档向用户介绍Kbox云手机容器的特性说明。|[feature guide](https://gitcode.com/boostkit/Kbox/blob/AOSP11/docs/zh/feature_guide.md)|
-|4|install guide|本文档向用户介绍Kbox云手机容器的安装指南。|[install guide](https://gitcode.com/boostkit/Kbox/blob/AOSP11/docs/zh/install_guide.md)|
-|5|release notes|本文档向用户介绍Kbox云手机容器的版本相关信息。|[release notes](https://gitcode.com/boostkit/Kbox/blob/AOSP11/docs/zh/release_notes.md)|
-|6|test guide|本文档向用户介绍Kbox云手机容器的测试方法。|[test guide](https://gitcode.com/boostkit/Kbox/blob/AOSP11/docs/zh/test_guide.md)|
-|7|troubleshooting|本文档向用户介绍Kbox云手机容器的故障案例。|[troubleshooting](https://gitcode.com/boostkit/Kbox/blob/AOSP11/docs/zh/troubleshooting.md)|
-|8|user guide|本文档向用户介绍Kbox云手机容器的用户指南。|[user guide](https://gitcode.com/boostkit/Kbox/blob/AOSP11/docs/zh/user_guide.md)|
-|9|routine maintenance|本文档向用户介绍Kbox云手机容器的维护方法和维护工具。|[routine maintenance](https://gitcode.com/boostkit/Kbox/blob/AOSP11/docs/zh/%E4%BE%8B%E8%A1%8C%E7%BB%B4%E6%8A%A4.md)|
+|1|best practices| 本文档向用户介绍Kbox云手机容器的最佳实践 |[最佳实践](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/best_practices.md)|
+|2|compile guide| 本文档向用户介绍Kbox云手机容器的编译方法 |[编译指南](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/compile_guide.md)|
+|3|feature guide| 本文档向用户介绍Kbox云手机容器的特性说明 |[特性指南](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/feature_guide.md)|
+|4|install guide| 本文档向用户介绍Kbox云手机容器的安装指南 |[安装指南](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/install_guide.md)|
+|5|release notes| 本文档向用户介绍Kbox云手机容器的版本相关信息 |[版本说明书](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/release_notes.md)|
+|6|test guide| 本文档向用户介绍Kbox云手机容器的测试方法 |[验收测试指南](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/test_guide.md)|
+|7|troubleshooting| 本文档向用户介绍Kbox云手机容器的故障案例 |[故障案例](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/troubleshooting.md)|
+|8|user guide| 本文档向用户介绍Kbox云手机容器的用户指南 |[用户指南](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/user_guide.md)|
+|9|routine maintenance| 本文档向用户介绍Kbox云手机容器的维护方法和维护工具 |[例行维护](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/routine_maintenance.md)|
 
 ### 获取文档方式<a name="ZH-CN_TOPIC_0000002549705957"></a>
 
