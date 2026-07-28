@@ -276,7 +276,7 @@ function bb_check_encode_card()
     fi
  
     cmd="nvme list"
-    output=$($cmd)
+    output=$($cmd 2>/dev/null)
 }
 
 function bb_prepare_media_codecs_for_amd() {
