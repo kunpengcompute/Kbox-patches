@@ -491,34 +491,37 @@ exportfs
 
 #### 10.2.3 客户端配置
 
-1、创建挂载点
+1、创建挂载点。
 
 ```shell
 mkdir -p /tmp/nfs
 ```
 
-2、挂载服务器的nfs目录
+2、挂载服务器的nfs目录。
 
 ```shell
 mount -t nfs4 192.168.20.XX:/nfs /tmp/nfs
 ```
 
+>![](public_sys-resources/icon-note.gif) **说明：**
 >
->- 由于服务器的/etc/exports对/home目录配置了fsid=0，因此在客户端时不可见的，所以只需要挂载/nfs目录即可
+>由于服务器的/etc/exports对/home目录配置了fsid=0，因此在客户端时不可见的，所以只需要挂载/nfs目录即可。
 
 ### 10.3 使用特性
 
-1、在容器配置文件kbox_config.cfg中配置NFS_DIR属性为/tmp/nfs，启动云手机使用nstart命令
+1、在容器配置文件kbox_config.cfg中配置NFS_DIR属性为/tmp/nfs，启动云手机使用nstart命令。
 
 ```shell
 ./android_kbox.sh nstart kbox:origin 1
 ```
 
-2、在容器启动后，查看挂载目录下对应data/containerd内容是否跟容器id一致
+2、在容器启动后，通过如下命令查看。
 
 ```shell
-cat /tmp/nfs/data/kbox_1/data/containerd
+docker inspect kbox_1 | jq -r '.[].Mounts[] | select(.Destination=="/data") | .Source'
 ```
+
+预期结果是`/tmp/nfs/data/kbox_1/data`。
 
 ## 11 CPU频率动态模拟与调节<a name="ZH-CN_TOPIC_00000025498659400"></a>
 
