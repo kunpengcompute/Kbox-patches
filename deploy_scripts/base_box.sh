@@ -653,7 +653,7 @@ function bb_check_encode_card() {
     fi
 
     cmd="nvme list"
-    output=$($cmd)
+    output=$($cmd 2>/dev/null)
     if echo "$output" | grep -q "QuadraT2A"; then
         echo "set encode card to QuadraT2A"
         NETINT_TYPE="quadra"
