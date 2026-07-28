@@ -434,7 +434,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 >```shell
 >cd ~/sourcecode
 >unzip mesa-22.1.7.zip
->mv mesa-22.1.7 mesa
+>mv mesa-aosp11_7.3.0 mesa
 >cp -r ./mesa ~/aosp/external/
 >```
 
