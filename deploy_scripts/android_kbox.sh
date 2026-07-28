@@ -295,7 +295,6 @@ function cli_start() {
             start_box_by_id $1 $2 $container_id
         fi
     done
-    unset ENABLE_ONLY64_KBOX
 }
 
 function cli_delete() {
