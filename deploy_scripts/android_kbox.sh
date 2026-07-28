@@ -588,10 +588,13 @@ function main() {
                 fi
                 if [ $1 = "ndelete" ]; then
                     MOUNT_DIR=$NFS_DIR
+                    echo "delete using mount path: $MOUNT_DIR"
+                    bash $CURRENT_DIR/base_box.sh delete "$CONTAINER_NAME" "$MOUNT_DIR" 1
+                else
+                    echo "delete using mount path: $MOUNT_DIR"
+                    bash $CURRENT_DIR/base_box.sh delete "$CONTAINER_NAME" "$MOUNT_DIR"
                 fi
-                echo "delete using mount path: $MOUNT_DIR"
-                bash $CURRENT_DIR/base_box.sh delete "$CONTAINER_NAME" "$MOUNT_DIR"
-            fi
+                fi
         done
     elif [ $1 = "restart" ]; then
         local MIN=$2 MAX=$3
