@@ -122,7 +122,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
         >若启动时为软件解码（以下简称“软解”）方式（设置ENABLE_HARD_DECODE=0），则重启时可切换为硬解方式（设置ENABLE_HARD_DECODE=1）。
 
     2. （硬件配置方案一）同时若使用硬件配置方案一时需参考以下步骤设置NETINT卡节点。
-        1. <a name="li12677451102912"></a>执行如下命令查看编码卡芯片对应节点号。
+        1. <a name="使能硬件解码2.1"></a>执行如下命令查看编码卡芯片对应节点号。
 
             ```shell
             nvme list
@@ -139,7 +139,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
         2. 查看nvme节点与pcie bus号对应关系。
 
-            {index}为[2.b.i](#li12677451102912)回显信息所示的NVMe节点编号。例如/dev/nvme0n1，该节点{index}即为0。
+            {index}为[2.1](#使能硬件解码2.1)回显信息所示的NVMe节点编号。例如/dev/nvme0n1，该节点{index}即为0。
 
             ```shell
             find /sys/devices/ -name nvme{index}
@@ -192,7 +192,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
             > NETINT1="/dev/nvme0,/dev/nvme0n1,/dev/nvme1,/dev/nvme1n1"
             >    ```
 
-3. （可选）若需要启动使能了C2解码器的视频流云手机实例（硬件配置方案一可用），则需要设置“deploy_scripts”目录下的kbox_config.cfg文件，将“**ENABLE_AMD_C2_DECODE**”设置位“1”，其他值不使能，默认为0。必须再容器第一次启动时配置开/关C2解码器，不支持中途切换。云手机内置应用会根据自身需要自行选择解码器
+3. （可选）若需要启动使能了C2解码器的kbox云手机实例（硬件配置方案一可用），则需要设置“deploy_scripts”目录下的kbox_config.cfg文件，将“**ENABLE_AMD_C2_DECODE**”设置为“1”，其他值不使能，默认为0。必须在容器第一次启动时配置开/关C2解码器，不支持启动容器后，再通过kbox_config.cfg文件的“ENABLE_AMD_C2_DECODE”参数修改，重启容器切换。云手机内置应用会根据自身需要自行选择解码器。
 
     ```shell
     ENABLE_AMD_C2_DECODE=0
@@ -440,11 +440,13 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
 #### 1.7.3 **校验是否生效**
 
-查看挂载目录下对应data/containerd内容是否跟容器id一致
+执行如下命令。
 
 ```shell
-cat /tmp/nfs/data/kbox_1/data/containerd
+docker inspect kbox_1 | jq -r '.[].Mounts[] | select(.Destination=="/data") | .Source'
 ```
+
+预期结果是`/tmp/nfs/data/kbox_1/data`。
 
 ### 1.8 （可选） 实现云机cpu频率动态调整<a name="ZH-CN_TOPIC_000000254983254923"></a>
 
