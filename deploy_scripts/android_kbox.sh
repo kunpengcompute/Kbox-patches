@@ -312,6 +312,7 @@ function cli_delete() {
             local MOUNT_DIR=$(bb_get_mount_dir "$CONTAINER_NAME")
             if [ $1 = "ndelete" ]; then
                 MOUNT_DIR=$NFS_DIR
+                BB_KEEP_DATA=1
             fi
             bb_log_info "delete using mount path: $MOUNT_DIR"
             BB_NAME="$CONTAINER_NAME"
