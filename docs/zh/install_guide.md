@@ -845,7 +845,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
 lspci -vvv -d :0200 | grep NUMA
 ```
 
-道客DC1000/1000C每张单卡对应有4个GPU节点，以4\*道客DC1000的配置为例，回显输出的每行和GPU节点（renderD节点，编号从128开始）顺序依次对应。示例回显如下：
+道客DC1000/DC1000C每张单卡对应有4个GPU节点，以4\*道客DC1000/DC1000C的配置为例，回显输出的每行和GPU节点（renderD节点，编号从128开始）顺序依次对应。示例回显如下：
 
 ```shell
 NUMA node: 0
@@ -934,11 +934,11 @@ NUMA node: 2
 
 3. 安装显卡图形驱动。
 
-    GPU驱动会为每个显卡节点启动一个kworker进程，道客DC1000/1000C单卡有4个节点。为保障kworker进程性能，建议使用kworkerCores参数为每个kworker进程绑定CPU，kworkerCores参数依次表示每个显卡节点对应kworker进程的绑核。
+    GPU驱动会为每个显卡节点启动一个kworker进程，道客DC1000/DC1000C单卡有4个节点。为保障kworker进程性能，建议使用kworkerCores参数为每个kworker进程绑定CPU，kworkerCores参数依次表示每个显卡节点对应kworker进程的绑核。
 
     在安装显卡图形驱动绑核时，**请确保kworker进程绑定的CPU核和GPU渲染节点同属一个CPU片**。GPU渲染节点所属CPU片的查询方式请参见[确定GPU拓扑结构](#确定GPU拓扑结构)章节。
 
-    以道客DC1000为例，以下绑核方式仅作为参考，请依据实际情况做出调整。
+    以道客DC1000/DC1000C为例，以下绑核方式仅作为参考，请依据实际情况做出调整。
 
     ```shell
     cd ~/dependency/VAGPU-A15-C-F-26.02.06.00.RC2/kmd/GUEST/openEuler-6.6.0+
@@ -950,7 +950,7 @@ NUMA node: 2
     insmod va_gpu.ko kworkerCores=0,0,1,1,32,32,33,33,64,64,65,65,96,96,97,97
     ```
 
-    硬件配置方案三（鲲鹏920 7280Z处理器 + 8\*道客DC1000）：
+    硬件配置方案三（鲲鹏920 7280Z处理器 + 8\*道客DC1000 或 8\*道客DC1000C）：
 
     ```shell
     insmod va_gpu.ko kworkerCores=80,80,81,81,82,82,83,83,0,0,1,1,2,2,3,3,240,240,241,241,242,242,243,243,160,160,161,161,162,162,163,163
