@@ -439,25 +439,25 @@ NFS采用典型的**客户端/服务器（C/S）**架构，客户端/服务器�
 
 #### 10.2.1 客户端/服务器公共操作
 
-1、确认内核是否加载nfs模块。
+1. 确认内核是否加载nfs模块。
 
-```shell
-cat /lib/modules/$(uname -r)/build/.config | grep NFS
-```
+   ```shell
+   cat /lib/modules/$(uname -r)/build/.config | grep NFS
+   ```
 
-期望CONFIG_NFS_FS、CONFIG_NFS_V4、CONFIG_NFSD为m需要执行如下命令加载该模块。
+   期望CONFIG_NFS_FS、CONFIG_NFS_V4、CONFIG_NFSD为m需要执行如下命令加载该模块。
 
-```shell
-modprobe nfs
-modprobe nfsd
-modprobe nfsv4
-```
+   ```shell
+   modprobe nfs
+   modprobe nfsd
+   modprobe nfsv4
+   ```
 
-2、安装nfs-utils软件包。
+2. 安装nfs-utils软件包。
 
-```shell
-yum install nfs-utils rpcbind
-```
+   ```shell
+   yum install nfs-utils rpcbind
+   ```
 
 #### 10.2.2 服务器配置
 
