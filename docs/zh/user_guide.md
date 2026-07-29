@@ -13,7 +13,7 @@
 |用户自行编译|用户自行编译| 请参见章节自行编译，已包含Android Kbox二进制，容器可正常启动 |
 |kbox:demo|华为镜像仓库提供的官方Kbox Demo镜像| 不包含Android Kbox二进制，容器无法正常启动，需要执行制作Kbox镜像：合入商用二进制步骤 |
 |kbox:origin|使用脚本制作| 基于kbox:demo和Android Kbox二进制制作的镜像，容器可以正常启动 |
-|kbox:latest|使用脚本制作的硬解镜像| 基于kbox:origin和编解码库制作的镜像，使能硬解功能，容器可正常启动 |
+|kbox:latest|使用脚本制作的硬解镜像| 基于kbox:origin和编解码库制作的镜像，使能配置方案一的硬解功能，容器可正常启动 |
 
 **Kbox Demo镜像挂载<a name="section16531422174717"></a>**
 
@@ -84,7 +84,7 @@ docker import android.tar kbox:demo
     ./make_image.sh kbox:origin kbox:latest
     ```
 
-    在启动实例时输入的参数需和此处制作的名称、tag保持一致。后文的描述中镜像名以kbox:latest为例。
+    在启动实例时输入的参数需和此处制作的名称、tag保持一致。
 
 ### 1.2 启动与卸载云手机实例<a name="ZH-CN_TOPIC_0000002518192802"></a>
 
@@ -115,14 +115,8 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
 1. 解压Kbox-patches-AOSP11.zip，将Kbox-patches-AOSP11文件夹中的deploy_scripts目录上传至服务器的“~/dependency”目录。
 2. （可选）使能硬件解码（以下简称“硬解”）。
-    1. 设置“deploy_scripts”目录下的kbox_config.cfg文件，将“ENABLE_HARD_DECODE”设置为“1”。
-
-        >![](public_sys-resources/icon-note.gif) **说明：** 
-        >
-        >若启动时为软件解码（以下简称“软解”）方式（设置ENABLE_HARD_DECODE=0），则重启时可切换为硬解方式（设置ENABLE_HARD_DECODE=1）。
-
-    2. （硬件配置方案一）同时若使用硬件配置方案一时需参考以下步骤设置NETINT卡节点。
-        1. <a name="使能硬件解码2.1"></a>执行如下命令查看编码卡芯片对应节点号。
+    1. （硬件配置方案一）设置“deploy_scripts”目录下的kbox_config.cfg文件，将“T432_QUADRA_DECODE_ENABLE”设置为“1”。同时时需参考以下步骤设置NETINT卡节点。
+        1. <a name="使能硬件解码1.1"></a>执行如下命令查看编码卡芯片对应节点号。
 
             ```shell
             nvme list
@@ -139,7 +133,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
         2. 查看nvme节点与pcie bus号对应关系。
 
-            {index}为[2.1](#使能硬件解码2.1)回显信息所示的NVMe节点编号。例如/dev/nvme0n1，该节点{index}即为0。
+            {index}为[1.1](#使能硬件解码1.1)回显信息所示的NVMe节点编号。例如/dev/nvme0n1，该节点{index}即为0。
 
             ```shell
             find /sys/devices/ -name nvme{index}
@@ -180,8 +174,8 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
             >![](public_sys-resources/icon-note.gif) **说明：** 
             >
-            >- 若第一次启动容器时NETINT的值为空，禁止设置ENABLE_HARD_DECODE=1，且禁止重启时设置ENABLE_HARD_DECODE=1，否则播放视频会有短暂黑屏的现象。
-            >- 若需使能NETINT编码卡硬解，需要在kbox_config.cfg中设置ENABLE_HARD_DECODE=1。
+            >- 若第一次启动容器时NETINT的值为空，禁止设置T432_QUADRA_DECODE_ENABLE=1，且禁止重启时设置T432_QUADRA_DECODE_ENABLE=1，否则播放视频会有短暂黑屏的现象。
+            >- 若需使能NETINT编码卡硬解，需要在kbox_config.cfg中设置T432_QUADRA_DECODE_ENABLE=1。
             >- 针对一张Quadra T2A编码卡环境，请参考以下配置方式，根据实际情况配置设备节点信息。
             >
             > ```shell
@@ -190,7 +184,13 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
             >
             > NETINT0="/dev/nvme0,/dev/nvme0n1,/dev/nvme1,/dev/nvme1n1"
             > NETINT1="/dev/nvme0,/dev/nvme0n1,/dev/nvme1,/dev/nvme1n1"
-            >    ```
+            > ```
+
+    2. （硬件配置方案二、三、四）设置“deploy_scripts”目录下的kbox_config.cfg文件，将“ENABLE_HARD_DECODE”设置为“1”。
+
+        >![](public_sys-resources/icon-note.gif) **说明：** 
+        >
+        >若启动时为软件解码（以下简称“软解”）方式（设置ENABLE_HARD_DECODE=0），则重启时可切换为硬解方式（设置ENABLE_HARD_DECODE=1）。
 
 3. （可选）若需要启动使能了C2解码器的kbox云手机实例（硬件配置方案一可用），则需要设置“deploy_scripts”目录下的kbox_config.cfg文件，将“**ENABLE_AMD_C2_DECODE**”设置为“1”，其他值不使能，默认为0。必须在容器第一次启动时配置开/关C2解码器，不支持启动容器后，再通过kbox_config.cfg文件的“ENABLE_AMD_C2_DECODE”参数修改，重启容器切换。云手机内置应用会根据自身需要自行选择解码器。
 
