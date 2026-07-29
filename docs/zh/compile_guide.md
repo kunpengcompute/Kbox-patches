@@ -233,9 +233,9 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
 >```shell
 >cd /home/sourcecode
 >unzip mesa-24.3.4.zip
->mv mesa-aosp15_7.3.0 mesa
+>mv mesa-24.3.4 mesa3d
 >rm -rf /home/aosp/external/mesa3d
->cp -r ./mesa ~/aosp/external/
+>cp -rf ./mesa3d /home/aosp/external/
 >```
 
 ### 4.3 合入Kbox安卓补丁<a name="ZH-CN_TOPIC_0000002518346170" id="合入Kbox安卓补丁"></a>
