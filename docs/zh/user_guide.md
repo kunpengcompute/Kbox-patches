@@ -114,7 +114,7 @@ Kbox云手机容器支持使能图形加速层，通过修改kbox_config.cfg配�
 1. 解压Kbox-patches-AOSP15.zip，将Kbox-patches-AOSP15文件夹中的“deploy_scripts”目录上传至服务器的“~/dependency”目录。
 2. （可选）使能硬件解码（以下简称“硬解”）。
     1. （硬件配置方案一）设置“deploy_scripts”目录下的kbox_config.cfg文件，将“T432_QUADRA_DECODE_ENABLE”设置为“1”。同时需参考以下步骤设置NETINT卡节点。
-        1. <a name="使能硬件解码1.1"></a>执行如下命令查看编码卡芯片对应节点号。
+        1. 执行如下命令查看编码卡芯片对应节点号。
 
             ```shell
             nvme list
@@ -131,7 +131,7 @@ Kbox云手机容器支持使能图形加速层，通过修改kbox_config.cfg配�
 
         2. 查看nvme节点与pcie bus号对应关系。
 
-            {index}为[1.1](#使能硬件解码1.1)回显信息所示的NVMe节点编号。例如/dev/nvme0n1，该节点{index}即为0。
+            {index}为上一步回显信息所示的NVMe节点编号。例如/dev/nvme0n1，该节点{index}即为0。
 
             ```shell
             find /sys/devices/ -name nvme{index}
