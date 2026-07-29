@@ -428,8 +428,8 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 
 >![](public_sys-resources/icon-note.gif) **说明：**
 >
->执行脚本可能会出现“No such file or directory”类报错，原因为依赖包解压所得文件夹名称发生变化，需以实际文件夹名称为准
->例如unzip mesa-22.1.7.zip得到了mesa-aosp11_7.3.0，则改为执行如下命令
+>执行脚本可能会出现“No such file or directory”类报错，原因为依赖包解压所得文件夹名称发生变化，需以实际文件夹名称为准。
+>例如unzip mesa-22.1.7.zip得到了mesa-aosp11_7.3.0，则改为执行如下命令。
 >
 >```shell
 >cd ~/sourcecode
