@@ -192,7 +192,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
         >
         >若启动时为软件解码（以下简称“软解”）方式（设置ENABLE_HARD_DECODE=0），则重启时可切换为硬解方式（设置ENABLE_HARD_DECODE=1）。
 
-3. （可选）若需要启动使能了C2解码器的kbox云手机实例（硬件配置方案一可用），则需要设置“deploy_scripts”目录下的kbox_config.cfg文件，将“**ENABLE_AMD_C2_DECODE**”设置为“1”，其他值不使能，默认为0。必须在容器第一次启动时配置开/关C2解码器，不支持启动容器后，再通过kbox_config.cfg文件的“ENABLE_AMD_C2_DECODE”参数修改，重启容器切换。云手机内置应用会根据自身需要自行选择解码器。
+3. （可选）若需要启动使能了C2解码器的kbox云手机实例（硬件配置方案一可用），则需要设置“deploy_scripts”目录下的kbox_config.cfg文件，将`ENABLE_AMD_C2_DECODE`设置为“1”，其他值不使能，默认为0，同时关闭硬解，将`T432_QUADRA_DECODE_ENABLE`设置为“0”。必须在容器第一次启动时配置开/关C2解码器，不支持启动容器后，再通过kbox_config.cfg文件的“ENABLE_AMD_C2_DECODE”参数修改，重启容器切换。云手机内置应用会根据自身需要自行选择解码器。
 
     ```shell
     ENABLE_AMD_C2_DECODE=0
