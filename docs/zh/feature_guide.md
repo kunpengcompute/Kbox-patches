@@ -434,87 +434,89 @@ NFS采用典型的**客户端/服务器（C/S）**架构，客户端/服务器�
 
 #### 10.2.1 客户端/服务器公共操作
 
-1、确认内核是否加载nfs模块。
+1. 确认内核是否加载nfs模块。
 
-```shell
-cat /lib/modules/$(name -r)/build/.config | grep NFS
-```
+   ```shell
+   cat /lib/modules/$(name -r)/build/.config | grep NFS
+   ```
 
-CONFIG_NFS_FS、CONFIG_NFS_V4、CONFIG_NFSD为m需要执行如下命令加载该模块。
+   CONFIG_NFS_FS、CONFIG_NFS_V4、CONFIG_NFSD为m需要执行如下命令加载该模块。
 
-```shell
-modprobe nfs
-modprobe nfsd
-modprobe nfsv4
-```
+   ```shell
+   modprobe nfs
+   modprobe nfsd
+   modprobe nfsv4
+   ```
 
-2、安装nfs-utils软件包
+2. 安装nfs-utils软件包。
 
-```shell
-yum install nfs-utils rpcbind
-```
+   ```shell
+   yum install nfs-utils rpcbind
+   ```
 
 #### 10.2.2 服务器配置
 
-1、新建要导出的目录
+1. 新建要导出的目录。
 
-```shell
-mkdir -p /home/nfs
-```
+   ```shell
+   mkdir -p /home/nfs
+   ```
 
-2、编写/etc/exports文件，文件内容如下
+2. 编写/etc/exports文件，文件内容如下。
 
-```shell
-/home 192.168.20.0/24(rw,fsid=0,sync,no_root_squash)
-/home/nfs 192.168.20.0/24/(rw,sync,no_root_squash)
-```
+   ```shell
+   /home 192.168.20.0/24(rw,fsid=0,sync,no_root_squash)
+   /home/nfs 192.168.20.0/24/(rw,sync,no_root_squash)
+   ```
 
-3、重启相关服务
+3. 重启相关服务。
 
-```shell
-systemctl restart rpcbind
-systemctl restart nfs
-```
+   ```shell
+   systemctl restart rpcbind
+   systemctl restart nfs
+   ```
 
-4、查看目录是否导出
+4. 查看目录是否导出。
 
-```shell
-exportfs
-```
+   ```shell
+   exportfs
+   ```
 
-期望有步骤2中编写的目录输出。
+   期望有步骤2中编写的目录输出。
 
 #### 10.2.3 客户端配置
 
-1、创建挂载点
+1. 创建挂载点。
 
-```shell
-mkdir -p /tmp/nfs
-```
+   ```shell
+   mkdir -p /tmp/nfs
+   ```
 
-2、挂载服务器的nfs目录
+2. 挂载服务器的nfs目录。
 
-```shell
-mount -t nfs4 192.168.20.XX:/nfs /tmp/nfs
-```
+   ```shell
+   mount -t nfs4 192.168.20.XX:/nfs /tmp/nfs
+   ```
 
 >![](public_sys-resources/icon-note.gif) **说明：**
 >
->由于服务器的/etc/exports对/home目录配置了fsid=0，因此在客户端时不可见的，所以只需要挂载/nfs目录即可
+>由于服务器的/etc/exports对/home目录配置了fsid=0，因此在客户端时不可见的，所以只需要挂载/nfs目录即可。
 
 ### 10.3 使用特性
 
-1、在容器配置文件kbox_config.cfg中配置NFS_DIR属性为/tmp/nfs，启动云手机使用nstart命令
+1. 在容器配置文件kbox_config.cfg中配置NFS_DIR属性为/tmp/nfs，启动云手机使用nstart命令。
 
-```shell
-./android_kbox.sh nstart kbox:origin 1
-```
+   ```shell
+   ./android_kbox.sh nstart kbox:origin 1
+   ```
 
-2、在容器启动后，查看挂载目录下对应data/containerd内容是否跟容器id一致
+2. 在容器启动后，通过如下命令查看。
 
-```shell
-cat /tmp/nfs/data/kbox_1/data/containerd
-```
+   ```shell
+   docker inspect kbox_1 | jq -r '.[].Mounts[] | select(.Destination=="/data") | .Source'
+   ```
+
+   预期结果是`/tmp/nfs/data/kbox_1/data`。
 
 ## 11 CPU频率动态模拟与调节<a name="ZH-CN_TOPIC_00000025498659400"></a>
 
