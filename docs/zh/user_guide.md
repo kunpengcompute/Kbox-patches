@@ -371,7 +371,7 @@ docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
 ./android_kbox.sh nstart kbox:origin 1
 ```
 
-删除云手机使用ndelete命令。
+删除云手机使用ndelete命令，ndelete删除后img镜像文件会默认保存。
 
 ```shell
 ./android_kbox.sh ndelete 1
