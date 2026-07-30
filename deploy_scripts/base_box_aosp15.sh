@@ -78,7 +78,7 @@ function bb_check_environment() {
     fi
 
     # 清理/dev/目录下的全部loop device节点，并在/dev/loop_device/目录下提前生成足够数量的设备节点
-    if [ "$1" == "start" ] || [ "$1" == "restart" ]; then
+    if [ "$1" == "start" ] || [ "$1" == "restart" ] || [ "$1" == "nstart" ]; then
         bb_prepare_loop_device
     fi
 
