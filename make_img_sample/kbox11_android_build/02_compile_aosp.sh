@@ -61,7 +61,12 @@ function aosp_compile(){
     lunch kbox_arm64-user || error "lunch命令执行失败"
     export LC_ALL=C
     echo "2" > /proc/sys/kernel/randomize_va_space  #可信需求
-    make clean && make -j${cpu_num}
+
+    EXTRA_MAKE_ARGS=()
+    if [ $ENABLE_SOFT_RENDER -eq 1 ]; then
+        EXTRA_MAKE_ARGS+=("ENABLE_SOFT_RENDER=true")
+    fi
+    make clean && make -j${cpu_num} "${EXTRA_MAKE_ARGS[@]}"
     if [ $? -ne 0 ]; then
         error "aosp编译失败"
         make clean
