@@ -38,7 +38,7 @@ docker import android.tar kbox:demo
 >当用户使用自行编译的镜像时：
 >
 >- 硬件配置方案一：可跳过该小节的全部步骤。
->- 硬件配置方案二、三、四：可跳过该小节的步骤2。
+>- 硬件配置方案二、三、四、五：可跳过该小节的步骤2。
 
 1. 请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)获取Kbox-patches-AOSP11.zip，解压Kbox-patches-AOSP11.zip，将Kbox-patches-AOSP11文件夹中的deploy_scripts目录上传至服务器的“~/dependency”目录。
 2. 请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)获取Android Kbox二进制文件包Boostkit-boostcph-kbox_\*.zip并上传到“~/dependency/deploy_scripts”目录。
@@ -58,6 +58,14 @@ docker import android.tar kbox:demo
         cd ~/dependency/deploy_scripts
         chmod +x make_image.sh
         ./make_image.sh kbox:demo kbox:origin va_driver.tgz
+        ```
+
+    - 硬件配置方案五：
+
+        ```shell
+        cd ~/dependency/deploy_scripts
+        chmod +x make_image.sh
+        ./make_image.sh kbox:demo kbox:origin soft
         ```
 
 **（硬件配置方案一，可选）制作Kbox镜像：使能硬解功能<a name="section1799111466509"></a>**
@@ -114,7 +122,11 @@ Kbox云手机容器支持根据客户需求定制系统属性，以覆盖原有�
 Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置文件中的“ENABLE_RENDER_LAYER”修改为“1”进行使能。打开“~/dependency/deploy_scripts”路径下的“kbox_render_accelerating_configuration.xml”配置文件，对应用的图形加速层功能进行配置。具体配置项描述请参见《[视频流引擎 用户指南](https://gitcode.com/boostkit/vmi/blob/CloudPhone/docs/zh/user_guide.md)》中的“图形加速层配置项”章节。首次启动云手机容器时，若需要修改图形加速层功能的配置，则修改配置文件中应用对应的配置，手动将其拷贝到云手机容器“/data/local/tmp”路径，重启应用即可生效。
 
 1. 解压Kbox-patches-AOSP11.zip，将Kbox-patches-AOSP11文件夹中的deploy_scripts目录上传至服务器的“~/dependency”目录。
-2. （可选）使能硬件解码（以下简称“硬解”）。
+2. （硬件配置方案五）修改“deploy_scripts”目录下的kbox_config.cfg文件，将“ENABLE_SOFT_RENDER”设置为“1”。
+    >![](public_sys-resources/icon-note.gif) **说明：** 
+    >
+    >软渲染软编码方案对CPU压力较高，为确保Kbox云手机的稳定运行与最佳性能，请保障每个容器的CPU绑核以整个NUMA的形式绑定。修改kbox_config.cfg文件，将"CPU_BIND_MODE"设置为"1"。
+3. （可选）使能硬件解码（以下简称“硬解”）。
     1. （硬件配置方案一）设置“deploy_scripts”目录下的kbox_config.cfg文件，将“T432_QUADRA_DECODE_ENABLE”设置为“1”。同时需参考以下步骤设置NETINT卡节点。
         1. 执行如下命令查看编码卡芯片对应节点号。
 
@@ -192,14 +204,14 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
         >
         >若启动时为软件解码（以下简称“软解”）方式（设置ENABLE_HARD_DECODE=0），则重启时可切换为硬解方式（设置ENABLE_HARD_DECODE=1）。
 
-3. （可选）若需要启动使能了C2解码器的kbox云手机实例（硬件配置方案一可用），则需要设置“deploy_scripts”目录下的kbox_config.cfg文件，将`ENABLE_AMD_C2_DECODE`设置为“1”，同时关闭硬解，将`T432_QUADRA_DECODE_ENABLE`设置为“0”。必须在容器第一次启动时配置开/关C2解码器，不支持启动容器后，再通过kbox_config.cfg文件的“ENABLE_AMD_C2_DECODE”参数修改，重启容器切换。云手机内置应用会根据自身需要自行选择解码器。
+4. （可选）若需要启动使能了C2解码器的kbox云手机实例（硬件配置方案一可用），则需要设置“deploy_scripts”目录下的kbox_config.cfg文件，将`ENABLE_AMD_C2_DECODE`设置为“1”，同时关闭硬解，将`T432_QUADRA_DECODE_ENABLE`设置为“0”。必须在容器第一次启动时配置开/关C2解码器，不支持启动容器后，再通过kbox_config.cfg文件的“ENABLE_AMD_C2_DECODE”参数修改，重启容器切换。云手机内置应用会根据自身需要自行选择解码器。
 
     ```shell
     ENABLE_AMD_C2_DECODE=1
     T432_QUADRA_DECODE_ENABLE=0
     ```
 
-4. 通过android_kbox.sh脚本启动容器。
+5. 通过android_kbox.sh脚本启动容器。
 
     ```shell
     cd ~/dependency/deploy_scripts
@@ -250,7 +262,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
         >echo 1 > /sys/kernel/kbox/kbox_enable
         >```
 
-5. 执行如下命令确认Kbox容器是否启动成功，其中“${index}”为启动实例的编号。
+6. 执行如下命令确认Kbox容器是否启动成功，其中“${index}”为启动实例的编号。
 
     ```shell
     docker exec -it kbox_${index} getprop | grep boot_completed
@@ -258,7 +270,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
     若回显信息中的sys.boot_completed显示为“1”，则启动成功。
 
-6. 停止并删除Kbox容器的方法。
+7. 停止并删除Kbox容器的方法。
 
     由于Kbox方案默认挂载数据卷，默认的**docker stop**、**docker rm**命令不能彻底清理容器数据，需要使用脚本彻底清理主机侧文件。
 
@@ -276,7 +288,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
         ./android_kbox.sh delete ${index1} ${index2}
         ```
 
-7. 重启Kbox容器的方法。
+8. 重启Kbox容器的方法。
 
     由于Kbox方案默认挂载数据卷，在重启容器时，无法使用默认的**docker restart**命令进行重启，需要使用脚本执行容器的重启操作。
 
