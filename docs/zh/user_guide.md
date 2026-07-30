@@ -433,7 +433,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 ./android_kbox.sh nstart kbox:origin 1
 ```
 
-删除云手机使用ndelete命令。
+删除云手机使用ndelete命令，ndelete删除后img镜像文件会默认保存。
 
 ```shell
 ./android_kbox.sh ndelete kbox:origin 1
