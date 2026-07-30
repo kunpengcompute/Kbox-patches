@@ -248,15 +248,24 @@ function start_box_by_id() {
     BB_ENABLE_NFS="$enable_nfs"
     BB_NFS_DIR="$NFS_DIR"
     BB_SKIP_DATA_COPY=0
-    bb_start_box
 
-    # 新增拦截：判断上方的 bb_start_box 是否成功执行
+    # Step 1: 创建容器（docker create），进程未启动
+    bb_create_box
     if [ $? -ne 0 ]; then
-        bb_log_error "${CONTAINER_NAME} 基础环境准备失败，终止后续拉起流程！"
+        bb_log_error "${CONTAINER_NAME} 容器创建失败，终止后续拉起流程！"
         return 1
     fi
 
+    # Step 2: 在容器文件系统就绪但 init 未启动的窗口期，注入配置文件
     bb_prepare_media_codecs_for_amd ${CONTAINER_NAME}
+    bb_prepare_render_layer ${CONTAINER_NAME} "${userdata_dir}"
+
+    # Step 3: 启动容器并执行后处理（cgroup 权限等）
+    bb_start_box
+    if [ $? -ne 0 ]; then
+        bb_log_error "${CONTAINER_NAME} 容器启动失败，终止后续拉起流程！"
+        return 1
+    fi
 
     if [ -n "$(docker ps -a --format {{.Names}} | grep "$CONTAINER_NAME$")" ]; then
         # 等待容器启动
