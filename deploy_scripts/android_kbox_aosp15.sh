@@ -27,7 +27,7 @@ function init_kbox_env() {
 
     bb_init_hardware_config
 
-    bb_check_environment
+    bb_check_environment "$1"
     bb_log_info "Default container runtime selected: ${DEFAULT_RUNTIME}"
 }
 
@@ -360,7 +360,7 @@ function cli_restart() {
 function main() {
     check_kbox_paras "$@"
 
-    init_kbox_env
+    init_kbox_env "$1"
     case "$1" in
         start|nstart)
             cli_start "$@"
