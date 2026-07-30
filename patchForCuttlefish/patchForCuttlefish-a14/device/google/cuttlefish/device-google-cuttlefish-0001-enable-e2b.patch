@@ -1,18 +1,3 @@
-From f9854dd87cb0c309157ccb065af1cc7d3ea20b09 Mon Sep 17 00:00:00 2001
-From: envd-integration <envd@cuttlefish>
-Date: Sun, 20 Jul 2026 00:00:00 +0800
-Subject: [PATCH] envd service integration for android image
-
-[ENVD_PACKAGING] Integrate envd service as a prebuilt vendor binary
-into the Android system image. Includes:
-- envd prebuilt arm64 binary (cc_prebuilt_binary)
-- init rc script to create /data/e2b directories and launch envd
-- SELinux type definition (envd_exec)
-- startup shell script
-- BoardConfig.mk sepolicy directory registration
-- device.mk PRODUCT_PACKAGES and PRODUCT_COPY_FILES
-- file_contexts SELinux labels
-
 diff --git a/Android.bp b/Android.bp
 index 3109bf3c9..2ea3209c0 100644
 --- a/Android.bp
@@ -39,10 +24,6 @@ index 3109bf3c9..2ea3209c0 100644
 +    },
 +    check_elf_files: false,
 +}
-diff --git a/envd/envd-android-arm64 b/envd/envd-android-arm64
-new file mode 100644
-index 000000000..0bd86a818
-Binary files /dev/null and b/envd/envd-android-arm64 differ
 diff --git a/envd/envd.rc b/envd/envd.rc
 new file mode 100644
 index 000000000..da7fba8cc
@@ -71,7 +52,6 @@ index 000000000..da7fba8cc
 +
 +on property:sys.boot_completed=1
 +    start envd
-\ No newline at end of file
 diff --git a/envd/envd.te b/envd/envd.te
 new file mode 100644
 index 000000000..eaeaad006
@@ -111,7 +91,62 @@ index 000000000..c1cafd986
 +cd /vendor/bin
 +exec >> "$REMOTE_ROOT/log/envd.log" 2>&1
 +exec /vendor/bin/envd -isnotfc="$IS_NOT_FC" -port="$PORT"
-\ No newline at end of file
+diff --git a/envd/static_eth.rc b/envd/static_eth.rc
+new file mode 100644
+index 000000000..1a89e0fd8
+--- /dev/null
++++ b/envd/static_eth.rc
+@@ -0,0 +1,10 @@
++service static_eth /system/bin/sh /vendor/bin/static_eth.sh
++    class main
++    user root
++    group root net_admin
++    seclabel u:r:su:s0
++    oneshot
++    disabled
++
++on property:sys.boot_completed=1
++    start static_eth
+diff --git a/envd/static_eth.sh b/envd/static_eth.sh
+new file mode 100755
+index 000000000..a56984398
+--- /dev/null
++++ b/envd/static_eth.sh
+@@ -0,0 +1,34 @@
++#!/system/bin/sh
++DEV=eth1
++TABLE=200
++i=0
++while [ $i -lt 12 ]; do
++    # 1) IP / 掩码 / 广播
++    if ! ip addr show dev $DEV 2>/dev/null | grep -q "169.254.0.21"; then
++        ip addr flush dev $DEV 2>/dev/null
++        ip addr add 169.254.0.21/30 broadcast 169.254.0.23 dev $DEV 2>/dev/null
++        ip link set $DEV up 2>/dev/null
++    fi
++    # 2) 自定义表内的链路路由
++    if ! ip route show table $TABLE 2>/dev/null | grep -q "169.254.0.20/30"; then
++        ip route add 169.254.0.20/30 dev $DEV scope link table $TABLE 2>/dev/null
++    fi
++    # 3) 自定义表内的默认网关
++    if ! ip route show table $TABLE 2>/dev/null | grep -q "default via 169.254.0.22"; then
++        ip route add default via 169.254.0.22 dev $DEV table $TABLE 2>/dev/null
++    fi
++    # 4) ip rule：源 .21 的流量查 table 200
++    if ! ip rule 2>/dev/null | grep -q "from 169.254.0.21 lookup $TABLE"; then
++        ip rule add from 169.254.0.21/32 lookup $TABLE 2>/dev/null
++    fi
++    i=$((i+1))
++    sleep 5
++done
++
++# 5) HTTP 代理：从内核命令行 androidboot.http_proxy=ip:port 读取
++#    若存在则写入 SettingsProvider，实现开机自配置
++#    实例启动时通过 --extra_kernel_cmdline="... androidboot.http_proxy=10.0.2.2:8080" 传入
++PROXY=$(getprop ro.boot.http_proxy)
++if [ -n "$PROXY" ]; then
++    settings put global http_proxy "$PROXY"
++fi
 diff --git a/shared/BoardConfig.mk b/shared/BoardConfig.mk
 index 133454c9b..6ddcbf738 100644
 --- a/shared/BoardConfig.mk
@@ -125,10 +160,10 @@ index 133454c9b..6ddcbf738 100644
  BOARD_SEPOLICY_DIRS += system/bt/vendor_libs/linux/sepolicy
  
 diff --git a/shared/device.mk b/shared/device.mk
-index d860dda51..a522bf368 100644
+index d860dda51..610b577bf 100644
 --- a/shared/device.mk
 +++ b/shared/device.mk
-@@ -701,5 +702,12 @@ PRODUCT_PACKAGES += \
+@@ -701,5 +701,19 @@ PRODUCT_PACKAGES += \
  PRODUCT_PACKAGES += \
      android.hardware.cas-service.example
  
@@ -138,6 +173,13 @@ index d860dda51..a522bf368 100644
 +PRODUCT_COPY_FILES += \
 +    device/google/cuttlefish/envd/start-envd-init.sh:$(TARGET_COPY_OUT_VENDOR)/bin/start-envd-init.sh \
 +    device/google/cuttlefish/envd/envd.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/envd.rc
++
++# [STATIC_ETH] 静态网络配置脚本和 init 服务，在 boot_completed 后由 init 自动拉起
++# 通过 ip 命令设置 eth1 的静态 IP 地址、路由表和策略路由
++# 放入 vendor 分区遵循通用系统镜像的路径约束要求
++PRODUCT_COPY_FILES += \
++    device/google/cuttlefish/envd/static_eth.sh:$(TARGET_COPY_OUT_VENDOR)/bin/static_eth.sh \
++    device/google/cuttlefish/envd/static_eth.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/static_eth.rc
 +
  PRODUCT_COPY_FILES += \
      device/google/cuttlefish/shared/config/pci.ids:$(TARGET_COPY_OUT_VENDOR)/pci.ids

@@ -2,31 +2,55 @@
 # Build cuttlefish for arm64 target with patches applied.
 #
 # Usage:
-#   ./build_cf.sh <AOSP_ROOT> [TARGET] [TARGET_TYPE]
+#   ./build_cf.sh <AOSP_ROOT> [ANDROID_VERSION] [TARGET] [TARGET_TYPE]
 #
-#   AOSP_ROOT     : (required) absolute path to AOSP source tree
-#   TARGET        : (optional) lunch target, default: aosp_cf_arm64_only_phone
-#   TARGET_TYPE   : (optional) build variant: user|userdebug|eng, default: eng
+#   AOSP_ROOT       : (required) absolute path to AOSP source tree
+#   ANDROID_VERSION : (optional) target Android version: a14|a16, default: a14
+#   TARGET          : (optional) lunch target override, auto-detected by version
+#   TARGET_TYPE     : (optional) build variant: user|userdebug|eng, default: eng
 #
-# Example:
+# Examples:
 #   ./build_cf.sh /home/user/aosp
-#   ./build_cf.sh /home/user/aosp aosp_cf_arm64_only_phone-trunk_staging-userdebug userdebug
+#   ./build_cf.sh /home/user/aosp a16
+#   ./build_cf.sh /home/user/aosp a14 aosp_cf_arm64_only_phone eng
 
 set -euo pipefail
 
 # ── arguments ──────────────────────────────────────────────
-AOSP_ROOT="${1:?Usage: $0 <AOSP_ROOT> [TARGET] [TARGET_TYPE]}"
-TARGET="${2:-aosp_cf_arm64_only_phone}"
-TARGET_TYPE="${3:-eng}"
+AOSP_ROOT="${1:?Usage: $0 <AOSP_ROOT> [ANDROID_VERSION] [TARGET] [TARGET_TYPE]}"
+ANDROID_VERSION="${2:-a14}"
 
 if [ ! -d "$AOSP_ROOT" ]; then
     echo "ERROR: AOSP_ROOT '$AOSP_ROOT' does not exist."
     exit 1
 fi
 
+# ── version-specific defaults ──────────────────────────────
+case "$ANDROID_VERSION" in
+    a14)
+        DEFAULT_TARGET="aosp_cf_arm64_only_phone"
+        TARGET="${3:-$DEFAULT_TARGET}"
+        TARGET_TYPE="${4:-eng}"
+        ;;
+    a15)
+        DEFAULT_TARGET="aosp_cf_arm64_only_phone"
+        TARGET="${3:-$DEFAULT_TARGET}"
+        TARGET_TYPE="${4:-eng}"
+        ;;
+    a16)
+        DEFAULT_TARGET="aosp_cf_arm64_only_phone"
+        TARGET="${3:-$DEFAULT_TARGET}"
+        TARGET_TYPE="${4:-eng}"
+        ;;
+    *)
+        echo "ERROR: Unsupported ANDROID_VERSION '$ANDROID_VERSION'. Use 'a14', 'a15' or 'a16'."
+        exit 1
+        ;;
+esac
+
 # ── paths ───────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PATCH_ROOT="$SCRIPT_DIR/patchForCuttlefish-a14"
+PATCH_ROOT="$SCRIPT_DIR/patchForCuttlefish-$ANDROID_VERSION"
 ENVD_BINARY="$SCRIPT_DIR/envd-android-arm64"
 CF_DIR="$AOSP_ROOT/device/google/cuttlefish"
 ENVD_DEST="$CF_DIR/envd/envd-android-arm64"
@@ -44,9 +68,10 @@ fi
 
 echo "============================================"
 echo "  Cuttlefish Build Script"
-echo "  AOSP root : $AOSP_ROOT"
-echo "  Target    : $TARGET"
-echo "  Variant   : $TARGET_TYPE"
+echo "  AOSP root       : $AOSP_ROOT"
+echo "  Android version : $ANDROID_VERSION"
+echo "  Target          : $TARGET"
+echo "  Variant         : $TARGET_TYPE"
 echo "============================================"
 
 # ── Step 1: apply all patches ──────────────────────────────
@@ -110,7 +135,11 @@ export BUILD_HOSTNAME=build-host
 # envsetup.sh may use unset variables (TOP); relax -u temporarily
 set +u
 source build/envsetup.sh
-lunch "${TARGET}-${TARGET_TYPE}"
+if [ "$ANDROID_VERSION" = "a15" ] || [ "$ANDROID_VERSION" = "a16" ]; then
+    lunch "${TARGET}-trunk_staging-${TARGET_TYPE}"
+else
+    lunch "${TARGET}-${TARGET_TYPE}"
+fi
 set -u
 
 JOBS=$(nproc)

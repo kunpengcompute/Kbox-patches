@@ -1,0 +1,142 @@
+diff --git a/host/commands/assemble_cvd/flags.cc b/host/commands/assemble_cvd/flags.cc
+index 978df68..cfe0dc8 100644
+--- a/host/commands/assemble_cvd/flags.cc
++++ b/host/commands/assemble_cvd/flags.cc
+@@ -1273,7 +1273,7 @@ Result<CuttlefishConfig> InitializeCuttlefishConfiguration(
+   if (guest_config_mac80211_hwsim.has_value()) {
+     tmp_config_obj.set_virtio_mac80211_hwsim(*guest_config_mac80211_hwsim);
+   } else {
+-    tmp_config_obj.set_virtio_mac80211_hwsim(true);
++    tmp_config_obj.set_virtio_mac80211_hwsim(false);
+   }
+ 
+   if ((FLAGS_ap_rootfs_image.empty()) != (FLAGS_ap_kernel_image.empty())) {
+diff --git a/host/commands/run_cvd/main.cc b/host/commands/run_cvd/main.cc
+index e0ffa86..e2c2d48 100644
+--- a/host/commands/run_cvd/main.cc
++++ b/host/commands/run_cvd/main.cc
+@@ -135,12 +135,12 @@ fruit::Component<> runCvdComponent(
+ #ifdef __linux__
+       .install(AutoCmd<AutomotiveProxyService>::Component)
+       .install(AutoCmd<ModemSimulator>::Component)
+-      .install(AutoCmd<TombstoneReceiver>::Component)
++      // [PROCESS_TRIM] TombstoneReceiver 禁用：不需要收集 tombstone
+       .install(McuComponent)
+       .install(VhostDeviceVsockComponent)
+-      .install(VhostInputDevicesComponent)
+-      .install(WmediumdServerComponent)
+-      .install(launchStreamerComponent)
++      // [PROCESS_TRIM] VhostInputDevices 禁用：不需要人机交互输入设备，QEMU已自带virtio-mouse/keyboard
++      // [PROCESS_TRIM] WmediumdServer 禁用：WiFi 完全移除
++      // [PROCESS_TRIM] launchStreamerComponent 禁用：WebRTC流媒体不需要，且依赖已禁用的VhostInputDevices
+       .install(AutoCmd<VhalProxyServer>::Component)
+       .install(Ti50EmulatorComponent)
+ #endif
+@@ -150,32 +150,32 @@ fruit::Component<> runCvdComponent(
+       .install(FastbootConfigFragmentComponent)
+       .install(bootStateMachineComponent)
+       .install(AutoCmd<CasimirControlServer>::Component)
+-      .install(AutoCmd<ScreenRecordingServer>::Component)
++      // [PROCESS_TRIM] ScreenRecordingServer 禁用：不需要屏幕录制功能
+       .install(ConfigFlagPlaceholder)
+       .install(CustomActionsComponent)
+       .install(LaunchAdbComponent)
+       .install(LaunchFastbootComponent)
+       .install(AutoCmd<BluetoothConnector>::Component)
+-      .install(AutoCmd<NfcConnector>::Component)
++      // [PROCESS_TRIM] NfcConnector 禁用：函数内无enable_host_nfc标志检查，需直接注释
+       .install(AutoCmd<UwbConnector>::Component)
+       .install(AutoCmd<ConsoleForwarder>::Component)
+       .install(AutoDiagnostic<ConsoleInfo>::Component)
+-      .install(ControlEnvProxyServerComponent)
+-      .install(AutoCmd<EchoServer>::Component)
++      // [PROCESS_TRIM] ControlEnvProxyServer 禁用：仅WebRTC WebUI使用，不需要
++      // [PROCESS_TRIM] EchoServer 禁用：仅WebRTC使用，不需要
+       .install(AutoCmd<GnssGrpcProxyServer>::Component)
+-      .install(AutoCmd<LogcatReceiver>::Component)
++      // [PROCESS_TRIM] LogcatReceiver 禁用：不需要收集logcat日志到文件
+       .install(AutoDiagnostic<LogcatInfo>::Component)
+       .install(KernelLogMonitorComponent)
+       .install(AutoCmd<MetricsService>::Component)
+       .install(OpenwrtControlServerComponent)
+-      .install(AutoCmd<Pica>::Component)
++      // [PROCESS_TRIM] Pica 禁用：UWB模拟不需要，无独立开关控制
+       .install(RootCanalComponent)
+       .install(AutoCmd<Casimir>::Component)
+       .install(NetsimServerComponent)
+       .install(AutoSnapshotControlFiles::Component)
+       .install(AutoCmd<SecureEnv>::Component)
+-      .install(AutoSensorsSocketPair::Component)
+-      .install(AutoCmd<SensorsSimulator>::Component)
++      // [PROCESS_TRIM] AutoSensorsSocketPair 禁用：仅SensorsSimulator和WebRTC使用，均已禁用
++      // [PROCESS_TRIM] SensorsSimulator 禁用：不需要传感器模拟
+       .install(serverLoopComponent)
+       .install(WebRtcControllerComponent)
+       .install(AutoSetup<ValidateTapDevices>::Component)
+diff --git a/host/libs/vm_manager/crosvm_manager.cpp b/host/libs/vm_manager/crosvm_manager.cpp
+index 630373d..916a532 100644
+--- a/host/libs/vm_manager/crosvm_manager.cpp
++++ b/host/libs/vm_manager/crosvm_manager.cpp
+@@ -897,9 +897,13 @@ Result<std::vector<MonitorCommand>> CrosvmManager::StartCommands(
+   }
+ 
+   // /dev/hvc13 = sensors
+-  crosvm_cmd.AddHvcReadWrite(
+-      instance.PerInstanceInternalPath("sensors_fifo_vm.out"),
+-      instance.PerInstanceInternalPath("sensors_fifo_vm.in"));
++  if (instance.enable_webrtc()) {
++    crosvm_cmd.AddHvcReadWrite(
++        instance.PerInstanceInternalPath("sensors_fifo_vm.out"),
++        instance.PerInstanceInternalPath("sensors_fifo_vm.in"));
++  } else {
++    crosvm_cmd.AddHvcSink();
++  }
+ 
+   // /dev/hvc14 = MCU CONTROL
+   if (instance.mcu()["control"]["type"].asString() == "serial") {
+diff --git a/host/libs/vm_manager/qemu_manager.cpp b/host/libs/vm_manager/qemu_manager.cpp
+index 660e8b3..f4c0a33 100644
+--- a/host/libs/vm_manager/qemu_manager.cpp
++++ b/host/libs/vm_manager/qemu_manager.cpp
+@@ -625,7 +625,11 @@ Result<std::vector<MonitorCommand>> QemuManager::StartCommands(
+   }
+ 
+   // /dev/hvc13 = sensors
+-  add_hvc(instance.PerInstanceInternalPath("sensors_fifo_vm"));
++  if (instance.enable_webrtc()) {
++    add_hvc(instance.PerInstanceInternalPath("sensors_fifo_vm"));
++  } else {
++    add_hvc_sink();
++  }
+ 
+   // /dev/hvc14 = MCU CONTROL
+   if (instance.mcu()["control"]["type"].asString() == "serial") {
+@@ -766,16 +770,19 @@ Result<std::vector<MonitorCommand>> QemuManager::StartCommands(
+   qemu_cmd.AddParameter("-device");
+   qemu_cmd.AddParameter("virtio-keyboard-pci,disable-legacy=on");
+ 
+-  // device padding for unsupported "switches" input
+-  qemu_cmd.AddParameter("-chardev");
+-  qemu_cmd.AddParameter("socket,path=", instance.switches_socket_path(), ",id=switches0");
+-  qemu_cmd.AddParameter("-device");
+-  qemu_cmd.AddParameter("vhost-user-input-pci,chardev=switches0");
++  // [PROCESS_TRIM] vhost-user-input 设备仅 WebRTC 需要，跳过以避免依赖 VhostInputDevices 的 socket
++  if (instance.enable_webrtc()) {
++    // device padding for unsupported "switches" input
++    qemu_cmd.AddParameter("-chardev");
++    qemu_cmd.AddParameter("socket,path=", instance.switches_socket_path(), ",id=switches0");
++    qemu_cmd.AddParameter("-device");
++    qemu_cmd.AddParameter("vhost-user-input-pci,chardev=switches0");
+ 
+-  qemu_cmd.AddParameter("-chardev");
+-  qemu_cmd.AddParameter("socket,path=", instance.rotary_socket_path(), ",id=rotary0");
+-  qemu_cmd.AddParameter("-device");
+-  qemu_cmd.AddParameter("vhost-user-input-pci,chardev=rotary0");
++    qemu_cmd.AddParameter("-chardev");
++    qemu_cmd.AddParameter("socket,path=", instance.rotary_socket_path(), ",id=rotary0");
++    qemu_cmd.AddParameter("-device");
++    qemu_cmd.AddParameter("vhost-user-input-pci,chardev=rotary0");
++  }
+ 
+   auto vhost_net = instance.vhost_net() ? ",vhost=on" : "";
+ 

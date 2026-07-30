@@ -1,0 +1,429 @@
+diff --git a/devices/EmulatedCamera/hwl/Android.bp b/devices/EmulatedCamera/hwl/Android.bp
+index 5269daf..3bde0b4 100644
+--- a/devices/EmulatedCamera/hwl/Android.bp
++++ b/devices/EmulatedCamera/hwl/Android.bp
+@@ -46,6 +46,7 @@ cc_defaults {
+         "libjpeg",
+         "libjsoncpp",
+         "liblog",
++        "libpng",
+         "libsync",
+         "libui",
+         "libutils",
+@@ -104,6 +105,7 @@ cc_library_static {
+         "libexif",
+         "libjpeg",
+         "liblog",
++        "libpng",
+         "libyuv",
+         "libultrahdr",
+     ],
+diff --git a/devices/EmulatedCamera/hwl/EmulatedSensor.cpp b/devices/EmulatedCamera/hwl/EmulatedSensor.cpp
+index 35b19c1..994688f 100644
+--- a/devices/EmulatedCamera/hwl/EmulatedSensor.cpp
++++ b/devices/EmulatedCamera/hwl/EmulatedSensor.cpp
+@@ -37,6 +37,10 @@
+ 
+ #include <cmath>
+ #include <cstdlib>
++#include <dirent.h>
++#include <png.h>
++#include <string>
++#include <strings.h>
+ 
+ #include "EmulatedSensor.h"
+ #include "utils/ExifUtils.h"
+@@ -636,6 +640,7 @@ bool EmulatedSensor::IsStreamCombinationSupported(
+ status_t EmulatedSensor::StartUp(
+     uint32_t logical_camera_id,
+     std::unique_ptr<LogicalCharacteristics> logical_chars) {
++  ATRACE_CALL();
+   if (isRunning()) {
+     return OK;
+   }
+@@ -861,6 +866,12 @@ bool EmulatedSensor::threadLoop() {
+                   static_cast<uint64_t>(next_readout_time_)}};
+       callback.notify(next_result->pipeline_id, msg);
+     }
++    // [CAMERA_MOCK] Try loading PNG image if not yet loaded
++    // (supports adb push after boot).
++    if (!png_loaded_) {
++      LoadPngImage("/data/local/tmp/img-data");
++    }
++
+     auto b = next_buffers->begin();
+     while (b != next_buffers->end()) {
+       auto device_settings = settings->find((*b)->camera_id);
+@@ -907,6 +918,7 @@ bool EmulatedSensor::threadLoop() {
+                              ANDROID_SENSOR_TEST_PATTERN_MODE_SOLID_COLOR);
+       scene_->SetTestPatternData(device_settings->second.test_pattern_data);
+       scene_->SetScreenRotation(device_settings->second.screen_rotation);
++      screen_rotation_ = device_settings->second.screen_rotation;
+ 
+       uint32_t handshake_divider =
+           (device_settings->second.video_stab ==
+@@ -1618,6 +1630,80 @@ void EmulatedSensor::CaptureRGB(uint8_t* img, uint32_t width, uint32_t height,
+                                 uint32_t gain, int32_t color_space,
+                                 const SensorCharacteristics& chars) {
+   ATRACE_CALL();
++
++  // [CAMERA_MOCK] PNG image injection path: sample from cached PNG
++  // with bilinear scaling.
++  if (png_loaded_) {
++    int32_t sensor_orientation =
++        chars.is_front_facing ? -chars.orientation : chars.orientation;
++    uint32_t sr = screen_rotation_;
++    int32_t scene_rotation =
++        (static_cast<int32_t>(sr) + sensor_orientation) % 360;
++
++    for (unsigned int out_y = 0; out_y < height; out_y++) {
++      uint8_t* px = img + out_y * stride;
++      for (unsigned int out_x = 0; out_x < width; out_x++) {
++        float png_u, png_v;
++        switch (scene_rotation) {
++          case 90:
++            png_u = (height <= 1) ? 0.0f
++                        : (png_width_ - 1) -
++                              static_cast<float>(out_y) / (height - 1) *
++                                  (png_width_ - 1);
++            png_v = (width <= 1) ? 0.0f
++                        : static_cast<float>(out_x) / (width - 1) *
++                              (png_height_ - 1);
++            break;
++          case 180:
++            png_u = (width <= 1) ? 0.0f
++                        : (png_width_ - 1) -
++                              static_cast<float>(out_x) / (width - 1) *
++                                  (png_width_ - 1);
++            png_v = (height <= 1) ? 0.0f
++                        : (png_height_ - 1) -
++                              static_cast<float>(out_y) / (height - 1) *
++                                  (png_height_ - 1);
++            break;
++          case 270:
++            png_u = (height <= 1) ? 0.0f
++                        : static_cast<float>(out_y) / (height - 1) *
++                              (png_width_ - 1);
++            png_v = (width <= 1) ? 0.0f
++                        : (png_height_ - 1) -
++                              static_cast<float>(out_x) / (width - 1) *
++                                  (png_height_ - 1);
++            break;
++          default:  // 0
++            png_u = (width <= 1) ? 0.0f
++                        : static_cast<float>(out_x) / (width - 1) *
++                              (png_width_ - 1);
++            png_v = (height <= 1) ? 0.0f
++                        : static_cast<float>(out_y) / (height - 1) *
++                              (png_height_ - 1);
++            break;
++        }
++        uint8_t r, g, b, a;
++        GetPngPixel(png_u, png_v, &r, &g, &b, &a);
++        switch (layout) {
++          case RGB:
++            *px++ = r; *px++ = g; *px++ = b;
++            break;
++          case RGBA:
++            *px++ = r; *px++ = g; *px++ = b; *px++ = a;
++            break;
++          case ARGB:
++            *px++ = a; *px++ = r; *px++ = g; *px++ = b;
++            break;
++          default:
++            ALOGE("%s: RGB layout: %d not supported", __FUNCTION__, layout);
++            return;
++        }
++      }
++    }
++    ALOGVV("PNG RGB sensor image captured");
++    return;
++  }
++
+   float total_gain = gain / 100.0 * GetBaseGainFactor(chars.max_raw_value);
+   // In fixed-point math, calculate total scaling from electrons to 8bpp
+   int scale64x = 64 * total_gain * 255 / chars.max_raw_value;
+@@ -1678,6 +1764,107 @@ void EmulatedSensor::CaptureYUV420(YCbCrPlanes yuv_layout, uint32_t width,
+                                    int32_t color_space,
+                                    const SensorCharacteristics& chars) {
+   ATRACE_CALL();
++
++  // [CAMERA_MOCK] PNG image injection path: sample from cached PNG
++  // with bilinear scaling, then convert to YUV420.
++  if (png_loaded_) {
++    const int scale_out = 64;
++    const int scale_out_sq = scale_out * scale_out;
++    const int rgb_to_y[] = {19, 37, 7};
++    const int rgb_to_cb[] = {-10, -21, 32, 524288};
++    const int rgb_to_cr[] = {32, -26, -5, 524288};
++
++    int32_t sensor_orientation =
++        chars.is_front_facing ? -chars.orientation : chars.orientation;
++    uint32_t sr = screen_rotation_;
++    int32_t scene_rotation =
++        (static_cast<int32_t>(sr) + sensor_orientation) % 360;
++
++    for (unsigned int out_y = 0; out_y < height; out_y++) {
++      uint8_t* px_y = yuv_layout.img_y + out_y * yuv_layout.y_stride;
++      uint8_t* px_cb = yuv_layout.img_cb + (out_y / 2) * yuv_layout.cbcr_stride;
++      uint8_t* px_cr = yuv_layout.img_cr + (out_y / 2) * yuv_layout.cbcr_stride;
++
++      for (unsigned int out_x = 0; out_x < width; out_x++) {
++        float png_u, png_v;
++        switch (scene_rotation) {
++          case 90:
++            png_u = (height <= 1) ? 0.0f
++                        : (png_width_ - 1) -
++                              static_cast<float>(out_y) / (height - 1) *
++                                  (png_width_ - 1);
++            png_v = (width <= 1) ? 0.0f
++                        : static_cast<float>(out_x) / (width - 1) *
++                              (png_height_ - 1);
++            break;
++          case 180:
++            png_u = (width <= 1) ? 0.0f
++                        : (png_width_ - 1) -
++                              static_cast<float>(out_x) / (width - 1) *
++                                  (png_width_ - 1);
++            png_v = (height <= 1) ? 0.0f
++                        : (png_height_ - 1) -
++                              static_cast<float>(out_y) / (height - 1) *
++                                  (png_height_ - 1);
++            break;
++          case 270:
++            png_u = (height <= 1) ? 0.0f
++                        : static_cast<float>(out_y) / (height - 1) *
++                              (png_width_ - 1);
++            png_v = (width <= 1) ? 0.0f
++                        : (png_height_ - 1) -
++                              static_cast<float>(out_x) / (width - 1) *
++                                  (png_height_ - 1);
++            break;
++          default:
++            png_u = (width <= 1) ? 0.0f
++                        : static_cast<float>(out_x) / (width - 1) *
++                              (png_width_ - 1);
++            png_v = (height <= 1) ? 0.0f
++                        : static_cast<float>(out_y) / (height - 1) *
++                              (png_height_ - 1);
++            break;
++        }
++
++        uint8_t r, g, b, a;
++        GetPngPixel(png_u, png_v, &r, &g, &b, &a);
++
++        int r_fp = r * scale_out;
++        int g_fp = g * scale_out;
++        int b_fp = b * scale_out;
++
++        uint8_t y8 = static_cast<uint8_t>(
++            (rgb_to_y[0] * r_fp + rgb_to_y[1] * g_fp + rgb_to_y[2] * b_fp) /
++            scale_out_sq);
++        if (yuv_layout.bytesPerPixel == 1) {
++          *px_y = y8;
++        } else if (yuv_layout.bytesPerPixel == 2) {
++          *(reinterpret_cast<uint16_t*>(px_y)) = htole16(y8 << 8);
++        }
++        px_y += yuv_layout.bytesPerPixel;
++
++        if (out_y % 2 == 0 && out_x % 2 == 0) {
++          uint8_t cb8 = static_cast<uint8_t>(
++              (rgb_to_cb[0] * r_fp + rgb_to_cb[1] * g_fp +
++               rgb_to_cb[2] * b_fp + rgb_to_cb[3]) / scale_out_sq);
++          uint8_t cr8 = static_cast<uint8_t>(
++              (rgb_to_cr[0] * r_fp + rgb_to_cr[1] * g_fp +
++               rgb_to_cr[2] * b_fp + rgb_to_cr[3]) / scale_out_sq);
++          if (yuv_layout.bytesPerPixel == 1) {
++            *px_cb = cb8; *px_cr = cr8;
++          } else if (yuv_layout.bytesPerPixel == 2) {
++            *(reinterpret_cast<uint16_t*>(px_cb)) = htole16(cb8 << 8);
++            *(reinterpret_cast<uint16_t*>(px_cr)) = htole16(cr8 << 8);
++          }
++          px_cr += yuv_layout.cbcr_step;
++          px_cb += yuv_layout.cbcr_step;
++        }
++      }
++    }
++    ALOGVV("PNG YUV420 sensor image captured");
++    return;
++  }
++
+   float total_gain = gain / 100.0 * GetBaseGainFactor(chars.max_raw_value);
+   // Using fixed-point math with 6 bits of fractional precision.
+   // In fixed-point math, calculate total scaling from electrons to 8bpp
+@@ -1875,6 +2062,14 @@ status_t EmulatedSensor::ProcessYUV420(const YUV420Frame& input,
+       // then scale using libyuv.
+       float aspect_ratio = static_cast<float>(output.width) / output.height;
+       zoom_ratio = std::max(1.f, zoom_ratio);
++      // [CAMERA_MOCK] PNG injection — bypass kSceneWidth/kSceneHeight
++      // and render at full output resolution.
++      if (png_loaded_) {
++        CaptureYUV420(output.planes, output.width, output.height, gain,
++                      zoom_ratio, rotate_and_crop, color_space, chars);
++        return OK;
++      }
++
+       input_width = EmulatedScene::kSceneWidth * aspect_ratio;
+       input_height = EmulatedScene::kSceneHeight;
+       temp_yuv.reserve((input_width * input_height * 3 * bytes_per_pixel) / 2);
+@@ -2090,4 +2285,134 @@ void EmulatedSensor::CalculateRgbRgbMatrix(int32_t color_space,
+                        xyzMatrix->zB * chars.forward_matrix.bZ;
+ }
+ 
++bool EmulatedSensor::LoadPngImage(const char* directory) {
++  DIR* dir = opendir(directory);
++  if (dir == nullptr) {
++    ALOGE("%s: opendir failed for %s, errno=%d (%s)", __FUNCTION__,
++          directory, errno, strerror(errno));
++    return false;
++  }
++
++  std::string png_path;
++  struct dirent* entry;
++  while ((entry = readdir(dir)) != nullptr) {
++    const char* name = entry->d_name;
++    size_t len = strlen(name);
++    if (len > 4 && strcasecmp(name + len - 4, ".png") == 0) {
++      png_path = std::string(directory) + "/" + name;
++      break;
++    }
++  }
++  closedir(dir);
++
++  if (png_path.empty()) return false;
++
++  FILE* fp = fopen(png_path.c_str(), "rb");
++  if (fp == nullptr) {
++    ALOGE("%s: fopen failed for %s", __FUNCTION__, png_path.c_str());
++    return false;
++  }
++
++  png_byte header[8];
++  if (fread(header, 1, 8, fp) != 8 || png_sig_cmp(header, 0, 8)) {
++    ALOGE("%s: invalid PNG signature in %s", __FUNCTION__, png_path.c_str());
++    fclose(fp);
++    return false;
++  }
++
++  png_structp png_ptr =
++      png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
++  if (png_ptr == nullptr) {
++    fclose(fp);
++    return false;
++  }
++
++  png_infop info_ptr = png_create_info_struct(png_ptr);
++  if (info_ptr == nullptr) {
++    png_destroy_read_struct(&png_ptr, nullptr, nullptr);
++    fclose(fp);
++    return false;
++  }
++
++  if (setjmp(png_jmpbuf(png_ptr))) {
++    ALOGE("%s: libpng error during read of %s", __FUNCTION__, png_path.c_str());
++    png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
++    fclose(fp);
++    return false;
++  }
++
++  png_init_io(png_ptr, fp);
++  png_set_sig_bytes(png_ptr, 8);
++  png_read_info(png_ptr, info_ptr);
++
++  png_width_ = png_get_image_width(png_ptr, info_ptr);
++  png_height_ = png_get_image_height(png_ptr, info_ptr);
++  png_byte color_type = png_get_color_type(png_ptr, info_ptr);
++  png_byte bit_depth = png_get_bit_depth(png_ptr, info_ptr);
++
++  if (bit_depth == 16) png_set_strip_16(png_ptr);
++  if (color_type == PNG_COLOR_TYPE_PALETTE) png_set_palette_to_rgb(png_ptr);
++  if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8)
++    png_set_expand_gray_1_2_4_to_8(png_ptr);
++  if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS))
++    png_set_tRNS_to_alpha(png_ptr);
++  if (color_type == PNG_COLOR_TYPE_RGB || color_type == PNG_COLOR_TYPE_GRAY)
++    png_set_add_alpha(png_ptr, 0xFF, PNG_FILLER_AFTER);
++  if (color_type == PNG_COLOR_TYPE_GRAY ||
++      color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
++    png_set_gray_to_rgb(png_ptr);
++
++  png_read_update_info(png_ptr, info_ptr);
++
++  size_t row_bytes = png_get_rowbytes(png_ptr, info_ptr);
++  png_image_buffer_.resize(png_height_ * row_bytes);
++
++  std::vector<png_bytep> row_pointers(png_height_);
++  for (uint32_t i = 0; i < png_height_; i++) {
++    row_pointers[i] = png_image_buffer_.data() + i * row_bytes;
++  }
++  png_read_image(png_ptr, row_pointers.data());
++
++  png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
++  fclose(fp);
++
++  png_loaded_ = true;
++  return true;
++}
++
++void EmulatedSensor::GetPngPixel(float u, float v, uint8_t* r, uint8_t* g,
++                                  uint8_t* b, uint8_t* a) {
++  if (png_width_ == 0 || png_height_ == 0) return;
++
++  u = std::max(0.0f, std::min(u, static_cast<float>(png_width_ - 1)));
++  v = std::max(0.0f, std::min(v, static_cast<float>(png_height_ - 1)));
++
++  uint32_t x0 = static_cast<uint32_t>(u);
++  uint32_t y0 = static_cast<uint32_t>(v);
++  uint32_t x1 = std::min(x0 + 1u, png_width_ - 1);
++  uint32_t y1 = std::min(y0 + 1u, png_height_ - 1);
++
++  float fx = u - x0;
++  float fy = v - y0;
++
++  size_t stride = png_width_ * 4;
++  const uint8_t* p00 = png_image_buffer_.data() + y0 * stride + x0 * 4;
++  const uint8_t* p10 = png_image_buffer_.data() + y0 * stride + x1 * 4;
++  const uint8_t* p01 = png_image_buffer_.data() + y1 * stride + x0 * 4;
++  const uint8_t* p11 = png_image_buffer_.data() + y1 * stride + x1 * 4;
++
++  *r = static_cast<uint8_t>(
++      (1.0f - fx) * (1.0f - fy) * p00[0] + fx * (1.0f - fy) * p10[0] +
++      (1.0f - fx) * fy * p01[0] + fx * fy * p11[0] + 0.5f);
++  *g = static_cast<uint8_t>(
++      (1.0f - fx) * (1.0f - fy) * p00[1] + fx * (1.0f - fy) * p10[1] +
++      (1.0f - fx) * fy * p01[1] + fx * fy * p11[1] + 0.5f);
++  *b = static_cast<uint8_t>(
++      (1.0f - fx) * (1.0f - fy) * p00[2] + fx * (1.0f - fy) * p10[2] +
++      (1.0f - fx) * fy * p01[2] + fx * fy * p11[2] + 0.5f);
++  *a = static_cast<uint8_t>(
++      (1.0f - fx) * (1.0f - fy) * p00[3] + fx * (1.0f - fy) * p10[3] +
++      (1.0f - fx) * fy * p01[3] + fx * fy * p11[3] + 0.5f);
++}
++
+ }  // namespace android
+diff --git a/devices/EmulatedCamera/hwl/EmulatedSensor.h b/devices/EmulatedCamera/hwl/EmulatedSensor.h
+index 9e21364..dd7170f 100644
+--- a/devices/EmulatedCamera/hwl/EmulatedSensor.h
++++ b/devices/EmulatedCamera/hwl/EmulatedSensor.h
+@@ -396,6 +396,21 @@ class EmulatedSensor : private Thread, public virtual RefBase {
+ 
+   std::unique_ptr<EmulatedScene> scene_;
+ 
++  // [CAMERA_MOCK] PNG image injection: loaded from /data/local/tmp/img-data/
++  // at capture time. Once loaded successfully, cached for subsequent frames.
++  std::vector<uint8_t> png_image_buffer_;
++  uint32_t png_width_ = 0;
++  uint32_t png_height_ = 0;
++  bool png_loaded_ = false;
++
++  // Cached screen rotation for PNG coordinate compensation
++  // (mirrors Scene pre-rotation in EmulatedScene::CalculateScene).
++  uint32_t screen_rotation_ = 0;
++
++  bool LoadPngImage(const char* directory);
++  void GetPngPixel(float u, float v, uint8_t* r, uint8_t* g,
++                   uint8_t* b, uint8_t* a);
++
+   RgbRgbMatrix rgb_rgb_matrix_;
+ 
+   static EmulatedScene::ColorChannels GetQuadBayerColor(uint32_t x, uint32_t y);

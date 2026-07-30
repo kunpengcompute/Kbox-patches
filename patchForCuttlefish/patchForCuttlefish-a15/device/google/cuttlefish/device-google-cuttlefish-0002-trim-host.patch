@@ -1,0 +1,76 @@
+diff --git a/host/commands/run_cvd/main.cc b/host/commands/run_cvd/main.cc
+index 1cbe1439d..a5d909782 100644
+--- a/host/commands/run_cvd/main.cc
++++ b/host/commands/run_cvd/main.cc
+@@ -128,12 +128,12 @@ fruit::Component<> runCvdComponent(
+ #ifdef __linux__
+       .install(AutoCmd<AutomotiveProxyService>::Component)
+       .install(AutoCmd<ModemSimulator>::Component)
+-      .install(AutoCmd<TombstoneReceiver>::Component)
++      // [PROCESS_TRIM] TombstoneReceiver 禁用：不需要收集 tombstone
+       .install(McuComponent)
+-      .install(OpenWrtComponent)
++      // [PROCESS_TRIM] OpenWrt 禁用：不需要虚拟 AP 路由器
+       .install(VhostDeviceVsockComponent)
+-      .install(WmediumdServerComponent)
+-      .install(launchStreamerComponent)
++      // [PROCESS_TRIM] WmediumdServer 禁用：WiFi 完全移除
++      // [PROCESS_TRIM] launchStreamerComponent 禁用：WebRTC 流媒体不需要
+       .install(AutoCmd<VhalProxyServer>::Component)
+ #endif
+       .install(AdbConfigComponent)
+@@ -142,25 +142,25 @@ fruit::Component<> runCvdComponent(
+       .install(FastbootConfigFragmentComponent)
+       .install(bootStateMachineComponent)
+       .install(AutoCmd<CasimirControlServer>::Component)
+-      .install(AutoCmd<ScreenRecordingServer>::Component)
++      // [PROCESS_TRIM] ScreenRecordingServer 禁用：不需要屏幕录制功能
+       .install(ConfigFlagPlaceholder)
+       .install(CustomActionsComponent)
+       .install(LaunchAdbComponent)
+       .install(LaunchFastbootComponent)
+       .install(AutoCmd<BluetoothConnector>::Component)
+-      .install(AutoCmd<NfcConnector>::Component)
++      // [PROCESS_TRIM] NfcConnector 禁用：函数内无 enable_host_nfc 标志检查，需直接注释
+       .install(AutoCmd<UwbConnector>::Component)
+       .install(AutoCmd<ConsoleForwarder>::Component)
+       .install(AutoDiagnostic<ConsoleInfo>::Component)
+-      .install(ControlEnvProxyServerComponent)
+-      .install(AutoCmd<EchoServer>::Component)
++      // [PROCESS_TRIM] ControlEnvProxyServer 禁用：仅 WebRTC WebUI 使用，不需要
++      // [PROCESS_TRIM] EchoServer 禁用：仅 WebRTC 使用，不需要
+       .install(AutoCmd<GnssGrpcProxyServer>::Component)
+-      .install(AutoCmd<LogcatReceiver>::Component)
++      // [PROCESS_TRIM] LogcatReceiver 禁用：不需要收集 logcat 日志到文件
+       .install(AutoDiagnostic<LogcatInfo>::Component)
+       .install(KernelLogMonitorComponent)
+       .install(AutoCmd<MetricsService>::Component)
+-      .install(OpenwrtControlServerComponent)
+-      .install(AutoCmd<Pica>::Component)
++      // [PROCESS_TRIM] OpenwrtControlServer 禁用：不需要 OpenWrt 控制器
++      // [PROCESS_TRIM] Pica 禁用：UWB 模拟不需要，无独立开关控制
+       .install(RootCanalComponent)
+       .install(AutoCmd<Casimir>::Component)
+       .install(NetsimServerComponent)
+diff --git a/host/libs/vm_manager/crosvm_manager.cpp b/host/libs/vm_manager/crosvm_manager.cpp
+index 16ae525c3..e015d8959 100644
+--- a/host/libs/vm_manager/crosvm_manager.cpp
++++ b/host/libs/vm_manager/crosvm_manager.cpp
+@@ -864,9 +864,14 @@ Result<std::vector<MonitorCommand>> CrosvmManager::StartCommands(
+ 
+ 
+   // /dev/hvc13 = sensors
+-  crosvm_cmd.AddHvcReadWrite(
+-      instance.PerInstanceInternalPath("sensors_fifo_vm.out"),
+-      instance.PerInstanceInternalPath("sensors_fifo_vm.in"));
++  // [PROCESS_TRIM] sensors_fifo 仅 WebRTC 需要，否则替换为 sink
++  if (instance.enable_webrtc()) {
++    crosvm_cmd.AddHvcReadWrite(
++        instance.PerInstanceInternalPath("sensors_fifo_vm.out"),
++        instance.PerInstanceInternalPath("sensors_fifo_vm.in"));
++  } else {
++    crosvm_cmd.AddHvcSink();
++  }
+ 
+   // /dev/hvc14 = MCU CONTROL
+   if (instance.mcu()["control"]["type"].asString() == "serial") {
