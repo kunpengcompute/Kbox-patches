@@ -794,9 +794,41 @@ function bb_prepare_media_codecs_for_amd() {
         fi
     fi
 }
+
+# 渲染中间层预准备接口：在容器创建后、启动前调用，将 RenderAccLayer.kbox.so
+# 提取到 data 卷，并推送渲染加速配置文件，确保 Android 图形栈初始化时文件已就位。
+# 参数: $1=容器名称, $2=用户数据根目录(可选, 默认读 BB_USER_DATA_PATH)
+function bb_prepare_render_layer() {
+    local container_name=$1
+    local enable_render_layer=${BB_ENABLE_RENDER_LAYER:-0}
+
+    if [[ "$enable_render_layer" != "1" ]]; then
+        return 0
+    fi
+
+    local user_data_path="${2:-${BB_USER_DATA_PATH:-/root/mount}}"
+    local data_volume="${user_data_path}/data/${container_name}/data"
+
+    # 创建渲染中间层所需目录（/data 是 volume mount，直接操作宿主机路径）
+    mkdir -p "${data_volume}/local/debug/gles"
+    chmod -R 755 "${data_volume}/local/debug/"
+    mkdir -p "${data_volume}/local/tmp"
+
+    # 从容器文件系统提取 RenderAccLayer.kbox.so 到 data 卷
+    if $RUNTIME_CMD cp ${container_name}:/system/vendor/lib64/hw/RenderAccLayer.kbox.so "${data_volume}/local/debug/gles/" 2>/dev/null; then
+        echo "RenderAccLayer.kbox.so extracted to data volume"
+    else
+        echo -e "\033[31mFailed to enabled render layer! RenderAccLayer.kbox.so may not exist\033[0m"
+    fi
+
+    # 推送渲染加速配置文件
+    if [ -e "kbox_render_accelerating_configuration.xml" ]; then
+        $RUNTIME_CMD cp kbox_render_accelerating_configuration.xml ${container_name}:/data/local/tmp
+    fi
+}
 #===============================================================================
-# base_box.sh 容器管理：启动、重启
-# BB_* 全局配置变量（调用方在调用 bb_start_box / bb_restart_box / bb_delete_box 前设置）
+# base_box.sh 容器管理：创建、启动、重启
+# BB_* 全局配置变量（调用方在调用 bb_create_box / bb_start_box / bb_restart_box / bb_delete_box 前设置）
 # 所有变量以 BB_ 前缀标识归属 base_box.sh，避免与调用方变量冲突。
 #-------------------------------------------------------------------------------
 # BB_NAME               容器名称（如 kbox_1、android_1）
@@ -870,9 +902,9 @@ function bb_create_data_img() {
     echo $(($STORAGE_SIZE_GB * 2 * 1024 * 1024)) >$data_dir_path/storage_size
 }
 
-function bb_start_box() {
+function bb_create_box() {
     ########################## 1. 读取 BB_* 全局配置 ##########################
-    echo "------------------ Kbox Startup ------------------"
+    echo "------------------ Kbox Create  ------------------"
     local BOX_NAME="${BB_NAME}"
     local CPUS=(${BB_CPUS})
     local NUMAS=(${BB_NUMAS})
@@ -1071,12 +1103,12 @@ function bb_start_box() {
 
     bb_create_data_img
 
-    ########################## 4.容器启动 ##########################
+    ########################## 4.容器创建 ##########################
     local RUN_OPTION=""
     if [ $DEFAULT_RUNTIME == "docker" ]; then
         RUN_OPTION+=" -i "
     fi
-    RUN_OPTION+=" -td "
+    RUN_OPTION+=" -t "
     RUN_OPTION+=" --hostname=${BOX_NAME} "
     RUN_OPTION+=" --cap-drop=ALL "
     RUN_OPTION+=" --cap-add=SETPCAP "
@@ -1231,7 +1263,31 @@ function bb_start_box() {
     # 给c 13 vinput设备设置访问权限
     local cgroup_rule="--device-cgroup-rule=c 13:* rwm"
 
-    $RUNTIME_CMD run $RUN_OPTION "$cgroup_rule" $IMAGE_NAME init
+    $RUNTIME_CMD create $RUN_OPTION "$cgroup_rule" $IMAGE_NAME init
+    if [ $? -ne 0 ]; then
+        echo "error: docker create failed for ${BOX_NAME}!"
+        return 1
+    fi
+
+    return 0
+}
+
+#===============================================================================
+# bb_start_box - 启动已创建的容器并执行后处理
+# 依赖: BB_NAME（容器名称）、BB_ENABLE_RENDER_LAYER
+# 在 bb_create_box 和文件准备（bb_prepare_*）完成后调用
+#===============================================================================
+function bb_start_box() {
+    local BOX_NAME="${BB_NAME}"
+    local ENABLE_RENDER_LAYER="${BB_ENABLE_RENDER_LAYER:-0}"
+
+    echo "------------------ Kbox Start   ------------------"
+
+    $RUNTIME_CMD start ${BOX_NAME}
+    if [ $? -ne 0 ]; then
+        echo "error: docker start failed for ${BOX_NAME}!"
+        return 1
+    fi
 
     local cid=$($RUNTIME_CMD ps | grep -w " ${BOX_NAME}" | awk '{print $1}')
 
@@ -1256,18 +1312,8 @@ function bb_start_box() {
     rm -f $THISDIR/containerid_${BOX_NAME}
 
     if [[ $ENABLE_RENDER_LAYER == "1" ]]; then
-        # 渲染中间层
+        # 渲染中间层：shader_cache 权限调整（需容器运行态）
         $RUNTIME_CMD exec -it ${BOX_NAME} sh -c "if [ -d /vendor/shader_cache/ ]; then chmod 777 -R /vendor/shader_cache/; fi"
-        $RUNTIME_CMD exec -it ${BOX_NAME} sh -c "mkdir -p /data/local/debug/gles"
-        $RUNTIME_CMD exec -it ${BOX_NAME} sh -c "chmod 755 -R /data/local/debug/"
-        $RUNTIME_CMD exec -it ${BOX_NAME} sh -c "mkdir -p /data/local/tmp"
-        if [ -e "kbox_render_accelerating_configuration.xml" ]; then
-            $RUNTIME_CMD cp kbox_render_accelerating_configuration.xml ${BOX_NAME}:/data/local/tmp
-        fi
-        $RUNTIME_CMD exec -it ${BOX_NAME} sh -c "cp /system/vendor/lib64/hw/RenderAccLayer.kbox.so /data/local/debug/gles"
-        if [ $? -ne 0 ]; then
-            echo -e "\033[31mFailed to enabled render layer! RenderAccLayer.kbox.so may not exist\033[0m"
-        fi
     fi
 }
 
