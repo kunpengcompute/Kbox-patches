@@ -13,7 +13,6 @@
 | 用户自行编译 | 用户自行编译 | 请参见章节自行编译，已包含Android Kbox二进制，容器可正常启动 |
 | kbox:demo | 华为镜像仓提供的官方Kbox Demo镜像 | 不包含Android Kbox二进制，容器无法正常启动，需要执行制作Kbox镜像：合入商用二进制步骤 |
 | kbox:origin | 使用脚本制作 | 基于kbox:demo和Android Kbox二进制制作的镜像，容器可以正常启动 |
-| kbox:latest | 使用脚本制作的硬解镜像 | 基于kbox:origin和编解码库制作的镜像，使能配置方案一的硬解功能，容器可正常启动 |
 
 **Kbox Demo镜像挂载<a name="section16531422174717"></a>**
 
@@ -60,32 +59,6 @@ docker import android.tar kbox:demo
         ./make_image_aosp15.sh kbox:demo kbox:origin VAGPU-A15-C-F-26.02.06.00.RC2
         ```
 
-**（硬件配置方案一，可选）制作Kbox镜像：使能硬解功能<a name="section1799111466509"></a>**
-
-若环境中未使用编码卡则不能制作并使用使能硬解功能的镜像。
-
-1. 解压Kbox-patches-AOSP15.zip，将Kbox-patches-AOSP15/make_img_sample目录上传至服务器的“~/dependency”目录。
-2. 请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)获取NETINT-vXXX.tar.gz，并重命名为NETINT.tar.gz，放至“~/dependency/make_img_sample/decode_iso_build”目录，对该目录下的制作镜像脚本赋予可执行权限。
-
-    ```shell
-    cd ~/dependency/make_img_sample/decode_iso_build
-    chmod +x Dockerfile make_image.sh
-    ```
-
-    >![](public_sys-resources/icon-note.gif) **说明：** 
-    >
-    >NETINT对Android15系统仅支持Quadra编码卡。
-
-3. 制作硬解镜像。
-
-    以名为kbox:origin的镜像为基础制作名为kbox:latest的镜像，这两个名称可自定义。
-
-    ```shell
-    ./make_image.sh kbox:origin kbox:latest
-    ```
-
-    在启动实例时输入的参数需和此处制作的名称、tag保持一致。
-
 ### 1.2 启动与卸载云手机实例<a name="ZH-CN_TOPIC_0000002518225854"></a>
 
 启动云手机实例路径下应存在kbox_config.cfg，hardware_bind.cfg配置文件。容器会使用该文件中的配置，因此使用时应确保kbox_config.cfg，hardware_bind.cfg中的配置正确。若启动路径中无该配置文件，则云手机将无法启动。
@@ -113,88 +86,16 @@ Kbox云手机容器支持使能图形加速层，通过修改kbox_config.cfg配�
 
 1. 解压Kbox-patches-AOSP15.zip，将Kbox-patches-AOSP15文件夹中的“deploy_scripts”目录上传至服务器的“~/dependency”目录。
 2. （可选）使能硬件解码（以下简称“硬解”）。
-    1. （硬件配置方案一）设置“deploy_scripts”目录下的kbox_config.cfg文件，将“T432_QUADRA_DECODE_ENABLE”设置为“1”。同时需参考以下步骤设置NETINT卡节点。
-        1. 执行如下命令查看编码卡芯片对应节点号。
-
-            ```shell
-            nvme list
-            ```
-
-            回显示例如下，请以实际为准。加粗部分为NETINT编码卡Quadra芯片NVMe节点，一张编码卡包含2颗芯片。
-
-            ```shell
-            Node          SN                   Model            Namespace Usage                    Format           FW Rev
-            ------------- -------------------- ---------------- --------- ------------------------ ---------------- --------
-            /dev/nvme0n1  Q2A325A11DC082-0454A QuadraT2A        1         8.59  TB /   8.59  TB    4 KiB +  0 B     48F6rKr1
-            /dev/nvme1n1  Q2A325A11DC082-0454B QuadraT2A        1         8.59  TB /   8.59  TB    4 KiB +  0 B     48F6rKr1
-            ```
-
-        2. 查看nvme节点与pcie bus号对应关系。
-
-            {index}为上一步回显信息所示的NVMe节点编号。例如/dev/nvme0n1，该节点{index}即为0。
-
-            ```shell
-            find /sys/devices/ -name nvme{index}
-            ```
-
-            回显如下，其中0000:05:00.0为该设备对应的busID：
-
-            ```shell
-            /sys/devices/pci0000:00/0000:00:0e.0/0000:05:00.0/nvme/nvme0
-            /sys/devices/virtual/nvme-subsystem/nvme-subsys0/nvme0
-            ```
-
-        3. 通过bus号找到该节点与NUMA从属关系。
-
-            {busID}为上一步骤获取的bus号。以nvme0设备的回显为例，{busID}即为0000:05:00.0。
-
-            ```shell
-            lspci -vvvs {busID} | grep NUMA
-            ```
-
-            回显如下。
-
-            ```shell
-            NUMA node: 0
-            ```
-
-        4. 根据编码卡NVMe设备节点对应的NUMA修改hardware_bind.cfg文件中NETINT的值。
-
-            鲲鹏920 7260服务器：从属于0、1号NUMA的NVMe节点写在NETINT0字段中，从属于2、3号NUMA的NVMe节点写在NETINT1字段中。
-
-            字段中每个设备需添加两个节点。例如2号NVMe设备，需添加“/dev/nvme2”、“/dev/nvme2n1”两个节点。
-
-            ```shell
-            # NETINT编码卡设备节点
-            NETINT0="/dev/nvme0,/dev/nvme0n1,/dev/nvme1,/dev/nvme1n1"
-            NETINT1="/dev/nvme2,/dev/nvme2n1,/dev/nvme3,/dev/nvme3n1"
-            ```
-
-            >![](public_sys-resources/icon-note.gif) **说明：** 
-            >
-            >- 若第一次启动容器时NETINT的值为空，禁止设置T432_QUADRA_DECODE_ENABLE=1，且禁止重启时设置T432_QUADRA_DECODE_ENABLE=1，否则播放视频会有短暂黑屏的现象。
-            >- 若需使能NETINT编码卡硬解，需要在kbox_config.cfg中设置T432_QUADRA_DECODE_ENABLE=1。
-            >- 针对一张Quadra T2A编码卡环境，请参考以下配置方式，根据实际情况配置设备节点信息。
-            >
-            > ```shell
-            >
-            > # NETINT编码卡设备节点
-            >
-            > NETINT0="/dev/nvme0,/dev/nvme0n1,/dev/nvme1,/dev/nvme1n1"
-            > NETINT1="/dev/nvme0,/dev/nvme0n1,/dev/nvme1,/dev/nvme1n1"
-            > ```
-
-    2. （硬件配置方案二、三、四）设置“deploy_scripts”目录下的kbox_config.cfg文件，将“ENABLE_HARD_DECODE”设置为“1”。
+    1. （硬件配置方案二、三、四）设置“deploy_scripts”目录下的kbox_config.cfg文件，将“ENABLE_HARD_DECODE”设置为“1”。
 
         >![](public_sys-resources/icon-note.gif) **说明：** 
         >
         >若启动时为软件解码（以下简称“软解”）方式（设置ENABLE_HARD_DECODE=0），则重启时可切换为硬解方式（设置ENABLE_HARD_DECODE=1）。
 
-3. （可选）若需要启动使能了C2解码器的kbox云手机实例（硬件配置方案一可用），则需要设置“deploy_scripts”目录下的kbox_config.cfg文件，将`ENABLE_AMD_C2_DECODE`设置为“1”，同时关闭硬解，将`T432_QUADRA_DECODE_ENABLE`设置为“0”。必须在容器第一次启动时配置开/关C2解码器，不支持启动容器后，再通过kbox_config.cfg文件的“ENABLE_AMD_C2_DECODE”参数修改，重启容器切换。云手机内置应用会根据自身需要自行选择解码器。
+3. （可选）若需要启动使能了C2解码器的kbox云手机实例（硬件配置方案一可用），则需要设置“deploy_scripts”目录下的kbox_config.cfg文件，将`ENABLE_AMD_C2_DECODE`设置为“1”。必须在容器第一次启动时配置开/关C2解码器，不支持启动容器后，再通过kbox_config.cfg文件的“ENABLE_AMD_C2_DECODE”参数修改，重启容器切换。云手机内置应用会根据自身需要自行选择解码器。
 
     ```shell
     ENABLE_AMD_C2_DECODE=1
-    T432_QUADRA_DECODE_ENABLE=0
     ```
 
 4. 通过android_kbox_aosp15.sh脚本启动容器。
