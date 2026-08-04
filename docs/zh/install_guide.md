@@ -14,18 +14,18 @@ Kbox云手机容器环境部署的硬件环境配置方案要求如[**表 1** Kb
 
 **表 1** Kbox云手机容器环境部署硬件配置方案要求<a id="Kbox云手机容器环境部署硬件配置方案要求"></a>
 
-|配置项|硬件配置方案一|硬件配置方案二|硬件配置方案三|硬件配置方案四|
-|--|--|--|--|--|
-|服务器|鲲鹏服务器|鲲鹏服务器|鲲鹏服务器|鲲鹏服务器|
-|CPU|2\*鲲鹏920 7260处理器，64核，2.6GHz|2\*鲲鹏920 7260处理器，64核，2.6GHz|2\*鲲鹏920 7280Z处理器，80核，2.9GHz|2\*鲲鹏920 7260W处理器，64核，2.2GHz|
-|内存|16\*DDR4 RDIMM内存-32GB-2933MT/s|16\*DDR4 RDIMM内存-32GB-2933MT/s|16\*DDR5 DIMM内存-64GB-4800MT/s|16\*DDR5 DIMM内存-64GB-5200MT/s|
-|硬盘|系统盘：2\*固态硬盘-480GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*ES3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：2\*固态硬盘-480GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*ES3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：1\*S3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*S3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：1\*固态硬盘-480GB-SATA 6Gb/s-2.5 inch height-读密集型<br>1\*S4510 固态硬盘-960GB-SATA 6Gb/s-读取密集型<br>数据盘：1\*ES3600P V6固态硬盘-6400GB-NVMe 64Gb/s<br>1\*ES3500P V5固态硬盘-4000GB-NVMe 32Gb/s|
-|网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-225GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-2\*25GE/10GE光口-4端口-SFP28（不含光模块）|
-|Riser卡|Riser1与Riser2模组相同，均为：PCIe X16 + PCIe X8|Riser1与Riser2模组相同，均为：PCIe X8\*3|前置Riser（x8\*2）\*2+后置Riser（x8\*2）\*2+Riser3（x8\*2）\*1|后置Riser（x16+x8\*2）\*2+Riser3（x8\*2）\*1|
-|编码卡|1\*NETINT Quadra T2A（X8）|无|无|无|
-|GPU|2\*AMD W6800|4\*道客DC1000|8\*道客DC1000 或 8\*道客DC1000C|8\*道客DC1000|
-|操作系统|openEuler 22.03 LTS SP4|openEuler 22.03 LTS SP4|openEuler 22.03 LTS SP4|openEuler 22.03 LTS SP4|
-|内核版本|5.10.0-216.0.0|5.10.0-216.0.0|5.10.0-216.0.0|5.10.0-216.0.0|
+|配置项|硬件配置方案一|硬件配置方案二|硬件配置方案三|硬件配置方案四|硬件配置方案五|
+|--|--|--|--|--|--|
+|服务器|鲲鹏服务器|鲲鹏服务器|鲲鹏服务器|鲲鹏服务器|鲲鹏服务器|
+|CPU|2\*鲲鹏920 7260处理器，64核，2.6GHz|2\*鲲鹏920 7260处理器，64核，2.6GHz|2\*鲲鹏920 7280Z处理器，80核，2.9GHz|2\*鲲鹏920 7260W处理器，64核，2.2GHz|2\*鲲鹏920 5220处理器，32核，2.6GHz|
+|内存|16\*DDR4 RDIMM内存-32GB-2933MT/s|16\*DDR4 RDIMM内存-32GB-2933MT/s|16\*DDR5 DIMM内存-64GB-4800MT/s|16\*DDR5 DIMM内存-64GB-5200MT/s|8\*DDR4 RDIMM内存-32GB-2933MT/s|
+|硬盘|系统盘：2\*固态硬盘-480GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*ES3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：2\*固态硬盘-480GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*ES3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：1\*S3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*S3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：1\*固态硬盘-480GB-SATA 6Gb/s-2.5 inch height-读密集型<br>1\*S4510 固态硬盘-960GB-SATA 6Gb/s-读取密集型<br>数据盘：1\*ES3600P V6固态硬盘-6400GB-NVMe 64Gb/s<br>1\*ES3500P V5固态硬盘-4000GB-NVMe 32Gb/s|系统盘：2\*固态硬盘-480GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*ES3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|
+|网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-225GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-2\*25GE/10GE光口-4端口-SFP28（不含光模块）|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|
+|Riser卡|Riser1与Riser2模组相同，均为：PCIe X16 + PCIe X8|Riser1与Riser2模组相同，均为：PCIe X8\*3|前置Riser（x8\*2）\*2+后置Riser（x8\*2）\*2+Riser3（x8\*2）\*1|后置Riser（x16+x8\*2）\*2+Riser3（x8\*2）\*1|无|
+|编码卡|1\*NETINT Quadra T2A（X8）|无|无|无|无|
+|GPU|2\*AMD W6800|4\*道客DC1000|8\*道客DC1000 或 8\*道客DC1000C|8\*道客DC1000|无|
+|操作系统|openEuler 22.03 LTS SP4|openEuler 22.03 LTS SP4|openEuler 22.03 LTS SP4|openEuler 22.03 LTS SP4|openEuler 22.03 LTS SP4|
+|内核版本|5.10.0-216.0.0|5.10.0-216.0.0|5.10.0-216.0.0|5.10.0-216.0.0|5.10.0-216.0.0|
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >
@@ -42,17 +42,17 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 **表 2** Kbox安卓容器环境搭建软件环境要求<a id="Kbox安卓容器环境搭建软件环境要求"></a>
 
-|序号|软件包|说明|获取地址|配置方案一|配置方案二|配置方案三|配置方案四|
-|--|--|--|--|--|--|--|--|
-|1|android.tar| Kbox安卓镜像包，用于部署Kbox基础环境 |自行编译（请参见[编译指南](compile_guide.md)进行编译）。|√|√|√|√|
-|2|BoostKit-boostcph-kbox_\*.zip| Android Kbox二进制文件包，包含运行所需组件 |[获取链接](https://www.hikunpeng.com/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft)|√|√|√|√|
-|3|kernel-5.10.0-216.0.0.zip| openEuler 22.03 LTS SP4 Kernel源码 |[获取链接](https://gitcode.com/openeuler/kernel/tree/5.10.0-216.0.0)|√|√|√|√|
-|4|ExaGear_ARM32-ARM64_V2.5.tar.gz| ExaGear转码二进制包 |[获取链接](https://www.hikunpeng.com/zh/developer/download?title=%E4%BA%91%E6%89%8B%E6%9C%BA&subTitle=ExaGear%2BAArch32%E6%8C%87%E4%BB%A4%E7%BF%BB%E8%AF%91%E8%BD%AF%E4%BB%B6&zhTitle=%E4%BA%91%E6%89%8B%E6%9C%BA&zhSubTitle=ExaGear%2BAArch32%E6%8C%87%E4%BB%A4%E7%BF%BB%E8%AF%91%E8%BD%AF%E4%BB%B6&enTitle=ARM%2BNative&enSubTitle=ExaGear%2BAArch32%2BInstruction%2BTranslation%2BSoftware)|√|√|√|√|
-|5|linux-firmware-20210919.tar.gz| 包含Kbox运行所需相关固件 |[获取链接](https://mirrors.aliyun.com/linux-kernel/firmware/linux-firmware-20210919.tar.gz)|√|-|-|-|
-|6|Kbox-patches-AOSP11.zip| 包含内核补丁Demo包、容器部署脚本Demo包 |[获取链接](https://gitcode.com/boostkit/Kbox-patches)切换到AOSP11分支，并单击“下载zip”进行下载。|√|√|√|√|
-|7|NETINT-vXXX.tar.gz| NETINT编解码库，当使能硬解的时候获取该软件包，配套版本4.8.F-adapt |[获取链接](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)下载密码：test123|√|-|-|-|
-|8|Quadra_V*XXX*.zip| 包含NETINT编码卡Quadra软固件及文档包 |[获取链接](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)下载密码：test123|√|-|-|-|
-|9|VAGPU-25.03.01.01-RC24.tgz| 显卡驱动 |请联系华为技术支持获取。|-|√|√|√|
+|序号|软件包|说明|获取地址|配置方案一|配置方案二|配置方案三|配置方案四|配置方案五|
+|--|--|--|--|--|--|--|--|--|
+|1|android.tar| Kbox安卓镜像包，用于部署Kbox基础环境 |自行编译（请参见[编译指南](compile_guide.md)进行编译）。|√|√|√|√|√|
+|2|BoostKit-boostcph-kbox_\*.zip| Android Kbox二进制文件包，包含运行所需组件 |[获取链接](https://www.hikunpeng.com/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft)|√|√|√|√|√|
+|3|kernel-5.10.0-216.0.0.zip| openEuler 22.03 LTS SP4 Kernel源码 |[获取链接](https://gitcode.com/openeuler/kernel/tree/5.10.0-216.0.0)|√|√|√|√|√|
+|4|ExaGear_ARM32-ARM64_V2.5.tar.gz| ExaGear转码二进制包 |[获取链接](https://www.hikunpeng.com/zh/developer/download?title=%E4%BA%91%E6%89%8B%E6%9C%BA&subTitle=ExaGear%2BAArch32%E6%8C%87%E4%BB%A4%E7%BF%BB%E8%AF%91%E8%BD%AF%E4%BB%B6&zhTitle=%E4%BA%91%E6%89%8B%E6%9C%BA&zhSubTitle=ExaGear%2BAArch32%E6%8C%87%E4%BB%A4%E7%BF%BB%E8%AF%91%E8%BD%AF%E4%BB%B6&enTitle=ARM%2BNative&enSubTitle=ExaGear%2BAArch32%2BInstruction%2BTranslation%2BSoftware)|√|√|√|√|√|
+|5|linux-firmware-20210919.tar.gz| 包含Kbox运行所需相关固件 |[获取链接](https://mirrors.aliyun.com/linux-kernel/firmware/linux-firmware-20210919.tar.gz)|√|-|-|-|-|
+|6|Kbox-patches-AOSP11.zip| 包含内核补丁Demo包、容器部署脚本Demo包 |[获取链接](https://gitcode.com/boostkit/Kbox-patches)切换到AOSP11分支，并单击“下载zip”进行下载。|√|√|√|√|√|
+|7|NETINT-vXXX.tar.gz| NETINT编解码库，当使能硬解的时候获取该软件包，配套版本4.8.F-adapt |[获取链接](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)下载密码：test123|√|-|-|-|-|
+|8|Quadra_V*XXX*.zip| 包含NETINT编码卡Quadra软固件及文档包 |[获取链接](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)下载密码：test123|√|-|-|-|-|
+|9|VAGPU-25.03.01.01-RC24.tgz| 显卡驱动 |请联系华为技术支持获取。|-|√|√|√|-|
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >
@@ -95,7 +95,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 **图 1** 内存插入格式<a name="fig10693358191820"></a><a id="内存插入格式"></a>
 ![](figures/内存插入格式.png "内存插入格式")
 
-### 4.2 （硬件配置方案一、二）配置BIOS<a name="ZH-CN_TOPIC_0000002549712099" id="方案一、二配置BIOS"></a>
+### 4.2 （硬件配置方案一、二、五）配置BIOS<a name="ZH-CN_TOPIC_0000002549712099" id="方案一、二配置BIOS"></a>
 
 **重启服务器进入BIOS设置界面<a name="section2017525320112"></a>**
 

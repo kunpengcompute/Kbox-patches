@@ -124,7 +124,13 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
         DNS=xx.xx.xx.xx
         ```
 
-    3. 按“Esc”键，输入**wq!**，按“Enter”保存并退出编辑。
+    3. 若编译为软渲染镜像，需参考如下设置：
+
+        ```shell
+        ENABLE_SOFT_RENDER=1
+        ```
+
+    4. 按“Esc”键，输入**wq!**，按“Enter”保存并退出编辑。
 
 6. 执行kbox11_android_build.sh自动化脚本完成Kbox编译。
 
@@ -177,6 +183,8 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
     ```shell
     #### build completed successfully (xx:xx (mm:ss)) ####
     ```
+
+    如果编译为软渲染镜像，则编译指令替换为**make -j ENABLE_SOFT_RENDER=true**。
 
 3. 继续执行以下命令用于生成“android.tar”的Kbox镜像。
 
@@ -539,7 +547,18 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
     >- DNS地址也可以通过修改Kbox容器内部文件“/system/vendor/build.prop”配置，容器重启后配置生效。
     >- 如配置时有疑问，请联系华为运维人员支撑。
 
-### 5.6 编译AOSP并生成镜像<a name="ZH-CN_TOPIC_0000002518185486"></a>
+### 5.6 合入Kbox软渲染安卓补丁
+
+针对软渲染方案，需在AOSP源码包中合入支持Kbox软渲染的安卓补丁包。使用硬渲染方案时，此章节请跳过。
+
+合入Kbox软渲染安卓补丁。
+
+```shell
+cp ~/dependency/patchForAndroid/patchForAndroidSoftRender/vendor-kbox-0042.patch ~/aosp/vendor/kbox
+patch -p1 < vendor-kbox-0042.patch
+```
+
+### 5.7 编译AOSP并生成镜像<a name="ZH-CN_TOPIC_0000002518185486"></a>
 
 编译AOSP源码生成Kbox安卓镜像。
 
@@ -599,7 +618,16 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
         >    lunch kbox_arm64_optimized-user
         >    ```
 
-    4. 执行编译。
+    4. 执行编译，根据目标镜像类型选择如下其一编译步骤。
+
+        编译为软渲染镜像。
+
+        ```shell
+        make clean
+        make -j ENABLE_SOFT_RENDER=true
+        ```
+
+        编译为常规镜像（硬渲染镜像）。
 
         ```shell
         make clean
