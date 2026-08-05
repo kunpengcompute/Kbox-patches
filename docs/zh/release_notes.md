@@ -4,29 +4,12 @@
 
 ### 产品版本信息<a name="ZH-CN_TOPIC_0000002549825865"></a>
 
-<a name="table617mcpsimp"></a>
-<table><tbody><tr id="row622mcpsimp"><th class="firstcol" valign="top" width="14.000000000000002%" id="mcps1.1.3.1.1"><p id="p624mcpsimp"><a name="p624mcpsimp"></a><a name="p624mcpsimp"></a>产品名称</p>
-</th>
-<td class="cellrowborder" valign="top" width="86%" headers="mcps1.1.3.1.1 "><p id="p109881314494"><a name="p109881314494"></a><a name="p109881314494"></a>Kunpeng BoostKit</p>
-</td>
-</tr>
-<tr id="row627mcpsimp"><th class="firstcol" valign="top" width="14.000000000000002%" id="mcps1.1.3.2.1"><p id="p629mcpsimp"><a name="p629mcpsimp"></a><a name="p629mcpsimp"></a>产品版本</p>
-</th>
-<td class="cellrowborder" valign="top" width="86%" headers="mcps1.1.3.2.1 "><p id="p11388205913278"><a name="p11388205913278"></a><a name="p11388205913278"></a><span id="text12483192510395"><a name="text12483192510395"></a><a name="text12483192510395"></a>26.0.RC1</span></p>
-</td>
-</tr>
-<tr id="row1039215083618"><th class="firstcol" valign="top" width="14.000000000000002%" id="mcps1.1.3.3.1"><p id="p297244215265"><a name="p297244215265"></a><a name="p297244215265"></a>软件名称</p>
-</th>
-<td class="cellrowborder" valign="top" width="86%" headers="mcps1.1.3.3.1 "><p id="p17634966286"><a name="p17634966286"></a><a name="p17634966286"></a>Kbox云手机容器</p>
-</td>
-</tr>
-<tr id="row17150123211467"><th class="firstcol" valign="top" width="14.000000000000002%" id="mcps1.1.3.4.1"><p id="p1915073214463"><a name="p1915073214463"></a><a name="p1915073214463"></a>软件包版本</p>
-</th>
-<td class="cellrowborder" valign="top" width="86%" headers="mcps1.1.3.4.1 "><p id="p41501432144617"><a name="p41501432144617"></a><a name="p41501432144617"></a>7.3.0_15</p>
-</td>
-</tr>
-</tbody>
-</table>
+|项目|内容|
+|--|--|
+|产品名称|Kunpeng BoostKit|
+|产品版本|26.0.RC1|
+|软件名称|Kbox云手机容器|
+|软件包版本|7.3.0_15|
 
 ### 软件版本配套说明<a name="ZH-CN_TOPIC_0000002549705863"></a>
 
@@ -49,7 +32,7 @@
 
 |防病毒软件名称|防病毒软件版本|病毒库版本|扫描时间|扫描结果|
 |--|--|--|--|--|
-|QiAnXin|8.0.5.5260|2025-12-12 08:00:00.0|2025-12-13 17:54:42|OK|
+|QiAnXin|8.0.5.5260|2025-12-12 08:00:00|2025-12-13 17:54:42|OK|
 |Bitdefender|7.5.1.200224|7.99967|2025-12-13 17:55:05|OK|
 |Kaspersky|12.0.0.6672|2025-12-13 10:03:00|2025-12-13 17:53:44|OK|
 
@@ -82,43 +65,10 @@
 ### 遗留问题<a name="ZH-CN_TOPIC_0000002518186096"></a>
 
 <a name="table1427894420453"></a>
-<table><tbody><tr id="row227819445458"><th class="firstcol" valign="top" width="20.830000000000002%" id="mcps1.1.3.1.1"><p id="p827994484520"><a name="p827994484520"></a><a name="p827994484520"></a>问题单号</p>
-</th>
-<td class="cellrowborder" valign="top" width="79.17%" headers="mcps1.1.3.1.1 "><p id="p52791444164511"><a name="p52791444164511"></a><a name="p52791444164511"></a>DTS2025103008735</p>
-</td>
-</tr>
-<tr id="row142796442455"><th class="firstcol" valign="top" width="20.830000000000002%" id="mcps1.1.3.2.1"><p id="p142791544124517"><a name="p142791544124517"></a><a name="p142791544124517"></a>严重级别</p>
-</th>
-<td class="cellrowborder" valign="top" width="79.17%" headers="mcps1.1.3.2.1 "><p id="p10279194434511"><a name="p10279194434511"></a><a name="p10279194434511"></a>一般</p>
-</td>
-</tr>
-<tr id="row127912446459"><th class="firstcol" valign="top" width="20.830000000000002%" id="mcps1.1.3.3.1"><p id="p1927934434516"><a name="p1927934434516"></a><a name="p1927934434516"></a>问题描述</p>
-</th>
-<td class="cellrowborder" valign="top" width="79.17%" headers="mcps1.1.3.3.1 "><p id="p112791448452"><a name="p112791448452"></a><a name="p112791448452"></a>在道客DC 1000/1000C环境上运行安卓15云机，使用RC13-A15版本驱动，打开自适应Vsync功能，收益不稳定。</p>
-</td>
-</tr>
-<tr id="row16279344104517"><th class="firstcol" valign="top" width="20.830000000000002%" id="mcps1.1.3.4.1"><p id="p1027914446455"><a name="p1027914446455"></a><a name="p1027914446455"></a>根因分析</p>
-</th>
-<td class="cellrowborder" valign="top" width="79.17%" headers="mcps1.1.3.4.1 "><p id="p17279184444520"><a name="p17279184444520"></a><a name="p17279184444520"></a>该特性打开时，瀚博驱动抓图部分未配合适配，导致抓图时小概率使用上一帧的数据，导致最终观察时，本该在t帧显示的图像在t+1帧显示，时延增大。</p>
-</td>
-</tr>
-<tr id="row9279184419453"><th class="firstcol" valign="top" width="20.830000000000002%" id="mcps1.1.3.5.1"><p id="p8279744124518"><a name="p8279744124518"></a><a name="p8279744124518"></a>影响评估</p>
-</th>
-<td class="cellrowborder" valign="top" width="79.17%" headers="mcps1.1.3.5.1 "><p id="p11279184414451"><a name="p11279184414451"></a><a name="p11279184414451"></a>打开该功能时，正常使用应用时均无用户可感知的画面异常。</p>
-</td>
-</tr>
-<tr id="row327984418455"><th class="firstcol" valign="top" width="20.830000000000002%" id="mcps1.1.3.6.1"><p id="p1527914413457"><a name="p1527914413457"></a><a name="p1527914413457"></a>规避和应急措施</p>
-</th>
-<td class="cellrowborder" valign="top" width="79.17%" headers="mcps1.1.3.6.1 "><p id="p16279124419458"><a name="p16279124419458"></a><a name="p16279124419458"></a>暂无规避措施</p>
-</td>
-</tr>
-<tr id="row19279244104515"><th class="firstcol" valign="top" width="20.830000000000002%" id="mcps1.1.3.7.1"><p id="p172791044154514"><a name="p172791044154514"></a><a name="p172791044154514"></a>解决计划</p>
-</th>
-<td class="cellrowborder" valign="top" width="79.17%" headers="mcps1.1.3.7.1 "><p id="p1727912444452"><a name="p1727912444452"></a><a name="p1727912444452"></a>瀚博厂商更新驱动修复</p>
-</td>
-</tr>
-</tbody>
-</table>
+
+|问题单号|严重级别|问题描述|根因分析|影响评估|规避和应急措施|解决计划|
+|--|--|--|--|--|--|--|
+|DTS2025103008735|一般|在道客DC 1000/1000C环境上运行安卓15云机，使用RC13-A15版本驱动，打开自适应Vsync功能，收益不稳定。|该特性打开时，瀚博驱动抓图部分未配合适配，导致抓图时小概率使用上一帧的数据，导致最终观察时，本该在t帧显示的图像在t+1帧显示，时延增大。|打开该功能时，正常使用应用时均无用户可感知的画面异常。|暂无规避措施|瀚博厂商更新驱动修复|
 
 ## 版本配套文档<a name="ZH-CN_TOPIC_0000002549825863"></a>
 
@@ -138,4 +88,4 @@
 
 ### 获取文档方式<a name="ZH-CN_TOPIC_0000002549825867"></a>
 
-您可以通过访问[目录结构](https://gitcode.com/boostkit/Kbox/blob/AOSP15/docs/zh/menu.md)浏览和获取相关文档。
+您可以通过访问[目录结构](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP15/docs/zh/menu.md)浏览和获取相关文档。

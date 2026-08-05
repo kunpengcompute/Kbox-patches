@@ -22,20 +22,20 @@
 
 1. <a name="li1655995125318"></a>执行如下命令检查回显信息是否正常，显示“enable”为正常。
 
-    ```shell
+    ```bash
     cat /proc/sys/fs/binfmt_misc/ubt_a32a64
     ```
 
 2. 若回显信息异常，执行如下命令重新注册。
 
-    ```shell
+    ```bash
     echo ":ubt_a32a64:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00:\xff\xff\xff\xff\xff\xff\xff\x00\x00\x00\x00\x00\x00\x00\x00\x00\xfe\xff\xff\xff:/opt/exagear/ubt_a32a64:POCF" > /proc/sys/fs/binfmt_misc/register
     ```
 
 3. 返回[1](#li1655995125318)，再次检查回显信息是否正常。
 4. 执行如下命令检查转码软件版本。
 
-    ```shell
+    ```bash
     /opt/exagear/ubt_a32a64 -V
     ```
 
@@ -63,7 +63,7 @@
 
 1. 查找编译目录下的“.rej”文件，命令如下。
 
-    ```shell
+    ```bash
     find ./ -name "*.rej"
     ```
 

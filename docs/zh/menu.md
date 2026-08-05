@@ -1,4 +1,4 @@
-# kbox-pathes-AOSP15
+# Kbox-patches-AOSP15
 
 - [项目介绍](../../README.md)
 - [版本说明书](./release_notes.md)
