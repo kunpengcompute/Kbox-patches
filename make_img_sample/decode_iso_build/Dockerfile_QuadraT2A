@@ -8,7 +8,7 @@
 # MAINTAINER是作者名
 ARG KBOX_IMAGE
 FROM ${KBOX_IMAGE}
-MAINTAINER root
+LABEL maintainer="root"
 
 COPY ./NETINT/ /NETINT/
 

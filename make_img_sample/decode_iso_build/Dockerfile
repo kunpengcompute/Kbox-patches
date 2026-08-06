@@ -8,7 +8,7 @@
 # MAINTAINER是作者名
 ARG KBOX_IMAGE
 FROM ${KBOX_IMAGE}
-MAINTAINER root
+LABEL maintainer="root"
 
 COPY ./NETINT/ /NETINT/
 
@@ -19,7 +19,4 @@ RUN chmod -R 755 NETINT \
     && chown -R root:root NETINT \
     && cp -pR NETINT/system/* system/ \
     && cp -pR NETINT/vendor/* system/vendor/ \
-    && rm -rf NETINT \
-    && sed -i 's/^ro.vmi.hardware.vpu=.*/ro.vmi.hardware.vpu=3/g' /system/build.prop \
-    && sed -i 's/^ro.vmi.hardware.vpu=.*/ro.vmi.hardware.vpu=3/g' /system/vendor/build.prop
-
+    && rm -rf NETINT

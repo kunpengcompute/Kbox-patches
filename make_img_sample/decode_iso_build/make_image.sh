@@ -30,7 +30,7 @@ function check_nvme_command()
     $cmd >/dev/null 2>&1
     if [ $? -ne 0 ]; then
         echo -e "\033[1;31m[ERROR] nvme command unavailable, please install nvme-cli. \033[0m"
-        exit -1
+        exit 1
     fi
 }
 
@@ -49,7 +49,7 @@ function check_vpu()
 
     # 判断Dockerfile是否存在
     if [ ! -f "${DOCKER_FILE}" ]; then
-        echo -e "\033[1;31m[ERROR] ${DOCKER_FILE} is not exist. \033[0m" && return -1
+        echo -e "\033[1;31m[ERROR] ${DOCKER_FILE} is not exist. \033[0m" && return 1
     fi
 
     cp ${DOCKER_FILE_CANDIDATE} ${DOCKER_FILE}
@@ -61,7 +61,7 @@ function check_env()
 
     # 判断DECODE原型包是否存在
     if [ ! -f "${DEMO_NETINT_PACKAGE}" ]; then
-        echo -e "\033[1;31m[ERROR] ${DEMO_NETINT_PACKAGE} is not exist. \033[0m" && return -1
+        echo -e "\033[1;31m[ERROR] ${DEMO_NETINT_PACKAGE} is not exist. \033[0m" && return 1
     fi
 
     # 判断DECODE原型包目录是否存在，若存在则删除重建
@@ -99,10 +99,10 @@ function main()
     local end_time=0
 
     check_env
-    [ ${?} != 0 ] && echo -e "\033[1;31m[ERROR] Failed to check environment. \033[0m" && exit -1
+    [ ${?} != 0 ] && echo -e "\033[1;31m[ERROR] Failed to check environment. \033[0m" && exit 1
 
     make_image "$@"
-    [ ${?} != 0 ] && echo -e "\033[1;31m[ERROR] Failed to make image. \033[0m" && exit -1
+    [ ${?} != 0 ] && echo -e "\033[1;31m[ERROR] Failed to make image. \033[0m" && exit 1
 
     # 制作镜像时间统计
     end_time=$(date +%s)
