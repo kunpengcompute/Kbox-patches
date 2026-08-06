@@ -261,13 +261,13 @@ function start_box_by_id() {
         bb_wait_container_ready ${CONTAINER_NAME}
         [ ${?} -eq 1 ] && return
 
-        {    set -e
+        (   set -e
             enable_netint ${CONTAINER_NAME}
 
             # 更改容器内部accept_redirects参数配置，禁止ipv6的icmp重定向功能
             disable_ipv6_icmp ${CONTAINER_NAME}
             echo -e "---------------------- done ----------------------\n"
-        }
+        )
     fi
     mount_lxcfs ${CONTAINER_NAME}
     if [[ $ENABLE_RENDER_LAYER == "1" ]]; then
