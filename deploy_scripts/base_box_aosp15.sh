@@ -815,6 +815,7 @@ function bb_check_exagear() {
 "0\x00\x00\x00\x00\x00\x02\x00\x28\x00:\xff\xff\xf"\
 "f\xff\xff\xff\xff\x00\x00\x00\x00\x00\x00\x00\x00"\
 "\x00\xfe\xff\xff\xff:/opt/exagear/ubt_a32a64:POCF" > /proc/sys/fs/binfmt_misc/register
+        cd - >/dev/null 2>&1
     fi
 
     # 检查ubt_a32a64版本
@@ -1092,7 +1093,8 @@ function bb_create_app_shader_filesystem()
 {
     local box_name=$1
     local -n RUN_OPTION_REF=$2
-    if [ ! -e "kbox_render_accelerating_configuration.xml" ]; then
+    local render_config="${THISDIR}/kbox_render_accelerating_configuration.xml"
+    if [ ! -e "${render_config}" ]; then
         echo -e "\033[31mThe RenderAccLayer cannot be enabled. kbox_render_accelerating_configuration.xml not exist.\033[0m"
         return
     fi
@@ -1155,7 +1157,7 @@ def read_xml(xml_file):
 
 
 if __name__ == "__main__":
-    input_file = "kbox_render_accelerating_configuration.xml" 
+    input_file = "${render_config}"
     result = read_xml(input_file)
 
     for item in app_config:
@@ -1203,14 +1205,15 @@ EOF
 
 function bb_deploy_render_layer() {
     local BOX_NAME=$1
-    if [ ! -e "kbox_render_accelerating_configuration.xml" ]; then
+    local render_config="${THISDIR}/kbox_render_accelerating_configuration.xml"
+    if [ ! -e "${render_config}" ]; then
         return
     fi
     local cmds=(
         "$RUNTIME_CMD exec -it ${BOX_NAME} mkdir -p /data/local/debug/gles"
         "$RUNTIME_CMD exec -it ${BOX_NAME} chmod 755 -R /data/local/debug/"
         "$RUNTIME_CMD exec -it ${BOX_NAME} mkdir -p /data/local/tmp"
-        "$RUNTIME_CMD cp kbox_render_accelerating_configuration.xml ${BOX_NAME}:/data/local/tmp"
+        "$RUNTIME_CMD cp ${render_config} ${BOX_NAME}:/data/local/tmp"
         "$RUNTIME_CMD exec -it ${BOX_NAME} cp /system/vendor/lib64/hw/RenderAccLayer.kbox.so /data/local/debug/gles"
         "$RUNTIME_CMD exec -it ${BOX_NAME} setprop debug.gles.layers RenderAccLayer.kbox.so"
     )
