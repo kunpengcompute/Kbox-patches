@@ -118,6 +118,8 @@ function bb_check_exagear() {
 "0\x00\x00\x00\x00\x00\x02\x00\x28\x00:\xff\xff\xf"\
 "f\xff\xff\xff\xff\x00\x00\x00\x00\x00\x00\x00\x00"\
 "\x00\xfe\xff\xff\xff:/opt/exagear/ubt_a32a64:POCF" > /proc/sys/fs/binfmt_misc/register
+        # 恢复原工作目录，避免后续使用相对路径时查找失败
+        cd - >/dev/null 2>&1
     fi
 
     # 检查ubt_a32a64版本
@@ -347,7 +349,8 @@ function bb_check_key_process() {
 function bb_create_app_shader_filesystem() {
     local box_name=$1
     local -n RUN_OPTION_REF=$2
-    if [ ! -e "kbox_render_accelerating_configuration.xml" ]; then
+    local render_config="${THISDIR}/kbox_render_accelerating_configuration.xml"
+    if [ ! -e "${render_config}" ]; then
         echo -e "\033[31mThe RenderAccLayer cannot be enabled. kbox_render_accelerating_configuration.xml not exist.\033[0m"
         return
     fi
@@ -410,7 +413,7 @@ def read_xml(xml_file):
 
 
 if __name__ == "__main__":
-    input_file = "kbox_render_accelerating_configuration.xml" 
+    input_file = "${render_config}"
     result = read_xml(input_file)
 
     for item in app_config:
@@ -449,6 +452,7 @@ EOF
         fi
         mkdir -p $app
         mount ${app}.img $app
+        chmod -R 777 $app
         RUN_OPTION_REF+=" --volume=${USER_DATA_PATH}/shader_cache/$app/:/vendor/shader_cache/$app:rw "
     done
     echo "---------------------------------------------------"
@@ -822,8 +826,9 @@ function bb_prepare_render_layer() {
     fi
 
     # 推送渲染加速配置文件
-    if [ -e "kbox_render_accelerating_configuration.xml" ]; then
-        $RUNTIME_CMD cp kbox_render_accelerating_configuration.xml ${container_name}:/data/local/tmp
+    local render_config="${THISDIR}/kbox_render_accelerating_configuration.xml"
+    if [ -e "${render_config}" ]; then
+        $RUNTIME_CMD cp "${render_config}" ${container_name}:/data/local/tmp
     fi
 }
 #===============================================================================
@@ -1310,11 +1315,6 @@ function bb_start_box() {
     echo $cid > $THISDIR/containerid_${BOX_NAME}
     $RUNTIME_CMD cp $THISDIR/containerid_${BOX_NAME} ${BOX_NAME}:/data/containerid
     rm -f $THISDIR/containerid_${BOX_NAME}
-
-    if [[ $ENABLE_RENDER_LAYER == "1" ]]; then
-        # 渲染中间层：shader_cache 权限调整（需容器运行态）
-        $RUNTIME_CMD exec -it ${BOX_NAME} sh -c "if [ -d /vendor/shader_cache/ ]; then chmod 777 -R /vendor/shader_cache/; fi"
-    fi
 }
 
 function bb_restart_box() {
