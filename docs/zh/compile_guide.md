@@ -106,7 +106,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
     将下载的文件上传至服务器的“/home/auto_compile/Kbox-patches-AOSP11/make_img_sample/kbox11_android_build/package”目录。
 
-    ![](figures/zh-cn_image_0000002549705429.png)
+    ![package目录文件上传](./figures/zh-cn_image_0000002549705429.png)
 
     需保持下载的第三方库源码（Mesa、LLVM、libdrm、libva）及解压出的文件夹名与“/home/auto_compile/Kbox-patches-AOSP11/make_img_sample/00_kbox_prepare.sh”文件中配置的“`<package>_version`”或“`<package>_src`”变量值一致。若不一致可重命名源码文件夹再重新打包。
 
@@ -190,7 +190,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
 执行kbox11_android_build.sh自动化脚本时，可能出现“No such file or directory”类报错， 原因为依赖包解压所得文件夹名称发生变化比如附加后缀，一键式脚本中无法识别到解压出来的文件夹名称，导致编译失败。
 
-![](figures/zh-cn_image_0000002518345560.png)
+![编译报错现象](./figures/zh-cn_image_0000002518345560.png)
 
 解决步骤：
 
@@ -268,7 +268,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
     若遇到如下图所示的提示信息，选择“Cancel”即可。
 
-    ![](figures/zh-cn_image_0000002518345612.png)
+    ![提示信息](./figures/zh-cn_image_0000002518345612.png)
 
 4. 确认服务器的Python3环境是否包含mako模块。若无，请为服务器的Python3环境安装mako模块。
     1. 执行如下命令，进入Python3环境。
@@ -277,7 +277,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
         python3
         ```
 
-        ![](figures/zh-cn_image_0000002518185682.png)
+        ![Python3环境界面](./figures/zh-cn_image_0000002518185682.png)
 
     2. 进入Python3环境后，执行如下命令，查看包含的模块信息。
 
@@ -285,11 +285,11 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
         help("modules")
         ```
 
-        ![](figures/zh-cn_image_0000002518345610.png)
+        ![Python3模块查询结果](./figures/zh-cn_image_0000002518345610.png)
 
         如图所示，若回显中包含mako模块，则可继续后文步骤。若不包含，可通过执行“pip3 install mako”安装mako模块。请确保Python3环境中包含mako模块，再继续后文的步骤。
 
-        ![](figures/zh-cn_image_0000002549825457.png)
+        ![mako模块查询结果](./figures/zh-cn_image_0000002549825457.png)
 
     3. 退出python命令模式。
 

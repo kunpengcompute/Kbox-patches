@@ -4,7 +4,7 @@
 
 Kbox云手机容器是基于Docker容器技术，使能Android系统的虚拟化方案，通过云服务器提供云服务的虚拟手机。Kbox云手机容器可凭借自带的Android系统及厂商架设的网络终端，通过网络应用在云托管、云应用和云终端等业务场景。
 
-Kbox云手机为满足高密度低成本的业务诉求，采用容器直通架构，基于容器的方法在Linux系统上启动完整Android系统。Kbox云手机容器架构图如![](figures/zh-cn_image_0000002512069213.png)所示。
+Kbox云手机为满足高密度低成本的业务诉求，采用容器直通架构，基于容器的方法在Linux系统上启动完整Android系统。Kbox云手机容器架构图如![Kbox云手机容器架构图](./figures/zh-cn_image_0000002512069213.png)所示。
 
 本文档主要用于描述Kbox云手机容器例行维护相关内容。
 
@@ -66,7 +66,7 @@ ps -elf
 
 若超过10个进程的父进程变为进程sh（进程号为1），如下图所示，则说明容器内发生了crash，容器当前处于异常情况，请重启容器或联系华为技术支持。
 
-![](figures/zh-cn_image_0000002518186124.png)
+![容器进程异常状态](./figures/zh-cn_image_0000002518186124.png)
 
 重启容器命令如下：
 
@@ -84,7 +84,7 @@ docker stats
 
 上述命令可动态显示Kbox云手机容器使用的资源消耗情况，包括CPU使用率、内存使用率、网络I/O数据以及磁盘I/O数据等，如下图所示。
 
-![](figures/zh-cn_image_0000002549825895.png)
+![容器资源消耗情况](./figures/zh-cn_image_0000002549825895.png)
 
 >![](public_sys-resources/icon-note.gif) **说明：**
 >
@@ -104,7 +104,7 @@ docker stats
 top
 ```
 
-![](figures/zh-cn_image_0000002549825893.png)
+![系统进程实时状态](./figures/zh-cn_image_0000002549825893.png)
 
 通过该命令，可以监控Kbox云手机容器中是否有CPU占用率过高的进程，若有，则需要进一步排查该进程是否异常。
 
@@ -116,7 +116,7 @@ htop
 
 如下图所示，除CPU负载、内存消耗以及交换空间的实时信息外，还显示了任务、线程、平均负载及系统运行时间信息，最下方列出了系统中的进程信息。
 
-![](figures/zh-cn_image_0000002518346036.png)
+![htop监控界面](./figures/zh-cn_image_0000002518346036.png)
 
 >![](public_sys-resources/icon-note.gif) **说明：**
 >
@@ -152,7 +152,7 @@ df -h
 
 如下图所示Kbox云手机容器数据存储在“/root/mount/data/”下，红色矩形中为容器kbox_1的数据存储信息，其存储大小为“16G”，当前使用率为“1%”。若“Use%”的值不大于85%，则磁盘空间使用率正常，否则需要清理磁盘空间。
 
-![](figures/zh-cn_image_0000002518346038.png)
+![容器磁盘空间使用情况](./figures/zh-cn_image_0000002518346038.png)
 
 ### GPU使用详情<a id="ZH-CN_TOPIC_0000002518186118"></a>
 
@@ -194,7 +194,7 @@ cat /sys/kernel/debug/dri/*/amdgpu_pm_info |grep Temp
 
 如下图所示为查询结果。若温度长期高于80°C，请联系华为技术支持。
 
-![](figures/zh-cn_image_0000002518186122.png)
+![GPU温度查询结果](./figures/zh-cn_image_0000002518186122.png)
 
 #### 道客DC1000/DC1000C状态查询<a id="ZH-CN_TOPIC_0000002518346034"></a>
 
@@ -292,7 +292,7 @@ docker exec -it kbox_${index} dumpsys
 
     结果如下图所示。
 
-    ![](figures/zh-cn_image_0000002549705895.png)
+    ![容器内存信息查询结果](./figures/zh-cn_image_0000002549705895.png)
 
 #### 容器属性信息<a id="ZH-CN_TOPIC_0000002549705875"></a>
 

@@ -101,11 +101,11 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 1. 登录服务器远程管理平台。进入远程虚拟控制台，出现系统启动界面后，按下“Del”键或“F4”键。
 
-    ![](figures/zh-cn_image_0000002549712111.png)
+    ![远程管理平台启动界面](./figures/zh-cn_image_0000002549712111.png)
 
 2. 输入BIOS密码，即可进入BIOS设置界面。
 
-    ![](figures/BIOS-2-0.png)
+    ![BIOS设置界面](./figures/BIOS-2-0.png)
 
 #### 配置MISC相关选项<a id="section131715818217"></a>
 
@@ -117,11 +117,11 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 2. 进入MISC Config设置界面后，将“Support Smmu”选项设置为“Disabled”。
 
-    ![](figures/zh-cn_image_0000002549712115.png)
+    ![Support Smmu设置界面](./figures/zh-cn_image_0000002549712115.png)
 
 3. （硬件配置方案一）仅对于硬件配置方案一，需要将“Support 44Bit”选项设置为“Enabled”。
 
-    ![](figures/zh-cn_image_0000002549832119.png)
+    ![Support 44Bit设置界面](./figures/zh-cn_image_0000002549832119.png)
 
 4. 保存BIOS配置并退出设置界面。
 
@@ -142,7 +142,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 1. 在BIOS设置界面，依次选择“Advanced \> Memory Config”。
 2. 进入Memory Config设置页面后，将“Memory Frequency”选项设置为“2933”，将“Custom Refresh Rate”选项设置为“Auto”后保存BIOS配置并退出设置界面。
 
-    ![](figures/zh-cn_image_0000002549712119.png)
+    ![Memory Config设置界面](./figures/zh-cn_image_0000002549712119.png)
 
 #### （硬件配置方案一，可选）配置PCIe相关选项<a id="section1053210511726"></a>
 
@@ -153,7 +153,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
     例如Quadra安装在Slot3时，需要将“Slot3 BandWidth Splitting”选项设置为“x4”。
 
-    ![](figures/zh-cn_image_0000002549832123.png)
+    ![PCIe Config设置界面](./figures/zh-cn_image_0000002549832123.png)
 
 3. 进入服务器OS系统，确认PCIe分叉功能是否实现，可以通过调用**nvme**命令来查看。
 
@@ -195,7 +195,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 2. 输入BIOS密码，即可进入BIOS设置界面。
 
-    ![](figures/BIOS-2-0-0.png)
+    ![BIOS设置界面](./figures/BIOS-2-0-0.png)
 
 #### 配置MISC相关选项<a id="section131715818217"></a>
 
@@ -203,21 +203,21 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 1. 在BIOS设置界面，依次选择“Advanced \> MISC Configuration”。
 
-    ![](figures/zh-cn_image_0000002518352274.png)
+    ![MISC Configuration设置界面](./figures/zh-cn_image_0000002518352274.png)
 
 2. 进入MISC Configuration设置界面后，将“Support Smmu”选项设置为“Disabled”后保存BIOS配置并退出设置界面。
 
-    ![](figures/zh-cn_image_0000002549712125.png)
+    ![Support Smmu设置界面](./figures/zh-cn_image_0000002549712125.png)
 
 #### 配置Performance相关选项<a id="section18236319121"></a>
 
 1. 在BIOS设置界面，依次选择“Advanced \> Power And Performance Configuration”。
 
-    ![](figures/zh-cn_image_0000002518192348.png)
+    ![Power And Performance Configuration设置界面](./figures/zh-cn_image_0000002518192348.png)
 
 2. 进入Power And Performance Configuration设置页面后，将“Power Policy”选项设置为“Performance”后保存BIOS配置并退出设置界面。
 
-    ![](figures/zh-cn_image_0000002549832129.png)
+    ![Power Policy设置界面](./figures/zh-cn_image_0000002549832129.png)
 
 #### 配置Memory相关选项<a id="section2544330723"></a>
 
@@ -225,11 +225,11 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 1. 在BIOS设置界面，依次选择“Advanced \> Memory Configuration”。
 
-    ![](figures/zh-cn_image_0000002549712123.png)
+    ![Memory Configuration设置界面](./figures/zh-cn_image_0000002549712123.png)
 
 2. 进入Memory Configuration设置页面后，硬件配置方案三将**Memory Frequency**选项设置为“4800”，配置方案四将**Memory Frequency**选项设置为“5200”，将**“Custom Refresh Rate”**选项设置为“Auto”后保存BIOS配置并退出设置界面。
 
-    ![](figures/zh-cn_image_0000002518352278.png)
+    ![Memory Frequency设置界面](./figures/zh-cn_image_0000002518352278.png)
 
 ## 网卡绑定CPU<a id="ZH-CN_TOPIC_0000002518192328"></a>
 
@@ -636,7 +636,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
 4. 出现如图所示的界面时，选择“OK”。
 
-    ![](figures/zh-cn_image_0000002518192344.png)
+    ![内核配置Load确认界面](./figures/zh-cn_image_0000002518192344.png)
 
 5. 配置内核编译选项。
 
@@ -690,15 +690,15 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
     1. 在配置界面，按“/”键打开搜索，输入“STAGING”，按回车进行确认，出现下图的搜索结果。
 
-        ![](figures/Snipaste_2023-08-14_15-01-18.jpg)
+        ![内核配置项搜索结果](./figures/Snipaste_2023-08-14_15-01-18.jpg)
 
     2. 确认配置项的编号，如图中的“（1）”，按数字“1”进行选择。
 
-        ![](figures/Snipaste_2023-08-14_15-01-52.jpg)
+        ![内核配置项选择界面](./figures/Snipaste_2023-08-14_15-01-52.jpg)
 
     3. 按“y”键将选中项调整为编译进内核，然后使用左右键导航到“`<Exit>`”，按“`<Enter>`”确认返回。
 
-        ![](figures/Snipaste_2023-08-14_15-02-39.jpg)
+        ![内核配置项编译设置界面](./figures/Snipaste_2023-08-14_15-02-39.jpg)
 
     4. 返回到内核配置首页，进行下一项的配置。
 
@@ -708,11 +708,11 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
 7. 出现如图所示的界面时，选择“Ok”。
 
-    ![](figures/zh-cn_image_0000002518352272.png)
+    ![内核配置Save确认界面](./figures/zh-cn_image_0000002518352272.png)
 
 8. 出现如图所示的界面时，选择“Exit”。
 
-    ![](figures/zh-cn_image_0000002549712117.png)
+    ![内核配置Exit确认界面](./figures/zh-cn_image_0000002549712117.png)
 
 9. 执行完上述操作，进入如图所示的初始界面，选择“Exit”，当前文件夹下即可生成.config文件。
 
