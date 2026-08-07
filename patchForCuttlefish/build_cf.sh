@@ -97,14 +97,16 @@ for repo in $PATCHED_REPOS; do
     fi
 done
 
-# Apply all patches using patch -p1 from each repo root
+# Apply all patches using git apply from each repo root.
+# git apply is required (not patch) because some patches contain binary diffs
+# (GIT binary patch) which the traditional patch tool does not support.
 echo "  Applying patches..."
 find "$PATCH_ROOT" -name '*.patch' -type f | sort | while read -r patch_file; do
     rel_path="${patch_file#$PATCH_ROOT/}"
     repo_subdir="$(dirname "$rel_path")"
     repo_absdir="$AOSP_ROOT/$repo_subdir"
     echo "    Patching: $rel_path"
-    (cd "$repo_absdir" && patch -p1 < "$patch_file") || exit 1
+    (cd "$repo_absdir" && git apply -p1 < "$patch_file") || exit 1
 done
 echo "  All patches applied."
 
@@ -116,7 +118,8 @@ cp "$ENVD_BINARY" "$ENVD_DEST"
 chmod 755 "$ENVD_DEST"
 echo "  Copied to $ENVD_DEST"
 
-# ── Step 3: clean .orig backup files across all patched repos
+# Clean up stale .orig backup files from previous patch runs.
+# (git apply doesn't create .orig files, but old runs with patch may have left them.)
 for repo in $PATCHED_REPOS; do
     repo_dir="$AOSP_ROOT/$repo"
     find "$repo_dir" -name '*.orig' -delete 2>/dev/null || true
