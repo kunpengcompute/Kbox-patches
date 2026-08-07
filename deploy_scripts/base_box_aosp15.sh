@@ -712,11 +712,6 @@ function bb_start_box() {
         if [ "$ENABLE_AMD_C2_DECODE" -eq 1 ]; then
             sudo chmod 666 /dev/dma_heap/system
             RUN_OPTION+=" --device=/dev/dma_heap/system:/dev/dma_heap/system:rwm "
-            echo "debug.stagefright.ccodec=4" >> $THISDIR/build.prop
-            echo "sys.cpu.limited=1" >> $THISDIR/build.prop
-        else
-            echo "debug.stagefright.ccodec=0" >> $THISDIR/build.prop
-            echo "sys.cpu.limited=0" >> $THISDIR/build.prop
         fi
     fi
 
@@ -1349,24 +1344,23 @@ function bb_create_build_prop() {
     fi
 
     echo "ro.hardware.width=${BUILD_WIDTH}" >> $BUILD_PROP
-    bb_log_info "ro.hardware.width=${BUILD_WIDTH}"
     echo "ro.hardware.height=${BUILD_HEIGHT}" >> $BUILD_PROP
-    bb_log_info "ro.hardware.height=${BUILD_HEIGHT}"
     echo "qemu.sf.lcd_density=${BUILD_DENSITY}" >> $BUILD_PROP
-    bb_log_info "qemu.sf.lcd_density=${BUILD_DENSITY}"
     echo "ro.hardware.fps=${BUILD_FPS}" >> $BUILD_PROP
-    bb_log_info "ro.hardware.fps=${BUILD_FPS}"
     echo "ro.hardware.enableC2decode=0" >> $BUILD_PROP
     echo "ro.hardware.omxsoftdecode=0" >> $BUILD_PROP
+    echo "debug.stagefright.ccodec=0" >> $BUILD_PROP
     echo "sys.cpu.limited=0" >> $BUILD_PROP
     # 配置是否使能C2解码器（仅 AMD W6800 GPU）
     if bb_has_amd_w6800_gpu; then
         if [ ${ENABLE_AMD_C2_DECODE} -eq 1 ];then
             sed -i "s/ro.hardware.enableC2decode=0/ro.hardware.enableC2decode=1/g" $BUILD_PROP
+            sed -i "s/debug.stagefright.ccodec=0/debug.stagefright.ccodec=4/g" $BUILD_PROP
             sed -i "s/sys.cpu.limited=0/sys.cpu.limited=1/g" $BUILD_PROP
             sudo chmod 666 /dev/dma_heap/system
         else
             sed -i "s/ro.hardware.enableC2decode=1/ro.hardware.enableC2decode=0/g" $BUILD_PROP
+            sed -i "s/debug.stagefright.ccodec=4/debug.stagefright.ccodec=0/g" $BUILD_PROP
             sed -i "s/sys.cpu.limited=1/sys.cpu.limited=0/g" $BUILD_PROP
         fi
     fi
