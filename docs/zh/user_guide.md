@@ -21,7 +21,7 @@
 
 镜像的名称和tag可以自行定义，格式为“{名称}:{tag}”，此处设置镜像名为kbox:demo。
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >镜像名以及tag名中只可包含数字与字母，镜像名的首字符必须为小写字母或数字。
 
@@ -32,7 +32,7 @@ docker import android.tar kbox:demo
 
 #### 制作Kbox镜像：合入商用二进制<a id="section8328138123920"></a>
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >用户使用华为镜像仓库提供的官方Kbox Demo镜像时，需要通过该小节的操作确保镜像中包含Android Kbox二进制。
 >当用户使用自行编译的镜像时：
@@ -72,7 +72,7 @@ docker import android.tar kbox:demo
     chmod +x Dockerfile make_image.sh
     ```
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >Quadra编码卡和T432配套的NETINT.tar.gz不同，请选择对应的NETINT.tar.gz。
 
@@ -105,7 +105,7 @@ docker import android.tar kbox:demo
 |---|---|---|
 |USERDATA| 该路径为云手机容器内的用户数据目录，用户数据会在容器启动时挂载到该目录下 |无|
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >为确保Kbox云手机的稳定运行与最佳性能，请保障每个容器所绑定的CPU物理核和GPU渲染节点同属于一个CPU片。
 
@@ -172,7 +172,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
             NETINT1="/dev/nvme2,/dev/nvme2n1,/dev/nvme3,/dev/nvme3n1"
             ```
 
-            >![](public_sys-resources/icon-note.gif) **说明：**
+            >![](./public_sys-resources/icon-note.gif) **说明：**
             >
             >- 若第一次启动容器时NETINT的值为空，禁止设置T432_QUADRA_DECODE_ENABLE=1，且禁止重启时设置T432_QUADRA_DECODE_ENABLE=1，否则播放视频会有短暂黑屏的现象。
             >- 若需使能NETINT编码卡硬解，需要在kbox_config.cfg中设置T432_QUADRA_DECODE_ENABLE=1。
@@ -188,7 +188,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
     2. （硬件配置方案二、三、四）设置“deploy_scripts”目录下的kbox_config.cfg文件，将“ENABLE_HARD_DECODE”设置为“1”。
 
-        >![](public_sys-resources/icon-note.gif) **说明：** 
+        >![](./public_sys-resources/icon-note.gif) **说明：** 
         >
         >若启动时为软件解码（以下简称“软解”）方式（设置ENABLE_HARD_DECODE=0），则重启时可切换为硬解方式（设置ENABLE_HARD_DECODE=1）。
 
@@ -234,7 +234,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
         ./android_kbox.sh start kbox:origin  1 5
         ```
 
-        >![](public_sys-resources/icon-note.gif) **说明：**
+        >![](./public_sys-resources/icon-note.gif) **说明：**
         >
         >Kbox云手机容器启动时，一般情况下会自动打开Kbox内核动态开关，以使能必要的Linux Kernel功能。
         >可以通过以下指令查询Kbox内核动态开关状态。
@@ -294,7 +294,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
         ./android_kbox.sh restart ${index1} ${index2}
         ```
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >使用硬件配置方案一时，必须在容器第一次启动时配置开/关C2解码器，不支持中途切换。云手机内置应用会根据自身需要自行选择解码器。
 
@@ -564,7 +564,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     3. 按“Esc”键，输入**:wq!**，按“Enter”保存并退出编辑。
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >修改“/etc/docker/daemon.json”文件，若“/etc/docker/daemon.json”文件不存在，则使用以下命令自行创建该文件并将内容写入。
     >
@@ -582,7 +582,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 3. 重启Docker服务。
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >重启Docker服务前需要确保没有其他容器运行，如果有需要清理。
 
@@ -627,7 +627,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     进入容器后即可执行相应的云手机参数配置命令。
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >在本文档使用的**adb**命令中，ip是指服务器IP地址，port是adb端口号。
 
@@ -648,7 +648,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 ##### GPS属性说明<a id="ZH-CN_TOPIC_0000002518352678"></a>
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >对下表中的参数数据类型说明如下：
 >
@@ -686,7 +686,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     [persist.gps.mock.longitude]: [120.193818]
     ```
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >在Windows系统上查询字符串文本，请使用命令**findstr**替代命令**grep**，如下所示。本章后续使用**grep**命令的场景，请用户根据实际业务场景自行处理。
     >
@@ -731,7 +731,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 |persist.sys.prop.writesimserial| SIM卡序列号 |int|20位数字|898600+随机值| 89为国际代码，86表示中国，00表示中国移动 |
 |persist.sys.prop.writephonenum| 手机号码 |int|0~20位数字|空|-|
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >- 所有属性设置后都需要重启容器才能生效。
 >- 容器启动过程中做参数合法性校验，只会判断字符和长度是否合法，判断非法则采用默认值。
@@ -759,7 +759,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     ![网络运营商查询结果](./figures/zh-cn_image_0000002518352736.png)
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >用户可自行查找相关应用进行验证。
 
@@ -796,7 +796,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     ![SIM卡序列号应用查询结果](./figures/zh-cn_image_0000002549712585.png)
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >1. 通过命令查询“SIM卡序列号”，部分位置会出现星号遮挡，为正常现象不影响实际功能。
     >2. 用户可自行查找相关应用进行验证。
@@ -825,7 +825,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 |persist.sensors.mock.acce.data.z| 当配置项为persist.sensors.mock.acce.data.z，表示沿z轴的加速力（包括重力） |float|[-3.402823466e+38,3.402823466e+38]| 加速度和陀螺仪的z轴默认值均为0.101028，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.z或persist.sensors.mock.gyro.data.z上。但由于Android 11将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000 |当设置的persist.sensors.mock.acce.data.z或persist.sensors.mock.gyro.data.z的值包含非数字/小数点字符的非法字符时，设置无效采用默认值。需注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题。|
 |persist.sensors.mock.gyro.data.z| 当配置项为persist.sensors.mock.gyro.data.z，表示沿z轴的旋转速率 |float|[-3.402823466e+38,3.402823466e+38]| 加速度和陀螺仪的z轴默认值均为0.101028，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.z或persist.sensors.mock.gyro.data.z上。但由于Android 11将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000 |当设置的persist.sensors.mock.acce.data.z或persist.sensors.mock.gyro.data.z的值包含非数字/小数点字符的非法字符时，设置无效采用默认值。需注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题。|
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >Android 11数值转换公式：输入value是float类型，resolution是double类型，`double incRes = 0.125 *resolution`；`value = round(static_cast<double>(value) / incRes) *incRes`，round是指double类型取整。
 
@@ -843,7 +843,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     ![加速度数据查询结果](./figures/zh-cn_image_0000002518192818.png)
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >用户可自行查找相关应用进行验证。
 
@@ -1003,7 +1003,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 故障排除是指根据不同的故障原因清除故障的过程。故障排除包括检修设备、修改配置数据、重启相关进程、重启容器、重启服务器等。
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >处理重大故障前，请先联系技术支持工程师协助解决。
 >在故障处理过程中，维护人员可能需要执行修改配置数据、重启虚拟机等重大操作，为确保数据安全，首先应该保存现场数据，备份相关数据库、告警信息和日志文件等。

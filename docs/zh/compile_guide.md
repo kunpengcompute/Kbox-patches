@@ -14,7 +14,7 @@ Kbox安卓镜像编译构建的硬件环境要求如[**表 1** Kbox安卓镜像�
 |---|---|---|
 |x86_64服务器|Kbox安卓镜像编译制作|Ubuntu 22.04 LTS推荐：ubuntu-22.04-live-server-amd64.iso|
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >- 本文档测试服务器型号为2288H V5。
 >- 服务器需有访问外网权限，以方便下载OS镜像。
@@ -42,7 +42,7 @@ Kbox安卓镜像编译构建的软件环境要求如[**表 1** Kbox安卓镜像�
 |9|Meson|0.63.2|[获取链接](https://github.com/mesonbuild/meson/releases/download/0.63.2/meson-0.63.2.tar.gz)|
 |10|vmi-CloudPhone.zip|华为VMI引擎云手机开源参考Demo分支：CloudPhone|[获取链接](https://raw.gitcode.com/boostkit/vmi/archive/refs/heads/CloudPhone.zip)|
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 > - 以上软件包名仅供参考，部分下载方式可能会导致软件包名与表格产生差异。请以获取的实际包名为准，参考表格适当进行更名，以方便后续步骤中的使用。
 
@@ -57,7 +57,7 @@ Kbox安卓镜像编译构建的软件环境要求如[**表 1** Kbox安卓镜像�
 2. <a id="li1273482318125"></a>从[华为企业业务网站](https://support.huawei.com/enterprise/zh/tool/pgp-verify-TL1000000054)或[运营商网站](http://support.huawei.com/carrier/digitalSignatureAction)获取校验工具和校验方法。
 3. 使用[2](#li1273482318125)获取到的签名验证指南文档对下载的软件包进行PGP数字签名校验。
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >如果校验失败，请不要使用该软件包，先联系华为技术支持工程师解决。
 >使用软件包安装或升级之前，也需要按上述过程先验证软件包的数字签名，确保软件包未被篡改。
@@ -80,7 +80,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
 1. 首先在“/home”目录下手动创建“auto_compile”目录，用于存放AOSP源码以及自动化脚本。
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >请确保“/home”目录的剩余空间大于250GB，可通过**df -h**命令查看磁盘空间情况。
 
@@ -215,7 +215,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
     zip -r drm-libdrm-2.4.111.zip  drm-libdrm-2.4.111
     ```
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >执行kbox11_android_build.sh自动化脚本时也可能出现依赖缺失类报错， 这类报错同样可能由于软件包内容更新产生的新的依赖导致。遇到该类型的报错，直接在环境上安装缺失的包即可。
 
@@ -341,7 +341,7 @@ Kbox安卓镜像使用AOSP 11进行编译，请参考本节操作步骤下载源
     chmod -R 700 ~/aosp
     ```
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >用户目录剩余空间要求大于300GB，AOSP源码约130GB，编译后接近300GB。
 
@@ -426,7 +426,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
     cp -r ./vmi-CloudPhone/CloudPhoneService/VideoEngine/Media/vendor ~/aosp/external/
     ```
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >执行命令可能会出现“No such file or directory”类报错，原因为依赖包解压所得文件夹名称发生变化，需以实际文件夹名称为准。
 >例如unzip mesa-22.1.7.zip得到了mesa-aosp11_7.3.0，则改为执行如下命令。
@@ -494,7 +494,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
     done
     ```
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >为了方便用户快速体验和部署Kbox云手机套件，提供了Kbox安卓补丁。该补丁仅作为功能性参考，不是商用交付范围，不提供商业承诺，建议客户或ISV在商用前进行必要的安全评估，若选择使用鲲鹏BoostKit云手机参考方案需自行承担安全风险。
 
@@ -533,7 +533,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
     sed -i "s|net.dns1=.*|net.dns1=xxx.xxx.xxx.xxx \\\\|" ~/aosp/vendor/kbox/products/kbox.mk
     ```
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >- 示例仅作为格式参考，请根据实际情况自行配置可用的公共DNS地址，以保证容器连接网络正常。
     >- DNS地址也可以通过修改Kbox容器内部文件“/system/vendor/build.prop”配置，容器重启后配置生效。
@@ -553,7 +553,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
         ./development/tools/make_key build/target/product/security/releasekey '/C=xx/ST=xxx/L=xxx/O=xxx/OU=xx/CN=xxx/emailAddress=xxxxx@xxx.com'
         ```
 
-        >![](public_sys-resources/icon-note.gif) **说明：**
+        >![](./public_sys-resources/icon-note.gif) **说明：**
         >
         >在执行**make_key**命令时，会提示输入密码，可以直接按回车跳过。
         >**make_key**命令参数介绍如下：
@@ -584,7 +584,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
         lunch kbox_arm64-user
         ```
 
-        >![](public_sys-resources/icon-note.gif) **说明：**
+        >![](./public_sys-resources/icon-note.gif) **说明：**
         >
         >- 若需要采用userdebug模式编译镜像，请将上述**lunch**命令后的选项后缀由“user”修改为“userdebug”。以“kbox_arm64”为例：
         >
@@ -606,7 +606,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
         make -j
         ```
 
-        >![](public_sys-resources/icon-note.gif) **说明：**
+        >![](./public_sys-resources/icon-note.gif) **说明：**
         >
         >在执行上述命令时，“-j”后的数字参数要根据服务器实际的CPU核数来定。CPU核数可通过以下命令查询。
         >
@@ -632,7 +632,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 
 4. 运行脚本，生成Kbox安卓镜像。
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >制作镜像的时候需要root权限，请用root用户执行脚本，且执行脚本时，目录需要使用绝对路径。
 

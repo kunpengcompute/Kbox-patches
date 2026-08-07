@@ -86,7 +86,7 @@ docker stats
 
 ![容器资源消耗情况](./figures/zh-cn_image_0000002549825895.png)
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >CPU使用率和内存使用率超过总量的80%时，可能会出现容器反应卡顿的情况，此时建议清理后台应用。
 
@@ -118,7 +118,7 @@ htop
 
 ![htop监控界面](./figures/zh-cn_image_0000002518346036.png)
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >当Host OS为openEuler时，使用htop工具时需要先安装，安装命令如下。
 >
@@ -322,7 +322,7 @@ dmesg -T
 
 为增强云手机原型的可测试性、可服务性和可维护性，Kbox云手机容器提供了Kbox_maintainer维护工具。该工具集成了日志收集、资源检查、故障恢复等多项功能，显著提升了云手机原型的整体性能。
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >Kbox_maintainer工具包含在Kbox_AOSP11.zip中，Kbox_AOSP11.zip的获取方式请参见《install guide》文档中“环境准备”章节中的“[软件环境](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/zh/install_guide.md#22-%E8%BD%AF%E4%BB%B6%E7%8E%AF%E5%A2%83)”小节。
 
@@ -350,7 +350,7 @@ python3 kbox_maintainer.py log
 python3 kbox_maintainer.py log kbox_1
 ```
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >在使用日志收集功能时，如果收集日志时间过长，原因可能是“/var/log”下的日志过多导致的，可按需进行清理。
 
@@ -484,7 +484,7 @@ python3 kbox_maintainer.py recover kbox_1
 |开机信息|**dmesg -T**|
 |网络状态检查|**ifconfig**<br>**ping**<br>**netstat**<br>**tcpdump**|
 
-> ![](public_sys-resources/icon-note.gif) **说明：**
+> ![](./public_sys-resources/icon-note.gif) **说明：**
 >
 > 当Host OS为openEuler 22.03时，联网游戏场景需要打开防火墙的某些端口（端口号由游戏厂商定义，如王者荣耀使用的端口为50012)，否则会出现网络异常无法登录游戏的情况。防火墙配置方法如下。
 >

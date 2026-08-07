@@ -27,7 +27,7 @@ Kbox云手机容器环境部署的硬件环境配置方案要求如[**表 1** Kb
 |操作系统|openEuler 22.03 LTS SP4|openEuler 22.03 LTS SP4|openEuler 22.03 LTS SP4|openEuler 22.03 LTS SP4|
 |内核版本|5.10.0-216.0.0|5.10.0-216.0.0|5.10.0-216.0.0|5.10.0-216.0.0|
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >- 选择鲲鹏服务器兼容的Mellanox网卡，通过[鲲鹏计算兼容性查询工具](https://info.support.huawei.com/computing/tools/compatibility-query/enterprise/kunpeng-computing/component-compatibility)可查询具体型号网卡。
 >- NETINT Quadra是NETINT T432编码卡下一代演进，后续文档仅以Quadra为例进行说明；若需要使能T432编码卡，也可参考Quadra编码卡进行使能。
@@ -54,7 +54,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 |8|Quadra_V*XXX*.zip| 包含NETINT编码卡Quadra软固件及文档包 |[获取链接](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)下载密码：test123|√|-|-|-|
 |9|VAGPU-25.03.01.01-RC24.tgz| 显卡驱动 |请联系华为技术支持获取。|-|√|√|√|
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >- √：是指使用对应硬件配置方案时需要安装该软件项目。
 >- -：是指使用对应硬件配置方案时不需要安装该软件项目。
@@ -68,7 +68,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 2. <a id="zh-cn_topic_0000001506119857_zh-cn_topic_0000001323011582_zh-cn_topic_0000001214652748_li1273482318125"></a>从[华为企业业务网站](https://support.huawei.com/enterprise/zh/tool/pgp-verify-TL1000000054)或[运营商网站](http://support.huawei.com/carrier/digitalSignatureAction)获取校验工具和校验方法。
 3. 使用[2](#zh-cn_topic_0000001506119857_zh-cn_topic_0000001323011582_zh-cn_topic_0000001214652748_li1273482318125)获取到的签名验证指南文档对下载的软件包进行PGP数字签名校验。
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >- 如果校验失败，请不要使用该软件包，先联系华为技术支持工程师解决。
 >- 使用软件包安装/升级之前，也需要按上述过程先验证软件包的数字签名，确保软件包未被篡改。
@@ -178,7 +178,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
         /dev/nvme1n1  Q2A325A11DC082-0454B QuadraT2A        1         8.59  TB /   8.59  TB    4 KiB +  0 B     48F6rKr1
         ```
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >- 1张NETINT Quadra卡有2颗芯片，对应2个设备节点。以上回显中为1张NETINT Quadra卡，对应2个设备节点。
     >- T432（X8）有四颗芯片，故应选择分叉后的带宽为x2。例如T432安装在Slot3时，需要将“Slot3 BandWidth Splitting”选项设置为“x2”。
@@ -235,7 +235,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 网络服务占用的CPU与容器绑定的CPU重叠时，会造成容器内CPU资源异常。为了避免这种情况出现，请将流量较大、负载较重的网卡绑定至空闲CPU。
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >- 本节内容在每次服务器重启后，都需要重新执行。
 >- 服务器上使用多张网卡时，每张网卡均需要进行如下步骤确认。
@@ -267,7 +267,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
     359
     ```
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >若查询网卡涉及的中断时，回显包含多个中断号，则需要判断中断是否分散地绑在不同CPU上，根据判断结果来确定是否修改中断绑定的CPU。
 
@@ -324,7 +324,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
     echo 2 > /proc/irq/359/smp_affinity_list
     ```
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >查询得到网卡所属的NUMA node后，NUMA node对应的core区间可执行如下命令查看。
     >
@@ -402,7 +402,7 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
 
 内核一键式编译脚本kbox_install_kernel.sh支持openEuler 22.03 LTS SP4（对应内核版本5.10.0-216.0.0）版本的编译，脚本获取方式：请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)获取Kbox-patches-AOSP11.zip包并解压，脚本位于“Kbox-patches-AOSP11/deploy_scripts/openEuler_deploy”目录。脚本的具体使用方法，请参见脚本开头处的注释说明内容。
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >一键式脚本中涉及的内核配置与修改仅作为功能性参考，不建议使用鲲鹏BoostKit云手机参考方案作为商用方案。若选择使用鲲鹏BoostKit云手机参考方案需自行承担安全风险，客户或ISV在商用前请进行必要的安全评估。
 
@@ -412,7 +412,7 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
 
 Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-216.0.0）操作系统下进行内核源码的编译。在编译开始前，请正确配置服务器的网络环境、软件源、同步服务器系统时间，以便下载相关的编译依赖包。
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >- 手动编译内核章节中涉及的内核配置与修改仅作为功能性参考，不建议使用鲲鹏BoostKit云手机参考方案作为商用方案。若选择使用鲲鹏BoostKit云手机参考方案需自行承担安全风险，客户或ISV在商用前请进行必要的安全评估。
 >- openEuler操作系统的安装请参考openEuler官方网站的文档：《[openEuler 22.03 LTS SP4 安装指导](https://docs.openeuler.openatom.cn/zh/docs/22.03_LTS_SP4/server/installation_upgrade/installation/installation_preparations.html)》
@@ -451,7 +451,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
         grub2-mkconfig -o /boot/efi/EFI/openEuler/grub.cfg
         ```
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >该配置在系统重启后生效。重启步骤可以暂缓执行，待完成章节[编译并安装Kernel](#编译并安装Kernel)后一并进行重启操作。
 
@@ -475,7 +475,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
         SELINUX=disabled
         ```
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >- 若“/etc/selinux/config”文件不存在，则执行以下指令创建文件并写入SELinux规则。
     >
@@ -522,7 +522,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
     yum install -y make dpkg dpkg-devel openssl openssl-devel ncurses ncurses-devel bison flex bc libdrm build elfutils-libelf-devel patch gcc dwarves
     ```
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >如果安装过程中有获取包失败的情况，建议根据提示中的网址手动获取安装包进行安装，安装成功后继续安装剩余依赖包。
 
@@ -535,7 +535,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
     systemctl start lxcfs && systemctl enable lxcfs
     ```
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >如遇到lxcfs启动报错，请尝试重启服务，或者联系技术支持工程师协助解决。
 
@@ -614,7 +614,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
 1. 拷贝“/boot”目录下的config文件到内核源码目录，并重命名为.config。
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >- 命令中的“/boot”目录下的config文件名称仅为示例，实际的文件名称要通过**uname -r**命令确认，拷贝的config文件版本要与操作系统的内核版本保持一致。
     >- 若“/boot”目录下不存在config-\`uname -r\`文件，可以将“/boot”目录下的任意一个config-前缀的文件拷贝至服务器的Kernel源码目录，并重命名为.config。
@@ -675,7 +675,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
     如果要使能容器支持以nfs挂载启动，则还要进行上面内核编译选项的配置。
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >配置方法说明：
     >- 键盘的上下左右键进行菜单导航。
@@ -727,7 +727,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
     make -j64
     ```
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >若编译过程中存在如下提示信息，则需要确保服务器系统时间已同步至正确时间。
     >
@@ -770,7 +770,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
     make install
     ```
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >- 在安装内核前，请确保系统中没有安装dkms，否则可能会导致安装内核时出现报错信息：“Error! Bad return status for module build on kernel: ...”，解决方法如下：
     >    1. 查看系统中是否已安装dkms。
@@ -823,7 +823,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
     uname -r
     ```
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >如果重启后未能进入新编译的内核，请在BIOS进入grub启动后选择新编译的内核进入系统，或者联系技术支持工程师协助解决。
 
@@ -922,7 +922,7 @@ NUMA node: 2
 
     如果固件版本（最右侧的FW Rev一栏）与4.8.F-adapt配套固件版本不一致，请参见以下步骤对编码卡上的固件进行升级。
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >NVMe固件版本比较的规则是：数字越大，字母越靠后，版本越新。
 
@@ -1008,7 +1008,7 @@ NUMA node: 2
     ...
     ```
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >更换驱动版本时，需要卸载驱动后重新安装其他版本驱动。
 >
@@ -1033,7 +1033,7 @@ NUMA node: 2
     chown -R root:root ExaGear_ARM32-ARM64
     ```
 
-    >![](public_sys-resources/icon-note.gif) **说明：**
+    >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >“~/dependency”目录下只允许保留一份ExaGear转码包，旧版本的ExaGear转码包需要删除，否则在后续启动Kbox容器时会出现“Many ubt_a32a64 files exist!”报错。
 

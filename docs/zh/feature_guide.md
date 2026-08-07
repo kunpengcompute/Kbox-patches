@@ -498,7 +498,7 @@ NFS采用典型的**客户端/服务器（C/S）**架构，客户端/服务器�
    mount -t nfs4 192.168.20.XX:/nfs /tmp/nfs
    ```
 
->![](public_sys-resources/icon-note.gif) **说明：**
+>![](./public_sys-resources/icon-note.gif) **说明：**
 >
 >由于服务器的/etc/exports对/home目录配置了fsid=0，因此在客户端时不可见的，所以只需要挂载/nfs目录即可。
 
