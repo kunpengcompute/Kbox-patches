@@ -35,7 +35,7 @@
 
 2. 请定期检查操作系统是否有可用的安全更新，若有，请及时安装更新。具体方法请参考官网说明。不同操作系统的查询指令请参考如下。
 
-   ```shell
+   ```bash
    yum updateinfo list available
    ```
 
@@ -69,6 +69,6 @@ ASLR（Address space layout randomization）是一种针对缓冲区溢出的安
 
 为防止固定地址类型的攻击，建议启用ASLR。启用方法如下：
 
-```shell
+```bash
 echo 2 > /proc/sys/kernel/randomize_va_space
 ```

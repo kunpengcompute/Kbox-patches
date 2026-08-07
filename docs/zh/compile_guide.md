@@ -84,7 +84,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
     >
     >请确保“/home”目录的剩余空间大于250GB，可通过**df -h**命令查看磁盘空间情况。
 
-    ```shell
+    ```bash
     mkdir -p /home/auto_compile
     cd /home/auto_compile
     ```
@@ -92,14 +92,14 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 2. 在“/home/auto_compile”目录下载AOSP源码，版本为android-11.0.0_r48，将下载好的AOSP源码目录重命名为“aosp”。
 3. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)下载Kbox-patches-AOSP11.zip文件到本地，上传到服务器的“/home/auto_compile”目录，并解压。
 
-    ```shell
+    ```bash
     cd /home/auto_compile
     unzip Kbox-patches-AOSP11.zip
     ```
 
 4. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)下载Android Kbox二进制文件包、ExaGear转码包、Meson、Mesa源码、LLVM源码、libdrm源码、libva源码和CloudPhone应用安装包到本地。在如下指定目录中创建“package”文件夹。
 
-    ```shell
+    ```bash
     cd /home/auto_compile/Kbox-patches-AOSP11/make_img_sample/kbox11_android_build
     mkdir -p package
     ```
@@ -113,14 +113,14 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 5. 修改编译配置。
     1. 编辑build.conf脚本。
 
-        ```shell
+        ```bash
         cd /home/auto_compile/Kbox-patches-AOSP11/make_img_sample/kbox11_android_build
         vim build.conf
         ```
 
     2. 按“i”进入编辑模式，按照环境实际情况修改各配置项的值（各配置项含义参考配置文件中注释），以下以DNS为例。
 
-        ```shell
+        ```bash
         DNS=xx.xx.xx.xx
         ```
 
@@ -128,14 +128,14 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
 6. 执行kbox11_android_build.sh自动化脚本完成Kbox编译。
 
-    ```shell
+    ```bash
     cd /home/auto_compile/Kbox-patches-AOSP11/make_img_sample/kbox11_android_build && chmod +x kbox11_android_build.sh
     ./kbox11_android_build.sh
     ```
 
     此脚本执行时间需要一小时以上，请耐心等待。脚本执行完成会有如下回显。如遇脚本执行报错，优先排查脚本并联系华为工程师。
 
-    ```shell
+    ```bash
     ---------------Success--------------
     /home/auto_compile/aosp/android.tar
     ---------------End--------------
@@ -149,7 +149,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
 执行kbox11_android_build.sh自动化脚本时可能出现“'format_info.h' file not found”类报错，原因为Mesa多线程编译概率性导致编译所依赖的头文件生成滞后，导致编译失败。
 
-```shell
+```bash
 ../src/mesa/main/formats.c:81:10: fatal error: 'format_info.h' file not found
 #include "format_info.h"
 1 error generated.
@@ -159,13 +159,13 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
 1. 使环境变量生效。
 
-    ```shell
+    ```bash
     source ~/.bashrc
     ```
 
 2. 重新编译。
 
-    ```shell
+    ```bash
     cd /home/auto_compile/aosp
     source build/envsetup.sh
     lunch kbox_arm64-user
@@ -174,13 +174,13 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
     如果出现相同报错，请再次执行**make -j**命令编译，直到不再出现相同报错。执行成功后，会有如下回显：
 
-    ```shell
+    ```bash
     #### build completed successfully (xx:xx (mm:ss)) ####
     ```
 
 3. 继续执行以下命令用于生成“android.tar”的Kbox镜像。
 
-    ```shell
+    ```bash
     cp -r /home/auto_compile/Kbox-patches-AOSP11/make_img_sample/kbox11_android_build/create-package.sh /home/auto_compile/aosp
     chmod +x create-package.sh
     ./create-package.sh /home/auto_compile/aosp/out/target/product/arm64/system.img
@@ -198,19 +198,19 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
 1. 找到报错的软件压缩包后解压。
 
-    ```shell
+    ```bash
     unzip drm-libdrm-2.4.111.zip
     ```
 
 2. 修改解压文件夹名为编译报错中提示的文件名（一键式脚本中预设的文件名）。
 
-    ```shell
+    ```bash
     mv libdrm-libdrm-2.4.111-f801b07a60740425604d6563e5dc399375108bc4 drm-libdrm-2.4.111
     ```
 
 3. 压缩目录，新做一个软件包，使用新软件包进行一键式脚本编译即可。
 
-    ```shell
+    ```bash
     mv drm-libdrm-2.4.111.zip drm-libdrm-2.4.111.zip.bak
     zip -r drm-libdrm-2.4.111.zip  drm-libdrm-2.4.111
     ```
@@ -226,13 +226,13 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 1. 根据实际网络环境配置源，以便安装编译源码需要的依赖包。
 2. 配置完成后，更新索引。
 
-    ```shell
+    ```bash
     sudo apt update
     ```
 
 3. 安装编译环境所需依赖包。
 
-    ```shell
+    ```bash
     sudo apt-get install libgl1-mesa-dev g++-multilib git flex bison gperf build-essential
     sudo apt-get install tofrodos python3-markdown xsltproc dpkg-dev libsdl1.2-dev
     sudo apt-get install git-core gnupg zip curl zlib1g-dev gcc-multilib glslang-tools
@@ -273,7 +273,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 4. 确认服务器的Python3环境是否包含mako模块。若无，请为服务器的Python3环境安装mako模块。
     1. 执行如下命令，进入Python3环境。
 
-        ```shell
+        ```bash
         python3
         ```
 
@@ -281,7 +281,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
     2. 进入Python3环境后，执行如下命令，查看包含的模块信息。
 
-        ```shell
+        ```bash
         help("modules")
         ```
 
@@ -293,13 +293,13 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
     3. 退出python命令模式。
 
-        ```shell
+        ```bash
         exit()
         ```
 
 5. 在用户目录下创建“buildtools”目录，并为目录拥有者添加读、写和可执行权限。
 
-    ```shell
+    ```bash
     mkdir ~/buildtools
     chmod -R 700 ~/buildtools
     ```
@@ -308,7 +308,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
     请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，将源码包中的“meson-0.63.2.tar.gz”文件上传至“~/buildtools”目录并解压。
 
-    ```shell
+    ```bash
     cd ~/buildtools
     tar -xvpf meson-0.63.2.tar.gz
     ```
@@ -316,7 +316,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 7. 设置环境变量。
     1. 在“~/.bashrc”文件末尾添加如下内容。
 
-        ```shell
+        ```bash
         cat >> ~/.bashrc <<EOF
         export PATH=~/buildtools/meson-0.63.2:$PATH
         EOF
@@ -324,7 +324,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
     2. 使环境变量生效。
 
-        ```shell
+        ```bash
         source ~/.bashrc
         ```
 
@@ -336,7 +336,7 @@ Kbox安卓镜像使用AOSP 11进行编译，请参考本节操作步骤下载源
 
 1. 在用户目录下创建“aosp”目录，并为目录拥有者添加读、写和可执行权限。
 
-    ```shell
+    ```bash
     mkdir ~/aosp
     chmod -R 700 ~/aosp
     ```
@@ -347,7 +347,7 @@ Kbox安卓镜像使用AOSP 11进行编译，请参考本节操作步骤下载源
 
 2. 按照[谷歌官方指导](https://android.googlesource.com/tools/repo)，下载并安装repo工具，然后下载AOSP源码，版本为android-11.0.0_r48，并进行编译。
 
-    ```shell
+    ```bash
     cd ~/aosp
     repo init -u https://android.googlesource.com/platform/manifest -b android-11.0.0_r48
     repo sync
@@ -355,7 +355,7 @@ Kbox安卓镜像使用AOSP 11进行编译，请参考本节操作步骤下载源
 
 3. 在“aosp”目录下，删除源码中“external/mesa3d”、“external/libdrm”、“device/generic/arm64”三个文件夹。
 
-    ```shell
+    ```bash
     cd ~/aosp
     rm -rf external/mesa3d external/libdrm device/generic/arm64
     ```
@@ -366,7 +366,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 
 1. 在用户目录下创建“sourcecode”目录，并为目录拥有者添加读、写和可执行权限。
 
-    ```shell
+    ```bash
     mkdir ~/sourcecode
     chmod -R 700 ~/sourcecode
     ```
@@ -375,7 +375,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 
     请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，将源码包上传至“/root/sourcecode”目录，解压并重命名后，复制到“aosp/external”目录。
 
-    ```shell
+    ```bash
     cd ~/sourcecode
     unzip mesa-22.1.7.zip
     mv mesa-22.1.7 mesa
@@ -386,7 +386,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 
     请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，将源码包上传至“/root/sourcecode”目录，解压并重命名后，复制到“aosp/external”目录。
 
-    ```shell
+    ```bash
     cd ~/sourcecode
     tar xvf llvm-13.0.1.src.tar.xz
     mv llvm-13.0.1.src llvm70
@@ -397,7 +397,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 
     请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，将源码包上传至“/root/sourcecode”目录，解压并重命名后，复制到“aosp/external”目录。
 
-    ```shell
+    ```bash
     cd ~/sourcecode
     unzip drm-libdrm-2.4.111.zip
     mv drm-libdrm-2.4.111 libdrm
@@ -408,7 +408,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 
     请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，将源码包上传至“/root/sourcecode”目录，解压并重命名后，复制到“aosp/external”目录。
 
-    ```shell
+    ```bash
     cd ~/sourcecode
     tar xvf libva-2.14.0.tar.gz
     mv libva-2.14.0 libva
@@ -419,37 +419,33 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 
     请将获取到的Media的zip源码包上传至“/root/sourcecode”目录，解压并复制以下内容到“aosp/external”目录。
 
-    ```shell
+    ```bash
     cd ~/sourcecode
     unzip vmi-CloudPhone.zip
     cp -r ./vmi-CloudPhone/CloudPhoneService/VideoEngine/Media/video_decoder ~/aosp/external/
     cp -r ./vmi-CloudPhone/CloudPhoneService/VideoEngine/Media/vendor ~/aosp/external/
     ```
 
-<<<<<<< HEAD
 >![](public_sys-resources/icon-note.gif) **说明：**
 >
 >执行命令可能会出现“No such file or directory”类报错，原因为依赖包解压所得文件夹名称发生变化，需以实际文件夹名称为准。
 >例如unzip mesa-22.1.7.zip得到了mesa-aosp11_7.3.0，则改为执行如下命令。
 >
->```shell
+>```bash
 >cd ~/sourcecode
 >unzip mesa-22.1.7.zip
 >mv mesa-aosp11_7.3.0 mesa
 >cp -r ./mesa ~/aosp/external/
 >```
 
-### 5.3 合入ExaGear转码补丁<a name="ZH-CN_TOPIC_0000002549705327"></a>
-=======
 ### 合入ExaGear转码补丁<a id="ZH-CN_TOPIC_0000002549705327"></a>
->>>>>>> 00847ef (version 0703)
 
 在AOSP源码包中合入ExaGear转码补丁包。
 
 1. 在用户目录下创建“dependency”目录。解压Kbox-patches-AOSP11.zip，将Kbox-patches-AOSP11文件夹中的“patchForExagear”目录上传至“~/dependency”目录。请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
 2. 合入ExaGear转码补丁。拷贝ExaGear转码补丁0001-exagear-adapt-android-11.0.0_r48.patch至AOSP源码目录，并执行合入补丁命令。
 
-    ```shell
+    ```bash
     cd ~/dependency/patchForExagear/guestOS/aosp11
     cp 0001-exagear-adapt-android-11.0.0_r48.patch ~/aosp
     cd ~/aosp
@@ -459,21 +455,21 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 3. 将ExaGear转码包（ExaGear_ARM32-ARM64_V2.5.tar.gz）上传至“~/dependency”目录。请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
 4. 解压补丁包，并调整权限。
 
-    ```shell
+    ```bash
     cd ~/dependency/
     sudo tar -xzvf ExaGear_ARM32-ARM64_V2.5.tar.gz
     ```
 
 5. 将“~/dependency/ExaGear_ARM32-ARM64”目录下的preubt_a32a64_a64、preubt_a32a64_x64、ubt_a32a64文件拷贝至“~/dependency/patchForExagear/guestOS/aosp11/vendor/huawei/exagear/prebuilts”目录。
 
-    ```shell
+    ```bash
     cd ~/dependency/ExaGear_ARM32-ARM64
     cp * ~/dependency/patchForExagear/guestOS/aosp11/vendor/huawei/exagear/prebuilts
     ```
 
 6. 拷贝“vendor”目录至“aosp”目录下。
 
-    ```shell
+    ```bash
     cd ~/dependency/patchForExagear/guestOS/aosp11
     cp -r ./vendor ~/aosp/
     ```
@@ -485,7 +481,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 1. 解压Kbox-patches-AOSP11.zip，将Kbox-patches-AOSP11文件夹中的“patchForAndroid”目录上传至“~/dependency”目录。请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
 2. 合入Kbox安卓补丁。
 
-    ```shell
+    ```bash
     aosp_path=~/aosp; \
     work_path=~/dependency/patchForAndroid; \
     for patch_name in $(ls $work_path | grep .patch); do \
@@ -512,7 +508,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 
 2. 将二进制内容复制到AOSP源码根目录。由于product_prebuilt的解码二进制libstagefrighthw.so会和Android的有冲突，需删除Android的目录“device/generic/goldfish-opengl/system/codecs”以及注释其相关的编译代码。
 
-    ```shell
+    ```bash
     cd ~/dependency
     cp -rf product_prebuilt ~/aosp/
     rm -rf ~/aosp/device/generic/goldfish-opengl/system/codecs
@@ -522,7 +518,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 
 3. 在AOSP源码目录创建“vendor/kbox”目录，拷贝“products”目录至该目录。
 
-    ```shell
+    ```bash
     mkdir -p ~/aosp/vendor/kbox
     chmod -R 700 ~/aosp/vendor/kbox
     cd ~/dependency
@@ -533,7 +529,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 
     此命令中的net.dns1=xxx.xxx.xxx.xxx需要替换成配置容器的DNS地址。需保证配置的地址可用，否则可能导致编译获得的镜像不可用。
 
-    ```shell
+    ```bash
     sed -i "s|net.dns1=.*|net.dns1=xxx.xxx.xxx.xxx \\\\|" ~/aosp/vendor/kbox/products/kbox.mk
     ```
 
@@ -550,7 +546,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 1. 编译AOSP源码。
     1. 生成您自己的唯一发布密钥集用于对部署的Android操作系统映像进行签名。
 
-        ```shell
+        ```bash
         cd ~/aosp/
         rm -rf ./build/target/product/security/release*
         chmod +x ./development/tools/make_key
@@ -578,13 +574,13 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 
     2. 将envsetup.sh中所有用到的命令加载到环境变量中。
 
-        ```shell
+        ```bash
         source build/envsetup.sh
         ```
 
     3. 选择编译模式。Kbox的user模式编译镜像默认开启adb，adb有root权限。此处默认采用user模式编译镜像。
 
-        ```shell
+        ```bash
         lunch kbox_arm64-user
         ```
 
@@ -592,20 +588,20 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
         >
         >- 若需要采用userdebug模式编译镜像，请将上述**lunch**命令后的选项后缀由“user”修改为“userdebug”。以“kbox_arm64”为例：
         >
-        >    ```shell
+        >    ```bash
         >    lunch kbox_arm64-userdebug
         >    ```
         >
         >- Kbox还提供了精简版本镜像，在一般镜像的基础上去除了部分系统预装应用，以获得更好的内存占用与性能表现。
         > 使用如下编译选项以编译精简镜像：
         >
-        >    ```shell
+        >    ```bash
         >    lunch kbox_arm64_optimized-user
         >    ```
 
     4. 执行编译。
 
-        ```shell
+        ```bash
         make clean
         make -j
         ```
@@ -614,7 +610,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
         >
         >在执行上述命令时，“-j”后的数字参数要根据服务器实际的CPU核数来定。CPU核数可通过以下命令查询。
         >
-        > ```shell
+        > ```bash
         > cat /proc/cpuinfo |grep "processor" | wc -l
         >    ```
         >
@@ -627,7 +623,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
 
 3. 拷贝生成镜像脚本至“~/aosp”目录，并赋予可执行权限。
 
-    ```shell
+    ```bash
     cd ~/dependency/make_img_sample/kbox11_android_build
     cp create-package.sh ~/aosp/
     cd ~/aosp
@@ -640,7 +636,7 @@ Kbox安卓镜像编译过程中使用到Mesa、LLVM和libdrm等，请参考本�
     >
     >制作镜像的时候需要root权限，请用root用户执行脚本，且执行脚本时，目录需要使用绝对路径。
 
-    ```shell
+    ```bash
     ./create-package.sh ~/aosp/out/target/product/arm64/system.img
     ```
 

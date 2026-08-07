@@ -159,19 +159,19 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
     1. NETINT编码卡使用NVMe协议，若环境未安装NVMe则需完成NVMe的安装。
 
-        ```shell
+        ```bash
         yum install nvme-cli
         ```
 
     2. 将卡插入后执行以下命令查看NETINT编码卡是否被正确识别。
 
-        ```shell
+        ```bash
         nvme list
         ```
 
         回显如下表示NETINT编码卡安装正确。该内容为回显示例，请以实际为准。
 
-        ```shell
+        ```bash
         Node          SN                   Model            Namespace Usage                    Format           FW Rev
         ------------- -------------------- ---------------- --------- ------------------------ ---------------- --------
         /dev/nvme0n1  Q2A325A11DC082-0454A QuadraT2A        1         8.59  TB /   8.59  TB    4 KiB +  0 B     48F6rKr1
@@ -242,13 +242,13 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 1. <a id="zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512"></a>执行命令，查看网卡**pci设备号**。本文以网卡enp125s0f1为例进行说明。
 
-    ```shell
+    ```bash
     ethtool -i enp125s0f1 | grep bus-info | awk '{print $2}'
     ```
 
     回显如下所示，表示网卡enp125s0f1的pci设备号为0000:7d:00.1。
 
-    ```shell
+    ```bash
     0000:7d:00.1
     ```
 
@@ -256,13 +256,13 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
     命令中的**${id_pci}**为[1](#zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512)中查到的网卡设备号。
 
-    ```shell
+    ```bash
     cat /proc/interrupts | grep "${id_pci}" | awk -F: '{print $1}'
     ```
 
     回显如下所示，表示网卡对应的中断为358、359。
 
-    ```shell
+    ```bash
     358
     359
     ```
@@ -273,7 +273,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 3. 查询中断绑定在哪个CPU上，命令中的${break_value}为查询到的网卡中断号。
 
-    ```shell
+    ```bash
     cat /proc/irq/${break_value}/smp_affinity_list
     ```
 
@@ -284,13 +284,13 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
     命令中的${id_pci}为网卡设备号，可通过本节内容的[1](#zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512)进行查看。执行命令，回显中的NUMA node参数对应的值即为网卡所属的NUMA node。
 
-    ```shell
+    ```bash
     lspci -vvvs ${id_pci}
     ```
 
     回显如下所示，根据pci设备号查询得到的网卡enp125s0f1所属的NUMA node为0。
 
-    ```shell
+    ```bash
     7d:00.1 Ethernet controller: Huawei Technologies Co., Ltd. HNS GE/10GE/25GE Network Controller (rev 21)
             Control: I/O- Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR- FastB2B- DisINTx-
             Status: Cap+ 66MHz- UDF- FastB2B- ParErr- DEVSEL=fast >TAbort- <TAbort- <MAbort- >SERR- <PERR- INTx-
@@ -307,19 +307,19 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
     - 将中断${break_1}绑定至1 CPU。
 
-        ```shell
+        ```bash
         echo 1 > /proc/irq/${break_1}/smp_affinity_list
         ```
 
     - 将中断${break_2}绑定至2 CPU。
 
-        ```shell
+        ```bash
         echo 2 > /proc/irq/${break_2}/smp_affinity_list
         ```
 
     以网卡enp125s0f1为例，它对应的中断为358、359，绑定命令依次为：
 
-    ```shell
+    ```bash
     echo 1 > /proc/irq/358/smp_affinity_list
     echo 2 > /proc/irq/359/smp_affinity_list
     ```
@@ -328,13 +328,13 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
     >
     >查询得到网卡所属的NUMA node后，NUMA node对应的core区间可执行如下命令查看。
     >
-    >```shell
+    >```bash
     >lscpu
     >```
     >
     >如回显所示，NUMA node0其对应的core区间为0~31。
     >
-    >```shell
+    >```bash
     >NUMA node0 CPU(s):               0-31
     >NUMA node1 CPU(s):               32-63
     >NUMA node2 CPU(s):               64-95
@@ -347,7 +347,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 执行如下命令设置GPU卡工作模式为高性能模式。
 
-```shell
+```bash
 find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high > '{}'"
 ```
 
@@ -355,39 +355,39 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
 
 1. 查询GPU进程号。
 
-    ```shell
+    ```bash
     ps -ef |grep gfx
     ```
 
     回显信息如下：
 
-    ```shell
+    ```bash
     root        1703       2  1 Aug31 ?        07:31:36 [gfx_0.0.0]
     root        1739       2  1 Aug31 ?        09:13:08 [gfx_0.0.0]
     ```
 
 2. 将第一个GPU进程绑定至空闲核。
 
-    ```shell
+    ```bash
     taskset -pc 32-33 1703
     ```
 
     回显信息如下：
 
-    ```shell
+    ```bash
     pid 1703's current affinity list: 0-127
     pid 1703's new affinity list: 32,33
     ```
 
 3. 将第二个GPU进程绑定至空闲核。
 
-    ```shell
+    ```bash
     taskset -pc 64-65 1739
     ```
 
     回显信息如下：
 
-    ```shell
+    ```bash
     pid 1739's current affinity list: 0-127
     pid 1739's new affinity list: 64,65
     ```
@@ -423,31 +423,31 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
     1. 查看现有配置。
 
-        ```shell
+        ```bash
         cat /etc/default/grub | grep "cgroup_enable=memory swapaccount=1"
         ```
 
     2. 当以上指令回显为空时，执行下述命令配置内核启动项。
 
-        ```shell
+        ```bash
         sed -i '/GRUB_CMDLINE_LINUX/s/\"$//' /etc/default/grub; sed -i '/GRUB_CMDLINE_LINUX/s/$/ cgroup_enable=memory swapaccount=1\"/' /etc/default/grub
         ```
 
     3. 查看修改结果。
 
-        ```shell
+        ```bash
         cat /etc/default/grub | grep "GRUB_CMDLINE_LINUX"
         ```
 
         示例回显如下，若启动参数中存在其他固有参数为正常现象。
 
-        ```shell
+        ```bash
         GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"
         ```
 
     4. 更新grub配置文件。
 
-        ```shell
+        ```bash
         grub2-mkconfig -o /boot/efi/EFI/openEuler/grub.cfg
         ```
 
@@ -459,19 +459,19 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
     1. 配置SELinux。
 
-        ```shell
+        ```bash
         sed -i "s|^SELINUX=.*|SELINUX=disabled|g" /etc/selinux/config
         ```
 
     2. 查看修改结果。
 
-        ```shell
+        ```bash
         cat /etc/selinux/config | grep "^SELINUX="
         ```
 
         确认指令回显如下。
 
-        ```shell
+        ```bash
         SELINUX=disabled
         ```
 
@@ -479,7 +479,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
     >
     >- 若“/etc/selinux/config”文件不存在，则执行以下指令创建文件并写入SELinux规则。
     >
-    > ```shell
+    > ```bash
     > echo "SELINUX=disabled" > /etc/selinux/config
     >    ```
     >
@@ -488,37 +488,37 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 3. 启动多路Kbox容器时，主机侧文件访问量大，需调整用户可创建的inotify instances的上限。
     1. 查看现有配置。
 
-        ```shell
+        ```bash
         cat /etc/sysctl.conf | grep "fs.inotify.max_user_instances=8192"
         ```
 
     2. 当以上指令回显为空时，执行下述命令配置inotify instances的上限。
 
-        ```shell
+        ```bash
         echo "fs.inotify.max_user_instances=8192" >> /etc/sysctl.conf
         ```
 
     3. 查看修改结果。
 
-        ```shell
+        ```bash
         cat /etc/sysctl.conf | grep "fs.inotify.max_user_instances"
         ```
 
         确认回显如下。
 
-        ```shell
+        ```bash
         fs.inotify.max_user_instances=8192
         ```
 
     4. 使修改生效。
 
-        ```shell
+        ```bash
         sysctl -p
         ```
 
 4. 安装基础依赖包。
 
-    ```shell
+    ```bash
     yum install -y make dpkg dpkg-devel openssl openssl-devel ncurses ncurses-devel bison flex bc libdrm build elfutils-libelf-devel patch gcc dwarves
     ```
 
@@ -530,7 +530,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
     使用如下命令安装Docker与lxcfs，并启动lxcfs服务，设置lxcfs为开机自启动。
 
-    ```shell
+    ```bash
     yum install -y docker lxc lxcfs lxcfs-tools
     systemctl start lxcfs && systemctl enable lxcfs
     ```
@@ -545,13 +545,13 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
     将下载后的安装包上传至服务器，以“/root”路径为例，并解压。
 
-    ```shell
+    ```bash
     cd ~ && tar -xvpf linux-firmware-20210919.tar.gz
     ```
 
     解压后，“root”路径下会多出一个“linux-firmware-20210919”文件夹，将firmware拷贝Linux标准固件目录下。
 
-    ```shell
+    ```bash
     cp -ar linux-firmware-20210919/*gpu /usr/lib/firmware/
     ```
 
@@ -563,14 +563,14 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
 1. 请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)中的下载链接获取Kernel源码文件，本地下载后上传至服务器的“/usr/src/kernels”目录，并解压内核源码。
 
-    ```shell
+    ```bash
     cd /usr/src/kernels
     unzip kernel-5.10.0-216.0.0.zip
     ```
 
 2. 禁用本地版本号。
 
-    ```shell
+    ```bash
     cd /usr/src/kernels/kernel-5.10.0-216.0.0
     touch .scmversion
     ```
@@ -581,7 +581,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
 1. 创建目录，存放搭建环境需要的依赖包，并修改目录权限。
 
-    ```shell
+    ```bash
     mkdir ~/dependency
     chmod -R 700 ~/dependency
     ```
@@ -589,19 +589,19 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 2. 解压Kbox-patches-AOSP11.zip，将Kbox-patches-AOSP11文件夹中的patchForKernel目录、patchForExagear目录上传至服务器的“~/dependency”目录下。请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
 3. 拷贝转码补丁到内核源码目录。
 
-    ```shell
+    ```bash
     cp ~/dependency/patchForExagear/hostOS/0001-exagear-kernel-module.patch /usr/src/kernels/kernel-5.10.0-216.0.0
     ```
 
 4. 拷贝内核补丁至内核源码目录。
 
-    ```shell
+    ```bash
     cp ~/dependency/patchForKernel/openEuler_22.03/kernel_5.10.0-216.0.0/*.patch /usr/src/kernels/kernel-5.10.0-216.0.0
     ```
 
 5. 合入内核补丁。
 
-    ```shell
+    ```bash
     cd /usr/src/kernels/kernel-5.10.0-216.0.0
     for patch_name in *.patch; do echo $patch_name; patch -p1 < $patch_name; done
     ```
@@ -619,13 +619,13 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
     >- 命令中的“/boot”目录下的config文件名称仅为示例，实际的文件名称要通过**uname -r**命令确认，拷贝的config文件版本要与操作系统的内核版本保持一致。
     >- 若“/boot”目录下不存在config-\`uname -r\`文件，可以将“/boot”目录下的任意一个config-前缀的文件拷贝至服务器的Kernel源码目录，并重命名为.config。
 
-    ```shell
+    ```bash
     cp /boot/config-`uname -r` /usr/src/kernels/kernel-5.10.0-216.0.0/.config
     ```
 
 2. 生成.config文件。
 
-    ```shell
+    ```bash
     cd /usr/src/kernels/kernel-5.10.0-216.0.0/
     make menuconfig
     ```
@@ -722,7 +722,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
 1. <a id="zh-cn_topic_0000001505919657_zh-cn_topic_0000001373652281_zh-cn_topic_0000001259572633_zh-cn_topic_0000001212014022_li295103241"></a>编译内核。
 
-    ```shell
+    ```bash
     cd /usr/src/kernels/kernel-5.10.0-216.0.0
     make -j64
     ```
@@ -731,13 +731,13 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
     >
     >若编译过程中存在如下提示信息，则需要确保服务器系统时间已同步至正确时间。
     >
-    >```shell
+    >```bash
     >make[2]: warning:  Clock skew detected.  Your build may be incomplete.
     >   ```
     >
     >执行**tzselect**命令，根据实际情况依次输入以下选项对应时区的数字，例如：Asia-\>Beijing-\>YES，执行完成后拷贝文件到“/etc/localtime”。
     >
-    >```shell
+    >```bash
     >tzselect
     >cp -f /usr/share/zoneinfo/Asia/Beijing /etc/localtime
     >```
@@ -746,13 +746,13 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
     可查看编译路径下是否生成vmlinux文件，有vmlinux文件生成，说明编译执行成功，再继续执行后续步骤；如未生成vmlinux文件，请检查编译是否报错并解决后重新执行[1](#zh-cn_topic_0000001505919657_zh-cn_topic_0000001373652281_zh-cn_topic_0000001259572633_zh-cn_topic_0000001212014022_li295103241)。
 
-    ```shell
+    ```bash
     ll vmlinux*
     ```
 
     回显如下三个文件时，表示编译成功。
 
-    ```shell
+    ```bash
     -rwxr-xr-x 1 root root 363795992 Nov 17 20:00 vmlinux*
     -rw-r--r-- 1 root root 892957960 Nov 17 20:00 vmlinux.o
     -rw-r--r-- 1 root root    613485 Nov 17 20:00 vmlinux.symvers
@@ -760,13 +760,13 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
 3. 安装内核模块。
 
-    ```shell
+    ```bash
     make modules_install
     ```
 
 4. 安装内核。
 
-    ```shell
+    ```bash
     make install
     ```
 
@@ -775,51 +775,51 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
     >- 在安装内核前，请确保系统中没有安装dkms，否则可能会导致安装内核时出现报错信息：“Error! Bad return status for module build on kernel: ...”，解决方法如下：
     >    1. 查看系统中是否已安装dkms。
     >
-    >        ```shell
+    >        ```bash
     >        yum list installed | grep dkms
     >        ```
     >
     >        若该指令执行后出现回显，则表明已安装dkms。
     >    2. 删除dkms。
     >
-    >        ```shell
+    >        ```bash
     >        yum remove -y dkms
     >        ```
     >
     >    3. 重新安装内核。
     >
-    >        ```shell
+    >        ```bash
     >        make install
     >        ```
     >
     >- 在安装内核时，可能出现以下报错信息，此时需要重新执行**make install**以解决该问题。
     >
-    >    ```shell
+    >    ```bash
     >    dracut-install: Failed to find module 'uds' /lib/modules/5.10.0/kernel/drivers/block/uds.ko
     >    dracut-install: Failed to find module 'kvdo' /lib/modules/5.10.0/kernel/drivers/block/kvdo.ko
     >    ```
 
 5. 更新启动项。
 
-    ```shell
+    ```bash
     grub2-mkconfig -o /boot/efi/EFI/openEuler/grub.cfg
     ```
 
     设置启动内核，例如设置为：`openEuler (5.10.0) 22.03 (LTS-SP4)`。
 
-    ```shell
+    ```bash
     grub2-set-default 'openEuler (5.10.0) 22.03 (LTS-SP4)'
     ```
 
     重启操作系统，新内核即可生效。
 
-    ```shell
+    ```bash
     reboot
     ```
 
 6. 使用如下命令检查新内核版本，如果版本号仅显示**5.10.0**，则说明启动内核正确。
 
-    ```shell
+    ```bash
     uname -r
     ```
 
@@ -835,13 +835,13 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
 1. <a id="li34656503552"></a>获取GPU渲染节点命令。
 
-    ```shell
+    ```bash
     ll /dev/dri/by-path/ | grep renderD
     ```
 
     回显示例如下。
 
-    ```shell
+    ```bash
     lrwxrwxrwx 1 root root 13 Oct 25 10:58 pci-0000:03:00.0-render -> ../renderD128
     lrwxrwxrwx 1 root root 13 Oct 25 10:58 pci-0000:83:00.0-render -> ../renderD129
     ```
@@ -850,19 +850,19 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
 2. 查询NUMA节点命令。
 
-    ```shell
+    ```bash
     cat /sys/bus/pci/devices/0000\:XX\:00.0/numa_node
     ```
 
     其中，指令中的“XX”应按[1](#li34656503552)中的实际回显IP地址进行修改。以回显renderD128为例，查询指令应为：
 
-    ```shell
+    ```bash
     cat /sys/bus/pci/devices/0000\:03\:00.0/numa_node
     ```
 
     回显如下所示。
 
-    ```shell
+    ```bash
     0
     ```
 
@@ -872,13 +872,13 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
 查看GPU节点所属的NUMA节点。
 
-```shell
+```bash
 lspci -vvv -d :0200 | grep NUMA
 ```
 
 道客DC1000/1000C每张单卡对应有4个GPU节点，以4\*道客DC1000的配置为例，回显输出的每行和GPU节点（renderD节点，编号从128开始）顺序依次对应。示例回显如下：
 
-```shell
+```bash
 NUMA node: 0
 NUMA node: 0
 NUMA node: 0
@@ -907,13 +907,13 @@ NUMA node: 2
 
 1. 查看编码卡是否被NVMe驱动正确识别。
 
-    ```shell
+    ```bash
     nvme list
     ```
 
     回显如下说明识别正确。该内容为回显示例，请以实际为准。
 
-    ```shell
+    ```bash
     Node          SN                   Model            Namespace Usage                    Format           FW Rev
     ------------- -------------------- ---------------- --------- ------------------------ ---------------- --------
     /dev/nvme0n1  Q2A325A11DC082-0454A QuadraT2A        1         8.59  TB /   8.59  TB    4 KiB +  0 B     48F6rKr1
@@ -928,7 +928,7 @@ NUMA node: 2
 
 2. 请从**Quadra_V_XXX_.zip**（其中，XXX为版本号信息，仅作示例使用，下列步骤请按实际名称解压）中获取4.8.F-adapt固件升级包并升级固件**。**
 
-    ```shell
+    ```bash
     unzip Quadra_VXXX.zip
     cd Quadra_VXXX/
     tar -zxvf Quadra_FW_VXXX.tar.gz
@@ -941,7 +941,7 @@ NUMA node: 2
 
 3. 升级完成后需重启系统生效。
 
-    ```shell
+    ```bash
     reboot
     ```
 
@@ -951,21 +951,21 @@ NUMA node: 2
 
 1. 获取VAGPU-25.03.01.01-RC24.tgz，上传至“~/dependency/”目录，解压后获取显卡内核态驱动。
 
-    ```shell
+    ```bash
     cd ~/dependency/
     tar -zxvf VAGPU-25.03.01.01-RC24.tgz
     ```
 
 2. 安装显卡PCIe驱动。
 
-    ```shell
+    ```bash
     cd ~/dependency/VAGPU-25.03.01.01-RC24/openEuler-5.10.0/ko_fw/
     insmod va_pci.ko
     ```
 
 3. 将驱动包里的固件拷贝到系统的“/lib/firmware/”目录。
 
-    ```shell
+    ```bash
     cp rgx* /lib/firmware/
     ```
 
@@ -979,31 +979,31 @@ NUMA node: 2
 
     硬件配置方案二（鲲鹏920 7260处理器 + 4\*道客DC1000）：
 
-    ```shell
+    ```bash
     insmod va_gfx.ko kworkerCores=0,0,1,1,32,32,33,33,64,64,65,65,96,96,97,97
     ```
 
     硬件配置方案三（鲲鹏920 7280Z处理器 + 8\*道客DC1000/DC1000C）：
 
-    ```shell
+    ```bash
     insmod va_gfx.ko kworkerCores=80,80,81,81,82,82,83,83,0,0,1,1,2,2,3,3,240,240,241,241,242,242,243,243,160,160,161,161,162,162,163,163
     ```
 
     硬件配置方案四（鲲鹏920 7260Y处理器 + 8\*道客DC1000）：
 
-    ```shell
+    ```bash
     insmod va_gfx.ko kworkerCores=64,64,65,65,66,66,67,67,0,0,1,1,2,2,3,3,192,192,193,193,194,194,195,195,128,128,129,129,130,130,131,131
     ```
 
 5. 等待脚本执行完成，查看内核日志。
 
-    ```shell
+    ```bash
     dmesg | grep VAGPU | grep version
     ```
 
     回显信息中显卡内核态驱动版本号和显卡固件版本号相同，如下命令中加粗的内容，则表明显卡驱动安装完成。
 
-    ```shell
+    ```bash
     PVR_K:(Log): 1732521: Meta firmware version: 1.18@6276027B20260608 build: release branch: VAGPU-25.03.01 commit: 033f037b tag: VAGPU-25.03.01.01-RC24
     ...
     ```
@@ -1015,7 +1015,7 @@ NUMA node: 2
 >1. 删掉所有的容器，解除对驱动的占用。
 >2. 顺序卸载驱动。
 >
-> ```shell
+> ```bash
 > rmmod va_gfx
 > rmmod va_pci
 >    ```
@@ -1027,7 +1027,7 @@ NUMA node: 2
 1. 将ExaGear转码包（ExaGear_ARM32-ARM64_V2.5.tar.gz）上传至“~/dependency”目录。请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
 2. <a id="li178196349414"></a>解压转码包，并调整权限。
 
-    ```shell
+    ```bash
     cd ~/dependency/
     tar -xzvf ExaGear_ARM32-ARM64_V2.5.tar.gz
     chown -R root:root ExaGear_ARM32-ARM64
@@ -1045,38 +1045,38 @@ NUMA node: 2
 
     默认已挂载，如未挂载，请手动执行。
 
-    ```shell
+    ```bash
     mount -t binfmt_misc none /proc/sys/fs/binfmt_misc
     ```
 
 2. 创建“/opt/exagear”目录，用于存放ubt_a32a64文件。
 
-    ```shell
+    ```bash
     mkdir -p /opt/exagear
     chmod -R 700 /opt/exagear
     ```
 
 3. 将ubt_a32a64文件拷贝至“/opt/exagear”目录。
 
-    ```shell
+    ```bash
     cp ~/dependency/ExaGear_ARM32-ARM64/ubt_a32a64 /opt/exagear/
     ```
 
 4. 挂载注册ExaGear转码规则。
 
-    ```shell
+    ```bash
     echo ":ubt_a32a64:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff\xff:/opt/exagear/ubt_a32a64:POCF" > /proc/sys/fs/binfmt_misc/register
     ```
 
 5. 查看ExaGear规则是否注册成功，确保“/opt/exagear/ubt_a32a64”路径信息一致。
 
-    ```shell
+    ```bash
     cat /proc/sys/fs/binfmt_misc/ubt_a32a64
     ```
 
     显示如下信息时，表示已经成功注册。
 
-    ```shell
+    ```bash
     enabled
     interpreter /opt/exagear/ubt_a32a64
     flags: POCF

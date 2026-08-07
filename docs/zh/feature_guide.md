@@ -244,13 +244,13 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
    确认f2fs工具是否已安装且宿主机内核是否已加载F2FS模块，并安装用户态工具。
 
-   ```shell
+   ```bash
    yum install f2fs-tools
    ```
 
    检查当前内核是否支持f2fs。
 
-   ```shell
+   ```bash
    cat /proc/filesystems | grep f2fs
    ```
 
@@ -264,7 +264,7 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 1.输入下面命令查找当前环境磁盘情况。
 
-   ```shell
+   ```bash
    lsblk -f
    ```
 
@@ -272,19 +272,19 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 2.输入如下命令新建物理盘分区。
 
-   ```shell
+   ```bash
    fdisk /dev/${打算新建分区的物理盘名字}
    ```
 
 3.系统重新读取分区表。
 
-   ```shell
+   ```bash
    partprobe /dev/${打算新建分区的物理盘名字}
    ```
 
 4.将新分区设置为f2fs格式。
 
-   ```shell
+   ```bash
    mkfs.f2fs /dev/${新创建的逻辑盘名字}
    ```
 
@@ -292,7 +292,7 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 5.输入如下命令编辑挂载信息。
 
-   ```shell
+   ```bash
    vim /etc/fstab
    ```
 
@@ -304,7 +304,7 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 7.挂载新分区，使能新分区挂载生效。
 
-   ```shell
+   ```bash
    mount -a
    systemctl daemon-reload
    ```
@@ -317,7 +317,7 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 3. 在容器运行时，在容器内输入如下命令观察文件格式是否为f2fs，为f2fs时说明特性正在使能，为其他格式时说明未生效。
 
-    ```shell
+    ```bash
     mount | grep -i /data
     ```
 
@@ -347,7 +347,7 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
    输入下面命令查找当前环境磁盘情况。
 
-   ```shell
+   ```bash
    lsblk -f
    ```
 
@@ -355,19 +355,19 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 输入如下命令新建物理盘分区。
 
-   ```shell
+   ```bash
    fdisk /dev/${打算新建分区的所在物理盘名字}
    ```
 
 系统重新读取分区表。
 
-   ```shell
+   ```bash
    partprobe /dev/${打算新建分区的所在物理盘名字}
    ```
 
 将新分区设置为xfs格式。
 
-   ```shell
+   ```bash
    mkfs.xfs /dev/${新创建的逻辑盘分区名字}
    ```
 
@@ -375,13 +375,13 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 输入如下命令编辑挂载信息。
 
-   ```shell
+   ```bash
    vim /etc/fstab
    ```
 
 输入如下命令查看新建的磁盘分区的UUID。
 
-   ```shell
+   ```bash
    lsblk -f
    ```
 
@@ -395,7 +395,7 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 挂载新分区，输入如下命令使能新分区挂载生效。
 
-   ```shell
+   ```bash
    mount -a
    systemctl daemon-reload
    ```
@@ -436,13 +436,13 @@ NFS采用典型的**客户端/服务器（C/S）**架构，客户端/服务器�
 
 1. 确认内核是否加载nfs模块。
 
-   ```shell
+   ```bash
    cat /lib/modules/$(name -r)/build/.config | grep NFS
    ```
 
    CONFIG_NFS_FS、CONFIG_NFS_V4、CONFIG_NFSD为m需要执行如下命令加载该模块。
 
-   ```shell
+   ```bash
    modprobe nfs
    modprobe nfsd
    modprobe nfsv4
@@ -450,7 +450,7 @@ NFS采用典型的**客户端/服务器（C/S）**架构，客户端/服务器�
 
 2. 安装nfs-utils软件包。
 
-   ```shell
+   ```bash
    yum install nfs-utils rpcbind
    ```
 
@@ -458,27 +458,27 @@ NFS采用典型的**客户端/服务器（C/S）**架构，客户端/服务器�
 
 1. 新建要导出的目录。
 
-   ```shell
+   ```bash
    mkdir -p /home/nfs
    ```
 
 2. 编写/etc/exports文件，文件内容如下。
 
-   ```shell
+   ```bash
    /home 192.168.20.0/24(rw,fsid=0,sync,no_root_squash)
    /home/nfs 192.168.20.0/24/(rw,sync,no_root_squash)
    ```
 
 3. 重启相关服务。
 
-   ```shell
+   ```bash
    systemctl restart rpcbind
    systemctl restart nfs
    ```
 
 4. 查看目录是否导出。
 
-   ```shell
+   ```bash
    exportfs
    ```
 
@@ -488,13 +488,13 @@ NFS采用典型的**客户端/服务器（C/S）**架构，客户端/服务器�
 
 1. 创建挂载点。
 
-   ```shell
+   ```bash
    mkdir -p /tmp/nfs
    ```
 
 2. 挂载服务器的nfs目录。
 
-   ```shell
+   ```bash
    mount -t nfs4 192.168.20.XX:/nfs /tmp/nfs
    ```
 
@@ -506,13 +506,13 @@ NFS采用典型的**客户端/服务器（C/S）**架构，客户端/服务器�
 
 1. 在容器配置文件kbox_config.cfg中配置NFS_DIR属性为/tmp/nfs，启动云手机使用nstart命令。
 
-   ```shell
+   ```bash
    ./android_kbox.sh nstart kbox:origin 1
    ```
 
 2. 在容器启动后，通过如下命令查看。
 
-   ```shell
+   ```bash
    docker inspect kbox_1 | jq -r '.[].Mounts[] | select(.Destination=="/data") | .Source'
    ```
 
@@ -542,11 +542,11 @@ NFS采用典型的**客户端/服务器（C/S）**架构，客户端/服务器�
 
    在容器内输入下面命令查找目标数据路径中的目标文件是否具备写入权限,若权限不足，会直接导致数据写入失败。
 
-   ```shell
+   ```bash
    ls -ld /sys/devices/system/cpu/cpu${需要查询权限的cpu的编号}/cpufreq/scaling_cur_freq
    ```
 
-   ```shell
+   ```bash
    ls -ld /sys/devices/system/cpu/cpu${需要查询权限的cpu的编号}/cpufreq/cpuinfo_cur_freq
    ```
 
@@ -558,13 +558,13 @@ NFS采用典型的**客户端/服务器（C/S）**架构，客户端/服务器�
 
 在容器内输入如下命令给scaling_cur_freq添加写入（w）权限。
 
-```shell
+```bash
 chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufreq/scaling_cur_freq
 ```
 
 在容器内输入如下命令给cpuinfo_cur_freq添加写入（w）权限。
 
-```shell
+```bash
 chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufreq/cpuinfo_cur_freq
 ```
 
@@ -593,17 +593,17 @@ chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufre
 
 当前第三方检测应用一般通过读取scaling_cur_freq和cpuinfo_cur_freq这两个文件来获取当前设备的cpu运行频率，为了提高云机设备的仿真能力，在修改前先在容器内输入如下命令读取cpu所支持的频率列表。并且要对这两个文件都进行修改。
 
-   ```shell
+   ```bash
    cat /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/scaling_available_frequencies
    ```
 
    随后在容器内输入如下两个命令进行修改，输入的频率值最好是刚刚查询到的当前cpu支持的频率值。
 
-   ```shell
+   ```bash
    echo ${预期修改的值} > /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/scaling_cur_freq
    ```
 
-   ```shell
+   ```bash
    echo ${预期修改的值} > /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/cpuinfo_cur_freq
    ```
 
@@ -611,7 +611,7 @@ chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufre
 
    要实现cpu频率的动态调节，可以将如下shell命令直接复制粘贴到容器内任意路径中执行，即可在如“手机设备信息大全”这样的第三方应用中观察到cpu频率的动态变化，此处的“sleep 1”表示每隔1s变化一次，此处的“1”可以修改为其他时间值，FREQS数组里存放的是CPU频率的可能值，CPU_ID存放的是预期进行修改的CPU的编号，这三个值可以根据实际需求进行修改。
 
-   ```shell
+   ```bash
    CPU_ID=0
    FREQS=(554000 860000 956000 1042000 1128000 1224000 1320000 1397000 1512000 1628000 1748000 1858000 1954000)
 

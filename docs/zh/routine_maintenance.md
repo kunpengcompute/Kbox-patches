@@ -39,14 +39,14 @@ Kbox云手机容器巡检项目参考[**表 1** Kbox云手机容器巡检项目�
 
 启动Kbox云手机容器后，执行以下命令检查启动是否成功，其中“${index}”为启动实例的编号。
 
-```shell
+```bash
 docker exec -it kbox_${index} sh
 getprop | grep boot
 ```
 
 若回显信息中，sys.boot_completed显示为“1”，则表示启动成功，否则，说明容器启动失败，请联系华为技术支持。回显示例如下。
 
-```shell
+```bash
 [service.bootanim.exit]: [1]
 [sys.boot.reason]: [reboot,factory_reset]
 [sys.boot.reason.last]: [reboot]
@@ -59,7 +59,7 @@ getprop | grep boot
 
 在Kbox云手机容器运行过程中，可通过检查其进程状态来判断容器是否正常。执行以下命令，其中“${index}”为启动实例的编号。
 
-```shell
+```bash
 docker exec -it kbox_${index} sh
 ps -elf
 ```
@@ -70,7 +70,7 @@ ps -elf
 
 重启容器命令如下：
 
-```shell
+```bash
 ./android_kbox.sh restart ${index}
 ```
 
@@ -78,7 +78,7 @@ ps -elf
 
 在Kbox云手机容器运行的过程中，若需要及时掌握容器使用的系统资源，可以执行以下命令。
 
-```shell
+```bash
 docker stats
 ```
 
@@ -100,7 +100,7 @@ docker stats
 
 在Kbox云手机容器运行过程中，可通过**top**命令查看系统中正在运行的进程的实时状态，包括各个进程的CPU占用率和内存消耗情况等，如下图所示。
 
-```shell
+```bash
 top
 ```
 
@@ -110,7 +110,7 @@ top
 
 另外，还可通过**htop**命令更直观地显示CPU负载、内存消耗以及交换空间的实时信息。
 
-```shell
+```bash
 htop
 ```
 
@@ -122,7 +122,7 @@ htop
 >
 >当Host OS为openEuler时，使用htop工具时需要先安装，安装命令如下。
 >
->```shell
+>```bash
 >yum install htop
 >```
 
@@ -130,13 +130,13 @@ htop
 
 使用**free**命令可查询到服务器内存使用情况，包括实体内存、虚拟的交换文件内存、共享内存区域以及系统核心使用的缓冲区等。
 
-```shell
+```bash
 free
 ```
 
 回显示例如下。
 
-```shell
+```bash
                 total        used        free      shared  buff/cache   available
 Mem:        527039424     4531436   518860944        4860     3647044   519951396
 Swap:        83888604           0    83888604
@@ -146,7 +146,7 @@ Swap:        83888604           0    83888604
 
 使用**df**命令可查看Kbox云手机容器运行环境上文件系统磁盘使用情况统计。
 
-```shell
+```bash
 df -h
 ```
 
@@ -168,13 +168,13 @@ df -h
 
 2. 安装命令如下。
 
-    ```shell
+    ```bash
     rpm -ivh radeontop-1.4-2.el8.aarch64.rpm
     ```
 
 3. 编译或安装成功后执行以下命令查看GPU使用状态。
 
-    ```shell
+    ```bash
     radeontop
     ```
 
@@ -188,7 +188,7 @@ df -h
 
 在Kbox云手机容器运行环境上，可采用以下命令查询GPU温度。
 
-```shell
+```bash
 cat /sys/kernel/debug/dri/*/amdgpu_pm_info |grep Temp
 ```
 
@@ -196,11 +196,7 @@ cat /sys/kernel/debug/dri/*/amdgpu_pm_info |grep Temp
 
     ![GPU温度查询结果](./figures/unnaming.png)
 
-<<<<<<< HEAD
-#### 3.5.2 道客DC1000/DC1000C状态查询<a name="ZH-CN_TOPIC_0000002518346034"></a>
-=======
-#### 道客DC 1000状态查询<a id="ZH-CN_TOPIC_0000002518346034"></a>
->>>>>>> 00847ef (version 0703)
+#### 道客DC1000/DC1000C状态查询<a id="ZH-CN_TOPIC_0000002518346034"></a>
 
 使用GPU驱动包VAGPU-25.03.01.01-RC20.tgz中提供的工具，以查看GPU状态。
 
@@ -219,13 +215,13 @@ cat /sys/kernel/debug/dri/*/amdgpu_pm_info |grep Temp
 
 可使用Docker提供的**inspect**命令查看容器的详细信息，如下命令，其中“${index}”为启动实例的编号。
 
-```shell
+```bash
 docker inspect kbox_${index}
 ```
 
 上述命令会以JSON数组的格式返回容器的所有元数据信息。多数情况下，只需要获取容器的特定数据信息，则可直接从JSON数据中截取需要的数据，如只获取容器的IP地址可使用如下命令。其他容器数据查询命令如[**表 1** 常用容器数据查询命令](#常用容器数据查询命令)所示。
 
-```shell
+```bash
 docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' kbox_${index}
 ```
 
@@ -242,13 +238,13 @@ docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}
 
 当容器运行出现异常时，可以查询日志进行辅助定位。实时查询Kbox云手机容器的logcat日志，可执行如下命令，其中“${index}”为启动实例的编号。
 
-```shell
+```bash
 docker exec -it kbox_${index} logcat
 ```
 
 若需要保存容器logcat日志，可执行如下命令，将日志保存到当前目录的“log.log”中。日志保存路径和名称可按照业务需要进行修改。
 
-```shell
+```bash
 docker exec -it kbox_${index} logcat -d >> ./log.log
 ```
 
@@ -256,7 +252,7 @@ docker exec -it kbox_${index} logcat -d >> ./log.log
 
 在Kbox云手机容器中可执行如下命令列出当前正在运行的进程信息，其中“${index}”为启动实例的编号。
 
-```shell
+```bash
 docker exec -it kbox_${index} ps -elf
 ```
 
@@ -264,7 +260,7 @@ docker exec -it kbox_${index} ps -elf
 
 **top**命令是常用的性能分析工具，能够实时显示系统中各个进程的资源占用情况，在Kbox云手机容器中执行如下所示的**top**命令查询系统中进程的资源占用情况，其中“${index}”为启动实例的编号。
 
-```shell
+```bash
 docker exec -it kbox_${index} top
 ```
 
@@ -276,7 +272,7 @@ docker exec -it kbox_${index} top
 
 dumpsys是在Android设备上运行的工具，可提供有关系统服务的信息，执行如下命令获取容器的所有系统服务诊断输出，其中“${index}”为启动实例的编号。
 
-```shell
+```bash
 docker exec -it kbox_${index} dumpsys
 ```
 
@@ -284,13 +280,13 @@ docker exec -it kbox_${index} dumpsys
 
 - 获取dumpsys支持的系统服务完整列表可执行如下命令。
 
-    ```shell
+    ```bash
     docker exec -it kbox_${index} dumpsys -l
     ```
 
 - 获取容器内存信息可执行如下命令。
 
-    ```shell
+    ```bash
     docker exec -it kbox_${index} dumpsys meminfo
     ```
 
@@ -302,7 +298,7 @@ docker exec -it kbox_${index} dumpsys
 
 可通过**getprop**命令从Kbox云手机容器中读取属性信息，命令如下所示，其中“${index}”为启动实例的编号。
 
-```shell
+```bash
 docker exec -it kbox_${index} getprop
 ```
 
@@ -316,7 +312,7 @@ dmesg日志中包含设备初始化日志、内核模块日志，还会记录应
 
 dmesg日志一般保存在服务器的“/var/log/”路径下，也可直接执行如下命令获取。
 
-```shell
+```bash
 dmesg -T
 ```
 
@@ -349,7 +345,7 @@ Kbox_maintainer维护工具收集的日志信息包括Android日志和服务器�
 
 Kbox_maintainer维护工具支持单个容器和全部容器日志收集，收集后打包。提供**log**命令字段，可通过容器号或容器名参数，收集指定容器的日志。不带容器号，默认收集所有容器日志。例如：
 
-```shell
+```bash
 python3 kbox_maintainer.py log
 python3 kbox_maintainer.py log kbox_1
 ```
@@ -375,7 +371,7 @@ Kbox_maintainer维护工具提供资源检查功能，收集Kbox云手机容器�
 
 Kbox_maintainer维护工具支持单个容器和全部容器资源信息收集，收集后打包。提供**resource**命令字段，可通过容器号或容器名参数，收集指定容器的资源情况。不带容器号，默认收集所有容器资源情况。例如：
 
-```shell
+```bash
 python3 kbox_maintainer.py resource
 python3 kbox_maintainer.py resource kbox_1
 ```
@@ -392,14 +388,14 @@ Kbox_maintainer维护工具支持查看Kbox云手机容器的服务状态，用�
 
 Kbox_maintainer维护工具提供**check**命令字段，可通过容器号或容器名参数，检查指定容器的服务状态。不带容器号，默认检查所有容器状态。例如：
 
-```shell
+```bash
 python3 kbox_maintainer.py check
 python3 kbox_maintainer.py check kbox_1
 ```
 
 Kbox_maintainer维护工具提供**recover**命令字段，可通过容器号或容器名参数，恢复指定容器的服务状态。不带容器号，默认恢复所有容器状态。例如：
 
-```shell
+```bash
 python3 kbox_maintainer.py recover
 python3 kbox_maintainer.py recover kbox_1
 ```
@@ -494,13 +490,13 @@ python3 kbox_maintainer.py recover kbox_1
 >
 > 1. 启用50012端口，用于王者荣耀。
 >
->    ```shell
+>    ```bash
 >    firewall-cmd --zone=public --add-port=50012/tcp --permanent
 >    ```
 >
 > 2. 重新加载防火墙配置。
 >
->    ```shell
+>    ```bash
 >    firewall-cmd --reload
 >    ```
 >
@@ -509,7 +505,7 @@ python3 kbox_maintainer.py recover kbox_1
 
 Kbox容器支持根据客户需求定制系统属性，以覆盖原有系统属性。如需使用定制属性，需要在启动路径中生成local.prop文件，文件内记录定制的系统属性参数和值，容器启动后的初始化过程会读取该文件内的属性并覆盖写入。local.prop文件格式如下所示：
 
-```shell
+```bash
 ro.product.board=HUAWEI
 ro.product.brand=HUAWEI
 ro.product.manufacturer=Huawei
@@ -535,7 +531,7 @@ Kbox容器启动过程中，会将启动路径中的local.prop文件推入到容
 
 Kbox容器内查询定制属性方法，以查询ro.product.system_ext.brand为例， index为kbox容器号：
 
-```shell
+```bash
 docker exec -it kbox_${index} getprop ro.product.system_ext.brand
 ```
 

@@ -25,7 +25,7 @@
 >
 >镜像名以及tag名中只可包含数字与字母，镜像名的首字符必须为小写字母或数字。
 
-```shell
+```bash
 cd ~/dependency
 docker import android.tar kbox:demo
 ```
@@ -46,7 +46,7 @@ docker import android.tar kbox:demo
 4. 制作包含Android Kbox二进制的Kbox镜像，其中kbox:demo为上一步导入的官方Kbox Demo镜像，kbox:origin为包含Android Kbox二进制的新镜像。
     - 硬件配置方案一：
 
-        ```shell
+        ```bash
         cd ~/dependency/deploy_scripts
         chmod +x make_image.sh
         ./make_image.sh kbox:demo kbox:origin
@@ -54,7 +54,7 @@ docker import android.tar kbox:demo
 
     - 硬件配置方案二、三、四：
 
-        ```shell
+        ```bash
         cd ~/dependency/deploy_scripts
         chmod +x make_image.sh
         ./make_image.sh kbox:demo kbox:origin va_driver.tgz
@@ -67,7 +67,7 @@ docker import android.tar kbox:demo
 1. 解压Kbox-patches-AOSP11.zip，将Kbox-patches-AOSP11/make_img_sample目录上传至服务器的“~/dependency”目录。
 2. 请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)获取NETINT-vXXX.tar.gz，并重命名为NETINT.tar.gz，放至“~/dependency/make_img_sample/decode_iso_build”目录，对该目录下的制作镜像脚本赋予可执行权限。
 
-    ```shell
+    ```bash
     cd ~/dependency/make_img_sample/decode_iso_build
     chmod +x Dockerfile make_image.sh
     ```
@@ -80,7 +80,7 @@ docker import android.tar kbox:demo
 
     以名为kbox:origin的镜像为基础制作名为kbox:latest的镜像，这两个名称可自定义。
 
-    ```shell
+    ```bash
     ./make_image.sh kbox:origin kbox:latest
     ```
 
@@ -95,22 +95,15 @@ docker import android.tar kbox:demo
 **表 1** hardware_bind.cfg配置文件中容器使用的GPU、CPU配置说明<a id="kboxCPUGPU配置说明"></a>
 
 |参数名称|参数说明|配置说明|
-<<<<<<< HEAD
-|--|--|--|
+|---|---|---|
 |VIDEO_GPU_MAP_AMDXXX（硬件配置一）VIDEO_GPU_MAP_HBXXX（硬件配置二、三、四）| 参数设置了不同规格服务器的GPU节点分配范围 |VIDEO_GPU_MAP_AMDXXX表示在硬件配置方案一的服务器上，为云手机容器分配的GPU节点范围；VIDEO_GPU_MAP_HBXXX表示在硬件配置方案二、三、四的服务器上，为云手机容器分配的GPU节点范围。节点的分配方式会根据服务器规格+容器的编号进行取模运算分配|
 |MODE0_CPUSXXX，MODE1_CPUSXXX| 参数设置了不同规格服务器的CPU核心分配范围 |MODE0_CPUSXXX表示绑核模式下CPU核心分配范围，MODE1_CPUSXXX表示绑定NUMA的CPU核心分配范围。容器启动时android_kbox.sh脚本会根据容器规格选择对应的CPU核心范围。|
 
 **表 2** kbox_config.cfg配置文件中容器使用的数据卷存放路径配置说明<a id="kbox挂载配置说明"></a>
 
 |参数名称|参数说明|配置说明|
-|--|--|--|
-|USERDATA| 该路径为云手机容器内的用户数据目录，用户数据会在容器启动时挂载到该目录下 |无|
-=======
 |---|---|---|
-|KBOX_GPU_MAP（硬件配置一）KBOX_VA_GPU_MAP（硬件配置二、三、四）| 通过修改map中对应路数的值来选择该路容器使用的GPU |KBOX_GPU_MAP列表里的第一个表示编号为1的Kbox云手机，分配的GPU节点（/dev/dri/renderD128），根据renderD128节点属于NUMA0，因此鲲鹏920 7260处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~31。KBOX_VA_GPU_MAP列表里的第一个表示编号为1的Kbox云手机，分配的GPU节点（/dev/dri/renderD128），根据renderD128~135属于NUMA0，因此对于鲲鹏920 7260处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~31。鲲鹏920 7280Z处理器NUMA0对应的KBOX_CPUSET_MAP里配置的CPU核心取值范围应为0~79。|
-|KBOX_CPUSET_MAP| 通过修改map中对应路数的值来选择该路容器使用的CPU |同上|
-|KBOX_MOUNT_MAP| 通过修改map中对应路数的值来选择该路容器使用的数据卷存放路径 |无|
->>>>>>> 00847ef (version 0703)
+|USERDATA| 该路径为云手机容器内的用户数据目录，用户数据会在容器启动时挂载到该目录下 |无|
 
 >![](public_sys-resources/icon-note.gif) **说明：**
 >
@@ -122,27 +115,16 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
 1. 解压Kbox-patches-AOSP11.zip，将Kbox-patches-AOSP11文件夹中的deploy_scripts目录上传至服务器的“~/dependency”目录。
 2. （可选）使能硬件解码（以下简称“硬解”）。
-<<<<<<< HEAD
     1. （硬件配置方案一）设置“deploy_scripts”目录下的kbox_config.cfg文件，将“T432_QUADRA_DECODE_ENABLE”设置为“1”。同时需参考以下步骤设置NETINT卡节点。
         1. 执行如下命令查看编码卡芯片对应节点号。
-=======
-    1. 设置“deploy_scripts”目录下的kbox_config.cfg文件，将“ENABLE_HARD_DECODE”设置为“1”。
 
-        >![](public_sys-resources/icon-note.gif) **说明：**
-        >
-        >若启动时为软件解码（以下简称“软解”）方式（设置ENABLE_HARD_DECODE=0），则重启时可切换为硬解方式（设置ENABLE_HARD_DECODE=1）。
-
-    2. （硬件配置方案一）同时若使用硬件配置方案一时需参考以下步骤设置NETINT卡节点。
-        1. <a id="li12677451102912"></a>执行如下命令查看编码卡芯片对应节点号。
->>>>>>> 00847ef (version 0703)
-
-            ```shell
+            ```bash
             nvme list
             ```
 
             回显示例如下，请以实际为准。加粗部分为NETINT编码卡Quadra芯片NVMe节点，一张编码卡包含2颗芯片。
 
-            ```shell
+            ```bash
             Node          SN                   Model            Namespace Usage                    Format           FW Rev
             ------------- -------------------- ---------------- --------- ------------------------ ---------------- --------
             /dev/nvme0n1  Q2A325A11DC082-0454A QuadraT2A        1         8.59  TB /   8.59  TB    4 KiB +  0 B     48F6rKr1
@@ -153,13 +135,13 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
             {index}为上一步回显信息所示的NVMe节点编号。例如/dev/nvme0n1，该节点{index}即为0。
 
-            ```shell
+            ```bash
             find /sys/devices/ -name nvme{index}
             ```
 
             回显如下，其中0000:05:00.0为该设备对应的busID：
 
-            ```shell
+            ```bash
             /sys/devices/pci0000:00/0000:00:0e.0/0000:05:00.0/nvme/nvme0
             /sys/devices/virtual/nvme-subsystem/nvme-subsys0/nvme0
             ```
@@ -168,13 +150,13 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
             {busID}为上一步骤获取的bus号。以nvme0设备的回显为例，{busID}即为0000:05:00.0。
 
-            ```shell
+            ```bash
             lspci -vvvs {busID} | grep NUMA
             ```
 
             回显如下。
 
-            ```shell
+            ```bash
             NUMA node: 0
             ```
 
@@ -184,7 +166,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
             字段中每个设备需添加两个节点。例如2号NVMe设备，需添加“/dev/nvme2”、“/dev/nvme2n1”两个节点。
 
-            ```shell
+            ```bash
             # NETINT编码卡设备节点
             NETINT0="/dev/nvme0,/dev/nvme0n1,/dev/nvme1,/dev/nvme1n1"
             NETINT1="/dev/nvme2,/dev/nvme2n1,/dev/nvme3,/dev/nvme3n1"
@@ -196,7 +178,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
             >- 若需使能NETINT编码卡硬解，需要在kbox_config.cfg中设置T432_QUADRA_DECODE_ENABLE=1。
             >- 针对一张Quadra T2A编码卡环境，请参考以下配置方式，根据实际情况配置设备节点信息。
             >
-            > ```shell
+            > ```bash
             >
             > # NETINT编码卡设备节点
             >
@@ -212,14 +194,14 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
 3. （可选）若需要启动使能了C2解码器的kbox云手机实例（硬件配置方案一可用），则需要设置“deploy_scripts”目录下的kbox_config.cfg文件，将`ENABLE_AMD_C2_DECODE`设置为“1”，同时关闭硬解，将`T432_QUADRA_DECODE_ENABLE`设置为“0”。必须在容器第一次启动时配置开/关C2解码器，不支持启动容器后，再通过kbox_config.cfg文件的“ENABLE_AMD_C2_DECODE”参数修改，重启容器切换。云手机内置应用会根据自身需要自行选择解码器。
 
-    ```shell
+    ```bash
     ENABLE_AMD_C2_DECODE=1
     T432_QUADRA_DECODE_ENABLE=0
     ```
 
 4. 通过android_kbox.sh脚本启动容器。
 
-    ```shell
+    ```bash
     cd ~/dependency/deploy_scripts
     chmod +x android_kbox.sh
     ./android_kbox.sh start {镜像名称：tag}  ${index1}  ${index2}
@@ -242,13 +224,13 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
     - 启动一个编号为1的实例。
 
-        ```shell
+        ```bash
         ./android_kbox.sh start kbox:origin  1
         ```
 
     - 启动编号为1~5的五个实例。
 
-        ```shell
+        ```bash
         ./android_kbox.sh start kbox:origin  1 5
         ```
 
@@ -257,20 +239,20 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
         >Kbox云手机容器启动时，一般情况下会自动打开Kbox内核动态开关，以使能必要的Linux Kernel功能。
         >可以通过以下指令查询Kbox内核动态开关状态。
         >
-        >```shell
+        >```bash
         >cat /sys/kernel/kbox/kbox_enable
         >```
         >
         >回显为1，表示Kbox内核动态开关为打开状态；回显为0，表示开关为关闭状态。
         >若查询发现Kbox内核动态开关为关闭状态，请通过以下指令手动打开该开关。
         >
-        >```shell
+        >```bash
         >echo 1 > /sys/kernel/kbox/kbox_enable
         >```
 
 5. 执行如下命令确认Kbox容器是否启动成功，其中“${index}”为启动实例的编号。
 
-    ```shell
+    ```bash
     docker exec -it kbox_${index} getprop | grep boot_completed
     ```
 
@@ -284,13 +266,13 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
     - 停止并删除编号为${index}的容器。
 
-        ```shell
+        ```bash
         ./android_kbox.sh delete ${index}
         ```
 
     - 停止并删除编号为${index1}~${index2}的所有容器。
 
-        ```shell
+        ```bash
         ./android_kbox.sh delete ${index1} ${index2}
         ```
 
@@ -302,13 +284,13 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
     - 重启编号为${index}的容器。
 
-        ```shell
+        ```bash
         ./android_kbox.sh restart ${index}
         ```
 
     - 重启编号为${index1}~${index2}的所有容器。
 
-        ```shell
+        ```bash
         ./android_kbox.sh restart ${index1} ${index2}
         ```
 
@@ -324,7 +306,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
     请参见[**表 1** Kbox安卓容器环境搭建软件环境要求](install_guide.md#Kbox安卓容器环境搭建软件环境要求)中获取并解压BoostKit-boostcph-kbox_\*.zip，并通过查询kbox_version.txt文件，确认当前软件包的版本号。
 
-    ```shell
+    ```bash
     unzip BoostKit-boostcph-kbox_*.zip
     unzip Kbox-Boostkit-boostcph-kbox_*.zip
     cat ./products/kbox_version.txt
@@ -332,7 +314,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
     回显信息即为Kbox版本号信息，示例如下。
 
-    ```shell
+    ```bash
     Product Name: Kunpeng BoostKit
     Product Version: 26.0.RC1
     Component Name: BoostKit-boostcph-kbox
@@ -342,7 +324,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
 - 方法二：使用如下命令查询已启动的容器内的版本信息，其中“${index}”为启动实例的编号，回显示例参见方法一的查询结果。
 
-    ```shell
+    ```bash
     docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
     ```
 
@@ -352,7 +334,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
 1. 服务器使能KSM守护进程。
 
-    ```shell
+    ```bash
     echo 1 > /sys/kernel/mm/ksm/run
     ```
 
@@ -365,13 +347,13 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
 2. 容器使能自动全量KSM去重。
 
-    ```shell
+    ```bash
     echo 1 > /sys/fs/cgroup/memory/docker/CONTAINER_ID/memory.ksm
     ```
 
     其中CONTAINER_ID为云手机容器的ID。查看是否使能成功。
 
-    ```shell
+    ```bash
     cat /sys/fs/cgroup/memory/docker/CONTAINER_ID/memory.ksm
     ```
 
@@ -379,7 +361,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
 3. 关闭KSM去重。
 
-    ```shell
+    ```bash
     echo 0 > /sys/fs/cgroup/memory/docker/CONTAINER_ID/memory.ksm
     ```
 
@@ -403,7 +385,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
    启动容器后，进入容器环境查看挂载点信息。
 
-   ```shell
+   ```bash
    mount | grep -i /data
    ```
 
@@ -429,7 +411,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
    启动容器后，在容器内执行下面命令检查系统分区的实际容量。
 
-   ```shell
+   ```bash
    df -h /system
    ```
 
@@ -447,13 +429,13 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
 容器配置文件kbox_config.cfg中配置NFS_DIR属性为/tmp/nfs，启动云手机使用nstart命令。
 
-```shell
+```bash
 ./android_kbox.sh nstart kbox:origin 1
 ```
 
 删除云手机使用ndelete命令，ndelete删除后img镜像文件会默认保存。
 
-```shell
+```bash
 ./android_kbox.sh ndelete kbox:origin 1
 ```
 
@@ -461,17 +443,13 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
 执行如下命令。
 
-```shell
+```bash
 docker inspect kbox_1 | jq -r '.[].Mounts[] | select(.Destination=="/data") | .Source'
 ```
 
-<<<<<<< HEAD
 预期结果是`/tmp/nfs/data/kbox_1/data`。
 
-### 1.8 （可选） 实现云机cpu频率动态调整<a name="ZH-CN_TOPIC_000000254983254923"></a>
-=======
 ### （可选） 实现云机cpu频率动态调整<a id="ZH-CN_TOPIC_000000254983254923"></a>
->>>>>>> 00847ef (version 0703)
 
 在真机中，系统为了平衡负载和功耗，会动态调节 CPU 的运行频率，而云机依托于服务器宿主机的容器化环境运行，其底层物理 CPU 的频率通常处于恒定状态，与真机存在差异。下面步骤说明如何实现云手机cpu频率动态调节，提高仿真能力。
 
@@ -483,24 +461,24 @@ docker inspect kbox_1 | jq -r '.[].Mounts[] | select(.Destination=="/data") | .S
 
    当前第三方检测应用一般通过读取scaling_cur_freq和cpuinfo_cur_freq这两个文件来获取当前设备的cpu运行频率，为了提高云机设备的仿真能力，在修改前先在容器内输入如下命令读取cpu所支持的频率列表。并且要对这两个文件都进行修改。
 
-   ```shell
+   ```bash
    cat /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/scaling_available_frequencies
    ```
 
    随后在容器内输入如下两个命令进行修改，输入的频率值最好是刚刚查询到的当前cpu支持的频率值。
 
-   ```shell
+   ```bash
    echo ${预期修改的值} > /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/scaling_cur_freq
    ```
 
-   ```shell
+   ```bash
    echo ${预期修改的值} > /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/cpuinfo_cur_freq
    ```
 
    如果容器重启，那么之前的修改值会失效，CPU频率值会恢复默认。
    要实现cpu频率的动态调节，可以将如下shell命令直接复制粘贴到容器内任意路径中执行，即可在如“手机设备信息大全”这样的第三方应用中观察到cpu频率的动态变化，此处的“sleep 1”表示每隔1s变化一次，此处的“1”可以修改为其他时间值，FREQS数组里存放的是CPU频率的可能值，CPU_ID存放的是预期进行修改的CPU的编号，这三个值可以根据实际需求进行修改。
 
-   ```shell
+   ```bash
    CPU_ID=0
    FREQS=(554000 860000 956000 1042000 1128000 1224000 1320000 1397000 1512000 1628000 1748000 1858000 1954000)
 
@@ -527,7 +505,7 @@ docker inspect kbox_1 | jq -r '.[].Mounts[] | select(.Destination=="/data") | .S
 1. 打开ARDC安卓投屏助手，打开控制台界面。
 2. 在CMD一栏，输入命令连接ARDC与云手机实例，输入服务器IP地址和adb端口号，然后回车。
 
-    ```shell
+    ```bash
     adb connect $ip:$port
     ```
 
@@ -537,7 +515,7 @@ docker inspect kbox_1 | jq -r '.[].Mounts[] | select(.Destination=="/data") | .S
 
 3. 执行命令，查询当前ARDC已经成功连接的设备。
 
-    ```shell
+    ```bash
     adb devices
     ```
 
@@ -560,7 +538,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     新建目录“/root/sda/docker”，并在“/etc/fstab”文件中添加一行“/dev/sda /root/sda/docker ext4 defaults 0 0”。若“/dev/sda”已被挂载或非ext4类型文件系统，则按实际情况选择未被挂载且文件系统类型为ext4的磁盘，下列命令中的sda根据实际可挂载的磁盘名称更改。
 
-    ```shell
+    ```bash
     mkdir -p /root/sda/docker
     echo "/dev/sda /root/sda/docker ext4 defaults 0 0" >> /etc/fstab
     ```
@@ -569,13 +547,13 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     1. 打开“/etc/docker/daemon.json”文件。
 
-        ```shell
+        ```bash
         vim /etc/docker/daemon.json
         ```
 
     2. 按“i”进入编辑模式，在文件中添加属性“"data-root": "/root/sda/docker", "ipv6": true,"fixed-cidr-v6": "2001:db8::/64"”，以配置Docker的数据存储位置、使能IPv6协议。该文件需要遵循JSON格式。
 
-        ```shell
+        ```bash
         {
         "debug": true,
         "data-root": "/root/sda/docker",
@@ -590,7 +568,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     >
     >修改“/etc/docker/daemon.json”文件，若“/etc/docker/daemon.json”文件不存在，则使用以下命令自行创建该文件并将内容写入。
     >
-    >```shell
+    >```bash
     >touch /etc/docker/daemon.json
     >cat >/etc/docker/daemon.json <<EOF
     >{
@@ -608,13 +586,13 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     >
     >重启Docker服务前需要确保没有其他容器运行，如果有需要清理。
 
-    ```shell
+    ```bash
     systemctl restart docker
     ```
 
 4. 重新加载“/etc/fstab”文件中的内容。
 
-    ```shell
+    ```bash
     mount -a
     ```
 
@@ -631,19 +609,19 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 1. 正常启动Kbox容器。
 2. 在PC端的CMD界面，通过**adb**命令行连接容器实例。
 
-    ```shell
+    ```bash
     adb connect ip:port
     ```
 
     部分命令（如getevent）需要root权限。
 
-    ```shell
+    ```bash
     adb -s ip:port root
     ```
 
 3. 通过**adb**命令行进入容器中。
 
-    ```shell
+    ```bash
     adb -s ip:port shell
     ```
 
@@ -658,7 +636,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 1. 正常启动Kbox容器。
 2. 在服务器的后台终端界面，通过**docker**命令行方式直接进入容器内。
 
-    ```shell
+    ```bash
     docker exec -it kbox_${index} sh
     ```
 
@@ -690,20 +668,20 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 1. 调用**setprop**方法设置当前属性的值，以gps.mock.latitude和gps.mock.longitude系统属性为例，其他属性设置方式相同。
 
-    ```shell
+    ```bash
     setprop persist.gps.mock.latitude 30.188433
     setprop persist.gps.mock.longitude 120.193818
     ```
 
 2. 检查当前的GPS系统属性值。
 
-    ```shell
+    ```bash
     getprop | grep "persist.gps.mock."
     ```
 
     回显示例如下。
 
-    ```shell
+    ```bash
     [persist.gps.mock.latitude]: [30.188433]
     [persist.gps.mock.longitude]: [120.193818]
     ```
@@ -712,19 +690,19 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     >
     >在Windows系统上查询字符串文本，请使用命令**findstr**替代命令**grep**，如下所示。本章后续使用**grep**命令的场景，请用户根据实际业务场景自行处理。
     >
-    >```shell
+    >```bash
     >adb -s ip:port shell getprop | findstr "persist.gps.mock."
     >```
 
 3. 重启容器后，查询Location Service的GPS数据，进入容器后使用如下命令查询最近更新的GPS数据。
 
-    ```shell
+    ```bash
     dumpsys location | grep -A 1 "gps provider:"
     ```
 
     根据返回值判断GPS属性是否生效。示例回显如下。
 
-    ```shell
+    ```bash
         gps provider:
           last location=Location[gps 30.188433,120.199818 hAcc=20 et=+2h17m10s384ms alt=0.0 vel=0.0 bear=0.0 vAcc=??? sAcc=??? bAcc=??? {Bundle[{}]}]
     ```
@@ -762,7 +740,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 1. 调用**setprop**方法设置“IMEI”值。
 
-    ```shell
+    ```bash
     setprop persist.sys.prop.writeimei 861456987456321
     ```
 
@@ -772,7 +750,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 2. 调用**setprop**方法设置“网络运营商名字”和“网络运营商代码”。
 
-    ```shell
+    ```bash
     setprop persist.gsm.operator.alphacph CMCC
     setprop persist.gsm.operator.numericcph 46000
     ```
@@ -787,7 +765,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 3. 调用**setprop**方法设置“IMSI”和“SIM卡运营商名字”。
 
-    ```shell
+    ```bash
     setprop persist.sys.prop.writeimsi 460110123456789
     setprop persist.gsm.sim.operator.alphacph CMCC
     ```
@@ -802,13 +780,13 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 4. 调用**setprop**方法设置“SIM卡序列号”。
 
-    ```shell
+    ```bash
     setprop persist.sys.prop.writesimserial 01234567890123456789
     ```
 
     重启容器后，通过命令查询设置结果。
 
-    ```shell
+    ```bash
     dumpsys isub | grep iccid
     ```
 
@@ -825,7 +803,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 5. 调用**setprop**方法设置“手机号码”。
 
-    ```shell
+    ```bash
     setprop persist.sys.prop.writephonenum 12345678901
     ```
 
@@ -855,7 +833,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 1. 调用**setprop**方法注入加速度传感器数据。
 
-    ```shell
+    ```bash
     setprop persist.sensors.mock.acce.data.x 5432.43
     setprop persist.sensors.mock.acce.data.y 456
     setprop persist.sensors.mock.acce.data.z 756
@@ -871,7 +849,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 3. 调用**setprop**方法注入陀螺仪传感器数据。
 
-    ```shell
+    ```bash
     setprop persist.sensors.mock.gyro.data.x 1.12
     setprop persist.sensors.mock.gyro.data.y 2.12
     setprop persist.sensors.mock.gyro.data.z 3.12
@@ -895,14 +873,14 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 1. 调用**setprop**方法创建鼠标设备，通过**getevent**查看结果。
 
-    ```shell
+    ```bash
     setprop persist.sys.input.mouse.name mouse
     getevent
     ```
 
     回显示例如下。
 
-    ```shell
+    ```bash
     add device 1: /dev/input/event4
       name:     "mouse"
     add device 2: /dev/input/event3
@@ -913,14 +891,14 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 2. 调用**setprop**方法创建第一个手柄设备，通过**getevent**查看结果。
 
-    ```shell
+    ```bash
     setprop persist.sys.input.gamepad1.name gamepad1
     getevent
     ```
 
     回显示例如下。
 
-    ```shell
+    ```bash
     add device 1: /dev/input/event5
       name:     "gamepad1"
     add device 2: /dev/input/event4
@@ -933,14 +911,14 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 3. 调用**setprop**方法创建第二个手柄设备，通过**getevent**查看结果。
 
-    ```shell
+    ```bash
     setprop persist.sys.input.gamepad2.name gamepad2
     getevent
     ```
 
     回显示例如下。
 
-    ```shell
+    ```bash
     add device 1: /dev/input/event6
       name:     "gamepad2"
     add device 2: /dev/input/event5
