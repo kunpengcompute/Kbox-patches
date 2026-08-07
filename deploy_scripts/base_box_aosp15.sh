@@ -820,6 +820,7 @@ function bb_check_exagear() {
 "0\x00\x00\x00\x00\x00\x02\x00\x28\x00:\xff\xff\xf"\
 "f\xff\xff\xff\xff\x00\x00\x00\x00\x00\x00\x00\x00"\
 "\x00\xfe\xff\xff\xff:/opt/exagear/ubt_a32a64:POCF" > /proc/sys/fs/binfmt_misc/register
+        cd - >/dev/null 2>&1
     fi
 
     # 检查ubt_a32a64版本
