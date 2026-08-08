@@ -1,0 +1,88 @@
+From f9854dd8 Mon Sep 17 00:00:00 2001
+From: kp-cvd-trim <kp@cuttlefish>
+Date: Sun, 20 Jul 2026 00:00:00 +0800
+Subject: [PATCH] trim webrtc signaling server and auto-exit
+
+[PROCESS_TRIM] 禁用 WebRTC 信令服务。
+
+diff --git a/host/frontend/webrtc/main.cpp b/host/frontend/webrtc/main.cpp
+index b9564a9b9..bfcaef1c3 100644
+--- a/host/frontend/webrtc/main.cpp
++++ b/host/frontend/webrtc/main.cpp
+@@ -17,6 +17,8 @@
+ #include <linux/input.h>
+ 
+ #include <memory>
++#include <string>
++#include <thread>
+ 
+ #include <android-base/logging.h>
+ #include <android-base/strings.h>
+@@ -384,6 +386,20 @@ int main(int argc, char** argv) {
+     audio_handler->Start();
+   }
+   host_confui_server.Start();
++
++  // [PROCESS_TRIM] webrtc 进程在完成 socket 监听后自动退出。
++  // webrtc 仅在虚拟机启动阶段需要：保证所有 socket server（touch/keyboard/wayland）
++  // 在 crosvm 连接之前已处于监听状态，防止 crosvm 因 socket connect 阻塞。
++  // socket 监听就绪后，webrtc 立即退出；crosvm 的 connect 请求由内核 accept backlog
++  // 保证，写端关闭后 crosvm 非阻塞写会得到 EPIPE。
++  std::thread exit_detector([]() {
++    LOG(INFO) << "All socket servers are listening, auto-exiting webrtc "
++              << "process. Use 'adb connect localhost:<adb_host_port>' "
++              << "to connect after guest boots.";
++    std::exit(0);
++  });
++  exit_detector.detach();
++
+   display_handler->Loop();
+ 
+   return 0;
+diff --git a/host/commands/run_cvd/launch/streamer.cpp b/host/commands/run_cvd/launch/streamer.cpp
+index fdc47c8dd..ea852edb1 100644
+--- a/host/commands/run_cvd/launch/streamer.cpp
++++ b/host/commands/run_cvd/launch/streamer.cpp
+@@ -215,23 +215,25 @@ class WebRtcServer : public virtual CommandSource,
+   // CommandSource
+   Result<std::vector<MonitorCommand>> Commands() override {
+     std::vector<MonitorCommand> commands;
+-    if (instance_.start_webrtc_sig_server()) {
+-      Command sig_server(WebRtcSigServerBinary());
+-      sig_server.AddParameter("-assets_dir=", instance_.webrtc_assets_dir());
+-      sig_server.AddParameter("-use_secure_http=",
+-                              config_.sig_server_secure() ? "true" : "false");
+-      if (!config_.webrtc_certs_dir().empty()) {
+-        sig_server.AddParameter("-certs_dir=", config_.webrtc_certs_dir());
+-      }
+-      sig_server.AddParameter("-http_server_port=", config_.sig_server_port());
+-      commands.emplace_back(std::move(sig_server));
+-    }
+-
+-    if (instance_.start_webrtc_sig_server_proxy()) {
+-      Command sig_proxy(WebRtcSigServerProxyBinary());
+-      sig_proxy.AddParameter("-server_port=", config_.sig_server_port());
+-      commands.emplace_back(std::move(sig_proxy));
+-    }
++    // [PROCESS_TRIM] webrtc sig_server 和 sig_proxy 禁用：
++    // 不需要 WebRTC 信令服务用于远程显示，仅保留 webrtc 进程的 socket 监听功能
++    // if (instance_.start_webrtc_sig_server()) {
++    //   Command sig_server(WebRtcSigServerBinary());
++    //   sig_server.AddParameter("-assets_dir=", instance_.webrtc_assets_dir());
++    //   sig_server.AddParameter("-use_secure_http=",
++    //                           config_.sig_server_secure() ? "true" : "false");
++    //   if (!config_.webrtc_certs_dir().empty()) {
++    //     sig_server.AddParameter("-certs_dir=", config_.webrtc_certs_dir());
++    //   }
++    //   sig_server.AddParameter("-http_server_port=", config_.sig_server_port());
++    //   commands.emplace_back(std::move(sig_server));
++    // }
++
++    // if (instance_.start_webrtc_sig_server_proxy()) {
++    //   Command sig_proxy(WebRtcSigServerProxyBinary());
++    //   sig_proxy.AddParameter("-server_port=", config_.sig_server_port());
++    //   commands.emplace_back(std::move(sig_proxy));
++    // }
+ 
+     auto stopper = [host_socket = std::move(host_socket_)](Subprocess* proc) {
+       struct timeval timeout;

@@ -1,0 +1,193 @@
+From f9854dd8 Mon Sep 17 00:00:00 2001
+From: kp-cvd-trim <kp@cuttlefish>
+Date: Sun, 20 Jul 2026 00:00:00 +0800
+Subject: [PATCH] trim host processes: Echo/Logcat/Metrics/OpenWrt/Tombstone/Wmediumd
+
+[PROCESS_TRIM] main.cc 注销 + 各 .cpp 禁用。不含 SecureEnv(0002) 和 KernelLog(0005)。
+
+--- a/host/commands/run_cvd/main.cc
++++ b/host/commands/run_cvd/main.cc
+@@ -112,6 +112,8 @@
+ fruit::Component<> runCvdComponent(
+     const CuttlefishConfig* config,
+     const CuttlefishConfig::InstanceSpecific* instance) {
++  // [PROCESS_TRIM] 以下组件已被禁用，不随虚拟机拉起，以减少 cvd-host-package 启动的进程数。
++  // 每个被禁用的组件在其对应的 fruit Component 函数中也已清空 multibinding 注册。
+   return fruit::createComponent()
+       .addMultibinding<DiagnosticInformation, CuttlefishEnvironment>()
+       .addMultibinding<InstanceLifecycle, InstanceLifecycle>()
+@@ -131,20 +133,27 @@
+       .install(UwbConnectorComponent)
+       .install(ConfigServerComponent)
+       .install(ConsoleForwarderComponent)
+-      .install(EchoServerComponent)
++      // [PROCESS_TRIM] EchoServer 禁用：不需要额外 echo 服务
++      //.install(EchoServerComponent)
+       .install(GnssGrpcProxyServerComponent)
+-      .install(LogcatReceiverComponent)
++      // [PROCESS_TRIM] LogcatReceiver 禁用：不需要收集虚拟机 logcat
++      //.install(LogcatReceiverComponent)
+       .install(KernelLogMonitorComponent)
+-      .install(MetricsServiceComponent)
+-      .install(OpenWrtComponent)
+-      .install(OpenwrtControlServerComponent)
++      // [PROCESS_TRIM] MetricsService 禁用：不需要匿名使用统计上报
++      //.install(MetricsServiceComponent)
++      // [PROCESS_TRIM] OpenWrt 禁用：不需要虚拟 AP 路由器
++      //.install(OpenWrtComponent)
++      // [PROCESS_TRIM] OpenwrtControlServer 禁用：不需要 OpenWrt 控制器
++      //.install(OpenwrtControlServerComponent)
+       .install(PicaComponent)
+       .install(RootCanalComponent)
+       .install(NetsimServerComponent)
+-      // [PROCESS_TRIM] SecureEnv 禁用
++      // [PROCESS_TRIM] SecureEnv 禁用：不使用安全环境（keymaster/gatekeeper/confirmationui）
+       //.install(SecureEnvComponent)
+-      .install(TombstoneReceiverComponent)
+-      .install(WmediumdServerComponent)
++      // [PROCESS_TRIM] TombstoneReceiver 禁用：不需要收集 tombstone
++      //.install(TombstoneReceiverComponent)
++      // [PROCESS_TRIM] WmediumdServer 禁用：不需要无线介质模拟
++      //.install(WmediumdServerComponent)
+       .install(launchModemComponent)
+       .install(launchStreamerComponent)
+       .install(serverLoopComponent)
+--- a/host/commands/run_cvd/launch/echo_server.cpp
++++ b/host/commands/run_cvd/launch/echo_server.cpp
+@@ -59,9 +59,11 @@
+ }  // namespace
+ 
+ fruit::Component<fruit::Required<GrpcSocketCreator>> EchoServerComponent() {
+-  return fruit::createComponent()
+-      .addMultibinding<CommandSource, EchoServer>()
+-      .addMultibinding<SetupFeature, EchoServer>();
++  // [PROCESS_TRIM] EchoServer 禁用：不再注册 CommandSource 和 SetupFeature，
++  // 该子进程不会被拉起
++  return fruit::createComponent();
++      //.addMultibinding<CommandSource, EchoServer>()
++      //.addMultibinding<SetupFeature, EchoServer>();
+ }
+ 
+ }  // namespace cuttlefish
+--- a/host/commands/run_cvd/launch/logcat_receiver.cpp
++++ b/host/commands/run_cvd/launch/logcat_receiver.cpp
+@@ -77,10 +77,12 @@
+ 
+ fruit::Component<fruit::Required<const CuttlefishConfig::InstanceSpecific>>
+ LogcatReceiverComponent() {
+-  return fruit::createComponent()
+-      .addMultibinding<CommandSource, LogcatReceiver>()
+-      .addMultibinding<SetupFeature, LogcatReceiver>()
+-      .addMultibinding<DiagnosticInformation, LogcatReceiver>();
++  // [PROCESS_TRIM] LogcatReceiver 禁用：不收集虚拟机 logcat，
++  // crosvm/qemu 侧 logcat HVC 已改为 sink
++  return fruit::createComponent();
++      //.addMultibinding<CommandSource, LogcatReceiver>()
++      //.addMultibinding<SetupFeature, LogcatReceiver>()
++      //.addMultibinding<DiagnosticInformation, LogcatReceiver>();
+ }
+ 
+ }  // namespace cuttlefish
+--- a/host/commands/run_cvd/launch/metrics.cpp
++++ b/host/commands/run_cvd/launch/metrics.cpp
+@@ -59,9 +59,10 @@
+ 
+ fruit::Component<fruit::Required<const CuttlefishConfig>>
+ MetricsServiceComponent() {
+-  return fruit::createComponent()
+-      .addMultibinding<CommandSource, MetricsService>()
+-      .addMultibinding<SetupFeature, MetricsService>();
++  // [PROCESS_TRIM] MetricsService 禁用：不需要匿名使用统计上报
++  return fruit::createComponent();
++      //.addMultibinding<CommandSource, MetricsService>()
++      //.addMultibinding<SetupFeature, MetricsService>();
+ }
+ 
+ }  // namespace cuttlefish
+--- a/host/commands/run_cvd/launch/open_wrt.cpp
++++ b/host/commands/run_cvd/launch/open_wrt.cpp
+@@ -49,8 +49,8 @@
+     constexpr auto crosvm_for_ap_socket = "ap_control.sock";
+ 
+     CrosvmBuilder ap_cmd;
+-    ap_cmd.ApplyProcessRestarter(instance_.crosvm_binary(),
+-                                 kOpenwrtVmResetExitCode);
++    // [PROCESS_TRIM] 禁用 process_restarter，直接使用 crosvm 启动
++    ap_cmd.Cmd().SetExecutableAndName(instance_.crosvm_binary());
+     ap_cmd.Cmd().AddParameter("run");
+     ap_cmd.AddControlSocket(
+         instance_.PerInstanceInternalUdsPath(crosvm_for_ap_socket),
+@@ -116,7 +116,7 @@
+   const CuttlefishConfig::InstanceSpecific& instance_;
+   LogTeeCreator& log_tee_;
+ 
+-  static constexpr int kOpenwrtVmResetExitCode = 32;
++  // static constexpr int kOpenwrtVmResetExitCode = 32;
+ };
+ 
+ }  // namespace
+@@ -125,9 +125,11 @@
+     fruit::Required<const CuttlefishConfig,
+                     const CuttlefishConfig::InstanceSpecific, LogTeeCreator>>
+ OpenWrtComponent() {
+-  return fruit::createComponent()
+-      .addMultibinding<CommandSource, OpenWrt>()
+-      .addMultibinding<SetupFeature, OpenWrt>();
++  // [PROCESS_TRIM] OpenWrt 禁用：不再注册 CommandSource 和 SetupFeature，
++  // 虚拟 AP 路由器子进程不会被拉起
++  return fruit::createComponent();
++      //.addMultibinding<CommandSource, OpenWrt>()
++      //.addMultibinding<SetupFeature, OpenWrt>();
+ }
+ 
+ }  // namespace cuttlefish
+--- a/host/commands/run_cvd/launch/openwrt_control_server.cpp
++++ b/host/commands/run_cvd/launch/openwrt_control_server.cpp
+@@ -74,9 +74,10 @@
+ fruit::Component<fruit::Required<const CuttlefishConfig::InstanceSpecific,
+                                  GrpcSocketCreator>>
+ OpenwrtControlServerComponent() {
+-  return fruit::createComponent()
+-      .addMultibinding<CommandSource, OpenwrtControlServer>()
+-      .addMultibinding<SetupFeature, OpenwrtControlServer>();
++  // [PROCESS_TRIM] OpenwrtControlServer 禁用：不需要 OpenWrt 控制器
++  return fruit::createComponent();
++      //.addMultibinding<CommandSource, OpenwrtControlServer>()
++      //.addMultibinding<SetupFeature, OpenwrtControlServer>();
+ }
+ 
+ }  // namespace cuttlefish
+--- a/host/commands/run_cvd/launch/tombstone_receiver.cpp
++++ b/host/commands/run_cvd/launch/tombstone_receiver.cpp
+@@ -74,9 +74,10 @@
+ 
+ fruit::Component<fruit::Required<const CuttlefishConfig::InstanceSpecific>>
+ TombstoneReceiverComponent() {
+-  return fruit::createComponent()
+-      .addMultibinding<CommandSource, TombstoneReceiver>()
+-      .addMultibinding<SetupFeature, TombstoneReceiver>();
++  // [PROCESS_TRIM] TombstoneReceiver 禁用：不需要收集虚拟机 tombstone
++  return fruit::createComponent();
++      //.addMultibinding<CommandSource, TombstoneReceiver>()
++      //.addMultibinding<SetupFeature, TombstoneReceiver>();
+ }
+ 
+ }  // namespace cuttlefish
+--- a/host/commands/run_cvd/launch/wmediumd_server.cpp
++++ b/host/commands/run_cvd/launch/wmediumd_server.cpp
+@@ -127,10 +127,11 @@
+                                  const CuttlefishConfig::InstanceSpecific,
+                                  LogTeeCreator, GrpcSocketCreator>>
+ WmediumdServerComponent() {
+-  return fruit::createComponent()
+-      .addMultibinding<CommandSource, WmediumdServer>()
+-      .addMultibinding<SetupFeature, WmediumdServer>()
+-      .addMultibinding<SetupFeature, ValidateWmediumdService>();
++  // [PROCESS_TRIM] WmediumdServer 禁用：不需要无线介质模拟服务
++  return fruit::createComponent();
++      //.addMultibinding<CommandSource, WmediumdServer>()
++      //.addMultibinding<SetupFeature, WmediumdServer>()
++      //.addMultibinding<SetupFeature, ValidateWmediumdService>();
+ }
+ 
+ }  // namespace cuttlefish

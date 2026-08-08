@@ -1,0 +1,52 @@
+From f9854dd8 Mon Sep 17 00:00:00 2001
+From: kp-cvd-trim <kp@cuttlefish>
+Date: Sun, 20 Jul 2026 00:00:00 +0800
+Subject: [PATCH] adapt QEMU audio: audiodev noaudio
+
+[QEMU_ADAPTER] ARM 服务器 QEMU 音频适配：AC97 指定 audiodev=noaudio。
+
+
+
+diff --git a/host/libs/vm_manager/qemu_manager.cpp b/host/libs/vm_manager/qemu_manager.cpp
+index 27a3ddf0b..c991c5dae 100644
+--- a/host/libs/vm_manager/qemu_manager.cpp
++++ b/host/libs/vm_manager/qemu_manager.cpp
+@@ -54,11 +54,6 @@ std::string GetMonitorPath(const CuttlefishConfig& config) {
+       "qemu_monitor.sock");
+ }
+ 
+-void LogAndSetEnv(const char* key, const std::string& value) {
+-  setenv(key, value.c_str(), 1);
+-  LOG(INFO) << key << "=" << value;
+-}
+-
+ bool Stop() {
+   auto config = CuttlefishConfig::Get();
+   auto monitor_path = GetMonitorPath(*config);
+@@ -662,8 +647,13 @@ Result<std::vector<MonitorCommand>> QemuManager::StartCommands(
+   qemu_cmd.AddParameter("vhost-vsock-pci-non-transitional,guest-cid=",
+                         instance.vsock_guest_cid());
+ 
++  // [PROCESS_TRIM] QEMU 需要为 AC97 声卡指定 audiodev 后端。
++  // 使用 none 后端避免对主机音频驱动的依赖。
++  qemu_cmd.AddParameter("-audiodev");
++  qemu_cmd.AddParameter("none,id=noaudio");
++
+   qemu_cmd.AddParameter("-device");
+-  qemu_cmd.AddParameter("AC97");
++  qemu_cmd.AddParameter("AC97,audiodev=noaudio");
+ 
+   qemu_cmd.AddParameter("-device");
+   qemu_cmd.AddParameter("qemu-xhci,id=xhci");
+@@ -681,10 +671,8 @@ Result<std::vector<MonitorCommand>> QemuManager::StartCommands(
+     qemu_cmd.AddParameter("tcp::", instance.gdb_port());
+   }
+ 
+-  LogAndSetEnv("QEMU_AUDIO_DRV", "none");
+-
+   std::vector<MonitorCommand> commands;
+-  commands.emplace_back(std::move(qemu_cmd), true);
++  commands.emplace_back(std::move(qemu_cmd), false);
+   return commands;
+ }
+
