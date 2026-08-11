@@ -165,9 +165,7 @@ df -h
 
 使用radeontop工具可查看Kbox云手机容器运行环境上GPU使用状态。radeontop工具通过以下步骤下载并安装。
 
-1. 获取radeontop工具包并上传到服务器。
-
-    [获取链接](https://download-ib01.fedoraproject.org/pub/epel/8/Everything/aarch64/Packages/r/radeontop-1.4-2.el8.aarch64.rpm)
+1. [获取radeontop工具包](https://download-ib01.fedoraproject.org/pub/epel/8/Everything/aarch64/Packages/r/radeontop-1.4-2.el8.aarch64.rpm)并上传到服务器。
 
 2. 安装命令如下。
 
@@ -513,7 +511,7 @@ python3 kbox_maintainer.py recover kbox_1
 |序号|性能分类|关键性能指标|参考值|
 |--|--|--|--|
 | 1 | Kbox云手机容器性能 | 容器启动时间 | 反复启动单个Kbox云手机容器100次，观察容器启动时间，容器的启动时间稳定，无异常时长 |
-| 1 | Kbox云手机容器性能 | 按照满规格路数，启动Kbox云手机容器3次，观察每一路的启动时间，容器的启动时间稳定，无异常时长 |
+| 1 | Kbox云手机容器性能 | 按照满规格路数，启动Kbox云手机容器3次，观察每一路的启动时间，容器的启动时间稳定，无异常时长 | - |
 | 1 | Kbox云手机容器性能 | APP启动时间 | 启动退出酷狗音乐1000次，记录每一次的启动时间，启动时间保持稳定，无异常数值 |
 | 1 | Kbox云手机容器性能 | CPU占用 | 运行酷狗音乐30min，观察容器的CPU占用，容器的CPU占用无异常，不持续快速增长 |
 | 1 | Kbox云手机容器性能 | 内存占用 | 运行酷狗音乐30min，观察容器的内存占用，容器的内存占用无异常，不持续快速增长 |
