@@ -19,6 +19,7 @@ Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的核心能力组件，
 Kbox云手机容器的整体架构如[**图 1** Kbox云手机容器架构图](#Kbox云手机容器架构图)所示。
 
 **图 1** Kbox云手机容器架构图<a name="fig89529117514"></a><a id="Kbox云手机容器架构图"></a>
+
 ![](docs/zh/figures/Kbox云手机容器架构图.png)
 
 Android容器：采用闭源组件Kbox和开源的AOSP软件，在容器内使能Android系统的基础云手机方案。
