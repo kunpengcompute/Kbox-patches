@@ -39,8 +39,8 @@ Kbox安卓镜像编译构建的软件环境要求如[**表 1** Kbox安卓镜像�
 
 >![](public_sys-resources/icon-note.gif) **说明：** <br>
 >
->1. 以上软件包名仅供参考，部分下载方式可能会导致软件包名与表格产生差异。请以获取的实际包名为准，参考表格适当进行更名，以方便后续步骤中的使用。<br>
->2. Mesa源码仓库当前默认分支为22.1.7，使用git clone方式获取源码注意切换分支。<br>
+>- 以上软件包名仅供参考，部分下载方式可能会导致软件包名与表格产生差异。请以获取的实际包名为准，参考表格适当进行更名，以方便后续步骤中的使用。<br>
+>- Mesa源码仓库当前默认分支为24.3.4，使用git clone方式获取源码注意切换分支。<br>
 
 **软件包完整性校验<a name="section12800195641510"></a>**
 
@@ -71,7 +71,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
 ## 安装编译依赖包<a name="ZH-CN_TOPIC_0000002549826019"></a>
 
-进行编译前，需要为环境配置源，安装python3的Mako模块以及Meson等依赖包。
+进行编译前，需要为环境配置源，安装Python3的mako模块以及Meson等依赖包。
 
 1. 根据实际网络环境配置源，以便安装编译源码需要的依赖包。
 2. 配置完成后，更新索引。
@@ -121,7 +121,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
     ![](./figures/zh-cn_image_0000002518186270.png)
 
-4. 确认服务器的python3环境是否包含Mako模块。若无，请为服务器的python3环境安装Mako模块。
+4. 确认服务器的Python3环境是否包含mako模块。若无，请为服务器的Python3环境安装mako模块。
     1. 执行如下命令，进入python3环境：
 
         ```bash
@@ -138,7 +138,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
         ![](./figures/zh-cn_image_0000002549826041.png)
 
-        如图所示，若回显中包含Mako模块，则可继续后文步骤。若不包含，可通过执行“pip3 install mako”安装Mako模块。请确保python3环境中包含Mako模块，再继续后文的步骤。
+        如图所示，若回显中包含mako模块，则可继续后文步骤。若不包含，可通过执行“pip3 install mako”安装mako模块。请确保Python3环境中包含mako模块，再继续后文的步骤。
 
         ![](./figures/zh-cn_image_0000002518186272.png)
 
@@ -151,18 +151,18 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 5. 在用户目录下创建“buildtools”目录，并为目录拥有者添加读、写和可执行权限。
 
     ```bash
-    mkdir /home/buildtools
-    chmod -R 700 /home/buildtools
+    mkdir ~/buildtools
+    chmod -R 700 ~/buildtools
     ```
 
 6. 安装Meson。
 
-    请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，将源码包中的“meson-1.1.0.tar.gz”文件上传至“/home/buildtools”目录并解压。
+    请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，将源码包中的“meson-1.1.0.tar.gz”文件上传至“~/buildtools”目录并解压。
 
     ```bash
-    cd /home/buildtools
+    cd ~/buildtools
     tar -xvpf meson-1.1.0.tar.gz
-    ln -s /home/buildtools/meson-1.1.0/meson.py /usr/local/bin/meson15.py
+    ln -s ~/buildtools/meson-1.1.0/meson.py /usr/local/bin/meson15.py
     ```
 
 7. 设置环境变量。
@@ -170,7 +170,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
         ```bash
         cat >> ~/.bashrc <<EOF
-        export PATH=/home/buildtools/meson-1.1.0:$PATH
+        export PATH=~/buildtools/meson-1.1.0:$PATH
         EOF
         ```
 
@@ -189,18 +189,18 @@ Kbox安卓镜像使用AOSP 15进行编译，请参考本节操作步骤下载源
 1. 在用户目录下创建“aosp”目录，并为目录拥有者添加读、写和可执行权限。
 
     ```bash
-    mkdir /home/aosp
-    chmod -R 700 /home/aosp
+    mkdir ~/aosp
+    chmod -R 700 ~/aosp
     ```
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >
     >用户目录剩余空间要求大于300GB，AOSP源码约130GB，编译后接近300GB。
 
-2. 按照谷歌官方指导，下载并安装repo工具，然后下载版本为android-15.0.0_r17的AOSP源码，并进行编译。
+2. 按照[谷歌官方指导](https://android.googlesource.com/tools/repo)，下载并安装repo工具，然后下载版本为android-15.0.0_r17的AOSP源码，并进行编译。
 
     ```bash
-    cd /home/aosp
+    cd ~/aosp
     repo init -u https://android.googlesource.com/platform/manifest -b android-15.0.0_r17
     repo sync
     ```
@@ -212,18 +212,18 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
 1. 在用户目录下创建“sourcecode”目录，并为目录拥有者添加读、写和可执行权限。
 
     ```bash
-    mkdir /home/sourcecode
-    chmod -R 700 /home/sourcecode
+    mkdir ~/sourcecode
+    chmod -R 700 ~/sourcecode
     ```
 
-2. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载Mesa源码包后，将源码包上传至“/home/sourcecode”目录，解压并重命名后，复制到“aosp/external”目录。
+2. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载Mesa源码包后，将源码包上传至“~/sourcecode”目录，解压并重命名后，复制到“aosp/external”目录。
 
     ```bash
-    cd /home/sourcecode
+    cd ~/sourcecode
     unzip mesa-24.3.4.zip
     mv mesa-24.3.4 mesa3d
-    rm -rf /home/aosp/external/mesa3d
-    cp -rf ./mesa3d /home/aosp/external/
+    rm -rf ~/aosp/external/mesa3d
+    cp -rf ./mesa3d ~/aosp/external/
     ```
 
 >![](public_sys-resources/icon-note.gif) **说明：**
@@ -232,11 +232,11 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
 >例如unzip mesa-24.3.4.zip得到了mesa-aosp15_7.3.0，则改为执行如下命令。
 >
 >```bash
->cd /home/sourcecode
+>cd ~/sourcecode
 >unzip mesa-24.3.4.zip
 >mv mesa-aosp15_7.3.0 mesa3d
->rm -rf /home/aosp/external/mesa3d
->cp -rf ./mesa3d /home/aosp/external/
+>rm -rf ~/aosp/external/mesa3d
+>cp -rf ./mesa3d ~/aosp/external/
 >```
 
 ### 合入Kbox安卓补丁<a name="ZH-CN_TOPIC_0000002518346170" id="合入Kbox安卓补丁"></a>
@@ -245,54 +245,54 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
 
 1. 下载Kbox安卓补丁源码。
 
-    请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，将源码包上传至“/home/sourcecode”目录，并解压。
+    请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，将源码包上传至“~/sourcecode”目录，并解压。
 
     ```bash
-    cd /home/sourcecode
+    cd ~/sourcecode
     unzip Kbox-patches-AOSP15.zip
     ```
 
 2. 合入Kbox安卓补丁。
 
     ```bash
-    cd /home/sourcecode/Kbox-patches-AOSP15/patchForAndroid15
-    ./apply-patch.sh /home/aosp
+    cd ~/sourcecode/Kbox-patches-AOSP15/patchForAndroid15
+    ./apply-patch.sh ~/aosp
     ```
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >
->为了方便用户快速体验和部署Kbox云手机套件，提供了Kbox安卓补丁。该补丁仅作为功能性参考，不是商用交付范围，不做商业承诺，建议客户或ISV在商用前进行必要的安全评估，若选择使用鲲鹏BoostKit云手机参考方案需自行承担安全风险。
+ >为了方便用户快速体验和部署Kbox云手机套件，提供了Kbox安卓补丁。该补丁仅作为功能性参考，不是商用交付范围，不提供商业承诺，建议客户或ISV在商用前进行必要的安全评估，若选择使用鲲鹏BoostKit云手机参考方案需自行承担安全风险。
 
 ### 合入二进制内容<a name="ZH-CN_TOPIC_0000002549705997"></a>
 
 在AOSP源码包中合入Kbox二进制软件包。
 
-1. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，解压二进制文件包（BoostKit-boostcph-kbox_\*_15.zip），获得Kbox-\*-aosp15.0-binary.zip压缩包，将此压缩包中的“product_prebuilt”、“products”目录上传至“/home/dependency”目录。
+1. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，解压二进制文件包（BoostKit-boostcph-kbox_\*_15.zip），获得Kbox-\*-aosp15.0-binary.zip压缩包，将此压缩包中的“product_prebuilt”、“products”目录上传至“~/dependency”目录。
 
     请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
 
 2. 将二进制内容复制到AOSP源码根目录。
 
     ```bash
-    cd /home/dependency
-    cp -rf product_prebuilt /home/aosp/
+    cd ~/dependency
+    cp -rf product_prebuilt ~/aosp/
     ```
 
 3. 在AOSP源码目录创建“vendor/kbox”目录，拷贝“products”目录至该目录。
 
     ```bash
-    mkdir -p /home/aosp/vendor/kbox
-    chmod -R 700 /home/aosp/vendor/kbox
-    cd /home/dependency
-    cp -rf products /home/aosp/vendor/kbox
+    mkdir -p ~/aosp/vendor/kbox
+    chmod -R 700 ~/aosp/vendor/kbox
+    cd ~/dependency
+    cp -rf products ~/aosp/vendor/kbox
     ```
 
-4. 在“/home/aosp/vendor/kbox/products”目录下，通过以下命令修改kbox.mk文件里的DNS地址。
+4. 在“~/aosp/vendor/kbox/products”目录下，通过以下命令修改kbox.mk文件里的DNS地址。
 
     此命令中的net.dns1=xxx.xxx.xxx.xxx需要替换成配置容器的DNS地址。需保证配置的地址可用，否则可能导致编译获得的镜像不可用。
 
     ```bash
-    sed -i "s|net.dns1=.*|net.dns1=xxx.xxx.xxx.xxx \\\\|" /home/aosp/vendor/kbox/products/kbox.mk
+    sed -i "s|net.dns1=.*|net.dns1=xxx.xxx.xxx.xxx \\\\|" ~/aosp/vendor/kbox/products/kbox.mk
     ```
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
@@ -309,7 +309,7 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
     1. 生成您自己的唯一发布密钥集用于对部署的Android操作系统映像进行签名。
 
         ```bash
-        cd /home/aosp/
+        cd ~/aosp/
         rm -rf ./build/target/product/security/release*
         chmod +x ./development/tools/make_key
         ./development/tools/make_key build/target/product/security/releasekey '/C=xx/ST=xxx/L=xxx/O=xxx/OU=xx/CN=xxx/emailAddress=xxxxx@xxx.com'
@@ -379,16 +379,16 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
         >可不指定核数，直接执行**make**命令，则默认用1个核进行编译，也可用“-j”参数指定核数进行编译，可指定的数字最大为服务器实际的CPU核数，本文以64核为例进行说明。
         >正常情况下，能够编译完成。有时可能由于并发编译顺序导致编译出现问题，可尝试重新执行**make**命令。
 
-2. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，解压Kbox-patches-AOSP15.zip（与[合入Kbox安卓补丁](#合入Kbox安卓补丁)相同），将Kbox-patches-AOSP15文件夹中的“make_img_sample”目录上传至“/home/dependency”目录。
+2. 请参见[软件环境](#Kbox安卓镜像编译构建软件环境要求)中的链接下载源码包后，解压Kbox-patches-AOSP15.zip（与[合入Kbox安卓补丁](#合入Kbox安卓补丁)相同），将Kbox-patches-AOSP15文件夹中的“make_img_sample”目录上传至“~/dependency”目录。
 
     请对上传文件、目录的权限进行合理配置，其他用户属组建议不配置写权限。
 
-3. 拷贝生成镜像脚本至“/home/aosp”目录，并添加可执行权限。
+3. 拷贝生成镜像脚本至“~/aosp”目录，并添加可执行权限。
 
     ```bash
-    cd /home/dependency/make_img_sample/kbox15_android_build
-    cp create-package.sh /home/aosp/
-    cd /home/aosp
+    cd ~/dependency/make_img_sample/kbox15_android_build
+    cp create-package.sh ~/aosp/
+    cd ~/aosp
     chmod +x create-package.sh
     ```
 
@@ -399,7 +399,7 @@ Kbox安卓镜像编译过程中使用到Mesa第三方库，请参考本节操作
     >制作镜像的时候需要root权限，请用root用户执行脚本，且执行脚本时，目录需要使用绝对路径。
 
     ```bash
-    ./create-package.sh /home/aosp/out/target/product/kbox_arm64_15/system.img
+    ./create-package.sh ~/aosp/out/target/product/kbox_arm64_15/system.img
     ```
 
     至此，Kbox安卓镜像制作完成，在当前目录下会生成名为android.tar的Kbox镜像。

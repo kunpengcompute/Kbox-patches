@@ -2,7 +2,7 @@
 
 ## 部署说明<a name="ZH-CN_TOPIC_0000002549745285"></a>
 
-为了方便用户快速部署Kbox，鲲鹏BoostKit提供了Demo部署脚本与Demo补丁，请参考以下操作步骤，基于鲲鹏服务器体验云手机Demo。
+为了方便用户快速部署Kbox，鲲鹏BoostKit提供了Demo部署脚本与Demo补丁。请参考以下操作步骤，基于鲲鹏服务器体验云手机Demo。
 
 ## 环境准备<a name="ZH-CN_TOPIC_0000002518385428"></a>
 
@@ -19,13 +19,13 @@ Kbox云手机容器环境部署的硬件环境配置方案要求如[**表 1** Kb
 |服务器|鲲鹏服务器|鲲鹏服务器|鲲鹏服务器|鲲鹏服务器|
 |CPU|2\*鲲鹏920 7260处理器，64核，2.6GHz|2\*鲲鹏920 7260处理器，64核，2.6GHz|2\*鲲鹏920 7280Z处理器，80核，2.9GHz|2\*鲲鹏920 7260W处理器，64核，2.2GHz|
 |内存|16\*DDR4 RDIMM内存-32GB-2933MT/s|16\*DDR4 RDIMM内存-32GB-2933MT/s|16\*DDR5 DIMM内存-64GB-4800MT/s|16\*DDR5 DIMM内存-64GB-5200MT/s|
-|硬盘|系统盘：2\*固态硬盘-480GB-SATA 6Gb/s-读取密集型数据盘：2\*ES3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：2\*固态硬盘-480GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*ES3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：1\*S3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*S3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：1\*固态硬盘-480GB-SATA 6Gb/s-2.5 inch height-读密集型<br>1\*S4510 固态硬盘-960GB-SATA 6Gb/s-读取密集型<br>数据盘：1\*ES3600P V6固态硬盘-6400GB-NVMe 64Gb/s<br>1\*ES3500P V5固态硬盘-4000GB-NVMe 32Gb/s|
+|硬盘|系统盘：2\*固态硬盘-480GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*ES3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：2\*固态硬盘-480GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*ES3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：1\*S3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*S3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：1\*固态硬盘-480GB-SATA 6Gb/s-2.5 inch height-读密集型<br>1\*S4510 固态硬盘-960GB-SATA 6Gb/s-读取密集型<br>数据盘：1\*ES3600P V6固态硬盘-6400GB-NVMe 64Gb/s<br>1\*ES3500P V5固态硬盘-4000GB-NVMe 32Gb/s|
 |网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-2\*25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-2\*25GE/10GE光口-4端口-SFP28（不含光模块）|
-|Riser卡|RISER1与RISER2模组相同，均为：PCIe X16 + PCIe X8|RISER1与RISER2模组相同，均为：PCIe X8\*3|前置Riser（x8\*2）\*2+后置Riser（x8\*2）\*2+Riser3（x8\*2）\*1|后置Riser（x16+x8\*2）\*2+Riser3（x8\*2）\*1|
-|编码卡|1 \*NETINT Quadra T2A（X8）|无|无|无|
+|Riser卡|Riser1与Riser2模组相同，均为：PCIe X16 + PCIe X8|Riser1与Riser2模组相同，均为：PCIe X8\*3|前置Riser（x8\*2）\*2+后置Riser（x8\*2）\*2+Riser3（x8\*2）\*1|后置Riser（x16+x8\*2）\*2+Riser3（x8\*2）\*1|
+|编码卡|1\*NETINT Quadra T2A（X8）|无|无|无|
 |GPU|2\*AMD W6800|4\*道客DC1000|8\*道客DC1000 或 8\*道客DC1000C|8\*道客DC1000|
 |操作系统|openEuler 24.03 LTS SP1|openEuler 24.03 LTS SP1|openEuler 24.03 LTS SP1|openEuler 24.03 LTS SP1|
-|系统/内核版本|6.6.0-72.0.0|6.6.0-72.0.0|6.6.0-72.0.0|6.6.0-72.0.0|
+|内核版本|6.6.0-72.0.0|6.6.0-72.0.0|6.6.0-72.0.0|6.6.0-72.0.0|
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >
@@ -38,19 +38,19 @@ Kbox云手机容器环境部署的硬件环境配置方案要求如[**表 1** Kb
 
 **获取软件包<a name="section18549163914575"></a>**
 
-Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求如[**表 1** Kbox安卓容器环境搭建软件环境要求](#Kbox安卓容器环境搭建软件环境要求)所示，请使用推荐软件包进行下载部署。
+Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求如[**表 2** Kbox安卓容器环境搭建软件环境要求](#Kbox安卓容器环境搭建软件环境要求)所示，请使用推荐软件包进行下载部署。
 
-**表 1** Kbox安卓容器环境搭建软件环境要求<a id="Kbox安卓容器环境搭建软件环境要求"></a>
+**表 2** Kbox安卓容器环境搭建软件环境要求<a id="Kbox安卓容器环境搭建软件环境要求"></a>
 
 |序号|软件包|说明|获取地址|配置方案一|配置方案二|配置方案三|配置方案四|
 |--|--|--|--|--|--|--|--|
-| 1 | android.tar | Kbox安卓镜像包 | 自行编译（请参见[编译指南](compile_guide.md)进行编译） | √ | √ | √ | √ |
-| 2 | BoostKit-boostcph-kbox_*_15.zip | Android Kbox二进制文件包 | [获取链接](https://www.hikunpeng.com/zh/developer/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft) | √ | √ | √ | √ |
+| 1 | android.tar | Kbox安卓镜像包，用于部署Kbox基础环境 | 自行编译（请参见[编译指南](compile_guide.md)进行编译） | √ | √ | √ | √ |
+| 2 | BoostKit-boostcph-kbox_*_15.zip | Android Kbox二进制文件包，包含运行所需组件 | [获取链接](https://www.hikunpeng.com/zh/developer/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft) | √ | √ | √ | √ |
 | 3 | kernel-6.6.0-72.0.0.zip | openEuler 24.03 LTS SP1 Kernel源码 | [获取链接](https://atomgit.com/openeuler/kernel/tree/6.6.0-72.0.0) | √ | √ | √ | √ |
 | 4 | ExaGear_ARM32-ARM64.tar.gz | ExaGear转码二进制包 | 请联系华为技术支持获取 | √ | √ | √ | √ |
 | 5 | Kbox-patches-AOSP15.zip | 内核补丁Demo包、容器部署脚本Demo包 | [获取链接](https://gitcode.com/boostkit/Kbox-patches/tree/AOSP15) | √ | √ | √ | √ |
-| 6 | NETINT-v*XXX*.tar.gz（可选） | NETINT编解码库，负责硬件编码，配套版本4.8.F-Android15 | [获取链接](https://www.netint.cn/quadra-firmware-downloads-android15)<br/>下载密码:test123 | √ | - | - | - |
-| 7 | Quadra_V*XXX*.zip | NETINT编码卡Quadra软固件及文档包。配套版本V4.8.F-Android15 | [获取链接](https://www.netint.cn/quadra-firmware-downloads-android15/)<br>下载密码:test123 | √ | - | - | - |
+| 6 | NETINT-v*XXX*.tar.gz（可选） | NETINT编解码库，当使能硬解的时候获取该软件包，配套版本4.8.F-Android15 | [获取链接](https://www.netint.cn/quadra-firmware-downloads-android15)<br/>下载密码:test123 | √ | - | - | - |
+| 7 | Quadra_V*XXX*.zip | 包含NETINT编码卡Quadra软固件及文档包，配套版本V4.8.F-Android15 | [获取链接](https://www.netint.cn/quadra-firmware-downloads-android15/)<br>下载密码:test123 | √ | - | - | - |
 | 8 | VAGPU-A15-C-F-26.02.06.00.RC2.tgz | 显卡驱动 | 请联系华为技术支持获取 | - | √ | √ | √ |
 | 9 | docker-24.0.0.tgz | Docker 24.0.0版本二进制包 | [获取链接](https://download.docker.com/linux/static/stable/aarch64/docker-24.0.0.tgz) | √ | √ | √ | √ |
 
@@ -64,7 +64,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 为了防止软件包在传递过程或存储期间被恶意篡改，从鲲鹏社区获取软件包时需下载对应的数字签名文件用于完整性验证。
 
-1. 请参见[**表 1** Kbox安卓容器环境搭建软件环境要求](#Kbox安卓容器环境搭建软件环境要求)获取软件包。
+1. 请参见[**表 2** Kbox安卓容器环境搭建软件环境要求](#Kbox安卓容器环境搭建软件环境要求)获取软件包。
 2. <a name="zh-cn_topic_0000001506119857_zh-cn_topic_0000001323011582_zh-cn_topic_0000001214652748_li1273482318125"></a>从[华为企业业务网站](https://support.huawei.com/enterprise/zh/tool/pgp-verify-TL1000000054)或[运营商网站](http://support.huawei.com/carrier/digitalSignatureAction)获取校验工具和校验方法。
 3. 使用[2](#zh-cn_topic_0000001506119857_zh-cn_topic_0000001323011582_zh-cn_topic_0000001214652748_li1273482318125)获取到的签名验证指南文档对下载的软件包进行PGP数字签名校验。
 
@@ -76,7 +76,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 ## 部署流程简述<a name="ZH-CN_TOPIC_0000002518385446"></a>
 
-本章节提供Kbox安卓容器环境部署流程，帮助您更好地理解部署过程中的各个环节。其中，当使用硬件配置方案二、三、四时需要执行安装显卡驱动操作步骤。
+本章节提供Kbox安卓容器环境部署流程，帮助您更好地理解部署过程中的各个环节。部署过程中，使用硬件配置方案二、三、四时需要执行安装显卡驱动操作步骤。
 
 容器环境部署的流程如[**图 1** 环境部署流程](#环境部署流程)所示。
 
@@ -125,7 +125,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
     ![](./figures/zh-cn_image_0000002518225530.png)
 
-4. 保存并退出。
+4. 保存BIOS配置并退出设置界面。
 
 **配置Performance相关选项<a name="section18236319121"></a>**
 
@@ -133,7 +133,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
     ![](./figures/BIOS6.png)
 
-2. 进入Performance Config设置页面后，将“Power Policy”选项设置为“Performance”后保存并退出。
+2. 进入Performance Config设置页面后，将“Power Policy”选项设置为“Performance”后保存BIOS配置并退出设置界面。
 
     ![](./figures/BIOS7.png)
 
@@ -142,7 +142,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 配置Memory中的“Memory Frequency”和“Custom Refresh Rate”选项。
 
 1. 在BIOS设置界面，依次选择“Advanced \> Memory Config”。
-2. 进入Memory Config设置页面后，将“Memory Frequency”选项设置为“2933”，将“Custom Refresh Rate”选项设置为“Auto”后保存并退出。
+2. 进入Memory Config设置页面后，将“Memory Frequency”选项设置为“2933”，将“Custom Refresh Rate”选项设置为“Auto”后保存BIOS配置并退出设置界面。
 
     ![](./figures/zh-cn_image_0000002549745299.png)
 
@@ -151,7 +151,8 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 使用硬件配置方案一并需要使能编码卡硬件解码功能时，需要通过配置PCIe选项，完成编码卡分叉选项的配置，使编码卡在不同应用场景中具有更好的性能和兼容性。
 
 1. 在BIOS设置界面，依次选择“Advanced \> PCIe Config”。
-2. 进入PCIe Config设置页面后，首先配置PCIe分叉选项：将NETINT编码卡Quadra所在Slot的分叉设置为“x4”后保存并退出BIOS配置。
+
+2. 进入PCIe Config设置页面后，首先配置PCIe分叉选项：将NETINT编码卡Quadra所在Slot的分叉设置为“x4”后保存BIOS配置并退出设置界面。
 
     例如Quadra安装在Slot3时，需要将“Slot3 BandWidth Splitting”选项设置为“x4”。
 
@@ -165,7 +166,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
         yum install nvme-cli
         ```
 
-    2. 将卡插上后执行以下命令查看NETINT编码卡是否被正确识别。
+    2. 将卡插入后执行以下命令查看NETINT编码卡是否被正确识别。
 
         ```bash
         nvme list
@@ -206,7 +207,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
     ![](./figures/zh-cn_image_0000002549865321.png)
 
-2. 进入MISC Configuration设置界面后，将“Support Smmu”选项设置为“Disabled”后保存并退出。
+2. 进入MISC Configuration设置界面后，将“Support Smmu”选项设置为“Disabled”后保存BIOS配置并退出设置界面。
 
     ![](./figures/zh-cn_image_0000002518225546.png)
 
@@ -216,7 +217,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
     ![](./figures/zh-cn_image_0000002549745317.png)
 
-2. 进入Power And Performance Configuration设置页面后，将“Power Policy”选项设置为“Performance”后保存并退出。
+2. 进入Power And Performance Configuration设置页面后，将“Power Policy”选项设置为“Performance”后保存BIOS配置并退出设置界面。
 
     ![](./figures/zh-cn_image_0000002518225548.png)
 
@@ -356,12 +357,12 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
 
 ### 编译准备<a name="ZH-CN_TOPIC_0000002518225520"></a>
 
-Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72.0.0）操作系统下进行内核源码的编译。在编译开始前，请正确配置服务器的网络环境、软件源、并同步服务器系统时间，以便下载相关的编译依赖包。
+ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72.0.0）操作系统下进行内核源码的编译。在编译开始前，请正确配置服务器的网络环境、软件源、同步服务器系统时间，以便下载相关的编译依赖包。
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >
 >- 编译内核中涉及的内核配置与修改仅作为功能性参考，不建议使用鲲鹏BoostKit云手机参考方案作为商用方案。若选择使用鲲鹏BoostKit云手机参考方案需自行承担安全风险，客户或ISV在商用前请进行必要的安全评估。
->- openEuler操作系统的安装请参见《[openEuler 24.03 LTS SP1 安装指导](https://docs.openeuler.openatom.cn/zh/docs/24.03_LTS_SP1/server/installation_upgrade/installation/installation_preparations.html)》。
+>- openEuler操作系统的安装请参考openEuler官方网站的文档：《[openEuler 24.03 LTS SP1 安装指导](https://docs.openeuler.openatom.cn/zh/docs/24.03_LTS_SP1/server/installation_upgrade/installation/installation_preparations.html)》
 
 编译时请使用root账号登录和操作。
 
@@ -472,9 +473,9 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >
-    >如果安装过程中有获取包失败的情况，请根据提示中的网址，手动获取安装包进行安装，安装成功后，继续安装尚未安装的依赖包。
+    >如果安装过程中有获取包失败的情况，建议根据提示中的网址手动获取安装包进行安装，安装成功后继续安装剩余依赖包。
 
-5. 安装Docker组件与lxcfs，并启动lxcfs服务，设置lxcfs为开机自启动。如已自定义安装Docker与lxcfs，可跳过此步骤。
+5. 安装Docker组件与lxcfs，如已自定义安装Docker与lxcfs，可跳过此步骤。
 
     ```bash
     yum install -y docker lxc lxcfs lxcfs-tools 
@@ -628,7 +629,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
     |--|--|--|--|
     |CONFIG_F2FS_FS|Y|[\*] F2FS filesystem support|CONFIG_F2FS_FS=y|  
 
-    如果要使能容器支持以f2fs文件格式启动，则还要进行上面内核编译选项的配置
+    如果要使能容器支持以f2fs文件格式启动，则还要进行上面内核编译选项的配置。
 
     **表 3** （可选）使能nfs内核编译选项配置说明<a id="使能nfs内核编译选项配置说明"></a>
 
@@ -696,7 +697,7 @@ Kbox云手机容器支持在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >
-    >若编译过程中存在如下提示信息，则需要确保服务器系统时间为最新时间。
+    >若编译过程中存在如下提示信息，则需要确保服务器系统时间已同步至正确时间。
     >
     >```bash
     >make[2]: warning:  Clock skew detected.  Your build may be incomplete.
@@ -969,7 +970,7 @@ NUMA node: 2
     dmesg | grep VAGPU | grep version
     ```
 
-    回显信息中显卡内核态驱动版本号和显卡固件版本号相同，如下加粗内容，则表明显卡驱动安装完成。
+    回显信息中显卡内核态驱动版本号和显卡固件版本号相同，如下命令中加粗的内容，则表明显卡驱动安装完成。
 
     ```bash
     PVR_K:(Log): 3697791: Meta firmware version: 1.18@6276027B20260602 build: release branch: release/26.02 commit: d0697cf9 tag: VAGPU-A15-C-F-26.02.06.00.RC2

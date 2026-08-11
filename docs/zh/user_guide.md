@@ -4,20 +4,20 @@
 
 ### 挂载安卓镜像<a name="ZH-CN_TOPIC_0000002549865629"></a>
 
-华为镜像仓提供的官方Kbox Demo镜像不包含Android Kbox二进制，所以使用该镜像无法正常启动容器。用户使用该Demo镜像时，需要下载Android Kbox二进制到本地，并使用脚本制作可正常启动的Kbox原始镜像。
+华为镜像仓库提供的官方Kbox Demo镜像不包含Android Kbox二进制，所以使用该镜像无法正常启动容器。用户使用该Demo镜像时，需要下载Android Kbox二进制到本地，并使用脚本制作可正常启动的Kbox原始镜像。如需使能硬解功能，在挂载Kbox原始镜像后，需继续制作合入NETINT编解码库的Kbox新镜像。
 
 **表 1** 镜像的获取方式与使用<a id="镜像的获取方式与使用"></a>
 
 |镜像名称+tag|获取方式|使用方法|
 |--|--|--|
 | 用户自行编译 | 用户自行编译 | 请参见章节自行编译，已包含Android Kbox二进制，容器可正常启动 |
-| kbox:demo | 华为镜像仓提供的官方Kbox Demo镜像 | 不包含Android Kbox二进制，容器无法正常启动，需要执行制作Kbox镜像：合入商用二进制步骤 |
+| kbox:demo | 华为镜像仓库提供的官方Kbox Demo镜像 | 不包含Android Kbox二进制，容器无法正常启动，需要执行制作Kbox镜像：合入商用二进制步骤 |
 | kbox:origin | 使用脚本制作 | 基于kbox:demo和Android Kbox二进制制作的镜像，容器可以正常启动 |
 | kbox:latest|使用脚本制作的硬解镜像 | 基于kbox:origin和编解码库制作的镜像，使能配置方案一的硬解功能，容器可正常启动 |
 
 **Kbox Demo镜像挂载<a name="section16531422174717"></a>**
 
-上传Kbox Demo镜像包至“~/dependency”目录（本文以此目录作为示例，用户可自行设置目录），并挂载。
+请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)获取android.tar包上传至“~/dependency”目录（本文以此目录作为示例，用户可自行设置目录），并挂载。
 
 镜像的名称和tag可以自行定义，格式为“{名称}:{tag}”，此处设置镜像名为kbox:demo。
 
@@ -34,7 +34,7 @@ docker import android.tar kbox:demo
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >
->用户使用华为镜像仓提供的官方Kbox Demo镜像时，需要通过该小节的操作确保镜像中包含Android Kbox二进制。
+>用户使用华为镜像仓库提供的官方Kbox Demo镜像时，需要通过该小节的操作确保镜像中包含Android Kbox二进制。
 >当用户使用自行编译的镜像时：
 >
 >- 硬件配置方案一：可跳过该小节的全部步骤。
@@ -109,7 +109,9 @@ docker import android.tar kbox:demo
 >
 >为确保Kbox云手机的稳定运行与最佳性能，请保障每个容器所绑定的CPU物理核和GPU渲染节点同属于一个CPU片。
 
-Kbox云手机容器支持使能图形加速层，通过修改kbox_config.cfg配置文件中的“ENABLE_RENDER_LAYER”为1进行使能。打开“~/dependency/deploy_scripts”路径下的“kbox_render_accelerating_configuration.xml”配置文件，对应用的图形加速层功能进行配置。具体配置项描述请参见《[视频流引擎 用户指南（Android 15）](https://gitcode.com/boostkit/vmi/blob/CloudPhone15/docs/zh/user_guide.md)》中的“图形加速层配置项”章节。首次启动云手机容器后，若需要修改图形加速层功能的配置，修改配置文件中应用对应的配置，手动将其拷贝到云手机容器“/data/local/tmp”路径，重启应用生效。
+Kbox云手机容器支持根据客户需求定制系统属性，以覆盖原有系统属性。如需使用定制属性，需要在启动路径中生成“local.prop”文件，文件内记录定制的系统属性，容器启动后的初始化过程会读取该文件内的属性并覆盖写入。
+
+Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置文件中的“ENABLE_RENDER_LAYER”修改为“1”进行使能。打开“~/dependency/deploy_scripts”路径下的“kbox_render_accelerating_configuration.xml”配置文件，对应用的图形加速层功能进行配置。具体配置项描述请参见《[视频流引擎 用户指南（Android 15）](https://gitcode.com/boostkit/vmi/blob/CloudPhone15/docs/zh/user_guide.md)》中的“图形加速层配置项”章节。首次启动云手机容器后，若需要修改图形加速层功能的配置，修改配置文件中应用对应的配置，手动将其拷贝到云手机容器“/data/local/tmp”路径，重启应用生效。
 
 1. 解压Kbox-patches-AOSP15.zip，将Kbox-patches-AOSP15文件夹中的“deploy_scripts”目录上传至服务器的“~/dependency”目录。
 2. （可选）使能硬件解码（以下简称“硬解”）。
@@ -201,8 +203,10 @@ Kbox云手机容器支持使能图形加速层，通过修改kbox_config.cfg配�
     ```bash
     cd ~/dependency/deploy_scripts
     chmod +x android_kbox_aosp15.sh
-    ./android_kbox_aosp15.sh start {镜像名称：tag}  ${index1}    
+    ./android_kbox_aosp15.sh start {镜像名称：tag} ${index1} ${index2}
     ```
+
+    其中，${index1}为启动实例的起始编号，${index2}为启动实例的终止编号。若仅启动单路实例，可省略${index2}参数。
 
     Kbox基础云手机的默认配置信息如[**表 2** Kbox基础云手机的默认配置信息](#Kbox基础云手机的默认配置信息)所示。
 
@@ -223,8 +227,15 @@ Kbox云手机容器支持使能图形加速层，通过修改kbox_config.cfg配�
     ./android_kbox_aosp15.sh start kbox:origin  1
     ```
 
+    启动脚本使用示例：启动编号为1至9的多个实例。
+
+    ```bash
+    ./android_kbox_aosp15.sh start kbox:origin 1 9
+    ```
+
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >
+    >- Kbox云手机容器启动时，一般情况下会自动打开Kbox内核动态开关，以使能必要的Linux Kernel功能。
     >- 启动容器的过程中可能会出现“writing syncT "procError"”、“exec /system/bin/chmod: no such file”等类似报错，该类报错不影响正常功能，忽略即可。
     >- 启动容器时，指定的${index1}对应容器绑定的端口，例如index1=10时，对应使用端口8010/8510。在启动时需要确保对应的端口没有被占用。
     >- 可以通过以下指令查询Kbox内核动态开关状态。
@@ -260,6 +271,12 @@ Kbox云手机容器支持使能图形加速层，通过修改kbox_config.cfg配�
     ./android_kbox_aosp15.sh delete ${index}
     ```
 
+    停止并删除编号为1至9的多个容器。
+
+    ```bash
+    ./android_kbox_aosp15.sh delete 1 9
+    ```
+
 7. 重启Kbox容器的方法。
 
     由于Kbox方案默认挂载数据卷，在重启容器时，无法使用默认的`docker restart`命令进行重启，需要使用脚本执行容器的重启操作。
@@ -272,13 +289,23 @@ Kbox云手机容器支持使能图形加速层，通过修改kbox_config.cfg配�
     ./android_kbox_aosp15.sh restart ${index}
     ```
 
+    重启编号为1至9的多个容器。
+
+    ```bash
+    ./android_kbox_aosp15.sh restart 1 9
+    ```
+
+    >![](public_sys-resources/icon-note.gif) **说明：**
+    >
+    >使用硬件配置方案一时，必须在容器第一次启动时配置开/关C2解码器，不支持中途切换。云手机内置应用会根据自身需要自行选择解码器。
+
 ### 查询版本号信息<a name="ZH-CN_TOPIC_0000002518225866"></a>
 
-本章节提供两种获取Kbox组件版本信息，通过软件包查询和通过命令查询版本号信息。
+本章节提供两种获取Kbox组件版本信息的方式，通过软件包查询和通过命令查询版本号信息。
 
 方法一：通过获取的软件包查询版本号信息。
 
-请参见[软件环境](compile_guide.md#Kbox安卓镜像编译构建软件环境要求)中获取并解压BoostKit-boostcph-kbox_\*_15.zip，通过查询kbox_version.txt文件，确认当前软件包的版本号。
+请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)中获取并解压BoostKit-boostcph-kbox_\*_15.zip，通过查询kbox_version.txt文件，确认当前软件包的版本号。
 
 ```bash
 unzip BoostKit-boostcph-kbox_*_15.zip
@@ -352,7 +379,7 @@ SYSTEM_PARTITION_SIZE_MB=${预期要实现的/system分区大小值(MB)}
 df -h /system
 ```
 
-确认 `Size` 列显示的大小(MB)与您配置的参数大小(MB)一致，即表示分区调节生效。
+确认 `Size` 列显示的大小与您配置的参数一致，即表示分区调节生效。
 
 ### （可选） 使能容器支持NFS挂载启动
 
@@ -373,7 +400,7 @@ df -h /system
 删除云手机使用`ndelete`命令，ndelete删除后img镜像文件会默认保存。
 
 ```bash
-./android_kbox_aosp15.sh ndelete 1
+./android_kbox_aosp15.sh ndelete kbox:origin 1
 ```
 
 #### 校验是否生效
@@ -616,12 +643,12 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 |配置项名称|含义|类型|取值范围|默认值|说明|
 |--|--|--|--|--|--|
-| persist.gps.mock.latitude | 纬度。单位：度 | double | 纬度范围是[-90,90]度 | 30.188433度 | 默认值为杭州的纬度。Android因为代码限制，经纬度不能同时设置为零 |
-| persist.gps.mock.longitude | 经度。单位：度 | double | 经度范围是[-180,180]度 | 120.199818度 | 初始值为杭州的经度。Android因为代码限制，经纬度不能同时设置为零 |
-| persist.gps.mock.altitude | 海拔高度，单位：米 | double | 无限制，正负皆可 | 0米 | 初始值代表当前海拔高度为0米 |
-| persist.gps.mock.speed | 表示当前的移动速度，单位：米每秒 | float | [0,343]米每秒 | 0米每秒 | 初始值代表当前处于静止状态，超过343米每秒Android系统会停止上报GPS数据 |
-| persist.gps.mock.bearing | 当前的移动导向角，单位：度 | float | 范围[0,360)度 | 0度 | 初始值代表正北方 |
-| persist.gps.mock.accuracy | 表示当前的定位精度，单位：米 | float | 大于等于0米 | 20米 | 初始值代表定位误差为正负20米 |
+| persist.gps.mock.latitude | 纬度 | double | 纬度范围是[-90,90]度 | 30.188433度 | 默认值为杭州的纬度。Android 15因为代码限制，经纬度不能同时设置为零 |
+| persist.gps.mock.longitude | 经度 | double | 经度范围是[-180,180]度 | 120.199818度 | 初始值为杭州的经度。Android 15因为代码限制，经纬度不能同时设置为零 |
+| persist.gps.mock.altitude | 海拔高度，单位：米 | double | 无限制，正负皆可 | 0米 | 初始值表示当前海拔高度为0米 |
+| persist.gps.mock.speed | 表示当前的移动速度，单位：米每秒 | float | [0,343]米每秒 | 0米每秒 | 初始值表示当前处于静止状态，超过343米每秒Android系统会停止上报GPS数据 |
+| persist.gps.mock.bearing | 当前的移动导向角，单位：度 | float | 范围[0,360)度 | 0度 | 初始值表示正北方 |
+| persist.gps.mock.accuracy | 表示当前的定位精度，单位：米 | float | 大于等于0米 | 20米 | 初始值表示定位误差为正负20米 |
 
 ##### 配置属性示例<a name="ZH-CN_TOPIC_0000002518225836"></a>
 
@@ -658,12 +685,13 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 3. 重启容器后，查询Location Service的GPS数据，进入容器后使用如下命令查询最近更新的GPS数据。
 
     ```bash
-    dumpsys location | grep  "last location"
+    dumpsys location | grep -A 1 "gps provider:"
     ```
 
     根据返回值判断GPS属性是否生效。示例回显如下。
 
     ```bash
+    gps provider:
     last location=Location[gps 30.188433,120.193818 hAcc=20.0 et=+3d21h54m53s533ms alt=0.0 mslAlt=-8.068903955722352 vel=0.0 bear=0.0 {Bundle[{satellites=0, maxCn0=0, meanCn0=0}]}]
     ```
 
@@ -690,7 +718,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 | persist.gsm.operator.numericcph | 网络运营商代码 | int | 5~6位数字 | 46000 | 由3位网络运营商国家代码+2~3位移动网络代码组成，比如460表示中国（cn），00表示中国移动 |
 | persist.sys.prop.writeimsi | 国际移动用户识别码（IMSI） | int | 15位数字 | 46000+随机值 | 前5~6位表示SIM卡运营商代码，组成和网络运营商代码相同，460表示中国（cn），00表示中国移动 |
 | persist.gsm.sim.operator.alphacph | SIM卡运营商名字 | string | 1~20位字母或数字或空格 | China Mobile | - |
-| persist.sys.prop.writesimserial | SIM卡序列号 | int | 20位数字 | 898603+随机值+[****] | 89为国际代码，86表示中国，00表示中国移动 |
+| persist.sys.prop.writesimserial | SIM卡序列号 | int | 20位数字 | 898603+随机值 | 89为国际代码，86表示中国，00表示中国移动 |
 | persist.sys.prop.writephonenum | 手机号码 | int | 7~11位数字 | 15551236565 | - |
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
@@ -756,7 +784,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     重启容器后，通过命令查询设置结果。
 
     ```bash
-    dumpsys isub | grep -i iccid
+    dumpsys isub | grep iccid
     ```
 
     ![](./figures/zh-cn_image_0000002549745667.png)
@@ -796,10 +824,10 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 |配置项名称|含义|类型|取值范围|默认值|说明|
 |--|--|--|--|--|--|
 | persist.sensors.mock.delaytime | 数据采集频率（以微秒为单位） | int | [20000,1000000] | 200000 | 当设置的persist.sensors.mock.delaytime的值不在[20000,1000000]内时，实际采用默认值 |
-| persist.sensors.mock.acce.data.x | 当配置项为persist.sensors.mock.acce.data.x，表示沿x轴的加速力（包括重力），单位：m/s^2 | float | [-3.402823466e+38,3.402823466e+38] | 加速度x轴默认值均为9.833359，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.x。但由于Android 15将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032 | 当设置的persist.sensors.mock.acce.data.x值包含非数字/小数点字符的非法字符时，设置无效采用默认值。注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题 |
-| persist.sensors.mock.gyro.data.x | 当配置项为persist.sensors.mock.gyro.data.x，表示沿x轴的旋转速率，单位：弧度/秒 | float | [-3.402823466e+38,3.402823466e+38] | 陀螺仪的x轴默认值均为9.833359，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.gyro.data.x上。但由于Android 15将底层采集的数据与resolution值一起计算量化成新值，陀螺仪resolution=1/1000 | 当设置的persist.sensors.mock.gyro.data.x值包含非数字/小数点字符的非法字符时，设置无效采用默认值。注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题 |
+| persist.sensors.mock.acce.data.x | 当配置项为persist.sensors.mock.acce.data.x，表示沿x轴的加速力（包括重力），单位：m/s^2 | float | [-3.402823466e+38,3.402823466e+38] | 加速度和陀螺仪的x轴默认值均为9.833359，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.x或persist.sensors.mock.gyro.data.x上。但由于Android 15将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000 | 当设置的persist.sensors.mock.acce.data.x值包含非数字/小数点字符的非法字符时，设置无效采用默认值。注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题 |
+| persist.sensors.mock.gyro.data.x | 当配置项为persist.sensors.mock.gyro.data.x，表示沿x轴的旋转速率，单位：弧度/秒 | float | [-3.402823466e+38,3.402823466e+38] | 加速度和陀螺仪的x轴默认值均为9.833359，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.x或persist.sensors.mock.gyro.data.x上。但由于Android 15将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000 | 当设置的persist.sensors.mock.gyro.data.x值包含非数字/小数点字符的非法字符时，设置无效采用默认值。注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题 |
 | persist.sensors.mock.acce.data.y | 当配置项为persist.sensors.mock.acce.data.y，表示沿y轴的加速力（包括重力） | float | [-3.402823466e+38,3.402823466e+38] | 加速度的y轴默认值均为0.184357，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.y上。但由于Android 15将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032 | 当设置的persist.sensors.mock.acce.data.y值包含非数字/小数点字符的非法字符时，设置无效采用默认值。注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题 |
-| persist.sensors.mock.gyro.data.y | 配置项为persist.sensors.mock.gyro.data.y，表示沿y轴的旋转速率 | float | [-3.402823466e+38,3.402823466e+38] | 陀螺仪的y轴默认值均为0.184357，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.gyro.data.y上。但由于Android 15将底层采集的数据与resolution值一起计算量化成新值，陀螺仪resolution=1/1000 | 当设置的persist.sensors.mock.gyro.data.y值包含非数字/小数点字符的非法字符时，设置无效采用默认值。注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题 |
+| persist.sensors.mock.gyro.data.y | 当配置项为persist.sensors.mock.gyro.data.y，表示沿y轴的旋转速率 | float | [-3.402823466e+38,3.402823466e+38] | 陀螺仪的y轴默认值均为0.184357，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.gyro.data.y上。但由于Android 15将底层采集的数据与resolution值一起计算量化成新值，陀螺仪resolution=1/1000 | 当设置的persist.sensors.mock.gyro.data.y值包含非数字/小数点字符的非法字符时，设置无效采用默认值。注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题 |
 | persist.sensors.mock.acce.data.z | 当配置项为persist.sensors.mock.acce.data.z，表示沿z轴的加速力（包括重力） | float | [-3.402823466e+38,3.402823466e+38] | 加速度的z轴默认值均为0.101028，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.z上。但由于Android 15将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032 | 当设置persist.sensors.mock.acce.data.z的值包含非数字/小数点字符的非法字符时，设置无效采用默认值。注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题 |
 | persist.sensors.mock.gyro.data.z | 当配置项为persist.sensors.mock.gyro.data.z，表示沿z轴的旋转速率 | float | [-3.402823466e+38,3.402823466e+38] | 陀螺仪的z轴默认值均为0.101028，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.gyro.data.z上。但由于Android 15将底层采集的数据与resolution值一起计算量化成新值，陀螺仪resolution=1/1000 | 当设置persist.sensors.mock.gyro.data.z的值包含非数字/小数点字符的非法字符时，设置无效采用默认值。注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题 |
 
@@ -914,6 +942,14 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     could not get driver version for /dev/input/event0, Inappropriate ioctl for device
     could not get driver version for /dev/input/event1, Inappropriate ioctl for device
     ```
+
+### 系统功能参数配置
+
+|配置项名称|含义|类型|取值范围|默认值|说明|
+|--|--|--|--|--|--|
+|sys.vmi.vk.texturecompress| 纹理压缩开关。支持Vulkan RGB和RGBA纹理压缩为BC7纹理以及支持先将ETC2纹理解码为RGBA格式，再压缩成BC7纹理 |int|0：关闭纹理压缩<br>1：开启纹理压缩|1| 该功能不支持在应用运行期间修改，如需修改，需要先退出应用。该功能不支持纹理后处理，如应用存在此种应用场景可能造成渲染异常，此时需关闭纹理压缩功能后重新打开应用 |
+|sys.vmi.gl.texturecompress| 纹理压缩开关。支持将OpenGL ES ASTC纹理转为RGBA格式，然后再重新压缩成BC3纹理 |int|0：关闭纹理压缩<br>1：开启纹理压缩|1| 该功能不支持在应用运行期间修改，如需修改，需要先退出应用 |
+|ro.vmi.adaptive.vsync| 自适应vsync功能开关，默认不使能 |int|0：关闭自适应vsync<br>1：开启自适应vsync|0| 该功能修改后重启生效 |
 
 ## 故障处理<a name="ZH-CN_TOPIC_0000002549865625"></a>
 

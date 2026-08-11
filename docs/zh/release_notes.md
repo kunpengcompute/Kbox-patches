@@ -38,7 +38,7 @@
 
 ## 版本使用注意事项<a name="ZH-CN_TOPIC_0000002549825861"></a>
 
-请参见相应版本的特性指南，例如《[特性指南](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP15/docs/zh/feature_guide.md)》。
+请参考相应版本的特性指南，例如《[特性指南](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP15/docs/zh/feature_guide.md)》。
 
 ## V7.3.0_15<a name="ZH-CN_TOPIC_0000002549705869"></a>
 
@@ -88,4 +88,4 @@
 
 ### 获取文档方式<a name="ZH-CN_TOPIC_0000002549825867"></a>
 
-您可以通过访问[目录结构](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP15/docs/zh/menu.md)浏览和获取相关文档。
+您可以通过访问[menu](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP15/docs/zh/menu.md)浏览和获取相关文档。
