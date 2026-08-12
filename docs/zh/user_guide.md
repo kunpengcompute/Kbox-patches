@@ -196,6 +196,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
     ```bash
     ENABLE_AMD_C2_DECODE=1
+    T432_QUADRA_DECODE_ENABLE=0
     ```
 
 4. 通过android_kbox_aosp15.sh脚本启动容器。
