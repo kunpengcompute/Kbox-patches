@@ -328,7 +328,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
         source ~/.bashrc
         ```
 
-## 编译AOSP源码与镜像生成<a id="ZH-CN_TOPIC_0000002518185476" id="编译AOSP源码与镜像生成"></a>
+## 编译AOSP源码与镜像生成<a id="ZH-CN_TOPIC_0000002518185476"></a><a id="编译AOSP源码与镜像生成"></a>
 
 ### 下载AOSP源码<a id="ZH-CN_TOPIC_0000002549705281"></a>
 
