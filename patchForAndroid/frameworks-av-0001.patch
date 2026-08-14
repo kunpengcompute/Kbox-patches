@@ -680,7 +680,7 @@ diff --git a/services/mediacodec/seccomp_policy/mediacodec-arm.policy b/services
 index b4a9ff6..90fe060 100644
 --- a/services/mediacodec/seccomp_policy/mediacodec-arm.policy
 +++ b/services/mediacodec/seccomp_policy/mediacodec-arm.policy
-@@ -57,7 +57,16 @@ fstatat64: 1
+@@ -57,7 +57,15 @@ fstatat64: 1
  ugetrlimit: 1
  getdents64: 1
  getrandom: 1
@@ -692,7 +692,6 @@ index b4a9ff6..90fe060 100644
 +flock: 1
 +msync: 1
 +pwrite64: 1
-+sysinfo: 1
 +stat64: 1
 +sched_getaffinity: 1
  @include /system/etc/seccomp_policy/crash_dump.arm.policy
@@ -702,7 +701,7 @@ diff --git a/services/mediacodec/seccomp_policy/mediacodec-arm64.policy b/servic
 index b4a9ff6..90fe060 100644
 --- a/services/mediacodec/seccomp_policy/mediacodec-arm64.policy
 +++ b/services/mediacodec/seccomp_policy/mediacodec-arm64.policy
-@@ -57,7 +57,16 @@ fstatat64: 1
+@@ -57,7 +57,15 @@ fstatat64: 1
  ugetrlimit: 1
  getdents64: 1
  getrandom: 1
@@ -714,7 +713,6 @@ index b4a9ff6..90fe060 100644
 +flock: 1
 +msync: 1
 +pwrite64: 1
-+sysinfo: 1
 +stat64: 1
 +sched_getaffinity: 1
  @include /system/etc/seccomp_policy/crash_dump.arm.policy
