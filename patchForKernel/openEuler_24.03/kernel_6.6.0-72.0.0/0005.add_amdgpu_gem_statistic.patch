@@ -685,7 +685,7 @@ index 000000000..ec4b7fcb4
 +    return;
 +
 +free_str_array:
-+    for (i = 0; i <= amd_num; i++) {
++    for (i = 0; i < amd_num; i++) {
 +        if (str_array[i]) {
 +            kfree(str_array[i]);
 +        }
