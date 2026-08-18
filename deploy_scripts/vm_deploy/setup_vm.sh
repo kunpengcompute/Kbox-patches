@@ -52,8 +52,9 @@ function main()
 	fi
 
 	local domain_name="$1"
-	local domain="$(virsh domuuid "$domain_name")"
-	if [ $? -nt 0 ] || [ -z $domain ]; then
+	local domain
+	domain="$(virsh domuuid "$domain_name")"
+	if [ $? -ne 0 ] || [ -z "$domain" ]; then
                 echo "no such vm $domain_name"
                 exit 1
         fi
