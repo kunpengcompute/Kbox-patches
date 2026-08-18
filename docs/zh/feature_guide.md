@@ -330,6 +330,7 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
    ```bash
    XXX on /data type f2fs (rw,relatime)
+   ```
 
 ## 容器内/system分区大小可调节<a name="ZH-CN_TOPIC_0000002549865943"></a>
 
