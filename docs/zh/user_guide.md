@@ -237,6 +237,8 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
         >![](./public_sys-resources/icon-note.gif) **说明：**
         >
         >Kbox云手机容器启动时，一般情况下会自动打开Kbox内核动态开关，以使能必要的Linux Kernel功能。
+        >启动容器的过程中可能会出现“writing syncT "procError"”、“exec /system/bin/chmod: no such file”等类似报错，该类报错不影响正常功能，忽略即可。
+        >启动容器时，指定的${index1}对应容器绑定的端口，例如index1=10时，对应使用端口8010/8510。在启动时需要确保对应的端口没有被占用。
         >可以通过以下指令查询Kbox内核动态开关状态。
         >
         >```bash
@@ -343,7 +345,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
     - “pages_to_scan”表示在KSM守护进程睡眠之前，需要扫描多少页面。
     - “sleep_millisecs”表示守护进程内核线程完成一次扫描之后的睡眠时间，以毫秒为单位。
 
-    通过**echo  _xx_  \> /sys/kernel/mm/ksm/_$param_** 进行参数修改，其中xx为要修改的参数值大小，$param为要修改的参数。
+    通过`echo <xx> > /sys/kernel/mm/ksm/<param>` 进行参数修改，其中`<xx>`为要修改的参数值大小，`<param>`为要修改的参数。
 
 2. 容器使能自动全量KSM去重。
 
@@ -703,8 +705,8 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     根据返回值判断GPS属性是否生效。示例回显如下。
 
     ```bash
-        gps provider:
-          last location=Location[gps 30.188433,120.199818 hAcc=20 et=+2h17m10s384ms alt=0.0 vel=0.0 bear=0.0 vAcc=??? sAcc=??? bAcc=??? {Bundle[{}]}]
+    gps provider:
+        last location=Location[gps 30.188433,120.199818 hAcc=20 et=+2h17m10s384ms alt=0.0 vel=0.0 bear=0.0 vAcc=??? sAcc=??? bAcc=??? {Bundle[{}]}]
     ```
 
     |返回帧参数项|含义|
@@ -744,7 +746,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     setprop persist.sys.prop.writeimei 861456987456321
     ```
 
-    重启容器后，拨号界面输入“\*\#06\#”，获得如下提示。
+    重启容器后，拨号界面输入`*#06#`，获得如下提示。
 
     ![IMEI查询结果](./figures/zh-cn_image_0000002518352734.png)
 
@@ -770,7 +772,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     setprop persist.gsm.sim.operator.alphacph CMCC
     ```
 
-    重启容器后，拨号界面输入“\*\#\*\#4636\#\*\#\*”，打开手机信息，可以查询到“IMSI”。
+    重启容器后，拨号界面输入`*#*#4636#*#*`，打开手机信息，可以查询到“IMSI”。
 
     ![IMSI查询结果](./figures/zh-cn_image_0000002549712583.png)
 
@@ -819,7 +821,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 |---|---|---|---|---|---|
 |persist.sensors.mock.delaytime| 数据采集频率（以微秒为单位） |int|[20000,1000000]|200000| 当设置的persist.sensors.mock.delaytime的值不在[20000,1000000]内时，实际采用默认值 |
 |persist.sensors.mock.acce.data.x| 当配置项为persist.sensors.mock.acce.data.x，表示沿x轴的加速力（包括重力），单位：m/s^2 |float|[-3.402823466e+38,3.402823466e+38]| 加速度和陀螺仪的x轴默认值均为9.833359，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.x或persist.sensors.mock.gyro.data.x上。但由于Android 11将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000 |当设置的persist.sensors.mock.acce.data.x或persist.sensors.mock.gyro.data.x的值包含非数字且非小数点字符的非法字符时，设置无效采用默认值。需注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题。|
-|persist.sensors.mock.gyro.data.x| 当配置项为persist.sensors.mock.acce.data.x，表示沿x轴的加速力（包括重力），单位：m/s^2 |float|[-3.402823466e+38,3.402823466e+38]| 加速度和陀螺仪的x轴默认值均为9.833359，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.x或persist.sensors.mock.gyro.data.x上。但由于Android 11将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000 |当设置的persist.sensors.mock.acce.data.x或persist.sensors.mock.gyro.data.x的值包含非数字且非小数点字符的非法字符时，设置无效采用默认值。需注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题。|
+|persist.sensors.mock.gyro.data.x| 当配置项为persist.sensors.mock.gyro.data.x，表示沿x轴的旋转速率，单位：弧度/秒 |float|[-3.402823466e+38,3.402823466e+38]| 加速度和陀螺仪的x轴默认值均为9.833359，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.x或persist.sensors.mock.gyro.data.x上。但由于Android 11将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000 |当设置的persist.sensors.mock.acce.data.x或persist.sensors.mock.gyro.data.x的值包含非数字且非小数点字符的非法字符时，设置无效采用默认值。需注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题。|
 |persist.sensors.mock.acce.data.y| 当配置项为persist.sensors.mock.acce.data.y，表示沿y轴的加速力（包括重力） |float|[-3.402823466e+38,3.402823466e+38]| 加速度和陀螺仪的y轴默认值均为0.184357，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.y或persist.sensors.mock.gyro.data.y上。但由于Android 11将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000 |当设置的persist.sensors.mock.acce.data.y或persist.sensors.mock.gyro.data.y的值包含非数字/小数点字符的非法字符时，设置无效采用默认值。需注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题。|
 |persist.sensors.mock.gyro.data.y| 当配置项为persist.sensors.mock.gyro.data.y，表示沿y轴的旋转速率 |float|[-3.402823466e+38,3.402823466e+38]| 加速度和陀螺仪的y轴默认值均为0.184357，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.y或persist.sensors.mock.gyro.data.y上。但由于Android 11将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000 |当设置的persist.sensors.mock.acce.data.y或persist.sensors.mock.gyro.data.y的值包含非数字/小数点字符的非法字符时，设置无效采用默认值。需注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题。|
 |persist.sensors.mock.acce.data.z| 当配置项为persist.sensors.mock.acce.data.z，表示沿z轴的加速力（包括重力） |float|[-3.402823466e+38,3.402823466e+38]| 加速度和陀螺仪的z轴默认值均为0.101028，该默认值可通过相关应用软件查询，不体现在系统属性persist.sensors.mock.acce.data.z或persist.sensors.mock.gyro.data.z上。但由于Android 11将底层采集的数据与resolution值一起计算量化成新值，加速度resolution=1/4032，陀螺仪resolution=1/1000 |当设置的persist.sensors.mock.acce.data.z或persist.sensors.mock.gyro.data.z的值包含非数字/小数点字符的非法字符时，设置无效采用默认值。需注意float类型参数有效值为6-7位，若设置的数据有效值超过6-7位，请采用科学计数法表示，如3.40282e+38。由于float类型有效值位数限制，超出范围的数据会乱码。部分上层应用由于浮点数类型转换，在有效数字范围内也存在精度浮动问题。|
@@ -865,9 +867,9 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 |配置项名称|含义|类型|取值要求|说明|
 |---|---|---|---|---|
-|persist.sys.input.mouse.name| 创建鼠标设备标识属性 |string| 取值字符类型仅限字母、下划线、数字，字符长度范围为1～64位 |如果设置参数不符号要求，实际设置无效。|
-|persist.sys.input.gamepad1.name| 创建手柄1设备标识属性 |string| 取值字符类型仅限字母、下划线、数字，字符长度范围为1～64位 |如果设置参数不符号要求，实际设置无效。|
-|persist.sys.input.gamepad2.name| 创建手柄2设备标识属性 |string| 取值字符类型仅限字母、下划线、数字，字符长度范围为1～64位 |如果设置参数不符号要求，实际设置无效。|
+|persist.sys.input.mouse.name| 创建鼠标设备标识属性 |string| 取值字符类型仅限字母、下划线、数字，字符长度范围为1～64位 |如果设置参数不符合要求，实际设置无效。|
+|persist.sys.input.gamepad1.name| 创建手柄1设备标识属性 |string| 取值字符类型仅限字母、下划线、数字，字符长度范围为1～64位 |如果设置参数不符合要求，实际设置无效。|
+|persist.sys.input.gamepad2.name| 创建手柄2设备标识属性 |string| 取值字符类型仅限字母、下划线、数字，字符长度范围为1～64位 |如果设置参数不符合要求，实际设置无效。|
 
 ##### 配置属性示例<a id="ZH-CN_TOPIC_0000002518192790"></a>
 

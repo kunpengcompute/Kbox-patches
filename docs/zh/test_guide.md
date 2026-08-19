@@ -11,7 +11,7 @@
 1. 在进行验收前请确保使用的物理环境、系统环境以及软件版本正确并配套。
 2. 执行验收用例前请首先完成Kbox云手机端到端环境部署，具体部署步骤请参见《[install_guide](install_guide.md)》。
 3. 验收的项目应经过华为公司和用户双方相关人员的确认。
-4. 在验收和初验测试过程中，双方人员应对照相关标准严格测试。由于部分指标参数出厂时已经测试，验收时限于条件可以进行抽测或免测。
+4. 在验收和初验测试过程中，双方人员应对照相关标准严格测试，部分指标参数出厂时已经测试，验收时由于限于条件可以进行抽测或免测。
 
 >![](./public_sys-resources/icon-note.gif) **说明：**
 >
@@ -45,7 +45,7 @@
 | 测试目的 | 创建Kbox云手机容器。 |
 | 测试组网 | 无 |
 | 预置条件 | Kbox云手机基本环境已部署完成。 |
-| 测试步骤 | 1. 执行创建Kbox云手机容器命令`./android11_kbox.sh start kbox_image:tag x y`。 <br>说明： 其中x，y表示想要创建的容器编号首尾值，如创建1到9号容器则`x`输入1，`y`输入9；如果只想创建单个容器，仅输入x即可。<br>2. 执行命令`docker ps -a`查看已创建成功的Kbox云手机容器及状态。 |
+| 测试步骤 | 1. 执行创建Kbox云手机容器命令`./android11_kbox.sh start kbox_image:tag <x> <y>`。 <br>说明： 其中x，y表示想要创建的容器编号首尾值，如创建1到9号容器则`x`输入1，`y`输入9；如果只想创建单个容器，仅输入x即可。<br>2. 执行命令`docker ps -a`查看已创建成功的Kbox云手机容器及状态。 |
 | 预期结果 | 1. Kbox云手机容器创建结束回显成功标志。<br>2. 执行命令可以查询到已创建的设备及状态。 |
 | 测试结果 |  |
 | 备注 |  |
@@ -60,7 +60,7 @@
 | 测试目的 | 重启Kbox云手机容器。 |
 | 测试组网 | 无 |
 | 预置条件 | 1. Kbox云手机基本环境已部署完成。<br>2. Kbox云手机容器已启动。 |
-| 测试步骤 | 1. 执行`./android11_kbox.sh restart x`重启已启动的Kbox云手机容器。 <br>说明： 其中x表示容器编号数字部分。<br>2. 执行`docker ps -a`查看已重启成功的Kbox云手机容器及状态。 |
+| 测试步骤 | 1. 执行`./android11_kbox.sh restart <x>`重启已启动的Kbox云手机容器。 <br>说明： 其中x表示容器编号数字部分。<br>2. 执行`docker ps -a`查看已重启成功的Kbox云手机容器及状态。 |
 | 预期结果 | 1. Kbox云手机容器重启结束回显成功标志。<br>2. 执行命令可以查询到已重启的设备及状态。 |
 | 测试结果 |  |
 | 备注 |  |
@@ -75,8 +75,8 @@
 | 测试目的 | 删除Kbox云手机容器。 |
 | 测试组网 | 无 |
 | 预置条件 | 1. Kbox云手机基本环境已部署完成。<br>2. Kbox云手机容器已启动。 |
-| 测试步骤 | 1. 执行`./android11_kbox.sh delete x`删除Kbox云手机容器。 <br>说明： 其中x表示容器编号数字部分。<br>2. 执行`docker ps -a`查看当前环境上的Kbox云手机容器。 |
-| 预期结果 | 1. Kbox云手机容器删除结束显示成功标志。<br>2. 执行命令查看到的Kbox云手机容器列表中没有已被删除的Kbox云手机容器。 |
+| 测试步骤 | 1. 执行`./android11_kbox.sh delete <x>`删除Kbox云手机容器。 <br>说明： 其中x表示容器编号数字部分。<br>2. 执行`docker ps -a`查看当前环境上的Kbox云手机容器。 |
+| 预期结果 | 1. Kbox云手机容器删除结束回显成功标志。<br>2. 执行命令查看到的Kbox云手机容器列表中没有已被删除的Kbox云手机容器。 |
 | 测试结果 |  |
 | 备注 |  |
 
@@ -90,8 +90,8 @@
 | 测试目的 | 查询Kbox云手机容器状态。 |
 | 测试组网 | 无 |
 | 预置条件 | 1. Kbox云手机基本环境已部署完成。<br>2. Kbox云手机容器已启动。 |
-| 测试步骤 | 1. 执行`docker ps -a`查看当前环境上的Kbox云手机容器。<br> 2. 执行`docker exec -it kbox_x sh`进入Kbox云手机容器后执行`getprop \| grep sys.boot_completed`查询容器运行状态。 <br>说明： 其中x表示容器编号数字部分。 |
-| 预期结果 | 1. 显示的Kbox云手机列表中有待查询设备。<br>2. 待查Kbox云手机的`[sys.boot_completed]`参数的值为[1]，表示该Kbox云手机启动成功。 |
+| 测试步骤 | 1. 执行`docker ps -a`查看当前环境上的Kbox云手机容器。<br> 2. 执行`docker exec -it kbox_<x> sh`进入Kbox云手机容器后执行`getprop \| grep sys.boot_completed`查询容器运行状态。 <br>说明： 其中x表示容器编号数字部分。 |
+| 预期结果 | 1. 显示的Kbox云手机列表中有待查询设备。<br>2. 待查Kbox云手机的`sys.boot_completed`参数的值为[1]，表示该Kbox云手机启动成功。 |
 | 测试结果 |  |
 | 备注 |  |
 
@@ -120,7 +120,7 @@
 | 测试目的 | 验证Kbox云手机资源隔离功能是否正常。 |
 | 测试组网 | 无 |
 | 预置条件 | 1. Kbox云手机基本环境已部署完成。<br>2. 已创建Kbox云手机容器，并连接。 |
-| 测试步骤 | 1. CPU资源隔离验证：执行命令`docker exec -it kbox_x cat /proc/cpuinfo \| grep processor`。<br>2. 内存资源隔离验证：执行命令`docker exec -it kbox_x cat /proc/meminfo \| grep MemTotal`。<br>3. 存储资源隔离验证：执行命令`df -h \| grep -w kbox_x`。 <br>说明： 其中x表示容器编号数字部分。 |
+| 测试步骤 | 1. CPU资源隔离验证：执行命令`docker exec -it kbox_<x> cat /proc/cpuinfo \| grep processor`。<br>2. 内存资源隔离验证：执行命令`docker exec -it kbox_<x> cat /proc/meminfo \| grep MemTotal`。<br>3. 存储资源隔离验证：执行命令`df -h \| grep -w kbox_<x>`。 <br>说明： 其中x表示容器编号数字部分。 |
 | 预期结果 | 1. 查询到的单个容器CPU核数与特性指南中的规格相符。<br>2. 查询到的单个容器内存大小与特性指南中的规格相符。<br>3. 查询到的单个容器存储空间大小与特性指南中的规格相符。 |
 | 测试结果 |  |
 | 备注 |  |
@@ -150,7 +150,7 @@
 | 测试目的 | 验证IMEI Mock功能。 |
 | 测试组网 | 无 |
 | 预置条件 | 1. Kbox云手机基本环境已部署完成。<br> 2. 已创建Kbox云手机容器，并使用ARDC连接显示云手机界面。 |
-| 测试步骤 | 1. 在云手机拨号界面输入`*#06#`，或在服务器端使用命令`docker exec -it kbox_x getprop persist.sys.prop.writeimei`，查询IMEI的值。<br>2. 服务器端使用命令`docker exec -it kbox_x sh setprop persist.sys.prop.writeimei imei_num`修改IMEI的值。 <br>说明： 其中x表示容器编号的数值部分。 |
+| 测试步骤 | 1. 在云手机拨号界面输入`*#06#`，或在服务器端使用命令`docker exec -it kbox_<x> getprop persist.sys.prop.writeimei`，查询IMEI的值。<br>2. 服务器端使用命令`docker exec -it kbox_<x> setprop persist.sys.prop.writeimei imei_num`修改IMEI的值，修改的值需要是一个合法的15位数字。<br>3. 在setprop设置完之后，在服务器端使用命令`docker exec -it kbox_<x> getprop persist.sys.prop.writeimei`，查询IMEI的值。 <br>说明： 其中x表示容器编号的数值部分。 |
 | 预期结果 | 1. 显示当前Kbox云手机容器预置的IMEI码。<br> 2. 服务端修改IMEI值后，再次查询显示为修改之后的IMEI值。 |
 | 测试结果 |  |
 | 备注 |  |
@@ -177,7 +177,7 @@
 | 项目 | 内容 |
 |---|---|
 | 用例编号 | 4.1.10 |
-| 测试目的 | 验证传感器Mock功能，测试的传感器包括加速度和陀螺仪。 |
+| 测试目的 | 验证传感器Mock功能，传感器包括加速度和陀螺仪。 |
 | 测试组网 | 无 |
 | 预置条件 | 1. Kbox云手机基本环境已部署完成。<br>2. 已创建Kbox云手机容器，并连接。<br>3. Kbox云手机内已安装安兔兔软件。 |
 | 测试步骤 | 在安兔兔软件中查看`我的手机 > 硬件配置 > 传感器`。 |
@@ -195,8 +195,8 @@
 | 测试目的 | 验证能够成功创建vinput设备-鼠标/手柄。 |
 | 测试组网 | 无 |
 | 预置条件 | 1. Kbox云手机基本环境已部署完成。<br>2. 已创建Kbox云手机容器，并使用adb连接。 |
-| 测试步骤 | 1. 打开一个服务器远程连接窗口A，输入命令`docker exec -it kbox_x setprop persist.sys.input.[mouse/gamepad1/gamepad2].name xxx`分别设置鼠标/手柄1/手柄2名称。 <br>说明： 其中x表示容器编号的数值部分，xxx为长度不超过64个字符的字母/数字/下划线组合。<br>2. 设置完成后，输入`docker exec -it kbox_x getevent`可以查询设置的设备名称。 |
-| 预期结果 | 1. 设备名称设置成功，无报错提示。<br>2. 能够查询到所创建的设备并且名称正确。 |
+| 测试步骤 | 1. 打开一个服务器远程连接窗口A，输入命令`docker exec -it kbox_<x> setprop persist.sys.input.[mouse/gamepad1/gamepad2].name <xxx>`分别设置鼠标/手柄1/手柄2名称。 <br>说明： 其中x表示容器编号的数值部分，xxx为长度不超过64个字符的字母/数字/下划线组合。<br>2. 设置完成后，输入`docker exec -it kbox_<x> getevent`可以查询设置的设备名称。 |
+| 预期结果 | 1. 设备名称创建成功，无报错提示。<br>2. 能够查询到所创建的设备并且名称正确。 |
 | 测试结果 |  |
 | 备注 |  |
 
@@ -210,7 +210,7 @@
 | 测试目的 | 验证vinput设备能够正常发送与接收事件。 |
 | 测试组网 | 无 |
 | 预置条件 | 1. Kbox云手机基本环境已部署完成。<br>2. 已创建Kbox云手机容器，并使用adb连接。 |
-| 测试步骤 | 2. 完成[vinput设备](#vinput设备创建)创建相关设置后，打开另一个服务器端远程连接窗口B输入命令`getevent`侦听事件。<br>2. 在服务器远程连接窗口A使用命令`docker exec -it kbox_x sh`进入容器。输入命令getevent -p获取相应事件的“device”、“type”、“code”、“value”参数。<br>3. 在容器中使用命令`sendevent [device] [type] [code] [value]`发送事件。 <br>说明： 其中x表示容器编号数字部分。 |
+| 测试步骤 | 1. 完成[vinput设备](#vinput设备创建)创建相关设置后，打开另一个服务器端远程连接窗口B输入命令`getevent`侦听事件。<br>2. 在服务器远程连接窗口A使用命令`docker exec -it kbox_<x> sh`进入容器。输入命令getevent -p获取相应事件的[device][type][code][value]参数。<br>3. 在容器中使用命令`sendevent [device] [type] [code] [value]`发送事件。 <br>说明： 其中x表示容器编号数字部分。 |
 | 预期结果 | 窗口A发送事件无报错，窗口B可以成功侦听到事件。 |
 | 测试结果 |  |
 | 备注 |  |
@@ -225,7 +225,7 @@
 | 测试目的 | 验证GPS Mock各属性的数值能够修改并查询。 |
 | 测试组网 | 无 |
 | 预置条件 | 1. Kbox云手机基本环境已部署完成。<br>2. 已创建1路Kbox云手机容器，并连接。 |
-| 测试步骤 | 1.<a id="步骤1"></a> 在PC端CMD窗口连接容器后输入命令`adb -s [ip:port] shell setprop persist.gps.mock.[accuracy/altitude/longitude/latitude/bearing/speed] xx`分别修改GPS各属性的数值。 <br>说明： 其中xx为各属性的合法值。ip:port（需替换为实际IP地址和端口号）为Kbox云手机的部署IP地址以及启动的容器对应的端口。<br>2. 在PC端CMD窗口输入命令`adb -s [ip:port] shell getprop persist.gps.mock.[accuracy/altitude/longitude/latitude/bearing/speed]`查询GPS各属性的数值。 |
+| 测试步骤 | 1.<a id="步骤1"></a> 在PC端CMD窗口连接容器后输入命令`adb -s [ip:port] shell setprop persist.gps.mock.[accuracy/altitude/longitude/latitude/bearing/speed] <xx>`分别修改GPS各属性的数值。 <br>说明： 其中xx为各属性的合法值。ip:port（需替换为实际IP地址和端口号）为Kbox云手机的部署IP地址以及启动的容器对应的端口。<br>2. 在PC端CMD窗口输入命令`adb -s [ip:port] shell getprop persist.gps.mock.[accuracy/altitude/longitude/latitude/bearing/speed]`查询GPS各属性的数值。 |
 | 预期结果 | 1. 无设置失败报错提示。<br>2. 能够查询到测试步骤[1](#步骤1)中设置的GPS各属性数值，且数值正确。 |
 | 测试结果 |  |
 | 备注 |  |
@@ -240,7 +240,7 @@
 | 测试目的 | 验证传感器Mock的x/y/z三轴属性值以及数据采集频率属性值能够修改。 |
 | 测试组网 | 无 |
 | 预置条件 | 1. Kbox云手机基本环境已部署完成。<br>2. 已创建Kbox云手机容器，并使用adb连接。 |
-| 测试步骤 | 1. 在PC端CMD窗口或服务器端输入命令`adb -s [ip:port] shell setprop persist.sensors.mock.[acce/gyro].data.[x/y/z] xx`（xx为±3.402823466e+38内任意值）修改传感器（acce表示加速度传感器，gyro表示陀螺仪传感器）的x/y/z三轴参数。<br>2. 打开sensors_test.apk查询传感器各属性的数值。<br>3. 在PC端CMD窗口或服务器端输入命令`adb -s [ip:port] shell setprop persist.sensors.mock.delaytime xx`（xx为[20000,1000000]任意值）设置传感器Mock中的数据采集频率属性值。<br>4. 再次执行步骤1与步骤2。<br>5.观察修改数据采集频率之后所修改的传感器的属性值的变化时长。 |
+| 测试步骤 | 1. 在PC端CMD窗口或服务器端输入命令`adb -s [ip:port] shell setprop persist.sensors.mock.[acce/gyro].data.[x/y/z] <xx>`（xx为±3.402823466e+38内任意值）修改传感器（acce表示加速度传感器，gyro表示陀螺仪传感器）的x/y/z三轴参数。<br>2. 打开sensors_test.apk查询传感器各属性的数值。<br>3. 在PC端CMD窗口或服务器端输入命令`adb -s [ip:port] shell setprop persist.sensors.mock.delaytime <xx>`（xx为[20000,1000000]任意值）设置传感器Mock中的数据采集频率属性值。<br>4. 再次执行步骤1与步骤2。<br>5.观察修改数据采集频率之后所修改的传感器的属性值的变化时长。 |
 | 预期结果 | 1. 设置过程无报错。<br>2. 能够成功设置各参数。<br>3. 能够成功查询各参数。<br>4.修改数据采集频率为不同的数值之后传感器的属性值变化的时长不同。 |
 | 测试结果 |  |
 | 备注 |  |
@@ -255,7 +255,7 @@
 | 测试目的 | Kbox组件版本号查询测试。 |
 | 测试组网 | 无 |
 | 预置条件 | 1. Kbox云手机基本环境已部署完成。<br>2. 已创建Kbox云手机容器，并使用adb连接。 |
-| 测试步骤 | 1. 执行`sudo docker exec -it kbox_x sh`进入Kbox云手机容器，出现结果1。<br> 2. 执行`cat /vendor/etc/kbox_version.txt`查询版本号内容，出现结果2。 |
+| 测试步骤 | 1. 执行`sudo docker exec -it kbox_<x> sh`进入Kbox云手机容器，出现结果1。<br> 2. 执行`cat /vendor/etc/kbox_version.txt`查询版本号内容，出现结果2。 |
 | 预期结果 | 1. 容器可以正常进入。<br>2. 文件内容包含Kbox组件版本信息如下，且版本信息准确。（具体版本号以当前版本为准。）<br>Product Name: Kunpeng BoostKit<br>Product Version: xxx<br>Component Name: BoostKit-boostcph-kbox<br>Component Version: xxx<br>Component AppendInfo: 11.0.0_r48 |
 | 测试结果 |  |
 | 备注 |  |
@@ -270,8 +270,8 @@
 | 测试目的 | Kbox云手机硬解视频播放能力测试。 |
 | 测试组网 | 无 |
 | 预置条件 | 1. Kbox云手机基本环境已部署完成。 <br>2. 已创建Kbox云手机容器，并使用adb连接。<br> 3. Kbox云手机容器已安装Xplayer。<br> |
-| 测试步骤 | 1. 已按照特性指南的指导将Kbox云手机设置为使用NETINT T432/NETINT QUADRA T2A编解码卡的硬件解码器。<br> 2. 容器导入264_1280x720_30fps/265_1280x720_30fps格式视频。<br> 3. 使用Xplayer对导入视频进行完整播放，出现结果预期结果1。 |
-| 预期结果 | 视频播放过程画面正常，不出现卡顿，未出现异常帧（如花屏、黑屏、绿屏等）画面现象，且日志能够查询到硬件解码器名称OMX.media.video.decoder。 |
+| 测试步骤 | 1. 已按照特性指南的指导将Kbox云手机设置为使用NETINT T432/NETINT QUADRA T2A编解码卡的硬件解码器。<br> 2. 容器导入264_1280x720_30fps/265_1280x720_30fps格式视频。<br> 3. 使用Xplayer对导入视频进行完整播放，出现结果1。 |
+| 预期结果 | 1. 视频播放过程画面正常，不出现卡顿，没有异常帧（花屏、黑屏、绿屏等）画面现象，且日志能够查询到硬件解码器名称（查询信息：OMX.media.video.decoder）。 |
 | 测试结果 |  |
 | 备注 |  |
 
@@ -285,7 +285,7 @@
 | 测试目的 | 验证IMSI Mock功能。 |
 | 测试组网 | 无 |
 | 预置条件 | 1. Kbox云手机基本环境已部署完成。<br>2. 已创建Kbox云手机容器，并使用ARDC连接显示云手机界面。 |
-| 测试步骤 | 1. 在云手机拨号界面输入`*#*#4636#*#*`，查询IMSI的值。2. PC终端窗口执行命令`adb connect [ip:port]`连接指定容器。<br>3. PC终端窗口执行命令`adb -s [ip:port] shell setprop persist.sys.prop.writeimsi xx`，重启kbox云手机，重新查询IMSI的值。 <br>说明： 其中xx表示IMSI参数的合法数值。 |
+| 测试步骤 | 1. 在云手机拨号界面输入`*#*#4636#*#*`，查询IMSI的值。2. PC终端窗口执行命令`adb connect [ip:port]`连接指定容器。<br>3. PC终端窗口执行命令`adb -s [ip:port] shell setprop persist.sys.prop.writeimsi <xx>`，重启kbox云手机，重新查询IMSI的值。 <br>说明： 其中xx表示IMSI参数的合法数值。 |
 | 预期结果 | 1. 显示当前Kbox云手机容器预置的IMSI码默认初始值：46011+随机数字。<br>2. 服务端修改IMSI值后，再次查询显示为修改之后的IMSI值。 |
 | 测试结果 |  |
 | 备注 |  |
@@ -300,8 +300,8 @@
 | 测试目的 | 验证网络运营商信息、SIM卡信息查询功能。 |
 | 测试组网 | 无 |
 | 预置条件 | 1. Kbox云手机基本环境已部署完成。<br>2. 已创建Kbox云手机容器，并使用ARDC连接显示云手机界面。<br>3. Kbox云手机容器已安装zausan.zdevicetest.apk。 |
-| 测试步骤 | 1. 在服务端执行`sudo docker exec -it kbox_x sh`进入Kbox云手机容器。<br>2. 输入`dumpsys isub \| grep iccid`查询SIM卡序列号，出现预期结果1。<br>3. 在客户端打开`zausan.zdevicetest.apk`中的SSM/UMTS。<br>4. 查看`SIM operator/SIM operator name/SIM country/Network operator/Network operator name/Network country/Line one number`，得到SIM卡运营商代码、SIM卡运营商名字、SIM卡运营商国家码、网络运营商代码、网络运营商名字、网络运营商国家码、手机号码，出现结果2。<br>5. 在PC端CMD窗口连接容器后输入命令`adb -s [ip:port] shell setprop persist.[sys.prop.writesimserial/gsm.sim.operator.alphacph/sys.prop.writeimsi/gsm.operator.numericcph/gsm.operator.alphacph/gsm.operator.numericcph/sys.prop.writephonenum] xx`分别修改各属性。 <br>说明： 其中xx为各属性的合法值。ip:port（需替换为实际IP地址和端口号）为Kbox云手机的部署IP地址以及启动的容器对应的端口。<br>6. 重启Kbox云手机，重新查询各数值，出现结果3。 |
-| 预期结果 | 1. 显示当前Kbox云手机容器预置的SIM卡序列号默认初始值：898600+随机数字。<br>2. 显示当前Kbox云手机容器预置的SIM卡运营商代码、SIM卡运营商名字、SIM卡运营商国家码、网络运营商代码、网络运营商名字和网络运营商国家码默认初始值分别为：46011/CMCC/cn/46000/CMCC/cn，手机号码默认初始值为空值。<br>3. 显示当前Kbox云手机容器修改后的值。 |
+| 测试步骤 | 1. 在服务端执行`sudo docker exec -it kbox_<x> sh`进入Kbox云手机容器。<br>2. 输入`dumpsys isub \| grep -i iccid`查询SIM卡序列号，出现预期结果1。<br>3. 在客户端打开`zausan.zdevicetest.apk`中的SSM/UMTS。<br>4. 查看`SIM operator/SIM operator name/SIM country/Network operator/Network operator name/Network country/Line one number`，得到SIM卡运营商代码、SIM卡运营商名字、SIM卡运营商国家码、网络运营商代码、网络运营商名字、网络运营商国家码、手机号码，出现结果2。<br>5. 在PC端CMD窗口连接容器后输入命令`adb -s [ip:port] shell setprop persist.[sys.prop.writesimserial/gsm.sim.operator.alphacph/sys.prop.writeimsi/gsm.operator.numericcph/gsm.operator.alphacph/gsm.operator.numericcph/sys.prop.writephonenum] <xx>`分别修改各属性。 <br>说明： 其中xx为各属性的合法值。ip:port（需替换为实际IP地址和端口号）为Kbox云手机的部署IP地址以及启动的容器对应的端口。<br>6. 重启Kbox云手机，重新查询各数值，出现结果3。 |
+| 预期结果 | 1. 显示当前Kbox云手机容器预置的SIM卡序列号默认初始值：898600+随机数字+[****]。<br>2. 显示当前Kbox云手机容器预置的SIM卡运营商代码、SIM卡运营商名字、SIM卡运营商国家码、网络运营商代码、网络运营商名字和网络运营商国家码默认初始值分别为：46011/CMCC/cn/46000/CMCC/cn，手机号码默认初始值为空值。<br>3. 显示当前Kbox云手机容器修改后的值。 |
 | 测试结果 |  |
 | 备注 |  |
 
