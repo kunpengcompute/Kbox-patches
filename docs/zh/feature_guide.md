@@ -624,15 +624,16 @@ chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufre
       done
    done
    ```
-##  共享数据卷功能
+   
+## 共享数据卷功能
 
 ### 特性介绍
 
-####  简介
+#### 简介
 
   共享数据卷使能前，每个容器的数据在宿主机有单独的挂载目录，数据不能互通和用。使能共享数据卷后，此时云机的/data会由docker基于Overlay 2文件系统创建，作为可写层。在完成了应用的安装、登录、画质帧率设置等之后，将容器commit为一个新的镜像（该镜像体积会明显大于初始的视频流云手机镜像，因为新的镜像包含了云机的data目录下的数据），此时云机的/data目录被冻结为新的镜像层。然后基于这个新镜像，启动新的云机，此时新的云机将使用镜像中的/data层作为初始的只读层，且每个容器会创建一个自己的可写层，云机对/data目录的修改会通过 copy-on-write的方式在自己的可写层进行。
 
-####  约束与限制
+#### 约束与限制
 
 1，无法制作android_base或android_base.img数据卷。
 2，无法tstart、tdelete方式保存账号数据。仅支持start/delete/restart来创建/删除/重启容器
@@ -641,7 +642,7 @@ chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufre
 5，K8s方案不支持。
 6，暂不支持shadercache
 
-####  应用场景
+#### 应用场景
 
 本特性没有特别的应用场景限制
 
@@ -649,7 +650,7 @@ chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufre
 
 集成26.2.RC1或更高版本的Kbox云手机组件即包含本功能。
 
-###  使用特性
+### 使用特性
 
 1. 在云手机配置文件kbox_config.cfg和视频流配置文件cfct_config设置相关配置项START_SHARE_DATA，该配置项默认为0，即不使能，设置为1即可使能共享数据卷功能。
 
@@ -658,7 +659,9 @@ chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufre
   ```bash
    docker commit 云手机实例  镜像名称
    ```
+   
    比如
+   
 ```bash
  docker commit android_1 video15:wzry
  ```
