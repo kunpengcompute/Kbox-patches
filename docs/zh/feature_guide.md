@@ -90,7 +90,7 @@ Kbox支持的所有基础功能和可选特性见[**表 1** Kbox基础功能清�
 
 ### 使用特性<a id="ZH-CN_TOPIC_0000002518345688"></a>
 
-1. 容器配置属性 ro.vmi.adaptive.vsync 为1，即打开特性。
+1. 容器配置属性ro.vmi.adaptive.vsync为1，即打开特性。
 2. 在运行时，观察云机属性vmi.enable.adaptive.vsync的值是否为1，为1时说明特性正在使能，为0时说明为规避帧率冲高现象，暂时去使能特性。
 
 ### 特性收益
@@ -120,7 +120,7 @@ Kbox支持的所有基础功能和可选特性见[**表 1** Kbox基础功能清�
 
 ### 使用特性
 
-1. 容器配置属性 ro.hardware.dynamicfps 为1，即使能特性
+1. 容器配置属性ro.hardware.dynamicfps为1，即使能特性
 2. ro.hardware.downfps为动态帧率调整目标值，可配置为12/24。
 3. 云机启动后，连接再断开云机出流，观察云机出流帧率，若正常生效应该在断开后出流帧率与配置的ro.hardware.downfps属性值一致（渲染帧率会最终体现在出流帧率上）。
 
@@ -178,8 +178,8 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 ### 使用特性
 
-1. 容器配置属性 ro.hardware.compositionBypass 为1，即使能特性
-2. 容器配置属性 ro.hardware.compositionBypass.offset，该属性可控制合成优化功能在连续一定帧数满足生效条件后再实际生效，可以改善合成优化功能开启后可能出现的画面旋转现象。可根据实际情况调整。
+1. 容器配置属性ro.hardware.compositionBypass为1，即使能特性
+2. 容器配置属性ro.hardware.compositionBypass.offset，该属性可控制合成优化功能在连续一定帧数满足生效条件后再实际生效，可以改善合成优化功能开启后可能出现的画面旋转现象。可根据实际情况调整。
 3. 启动云机即功能生效。
 
 ### 特性收益
