@@ -336,7 +336,7 @@ docker exec -it kbox_${index} cat /system/vendor/etc/kbox_version.txt
 
 #### 环境准备
 
-环境准备的步骤可以参照feature_guide.md的[环境准备](feature_guide.md#ZH-CN_TOPIC_000000254986594100)章节。
+环境准备的步骤可以参照feature_guide.md的"以f2fs文件格式启动"章节里的[使用介绍](feature_guide.md#ZH-CN_TOPIC_0000002549865941)章节。
   
 #### 使能配置项<a name="ZH-CN_TOPIC_0000002549832549"></a>
 
