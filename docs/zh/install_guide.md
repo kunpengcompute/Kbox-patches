@@ -52,7 +52,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 |6|Kbox-patches-AOSP11.zip| 包含内核补丁Demo包、容器部署脚本Demo包 |[获取链接](https://gitcode.com/boostkit/Kbox-patches)切换到AOSP11分支，并单击“下载zip”进行下载。|√|√|√|√|
 |7|NETINT-vXXX.tar.gz| NETINT编解码库，当使能硬解的时候获取该软件包，配套版本4.8.F-adapt |[获取链接](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)下载密码：test123|√|-|-|-|
 |8|Quadra_V*XXX*.zip| 包含NETINT编码卡Quadra软固件及文档包 |[获取链接](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)下载密码：test123|√|-|-|-|
-|9|VAGPU-25.03.01.01-RC24.tgz| 显卡驱动 |请联系华为技术支持获取。|-|√|√|√|
+|9|VAGPU-25.03.01.01-RC24-SP1.tgz| 显卡驱动 |请联系华为技术支持获取。|-|√|√|√|
 
 >![](./public_sys-resources/icon-note.gif) **说明：**
 >
@@ -950,17 +950,17 @@ NUMA node: 2
 
 使用硬件配置方案二、三、四每次服务器重启后，都需要重新执行安装显卡驱动步骤。
 
-1. 请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)获取VAGPU-25.03.01.01-RC24.tgz，上传至“~/dependency/”目录，解压后获取显卡内核态驱动。
+1. 请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)获取VAGPU-25.03.01.01-RC24-SP1.tgz，上传至“~/dependency/”目录，解压后获取显卡内核态驱动。
 
     ```bash
     cd ~/dependency/
-    tar -zxvf VAGPU-25.03.01.01-RC24.tgz
+    tar -zxvf VAGPU-25.03.01.01-RC24-SP1.tgz
     ```
 
 2. 安装显卡PCIe驱动。
 
     ```bash
-    cd ~/dependency/VAGPU-25.03.01.01-RC24/openEuler-5.10.0/ko_fw/
+    cd ~/dependency/VAGPU-25.03.01.01-RC24-SP1/openEuler-5.10.0/ko_fw/
     insmod va_pci.ko
     ```
 
@@ -1005,7 +1005,7 @@ NUMA node: 2
     回显信息中显卡内核态驱动版本号和显卡固件版本号相同，如下命令中加粗的内容，则表明显卡驱动安装完成。
 
     ```bash
-    PVR_K:(Log): 1732521: Meta firmware version: 1.18@6276027B20260608 build: release branch: VAGPU-25.03.01 commit: 033f037b tag: VAGPU-25.03.01.01-RC24
+    PVR_K:(Log): 1732521: Meta firmware version: 1.18@6276027B20260608 build: release branch: VAGPU-25.03.01 commit: 033f037b tag: VAGPU-25.03.01.01-RC24-SP1
     ...
     ```
 
