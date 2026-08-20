@@ -1,4 +1,5 @@
 # Kbox Cloud Phone Overview<a name="ZH-CN_TOPIC_0000002550238281"></a>
+English | [简体中文](./README.md)
 
 ## Project Overview<a name="ZH-CN_TOPIC_0000002518598550"></a>
 
