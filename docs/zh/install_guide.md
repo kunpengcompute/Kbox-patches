@@ -51,7 +51,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 | 5 | Kbox-patches-AOSP15.zip | 内核补丁Demo包、容器部署脚本Demo包 | [获取链接](https://gitcode.com/boostkit/Kbox-patches/tree/AOSP15) | √ | √ | √ | √ |
 | 6 | NETINT-v*XXX*.tar.gz（可选） | NETINT编解码库，当使能硬解的时候获取该软件包，配套版本4.8.F-Android15 | [获取链接](https://www.netint.cn/quadra-firmware-downloads-android15)<br/>下载密码:test123 | √ | - | - | - |
 | 7 | Quadra_V*XXX*.zip | 包含NETINT编码卡Quadra软固件及文档包，配套版本V4.8.F-Android15 | [获取链接](https://www.netint.cn/quadra-firmware-downloads-android15/)<br>下载密码:test123 | √ | - | - | - |
-| 8 | VAGPU-A15-C-F-26.02.06.00.RC2.tgz | 显卡驱动 | 请联系华为技术支持获取 | - | √ | √ | √ |
+| 8 | VAGPU-A15-C-F-26.02.08.01.RC2.tgz | 显卡驱动 | 请联系华为技术支持获取 | - | √ | √ | √ |
 | 9 | docker-24.0.0.tgz | Docker 24.0.0版本二进制包 | [获取链接](https://download.docker.com/linux/static/stable/aarch64/docker-24.0.0.tgz) | √ | √ | √ | √ |
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
@@ -920,17 +920,17 @@ NUMA node: 2
 
 使用硬件配置方案二、三、四每次服务器重启后，都需要重新执行安装显卡驱动步骤。
 
-1. 请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)获取VAGPU-A15-C-F-26.02.06.00.RC2.tgz，上传至“~/dependency/”目录，解压后获取显卡内核态驱动。
+1. 请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)获取VAGPU-A15-C-F-26.02.08.01.RC2.tgz，上传至“~/dependency/”目录，解压后获取显卡内核态驱动。
 
     ```bash
     cd ~/dependency/
-    tar -zxvf VAGPU-A15-C-F-26.02.06.00.RC2.tgz
+    tar -zxvf VAGPU-A15-C-F-26.02.08.01.RC2.tgz
     ```
 
 2. 将驱动包里的固件拷贝到系统的“/lib/firmware/”目录。
 
     ```bash
-    cd ~/dependency/VAGPU-A15-C-F-26.02.06.00.RC2/fw
+    cd ~/dependency/VAGPU-A15-C-F-26.02.08.01.RC2/fw
     cp rgx* /lib/firmware/
     ```
 
@@ -943,7 +943,7 @@ NUMA node: 2
     以道客DC1000/DC1000C为例，以下绑核方式仅作为参考，请依据实际情况做出调整。
 
     ```bash
-    cd ~/dependency/VAGPU-A15-C-F-26.02.06.00.RC2/kmd/GUEST/openEuler-6.6.0+
+    cd ~/dependency/VAGPU-A15-C-F-26.02.08.01.RC2/kmd/GUEST/openEuler-6.6.0+
     ```
     
     硬件配置方案二（鲲鹏920 7260处理器 + 4\*道客DC1000）：
@@ -973,7 +973,7 @@ NUMA node: 2
     回显信息中显卡内核态驱动版本号和显卡固件版本号相同，如下命令中加粗的内容，则表明显卡驱动安装完成。
 
     ```bash
-    PVR_K:(Log): 3697791: Meta firmware version: 1.18@6276027B20260602 build: release branch: release/26.02 commit: d0697cf9 tag: VAGPU-A15-C-F-26.02.06.00.RC2
+    PVR_K:(Log): 3697791: Meta firmware version: 1.18@6276027B20260602 build: release branch: release/26.02 commit: d0697cf9 tag: VAGPU-A15-C-F-26.02.08.01.RC2
     ...
     ```
 
