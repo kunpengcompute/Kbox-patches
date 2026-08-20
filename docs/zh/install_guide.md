@@ -20,7 +20,7 @@ Kbox云手机容器环境部署的硬件环境配置方案要求如[**表 1** Kb
 |CPU|2\*鲲鹏920 7260处理器，64核，2.6GHz|2\*鲲鹏920 7260处理器，64核，2.6GHz|2\*鲲鹏920 7280Z处理器，80核，2.9GHz|2\*鲲鹏920 7260W处理器，64核，2.2GHz|
 |内存|16\*DDR4 RDIMM内存-32GB-2933MT/s|16\*DDR4 RDIMM内存-32GB-2933MT/s|16\*DDR5 DIMM内存-64GB-4800MT/s|16\*DDR5 DIMM内存-64GB-5200MT/s|
 |硬盘|系统盘：2\*固态硬盘-480GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*ES3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：2\*固态硬盘-480GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*ES3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：1\*S3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型<br>数据盘：2\*S3521A V6固态硬盘-1920GB-SATA 6Gb/s-读取密集型|系统盘：1\*固态硬盘-480GB-SATA 6Gb/s-2.5 inch height-读密集型<br>1\*S4510 固态硬盘-960GB-SATA 6Gb/s-读取密集型<br>数据盘：1\*ES3600P V6固态硬盘-6400GB-NVMe 64Gb/s<br>1\*ES3500P V5固态硬盘-4000GB-NVMe 32Gb/s|
-|网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-225GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-2\*25GE/10GE光口-4端口-SFP28（不含光模块）|
+|网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-2\*25GE/10GE光口-4端口-SFP28（不含光模块）<br>外接：1\*Mellanox网卡|板载：1\*（4\*GE接口卡）1\*TM280板载灵活网卡-2\*25GE/10GE光口-4端口-SFP28（不含光模块）|
 |Riser卡|Riser1与Riser2模组相同，均为：PCIe X16 + PCIe X8|Riser1与Riser2模组相同，均为：PCIe X8\*3|前置Riser（x8\*2）\*2+后置Riser（x8\*2）\*2+Riser3（x8\*2）\*1|后置Riser（x16+x8\*2）\*2+Riser3（x8\*2）\*1|
 |编码卡|1\*NETINT Quadra T2A（X8）|无|无|无|
 |GPU|2\*AMD W6800|4\*道客DC1000|8\*道客DC1000 或 8\*道客DC1000C|8\*道客DC1000|
@@ -52,7 +52,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 |6|Kbox-patches-AOSP11.zip| 包含内核补丁Demo包、容器部署脚本Demo包 |[获取链接](https://gitcode.com/boostkit/Kbox-patches)切换到AOSP11分支，并单击“下载zip”进行下载。|√|√|√|√|
 |7|NETINT-vXXX.tar.gz| NETINT编解码库，当使能硬解的时候获取该软件包，配套版本4.8.F-adapt |[获取链接](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)下载密码：test123|√|-|-|-|
 |8|Quadra_V*XXX*.zip| 包含NETINT编码卡Quadra软固件及文档包 |[获取链接](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)下载密码：test123|√|-|-|-|
-|9|VAGPU-25.03.01.01-RC24.tgz| 显卡驱动 |请联系华为技术支持获取。|-|√|√|√|
+|9|VAGPU-25.03.01.01-RC24-SP1.tgz| 显卡驱动 |请联系华为技术支持获取。|-|√|√|√|
 
 >![](./public_sys-resources/icon-note.gif) **说明：**
 >
@@ -72,7 +72,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 >
 >- 如果校验失败，请不要使用该软件包，先联系华为技术支持工程师解决。
 >- 使用软件包安装/升级之前，也需要按上述过程先验证软件包的数字签名，确保软件包未被篡改。
->- 使用软件包前请先阅读《[鲲鹏应用使能套件BoostKit用户许可协议 2.0](https://www.hikunpeng.com/zh/legal/developer/boostkit/software/protocol)》
+>- 使用软件包前请先阅读《[鲲鹏应用使能套件BoostKit用户许可协议 2.0](https://www.hikunpeng.com/zh/legal/developer/boostkit/software/protocol)》，如确认继续使用，则默认同意协议的条款和条件。
 
 ## 部署流程简述<a id="ZH-CN_TOPIC_0000002549832101"></a>
 
@@ -559,7 +559,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
 
 ##### 下载Kernel源码<a id="ZH-CN_TOPIC_0000002518192308"></a>
 
-请参见该章节以获取正确的内核源码版本并解压内核源码，并解压内核源码以进行内核编译。
+请参见该章节以获取正确的内核源码版本并解压内核源码，为内核编译做准备。
 
 1. 请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)中的下载链接获取Kernel源码文件，本地下载后上传至服务器的“/usr/src/kernels”目录，并解压内核源码。
 
@@ -826,6 +826,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
     >![](./public_sys-resources/icon-note.gif) **说明：**
     >
     >如果重启后未能进入新编译的内核，请在BIOS进入grub启动后选择新编译的内核进入系统，或者联系技术支持工程师协助解决。
+    >如果重启后，amdgpu内核模块未能成功安装，可以使用**modprobe amdgpu**命令手动安装。
 
 ## 部署Kbox<a id="ZH-CN_TOPIC_0000002518352236"></a>
 
@@ -949,17 +950,17 @@ NUMA node: 2
 
 使用硬件配置方案二、三、四每次服务器重启后，都需要重新执行安装显卡驱动步骤。
 
-1. 获取VAGPU-25.03.01.01-RC24.tgz，上传至“~/dependency/”目录，解压后获取显卡内核态驱动。
+1. 请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)获取VAGPU-25.03.01.01-RC24-SP1.tgz，上传至“~/dependency/”目录，解压后获取显卡内核态驱动。
 
     ```bash
     cd ~/dependency/
-    tar -zxvf VAGPU-25.03.01.01-RC24.tgz
+    tar -zxvf VAGPU-25.03.01.01-RC24-SP1.tgz
     ```
 
 2. 安装显卡PCIe驱动。
 
     ```bash
-    cd ~/dependency/VAGPU-25.03.01.01-RC24/openEuler-5.10.0/ko_fw/
+    cd ~/dependency/VAGPU-25.03.01.01-RC24-SP1/openEuler-5.10.0/ko_fw/
     insmod va_pci.ko
     ```
 
@@ -1004,7 +1005,7 @@ NUMA node: 2
     回显信息中显卡内核态驱动版本号和显卡固件版本号相同，如下命令中加粗的内容，则表明显卡驱动安装完成。
 
     ```bash
-    PVR_K:(Log): 1732521: Meta firmware version: 1.18@6276027B20260608 build: release branch: VAGPU-25.03.01 commit: 033f037b tag: VAGPU-25.03.01.01-RC24
+    PVR_K:(Log): 1732521: Meta firmware version: 1.18@6276027B20260608 build: release branch: VAGPU-25.03.01 commit: 033f037b tag: VAGPU-25.03.01.01-RC24-SP1
     ...
     ```
 
