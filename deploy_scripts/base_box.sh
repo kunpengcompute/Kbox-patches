@@ -813,15 +813,13 @@ function bb_prepare_render_layer() {
     local user_data_path="${2:-${BB_USER_DATA_PATH:-/root/mount}}"
     local data_volume="${user_data_path}/data/${container_name}/data"
 
-    # 创建渲染中间层所需目录（/data 是 volume mount，直接操作宿主机路径）
-    mkdir -p "${data_volume}/local/debug/gles"
-    chmod -R 755 "${data_volume}/local/debug/"
-    mkdir -p "${data_volume}/local/tmp"
+    $RUNTIME_CMD exec -it ${container_name} mkdir -p /data/local/debug/gles
+    $RUNTIME_CMD exec -it ${container_name} chmod 755 -R /data/local/debug/
+    $RUNTIME_CMD exec -it ${container_name} mkdir -p /data/local/tmp
 
     # 从容器文件系统提取 RenderAccLayer.kbox.so 到 data 卷
-    if $RUNTIME_CMD cp ${container_name}:/system/vendor/lib64/hw/RenderAccLayer.kbox.so "${data_volume}/local/debug/gles/" 2>/dev/null; then
-        echo "RenderAccLayer.kbox.so extracted to data volume"
-    else
+    $RUNTIME_CMD exec -it ${container_name} sh -c "cp /system/vendor/lib64/hw/RenderAccLayer.kbox.so /data/local/debug/gles"
+    if [ $? -ne 0 ]; then
         echo -e "\033[31mFailed to enabled render layer! RenderAccLayer.kbox.so may not exist\033[0m"
     fi
 

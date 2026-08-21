@@ -258,7 +258,6 @@ function start_box_by_id() {
 
     # Step 2: 在容器文件系统就绪但 init 未启动的窗口期，注入配置文件
     bb_prepare_media_codecs_for_amd ${CONTAINER_NAME}
-    bb_prepare_render_layer ${CONTAINER_NAME} "${userdata_dir}"
 
     # Step 3: 启动容器并执行后处理（cgroup 权限等）
     bb_start_box
@@ -280,6 +279,7 @@ function start_box_by_id() {
             echo -e "---------------------- done ----------------------\n"
         )
     fi
+    bb_prepare_render_layer ${CONTAINER_NAME} "${userdata_dir}"
     if [[ $ENABLE_RENDER_LAYER == "1" ]]; then
         # 渲染中间层，放在base_box.sh会set property失败
         docker exec -it ${CONTAINER_NAME} sh -c "setprop debug.gles.layers RenderAccLayer.kbox.so"
