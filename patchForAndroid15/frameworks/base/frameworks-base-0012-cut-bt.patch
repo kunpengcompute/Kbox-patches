@@ -1,0 +1,26 @@
+diff --git a/services/core/java/com/android/server/audio/BtHelper.java b/services/core/java/com/android/server/audio/BtHelper.java
+index ce92dfbcc1c8..f8fe9ea40c80 100644
+--- a/services/core/java/com/android/server/audio/BtHelper.java
++++ b/services/core/java/com/android/server/audio/BtHelper.java
+@@ -1281,6 +1281,9 @@ public class BtHelper {
+ 
+     /*package */ static Bundle getPreferredAudioProfiles(String address) {
+         BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
++        if (adapter == null) {
++            return null;
++        }
+         return adapter.getPreferredAudioProfiles(adapter.getRemoteDevice(address));
+     }
+ 
+@@ -1354,7 +1357,10 @@ public class BtHelper {
+      * have been applied.
+      */
+     public static void onNotifyPreferredAudioProfileApplied(BluetoothDevice btDevice) {
+-        BluetoothAdapter.getDefaultAdapter().notifyActiveDeviceChangeApplied(btDevice);
++        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
++        if (adapter != null) {
++            adapter.notifyActiveDeviceChangeApplied(btDevice);
++        }
+     }
+ 
+     /**
