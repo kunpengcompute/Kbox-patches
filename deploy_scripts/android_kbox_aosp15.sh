@@ -209,7 +209,7 @@ function start_box_by_id() {
     local PORTS=("$((8500+$container_id)):5555")
     
     # 准备云机属性配置文件
-    bb_create_build_prop
+    bb_create_default_prop ${CONTAINER_NAME}
     # docker额外启动参数
     local EXTRA_RUN_OPTION=""
     # 使能硬解设备，若获取到的值为空，则不使能
@@ -337,7 +337,7 @@ function cli_restart() {
 
             bb_prepare_media_codecs_for_amd ${CONTAINER_NAME}
             bb_prepare_media_codecs_c2 ${CONTAINER_NAME} ${ENABLE_HARD_DECODE}
-            bb_create_build_prop
+            bb_create_default_prop ${CONTAINER_NAME}
             BB_NAME="$CONTAINER_NAME"
             BB_USER_DATA_PATH="$MOUNT_DIR"
             BB_RESTART_TIMES=3
