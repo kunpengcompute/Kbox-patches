@@ -211,7 +211,7 @@ function start_box_by_id() {
     local PORTS=("$((8500+$container_id)):5555")
     
     # 准备云机属性配置文件
-    bb_create_build_prop
+    bb_create_build_prop ${CONTAINER_NAME}
 
     # 准备额外启动参数
     local EXTRA_RUN_OPTION=""
@@ -347,7 +347,7 @@ function cli_restart() {
             bb_log_info "restart using mount path: $MOUNT_DIR"
 
             bb_prepare_media_codecs_for_amd ${CONTAINER_NAME}
-            bb_create_build_prop
+            bb_create_build_prop ${CONTAINER_NAME}
             BB_NAME="$CONTAINER_NAME"
             BB_USER_DATA_PATH="$MOUNT_DIR"
             BB_RESTART_TIMES=3
