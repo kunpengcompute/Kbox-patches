@@ -719,7 +719,7 @@ function bb_check_f2fs_partition() {
 
 function bb_create_build_prop() {
     local container_name=$1
-    local prop_root="/var/lib/kbox/defaultprops/${container_name}"
+    local prop_root="/var/lib/kbox/props/${container_name}"
 
     if [ ! -d $prop_root ]; then
         mkdir -p $prop_root
@@ -734,9 +734,9 @@ function bb_create_build_prop() {
 
     BUILD_PROP=$prop_root/build.prop
     if [ -f $BUILD_PROP ];then
-        umount /var/lib/kbox/defaultprops/${container_name}/build.prop
-        rm -f /var/lib/kbox/defaultprops/${container_name}/build.prop
-        [ $? -ne 0 ] && echo "fail to remove build.prop file /var/lib/kbox/defaultprops/${container_name}/build.prop !" && RET="fail"
+        umount /var/lib/kbox/props/${container_name}/build.prop
+        rm -f /var/lib/kbox/props/${container_name}/build.prop
+        [ $? -ne 0 ] && echo "fail to remove build.prop file /var/lib/kbox/props/${container_name}/build.prop !" && RET="fail"
     fi
 
     TMP_DEFAULT_PROP=$prop_root/default.prop
@@ -1487,14 +1487,14 @@ function bb_delete_box() {
     [ $? -ne 0 ] && echo "fail to remove data files /var/lib/kbox/cpus/$BOX_NAME !" && RET="fail"
 
     # 删除props文件
-    umount /var/lib/kbox/defaultprops/$BOX_NAME/build.prop > /dev/null 2>&1
-    umount /var/lib/kbox/defaultprops/$BOX_NAME/local.prop > /dev/null 2>&1
+    umount /var/lib/kbox/props/$BOX_NAME/build.prop > /dev/null 2>&1
+    umount /var/lib/kbox/props/$BOX_NAME/local.prop > /dev/null 2>&1
 
-    if [ -e /var/lib/kbox/defaultprops/$BOX_NAME/default.prop ]; then
-        umount /var/lib/kbox/defaultprops/$BOX_NAME/default.prop > /dev/null 2>&1
+    if [ -e /var/lib/kbox/props/$BOX_NAME/default.prop ]; then
+        umount /var/lib/kbox/props/$BOX_NAME/default.prop > /dev/null 2>&1
     fi
-    rm -rf /var/lib/kbox/defaultprops/$BOX_NAME
-    [ $? -ne 0 ] && echo "fail to remove data files /var/lib/kbox/defaultprops/$BOX_NAME !" && RET="fail"
+    rm -rf /var/lib/kbox/props/$BOX_NAME
+    [ $? -ne 0 ] && echo "fail to remove data files /var/lib/kbox/props/$BOX_NAME !" && RET="fail"
     
     # 删除power_supply文件
     rm -rf /var/lib/kbox/powers/${BOX_NAME}
