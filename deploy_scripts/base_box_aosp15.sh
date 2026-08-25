@@ -42,12 +42,6 @@ function bb_exit_error() {
 function bb_init_runtime_env() {
     THISDIR=$(readlink -ef $(dirname ${BASH_SOURCE[0]}))
     CONTAINERD_CONFIG=$THISDIR/containerd_config
-    BUILD_PROP=$THISDIR/build.prop
-    LOCAL_PROP=$THISDIR/local.prop
-    if [ ! -f $LOCAL_PROP ]; then
-        touch $LOCAL_PROP
-        chmod 600 $LOCAL_PROP
-    fi
 
     if [ -f "$CONTAINERD_CONFIG" ]; then
         DEFAULT_RUNTIME=containerd
@@ -702,7 +696,7 @@ function bb_start_box() {
             RUN_OPTION+=" --device=/dev/va_video${RENDER_IDX}:/dev/va_video${RENDER_IDX}:rwm "
             RUN_OPTION+=" --device=/dev/vacc${RENDER_IDX}:/dev/vacc${RENDER_IDX}:rwm "
         done
-        echo "ro.va.video.codec=c2" >> $THISDIR/build.prop
+        echo "ro.va.video.codec=c2" >> $BUILD_PROP
     else
         for (( i=0; i<${#GPUS_RENDER[@]};i++ )); do
             RUN_OPTION+=" --device=${GPUS_RENDER[$i]}:/dev/dri/renderD$((128 + $i)):rwm "
@@ -743,11 +737,12 @@ function bb_start_box() {
     # 如果 SYSTEM_SIZE_MB 为 0，则上面整个 if 都不进，直接跳过，什么参数都不加
     # --- 新增的 /system 分区大小配置及 xfs 校验逻辑 结束 ---
     
-    if [ -f $THISDIR/default.prop_$BOX_NAME ]; then
-        RUN_OPTION+=" --volume=$THISDIR/default.prop_$BOX_NAME:/kbox_prop/default.prop:rw "
+    if [ -f $TMP_DEFAULT_PROP ]; then
+        RUN_OPTION+=" --volume=$TMP_DEFAULT_PROP:/kbox_prop/default.prop:rw "
     fi
-    if [ -f $THISDIR/build.prop ]; then
-        RUN_OPTION+=" --volume=$THISDIR/build.prop:/kbox_prop/build.prop:rw "
+    if [ -f $BUILD_PROP ]; then
+        RUN_OPTION+=" --volume=$BUILD_PROP:/kbox_prop/build.prop:rw "
+        # RUN_OPTION+=" -e buildpath=$THISDIR/build.prop "
     fi
     if [[ $ENABLE_RENDER_LAYER == "1" ]]; then
         bb_create_app_shader_filesystem ${BOX_NAME} RUN_OPTION
@@ -773,8 +768,8 @@ function bb_start_box() {
     fi
     # 支持Android系统属性可定制
     # local.prop用于修改定制属性，但该文件不是一定存在，需要用户手动生成。
-    if [ -e "$CURRENT_DIR/local.prop" ]; then
-        $RUNTIME_CMD cp $CURRENT_DIR/local.prop ${BOX_NAME}:/data
+    if [ -e "$LOCAL_PROP" ]; then
+        $RUNTIME_CMD cp $LOCAL_PROP ${BOX_NAME}:/data
         sleep 0.5
         $RUNTIME_CMD exec ${BOX_NAME} chmod 400 /data/local.prop
     fi
@@ -1269,6 +1264,17 @@ function bb_delete_box() {
     rm -rf /var/lib/kbox/cpus/$BOX_NAME
     [ $? -ne 0 ] && echo "fail to remove data files /var/lib/kbox/cpus/$BOX_NAME !" && RET="fail"
 
+    # 删除默认的prop文件
+    umount /var/lib/kbox/props/$BOX_NAME/build.prop > /dev/null 2>&1
+    umount /var/lib/kbox/props/$BOX_NAME/local.prop > /dev/null 2>&1
+
+    if [ -e /var/lib/kbox/props/$BOX_NAME/default.prop ]; then
+        umount /var/lib/kbox/props/$BOX_NAME/default.prop > /dev/null 2>&1
+    fi
+    rm -rf /var/lib/kbox/props/$BOX_NAME
+    [ $? -ne 0 ] && echo "fail to remove data files /var/lib/kbox/props/$BOX_NAME !" && RET="fail"
+
+
     # 删除power_supply文件
     rm -rf /var/lib/kbox/powers/${BOX_NAME}
 
@@ -1343,10 +1349,29 @@ function bb_check_f2fs_partition() {
     return 0
 }
 
-function bb_create_build_prop() {
-    if [ -f $BUILD_PROP ]; then
-        rm -rf $BUILD_PROP
+function bb_create_default_prop() {
+    local container_name=$1
+    local prop_root="/var/lib/kbox/props/${container_name}"
+
+    if [ ! -d $prop_root ]; then
+        mkdir -p $prop_root
+        chmod 755 $prop_root
     fi
+
+    LOCAL_PROP=$prop_root/local.prop
+    if [ ! -f $LOCAL_PROP ]; then
+        touch $LOCAL_PROP
+        chmod 600 $LOCAL_PROP
+    fi
+
+    BUILD_PROP=$prop_root/build.prop
+    if [ -f $BUILD_PROP ];then
+        umount /var/lib/kbox/props/${container_name}/build.prop
+        rm -f /var/lib/kbox/props/${container_name}/build.prop
+        [ $? -ne 0 ] && echo "fail to remove build.prop file /var/lib/kbox/props/${container_name}/build.prop !" && RET="fail"
+    fi
+
+    TMP_DEFAULT_PROP=$prop_root/default.prop
 
     echo "ro.hardware.width=${BUILD_WIDTH}" >> $BUILD_PROP
     echo "ro.hardware.height=${BUILD_HEIGHT}" >> $BUILD_PROP
@@ -1780,6 +1805,8 @@ function bb_restart_box() {
     local ENABLE_F2FS="${BB_ENABLE_F2FS:-0}"
     local SYSTEM_SIZE_MB="${BB_SYSTEM_SIZE_MB:-0}"
     local KBOX_SWITCH="/sys/kernel/kbox/kbox_enable"
+    # local BUILD_PROP_PATH=$($RUNTIME_CMD inspect ${BOX_NAME} --format='{{range .Config.Env}}{{println .}}{{end}}' | grep "^buildpath=" | cut -d= -f2)
+    # cp $THISDIR/build.prop $BUILD_PROP_PATH
     if [ -f "$KBOX_SWITCH" ] && [ "$(cat "$KBOX_SWITCH")" = "0" ]; then
         echo "1" > "$KBOX_SWITCH"
     fi
@@ -1824,7 +1851,7 @@ function bb_restart_box() {
 
     local VA_SGPU100_ID=":0200"
     if [ -n "$(lspci -n | grep ${VA_SGPU100_ID} | awk '{print $3}')" ]; then
-        grep -q "ro\.va\.video\.codec=c2" $THISDIR/build.prop || echo "ro.va.video.codec=c2" >> $THISDIR/build.prop
+        grep -q "ro\.va\.video\.codec=c2" $BUILD_PROP || echo "ro.va.video.codec=c2" >> $BUILD_PROP
     fi
 
     for i in $(seq 1 $restart_times)
@@ -1852,8 +1879,8 @@ function bb_restart_box() {
 
         # 支持Android系统属性可定制
         # local.prop用于修改定制属性，但该文件不是一定存在，需要用户手动生成。
-        if [ -e "$CURRENT_DIR/local.prop" ]; then
-            $RUNTIME_CMD cp $CURRENT_DIR/local.prop ${BOX_NAME}:/data
+        if [ -e "$LOCAL_PROP" ]; then
+            $RUNTIME_CMD cp $LOCAL_PROP ${BOX_NAME}:/data
             sleep 0.5
             $RUNTIME_CMD exec ${BOX_NAME} chmod 400 /data/local.prop
         fi
