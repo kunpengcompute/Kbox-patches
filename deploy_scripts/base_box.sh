@@ -45,12 +45,6 @@ function bb_exit_error() {
 function bb_init_runtime_env() {
     THISDIR=$(readlink -ef $(dirname ${BASH_SOURCE[0]}))
     CONTAINERD_CONFIG=$THISDIR/containerd_config
-    BUILD_PROP=$THISDIR/build.prop
-    LOCAL_PROP=$THISDIR/local.prop
-    if [ ! -f $LOCAL_PROP ]; then
-        touch $LOCAL_PROP
-        chmod 600 $LOCAL_PROP
-    fi
 
     if [ -f "$CONTAINERD_CONFIG" ]; then
         DEFAULT_RUNTIME=containerd
@@ -724,9 +718,28 @@ function bb_check_f2fs_partition() {
 }
 
 function bb_create_build_prop() {
-    if [ -f $BUILD_PROP ]; then
-        rm -rf $BUILD_PROP
+    local container_name=$1
+    local prop_root="/var/lib/kbox/props/${container_name}"
+
+    if [ ! -d $prop_root ]; then
+        mkdir -p $prop_root
+        chmod 755 $prop_root
     fi
+
+    LOCAL_PROP=$prop_root/local.prop
+    if [ ! -f $LOCAL_PROP ]; then
+        touch $LOCAL_PROP
+        chmod 600 $LOCAL_PROP
+    fi
+
+    BUILD_PROP=$prop_root/build.prop
+    if [ -f $BUILD_PROP ];then
+        umount /var/lib/kbox/props/${container_name}/build.prop
+        rm -f /var/lib/kbox/props/${container_name}/build.prop
+        [ $? -ne 0 ] && echo "fail to remove build.prop file /var/lib/kbox/props/${container_name}/build.prop !" && RET="fail"
+    fi
+
+    TMP_DEFAULT_PROP=$prop_root/default.prop
 
     echo "ro.hardware.width=${BUILD_WIDTH}" >> $BUILD_PROP
     bb_log_info "ro.hardware.width=${BUILD_WIDTH}"
@@ -766,7 +779,7 @@ function bb_create_build_prop() {
 
 function bb_create_default_prop() {
     if [ -f $DEFAULT_PROP ]; then
-        local tmp_default_prop=${DEFAULT_PROP}_$container_name
+        local tmp_default_prop=$TMP_DEFAULT_PROP
         cp $DEFAULT_PROP $tmp_default_prop
         if bb_has_amd_gpu && [ ${ENABLE_SOFT_RENDER} -ne 1 ]; then
             local vsync_offset=${VSYNC_OFFSET_MAP[$((($container_id - 1) % ${#VSYNC_OFFSET_MAP[*]}))]}
@@ -1212,8 +1225,8 @@ function bb_create_box() {
     RUN_OPTION+=" --volume=$(bb_get_lxcfs_path)/proc/swaps:/proc/swaps:ro "
     RUN_OPTION+=" --volume=$(bb_get_lxcfs_path)/proc/uptime:/proc/uptime:ro "
     RUN_OPTION+=" --volume=$data_path/storage_size:/storage_size:rw "
-    if [ -f "${DEFAULT_PROP}_${BOX_NAME}" ]; then
-        RUN_OPTION+=" --volume=${DEFAULT_PROP}_${BOX_NAME}:/kbox_prop/default.prop:rw "
+    if [ -f "$TMP_DEFAULT_PROP" ]; then
+        RUN_OPTION+=" --volume=$TMP_DEFAULT_PROP:/kbox_prop/default.prop:rw "
     fi
     if [ -f "$BUILD_PROP" ]; then
         RUN_OPTION+=" --volume=$BUILD_PROP:/kbox_prop/build.prop:rw "
@@ -1473,6 +1486,16 @@ function bb_delete_box() {
     rm -rf /var/lib/kbox/cpus/$BOX_NAME
     [ $? -ne 0 ] && echo "fail to remove data files /var/lib/kbox/cpus/$BOX_NAME !" && RET="fail"
 
+    # 删除props文件
+    umount /var/lib/kbox/props/$BOX_NAME/build.prop > /dev/null 2>&1
+    umount /var/lib/kbox/props/$BOX_NAME/local.prop > /dev/null 2>&1
+
+    if [ -e /var/lib/kbox/props/$BOX_NAME/default.prop ]; then
+        umount /var/lib/kbox/props/$BOX_NAME/default.prop > /dev/null 2>&1
+    fi
+    rm -rf /var/lib/kbox/props/$BOX_NAME
+    [ $? -ne 0 ] && echo "fail to remove data files /var/lib/kbox/props/$BOX_NAME !" && RET="fail"
+    
     # 删除power_supply文件
     rm -rf /var/lib/kbox/powers/${BOX_NAME}
 
