@@ -342,7 +342,6 @@ function bb_check_nfs_f2fs_conflict() {
 # BB_EXTRA_RUN_OPTION   额外的运行时选项字符串
 # BB_IMAGE_NAME         容器镜像名称（如 kbox:test）
 # BB_USER_DATA_PATH     用户数据根目录（如 /root/mount）
-# BB_CONTAINER_DATA_PATH 容器运行时数据目录（留空则自动推断）
 # BB_ENABLE_RENDER_LAYER 是否启用渲染中间层（"1"=启用）
 # BB_ENABLE_F2FS        是否启用 F2FS 文件系统（"1"=启用）
 # BB_SYSTEM_SIZE_MB     /system 分区大小（MB，0=不修改）
@@ -417,7 +416,6 @@ function bb_start_box() {
     local EXTRA_RUN_OPTION="${BB_EXTRA_RUN_OPTION}"
     local IMAGE_NAME="${BB_IMAGE_NAME}"
     local USER_DATA_PATH="${BB_USER_DATA_PATH}"
-    local CONTAINER_DATA_PATH="${BB_CONTAINER_DATA_PATH}"
     local ENABLE_RENDER_LAYER="${BB_ENABLE_RENDER_LAYER:-0}"
     local ENABLE_F2FS="${BB_ENABLE_F2FS:-0}"
     local SYSTEM_SIZE_MB="${BB_SYSTEM_SIZE_MB:-0}"
@@ -570,8 +568,9 @@ function bb_start_box() {
 	    echo "1" > "$KBOX_SWITCH"
     fi
 
+    local CONTAINER_DATA_PATH=""
     if [ "$DEFAULT_RUNTIME" == "docker" ]; then
-        # 如果未通过参数指定，则动态获取 Docker 根目录，失败时降级到默认路径
+        # 动态获取 Docker 根目录，失败时降级到默认路径
         CONTAINER_DATA_PATH=$($RUNTIME_CMD info --format '{{.DockerRootDir}}' 2>/dev/null || echo "/var/lib/docker")
     else
         CONTAINER_DATA_PATH="/var/lib/containerd"
