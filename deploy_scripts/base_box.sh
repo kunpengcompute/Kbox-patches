@@ -1205,6 +1205,11 @@ function bb_create_box() {
         done
     else
         for (( i=0; i<${#GPUS_RENDER[@]};i++ )); do
+            local idx=$((`echo ${GPUS_RENDER:16}` - 128))
+            # docker额外启动参数
+            EXTRA_RUN_OPTION+=" --device=/dev/pvr_sync:/dev/pvr_sync:rwm "
+            EXTRA_RUN_OPTION+=" --device=/dev/ion-$idx:/dev/ion:rwm "
+            EXTRA_RUN_OPTION+=" --device=/dev/vpu$idx:/dev/vpu:rwm "
             RUN_OPTION+=" --device=${GPUS_RENDER[$i]}:/dev/dri/renderD$((128 + $i)):rwm "
         done
     fi
@@ -1555,7 +1560,7 @@ BB_HW_ENCODE_CARD=""       # 编码卡型号: "QuadraT2A"|"T432"|""
 # 一次性检测所有硬件，设置 BB_HW_* 全局变量
 # 应在脚本初始化阶段调用一次，后续均使用全局变量
 function bb_detect_hardware() {
-    BB_HW_XD_GPUS=($(lspci -D | grep "1fe0:1010" | awk '{print $1}'))
+    BB_HW_XD_GPUS=($(lspci -D | grep "1ec8:8810" | awk '{print $1}'))
     BB_HW_AMD_GPUS=($(lspci -D | grep "AMD" | grep -E "VGA|73a3|73a1|73e3" | awk '{print $1}'))
     BB_HW_HANTRO_GPUS=($(lspci -D | grep ":0200" | awk '{print $1}'))
 
