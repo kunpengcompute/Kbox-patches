@@ -654,15 +654,15 @@ chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufre
 
 2. 配置项START_SHARE_DATA设置为1后，按照视频流原有流程制作镜像，并启动安卓云手机实例。配置云手机实例，比如下载游戏、软件后，执行命令
 
-  ```bash
-   docker commit 云手机实例  镜像名称
-   ```
+    ```bash
+     docker commit 云手机实例  镜像名称
+     ```
    
    比如
    
-```bash
- docker commit android_1 video11:wzry
- ```
+    ```bash
+     docker commit android_1 video11:wzry
+     ```
 
    此时云手机实例的数据被冻结为新的镜像层。然后基于这个新镜像，启动新的云手机，所有的新云手机实例将能共享新镜像中的数据。
 
