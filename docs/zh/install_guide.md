@@ -38,17 +38,17 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 **表 2** Kbox安卓容器环境搭建软件环境要求<a id="Kbox安卓容器环境搭建软件环境要求"></a>
 
-|序号|软件包|说明|获取地址|配置方案一|配置方案二|配置方案三|配置方案四|
-|--|--|--|--|--|--|--|--|
-| 1 | android.tar | Kbox安卓镜像包，用于部署Kbox基础环境 | 自行编译（请参见[编译指南](compile_guide.md)进行编译） | √ | √ | √ | √ |
-| 2 | BoostKit-boostcph-kbox_*_15.zip | Android Kbox二进制文件包，包含运行所需组件 | [获取链接](https://www.hikunpeng.com/zh/developer/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft) | √ | √ | √ | √ |
-| 3 | kernel-6.6.0-72.0.0.zip | openEuler 24.03 LTS SP1 Kernel源码 | [获取链接](https://atomgit.com/openeuler/kernel/tree/6.6.0-72.0.0) | √ | √ | √ | √ |
-| 4 | ExaGear_ARM32-ARM64.tar.gz | ExaGear转码二进制包 | 请联系华为技术支持获取 | √ | √ | √ | √ |
-| 5 | Kbox-patches-AOSP15.zip | 内核补丁Demo包、容器部署脚本Demo包 | [获取链接](https://gitcode.com/boostkit/Kbox-patches/tree/AOSP15) | √ | √ | √ | √ |
-| 6 | NETINT-v*XXX*.tar.gz（可选） | NETINT编解码库，当使能硬解的时候获取该软件包，配套版本4.8.F-Android15 | [获取链接](https://www.netint.cn/quadra-firmware-downloads-android15)<br/>下载密码:test123 | √ | - | - | - |
-| 7 | Quadra_V*XXX*.zip | 包含NETINT编码卡Quadra软固件及文档包，配套版本V4.8.F-Android15 | [获取链接](https://www.netint.cn/quadra-firmware-downloads-android15/)<br>下载密码:test123 | √ | - | - | - |
-| 8 | VAGPU-A15-C-F-26.02.08.01.RC2.tgz | 显卡驱动 | 请联系华为技术支持获取 | - | √ | √ | √ |
-| 9 | docker-24.0.0.tgz | Docker 24.0.0版本二进制包 | [获取链接](https://download.docker.com/linux/static/stable/aarch64/docker-24.0.0.tgz) | √ | √ | √ | √ |
+|序号|软件包|说明|获取地址|配置方案一|配置方案二|配置方案三|配置方案四|配置方案五
+|--|--|--|--|--|--|--|--|--|
+| 1 | android.tar | Kbox安卓镜像包，用于部署Kbox基础环境 | 自行编译（请参见[编译指南](compile_guide.md)进行编译） | √ | √ | √ | √ |√ |
+| 2 | BoostKit-boostcph-kbox_*_15.zip | Android Kbox二进制文件包，包含运行所需组件 | [获取链接](https://www.hikunpeng.com/zh/developer/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft) | √ | √ | √ | √ |√ |
+| 3 | kernel-6.6.0-72.0.0.zip | openEuler 24.03 LTS SP1 Kernel源码 | [获取链接](https://atomgit.com/openeuler/kernel/tree/6.6.0-72.0.0) | √ | √ | √ | √ |√ |
+| 4 | ExaGear_ARM32-ARM64.tar.gz | ExaGear转码二进制包 | 请联系华为技术支持获取 | √ | √ | √ | √ |√ |
+| 5 | Kbox-patches-AOSP15.zip | 内核补丁Demo包、容器部署脚本Demo包 | [获取链接](https://gitcode.com/boostkit/Kbox-patches/tree/AOSP15) | √ | √ | √ | √ |√ |
+| 6 | NETINT-v*XXX*.tar.gz（可选） | NETINT编解码库，当使能硬解的时候获取该软件包，配套版本4.8.F-Android15 | [获取链接](https://www.netint.cn/quadra-firmware-downloads-android15)<br/>下载密码:test123 | √ | - | - | - | - |
+| 7 | Quadra_V*XXX*.zip | 包含NETINT编码卡Quadra软固件及文档包，配套版本V4.8.F-Android15 | [获取链接](https://www.netint.cn/quadra-firmware-downloads-android15/)<br>下载密码:test123 | √ | - | - | - | - |
+| 8 | VAGPU-A15-C-F-26.02.08.01.RC2.tgz | 显卡驱动 | 请联系华为技术支持获取 | - | √ | √ | √ |√ |
+| 9 | docker-24.0.0.tgz | Docker 24.0.0版本二进制包 | [获取链接](https://download.docker.com/linux/static/stable/aarch64/docker-24.0.0.tgz) | √ | √ | √ | √ |√ |
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >
@@ -72,7 +72,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 ## 部署流程简述<a name="ZH-CN_TOPIC_0000002518385446"></a>
 
-本章节提供Kbox安卓容器环境部署流程，帮助您更好地理解部署过程中的各个环节。部署过程中，使用硬件配置方案二、三、四时需要执行安装显卡驱动操作步骤。
+本章节提供Kbox安卓容器环境部署流程，帮助您更好地理解部署过程中的各个环节。部署过程中，使用硬件配置方案二、三、四、五时需要执行安装显卡驱动操作步骤。
 
 容器环境部署的流程如[**图 1** 环境部署流程](#环境部署流程)所示。
 
@@ -181,9 +181,9 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
     >
     >- 1张NETINT Quadra卡有2颗芯片，对应2个设备节点。以上回显中为1张NETINT Quadra卡，对应2个设备节点。
 
-### （硬件配置方案三、四）配置BIOS<a name="ZH-CN_TOPIC_0000002518385436"></a>
+### （硬件配置方案三、四、五）配置BIOS<a name="ZH-CN_TOPIC_0000002518385436"></a>
 
-本章节提供硬件配置方案三、四的环境BIOS配置步骤，包括MISC、Performance、Memory相关选项的配置，用以提高服务器性能。
+本章节提供硬件配置方案三、四、五的环境BIOS配置步骤，包括MISC、Performance、Memory相关选项的配置，用以提高服务器性能。
 
 **重启服务器进入BIOS设置界面<a name="section2017525320112"></a>**
 
@@ -492,7 +492,7 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
     systemctl restart docker
     ```
 
-7. （可选）（硬件配置方案二、三、四）容器密度较大时，由于需要处理loop设备，宿主机上的udev-worker进程可能有周期性CPU占用冲高现象，可通过以下命令禁用udev功能以规避。
+7. （可选）（硬件配置方案二、三、四、五）容器密度较大时，由于需要处理loop设备，宿主机上的udev-worker进程可能有周期性CPU占用冲高现象，可通过以下命令禁用udev功能以规避。
     
     以下操作仅供参考，默认会在容器启动脚本中自动执行，无需手动执行。
 
@@ -835,7 +835,7 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
 
     该回显表明GPU渲染节点renderD128所在NUMA节点为0。
 
-**硬件配置方案二、三、四<a name="section1941402516517"></a>**
+**硬件配置方案二、三、四、五<a name="section1941402516517"></a>**
 
 查看GPU节点所属的NUMA节点。
 
@@ -912,9 +912,9 @@ NUMA node: 2
     reboot
     ```
 
-### （硬件配置方案二、三、四）安装显卡驱动<a name="ZH-CN_TOPIC_0000002518385424"></a>
+### （硬件配置方案二、三、四、五）安装显卡驱动<a name="ZH-CN_TOPIC_0000002518385424"></a>
 
-使用硬件配置方案二、三、四每次服务器重启后，都需要重新执行安装显卡驱动步骤。
+使用硬件配置方案二、三、四、五每次服务器重启后，都需要重新执行安装显卡驱动步骤。
 
 1. 请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)获取VAGPU-A15-C-F-26.02.08.01.RC2.tgz，上传至“~/dependency/”目录，解压后获取显卡内核态驱动。
 
