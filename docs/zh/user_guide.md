@@ -38,11 +38,11 @@ docker import android.tar kbox:demo
 >当用户使用自行编译的镜像时：
 >
 >- 硬件配置方案一：可跳过该小节的全部步骤。
->- 硬件配置方案二、三、四：可跳过该小节的步骤2。
+>- 硬件配置方案二、三、四、五：可跳过该小节的步骤2。
 
 1. 解压Kbox-patches-AOSP15.zip，将Kbox-patches-AOSP15文件夹中的“deploy_scripts”目录上传至服务器的“~/dependency”目录。
 2. 上传Android Kbox二进制文件包BoostKit-boostcph-kbox_\*_15.zip到“~/dependency/deploy_scripts”目录。
-3. （硬件配置方案二、三、四）使用硬件配置方案二、三、四时需要解压显卡驱动压缩包VAGPU-A15-C-F-26.02.06.00.RC2.tgz，获取VAGPU-A15-C-F-26.02.06.00.RC2，上传到服务器的“~/dependency/deploy_scripts”目录。
+3. （硬件配置方案二、三、四、五）使用硬件配置方案二、三、四、五时需要解压显卡驱动压缩包VAGPU-A15-C-F-26.02.06.00.RC2.tgz，获取VAGPU-A15-C-F-26.02.06.00.RC2，上传到服务器的“~/dependency/deploy_scripts”目录。
 4. 制作包含Android Kbox二进制的Kbox镜像，其中kbox:demo为上一步导入的官方Kbox Demo镜像，kbox:origin为包含Android Kbox二进制的新镜像。
     - 硬件配置方案一：
 
@@ -52,7 +52,7 @@ docker import android.tar kbox:demo
         ./make_image_aosp15.sh kbox:demo kbox:origin
         ```
 
-    - 硬件配置方案二、三、四：
+    - 硬件配置方案二、三、四、 五：
 
         ```bash
         cd ~/dependency/deploy_scripts
@@ -96,7 +96,7 @@ docker import android.tar kbox:demo
 
 |参数名称|参数说明|配置说明|
 |--|--|--|
-|VIDEO_GPU_MAP_AMDXXX（硬件配置一）VIDEO_GPU_MAP_HBXXX（硬件配置二、三、四）| 参数设置了不同规格服务器的GPU节点分配范围 |VIDEO_GPU_MAP_AMDXXX表示在硬件配置方案一的服务器上，为云手机容器分配的GPU节点范围；VIDEO_GPU_MAP_HBXXX表示在硬件配置方案二、三、四的服务器上，为云手机容器分配的GPU节点范围。节点的分配方式会根据服务器规格+容器的编号进行取模运算分配|
+|VIDEO_GPU_MAP_AMDXXX（硬件配置一）VIDEO_GPU_MAP_HBXXX（硬件配置二、三、四）| 参数设置了不同规格服务器的GPU节点分配范围 |VIDEO_GPU_MAP_AMDXXX表示在硬件配置方案一的服务器上，为云手机容器分配的GPU节点范围；VIDEO_GPU_MAP_HBXXX表示在硬件配置方案二、三、四、五的服务器上，为云手机容器分配的GPU节点范围。节点的分配方式会根据服务器规格+容器的编号进行取模运算分配|
 |MODE0_CPUSXXX，MODE1_CPUSXXX| 参数设置了不同规格服务器的CPU核心分配范围 |MODE0_CPUSXXX表示绑核模式下CPU核心分配范围，MODE1_CPUSXXX表示绑定NUMA的CPU核心分配范围。容器启动时android_kbox.sh脚本会根据容器规格选择对应的CPU核心范围。|
 
 **表 2** kbox_config.cfg配置文件中容器使用的数据卷存放路径配置说明<a id="kbox挂载配置说明"></a>
@@ -186,7 +186,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
             > NETINT1="/dev/nvme0,/dev/nvme0n1,/dev/nvme1,/dev/nvme1n1"
             > ```
 
-    2. （硬件配置方案二、三、四）设置“deploy_scripts”目录下的kbox_config.cfg文件，将“ENABLE_HARD_DECODE”设置为“1”。
+    2. （硬件配置方案二、三、四、五）设置“deploy_scripts”目录下的kbox_config.cfg文件，将“ENABLE_HARD_DECODE”设置为“1”。
 
         >![](public_sys-resources/icon-note.gif) **说明：** 
         >
