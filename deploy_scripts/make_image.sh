@@ -29,8 +29,8 @@ function gen_docker_file()
     local target_docker_file="${DOCKER_FILE_DIR}/Dockerfile_"
     if [ ${GPUTYPE} = "amd" ]; then
         target_docker_file="${target_docker_file}amd"
-    elif [ ${GPUTYPE} = "awm" ]; then
-        target_docker_file="${target_docker_file}awm"
+    elif [ ${GPUTYPE} = "inno" ]; then
+        target_docker_file="${target_docker_file}inno"
     elif [ ${GPUTYPE} = "va" ]; then
         target_docker_file="${target_docker_file}va"
     else
@@ -55,54 +55,60 @@ function gen_vagpu_package()
     rm -rf ${TMP_PACKAGE_DIR}/system/vendor/bin/displayServer
 }
 
-function gen_awmgpu_package()
+function gen_innogpu_package()
 {
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/codec_api/arm/* ${TMP_PACKAGE_DIR}/system/lib/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/codec_api/arm64/* ${TMP_PACKAGE_DIR}/system/lib64/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/codec_api/firmware/release/* ${TMP_PACKAGE_DIR}/system/etc/firmware/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/c-utils/arm/* ${TMP_PACKAGE_DIR}/system/lib/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/c-utils/arm64/* ${TMP_PACKAGE_DIR}/system/lib64/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/c-utils/arm/* ${TMP_PACKAGE_DIR}/system/vendor/lib/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/c-utils/arm64/* ${TMP_PACKAGE_DIR}/system/vendor/lib64/
 
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/egl/arm/libEGL_powervr.so ${TMP_PACKAGE_DIR}/system/vendor/lib/egl/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/egl/arm64/libEGL_powervr.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/egl/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/egl/arm/libIMGegl.so ${TMP_PACKAGE_DIR}/system/vendor/lib/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/egl/arm64/libIMGegl.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/egl/arm/libpvrANDROID_WSEGL.so ${TMP_PACKAGE_DIR}/system/vendor/lib/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/egl/arm64/libpvrANDROID_WSEGL.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/egl/arm/libEGL_powervr.so ${TMP_PACKAGE_DIR}/system/vendor/lib/egl/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/egl/arm64/libEGL_powervr.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/egl/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/egl/arm/libIMGegl.so ${TMP_PACKAGE_DIR}/system/vendor/lib/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/egl/arm64/libIMGegl.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/egl/arm/libpvrANDROID_WSEGL.so ${TMP_PACKAGE_DIR}/system/vendor/lib/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/egl/arm64/libpvrANDROID_WSEGL.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/
 
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/opengles/arm/libGLESv1_CM_powervr.so ${TMP_PACKAGE_DIR}/system/vendor/lib/egl/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/opengles/arm64/libGLESv1_CM_powervr.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/egl/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/opengles/arm/libGLESv2_powervr.so ${TMP_PACKAGE_DIR}/system/vendor/lib/egl/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/opengles/arm64/libGLESv2_powervr.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/egl/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/opengles/arm/libsrv_um.so ${TMP_PACKAGE_DIR}/system/vendor/lib/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/opengles/arm64/libsrv_um.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/opengles/arm/libufwriter.so ${TMP_PACKAGE_DIR}/system/vendor/lib/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/opengles/arm64/libufwriter.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/opengles/arm/libusc.so ${TMP_PACKAGE_DIR}/system/vendor/lib/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/opengles/arm64/libusc.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/opengles/firmware/* ${TMP_PACKAGE_DIR}/system/etc/firmware/awmgpu/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/gralloc/arm/* ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/gralloc/arm64/* ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
 
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/gralloc/arm/* ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/gralloc/arm64/* ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/ifbc/arm/* ${TMP_PACKAGE_DIR}/system/lib/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/ifbc/arm64/* ${TMP_PACKAGE_DIR}/system/lib64/
 
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/ifbc/arm/* ${TMP_PACKAGE_DIR}/system/lib/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/ifbc/arm64/* ${TMP_PACKAGE_DIR}/system/lib64/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/inno_codec/arm/* ${TMP_PACKAGE_DIR}/system/lib/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/inno_codec/arm/* ${TMP_PACKAGE_DIR}/system/vendor/lib/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/inno_codec/arm64/* ${TMP_PACKAGE_DIR}/system/lib64/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/inno_codec/arm64/* ${TMP_PACKAGE_DIR}/system/vendor/lib64/
 
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/isr/arm/* ${TMP_PACKAGE_DIR}/system/lib/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/isr/arm64/* ${TMP_PACKAGE_DIR}/system/lib64/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/isr/wbc/ ${TMP_PACKAGE_DIR}/system/etc/firmware/awmgpu/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/isr/arm/* ${TMP_PACKAGE_DIR}/system/lib/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/isr/arm64/* ${TMP_PACKAGE_DIR}/system/lib64/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/isr/arm/* ${TMP_PACKAGE_DIR}/system/vendor/lib/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/isr/arm64/* ${TMP_PACKAGE_DIR}/system/vendor/lib64/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/isr/wbc/ ${TMP_PACKAGE_DIR}/system/etc/firmware/innogpu/
 
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/libva/arm/* ${TMP_PACKAGE_DIR}/system/lib/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/libva/arm64/* ${TMP_PACKAGE_DIR}/system/lib64/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/va-api/arm/* ${TMP_PACKAGE_DIR}/system/lib/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/va-api/arm64/* ${TMP_PACKAGE_DIR}/system/lib64/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/libva/arm/* ${TMP_PACKAGE_DIR}/system/lib/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/libva/arm64/* ${TMP_PACKAGE_DIR}/system/lib64/
 
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/openmax/arm/* ${TMP_PACKAGE_DIR}/system/lib/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/openmax/arm64/* ${TMP_PACKAGE_DIR}/system/lib64/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/opengles/arm/libGLESv1_CM_powervr.so ${TMP_PACKAGE_DIR}/system/vendor/lib/egl/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/opengles/arm64/libGLESv1_CM_powervr.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/egl/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/opengles/arm/libGLESv2_powervr.so ${TMP_PACKAGE_DIR}/system/vendor/lib/egl/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/opengles/arm64/libGLESv2_powervr.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/egl/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/opengles/arm/libsrv_um.so ${TMP_PACKAGE_DIR}/system/vendor/lib/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/opengles/arm64/libsrv_um.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/opengles/arm/libufwriter.so ${TMP_PACKAGE_DIR}/system/vendor/lib/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/opengles/arm64/libufwriter.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/opengles/arm/libusc.so ${TMP_PACKAGE_DIR}/system/vendor/lib/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/opengles/arm64/libusc.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/opengles/firmware/* ${TMP_PACKAGE_DIR}/system/etc/firmware/innogpu/
 
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/vulkan/arm/* ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/vulkan/arm64/* ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/openmax/arm/* ${TMP_PACKAGE_DIR}/system/vendor/lib/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/openmax/arm64/* ${TMP_PACKAGE_DIR}/system/vendor/lib64/
 
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/c-utils/arm/* ${TMP_PACKAGE_DIR}/system/lib/
-    cp -pr ${TMP_PACKAGE_DIR}/awmgpu/c-utils/arm64/* ${TMP_PACKAGE_DIR}/system/lib64/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/va-api/arm/* ${TMP_PACKAGE_DIR}/system/lib/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/va-api/arm64/* ${TMP_PACKAGE_DIR}/system/lib64/
+
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/vulkan/arm/* ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
+    cp -pr ${TMP_PACKAGE_DIR}/innogpu/vulkan/arm64/* ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
 }
 
 function prepare_gpu_driver()
@@ -119,8 +125,8 @@ function prepare_gpu_driver()
         $cmd > /dev/null
     fi
 
-    if [ $GPUTYPE == "awm" ]; then
-        gen_awmgpu_package
+    if [ $GPUTYPE == "inno" ]; then
+        gen_innogpu_package
     elif [ $GPUTYPE == "va" ]; then
         gen_vagpu_package
     fi
@@ -151,10 +157,7 @@ function prepare_kbox_binary()
     [ $ENABLE_ONLY64_KBOX -eq 1 ] || cp ${BinaryPath}/omx/lib/* ${TMP_PACKAGE_DIR}/system/vendor/lib/
     cp ${BinaryPath}/omx/lib64/* ${TMP_PACKAGE_DIR}/system/vendor/lib64/
 
-    if [ $GPUTYPE = "awm" ]; then
-        [ $ENABLE_ONLY64_KBOX -eq 1 ] || cp ${BinaryPath}/product_hwcomposer/lib/hw/hwcomposer.awmgpu.so ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
-        cp ${BinaryPath}/product_hwcomposer/lib64/hw/hwcomposer.awmgpu.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
-    elif [ $GPUTYPE = "amd" ] || [ $GPUTYPE = "cpu" ]; then
+    if [ $GPUTYPE = "inno" ] || [ $GPUTYPE = "cpu" ]; then
         [ $ENABLE_ONLY64_KBOX -eq 1 ] || cp ${BinaryPath}/product_hwcomposer/lib/hw/hwcomposer.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib/hw/
         cp ${BinaryPath}/product_hwcomposer/lib64/hw/hwcomposer.kbox.so ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
     fi
@@ -183,8 +186,8 @@ function prepare_file_system()
     mkdir -p ${TMP_PACKAGE_DIR}/system/vendor/lib64/hw/
     mkdir -p ${TMP_PACKAGE_DIR}/system/vendor/bin/
     mkdir -p ${TMP_PACKAGE_DIR}/system/vendor/etc/init/
-    if [ $GPUTYPE = "awm" ]; then
-        mkdir -p ${TMP_PACKAGE_DIR}/system/etc/firmware/awmgpu/
+    if [ $GPUTYPE = "inno" ]; then
+        mkdir -p ${TMP_PACKAGE_DIR}/system/etc/firmware/innogpu/
         mkdir -p ${TMP_PACKAGE_DIR}/system/vendor/lib/egl/
         mkdir -p ${TMP_PACKAGE_DIR}/system/vendor/lib64/egl/
     fi
@@ -192,7 +195,7 @@ function prepare_file_system()
 
 function detect_gpu_type()
 {
-    XD_GPU_ID="1fe0:1010"
+    XD_GPU_ID="1ec8:8810"
     VA_GPU_ID=":0200"
     local xd_gpus=($(lspci -D | grep ${XD_GPU_ID} | awk '{print $1}'))
     local va_gpus=($(lspci -D | grep ${VA_GPU_ID} | awk '{print $1}'))
@@ -224,8 +227,8 @@ function detect_gpu_type()
             echo -e "and make sure it match the gpu type. \033[0m" && exit -1
         fi
     elif [ 0 -ne ${#xd_gpus[@]} ]; then
-        GPUTYPE="awm"
-        if [ "${GPU_DRIVER_PACKAGE}" != "awmgpu"* ] || [ -z $(ls | grep "${GPU_DRIVER_PACKAGE}") ]; then
+        GPUTYPE="inno"
+        if [ "${GPU_DRIVER_PACKAGE}" != "innogpu"* ] || [ -z $(ls | grep "${GPU_DRIVER_PACKAGE}") ]; then
             echo -e -n "\033[1;31m[ERROR] please check gpu driver package "
             echo -e "and make sure it match the gpu type. \033[0m" && exit -1
         fi
