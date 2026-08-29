@@ -171,7 +171,7 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 #### 约束与限制
 
 - 在使用硬件配置方案一（[《安装指南》](./install_guide.md)）时，若打开合成优化功能，可能在进入/退出游戏、拉起输入栏等行为时，发生画面旋转现象，可根据具体场景评估影响，决定是否需要打开。
-- 在25.3.0或更高版本的Kbox云手机组件上，该功能在硬件配置方案二、三、四（[《安装指南》](./install_guide.md)）上无法生效。
+- 在25.3.0或更高版本的Kbox云手机组件上，该功能在硬件配置方案二、三、四、五（[《安装指南》](./install_guide.md)）上无法生效。
 
 #### 应用场景
 
@@ -647,35 +647,32 @@ chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufre
 #### 约束与限制
 
 - 无法制作android_base或android_base.img数据卷。
-- 无法tstart、tdelete方式保存账号数据。仅支持start/delete/restart来创建/删除/重启容器
+- 无法tstart、tdelete方式保存账号数据。仅支持start/delete/restart来创建/删除/重启容器。
 - 遇到游戏更新的情况，建议重新制作共享数据卷的镜像。
 - F2FS、NFS挂载方案不支持。
 - K8s方案不支持。
-- 暂不支持shadercache
 
 #### 应用场景
 
-本特性没有特别的应用场景限制
+本特性没有特别的应用场景限制。
 
 ### 安装特性
-
-集成26.2.RC1或更高版本的Kbox云手机组件即包含本功能。
 
 ### 使用特性
 
 1. 在云手机配置文件kbox_config.cfg和视频流配置文件cfct_config设置相关配置项START_SHARE_DATA，该配置项默认为0，即不使能，设置为1即可使能共享数据卷功能。
 
-2. 配置项START_SHARE_DATA设置为1后，按照视频流原有流程制作镜像，并启动安卓云手机实例。配置云手机实例，比如下载游戏、软件后，执行命令
+2. 配置项START_SHARE_DATA设置为1后，按照视频流原有流程制作镜像，并启动安卓云手机实例。配置云手机实例，比如下载游戏、软件后，执行命令。
 
- ```bash
-   docker commit 云手机实例  镜像名称
-   ```
+   ```bash
+     docker commit 云手机实例  镜像名称
+     ```
 
-   比如
+     比如
 
- ```bash
-   docker commit android_1 video15:wzry
-   ```
+   ```bash
+     docker commit android_1 video15:wzry
+     ```
 
    此时云手机实例的数据被冻结为新的镜像层。然后基于这个新镜像，启动新的云手机，所有的新云手机实例将能共享新镜像中的数据。
 
