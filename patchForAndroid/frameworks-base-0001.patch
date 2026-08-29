@@ -34,19 +34,17 @@ index 0f9c7088..d74b2654 100644
          try {
              mDm.releaseVirtualDisplay(token);
 diff --git a/core/java/android/hardware/display/IDisplayManager.aidl b/core/java/android/hardware/display/IDisplayManager.aidl
-index c697106d..1dad8755 100644
+index c697106d0c17..a803096c3ce2 100644
 --- a/core/java/android/hardware/display/IDisplayManager.aidl
 +++ b/core/java/android/hardware/display/IDisplayManager.aidl
-@@ -80,6 +80,9 @@ interface IDisplayManager {
-     void resizeVirtualDisplay(in IVirtualDisplayCallback token,
-             int width, int height, int densityDpi);
- 
+@@ -128,4 +128,7 @@ interface IDisplayManager {
+     // The wide gamut color space is returned from composition pipeline
+     // based on hardware capability.
+     int getPreferredWideGamutColorSpaceId();
++
 +    // No permissions required, but must be same Uid as the creator.
 +    void resizePrimaryDisplay(int width, int height);
-+
-     // No permissions required but must be same Uid as the creator.
-     void setVirtualDisplaySurface(in IVirtualDisplayCallback token, in Surface surface);
- 
+ }
 diff --git a/core/java/android/net/NetworkInfo.java b/core/java/android/net/NetworkInfo.java
 index 08fe159b..31e47a7a 100644
 --- a/core/java/android/net/NetworkInfo.java
@@ -136,17 +134,15 @@ index 0abf8ae3..4f6e625b 100644
  
      /** {@hide} */
 diff --git a/core/java/android/view/IWindowManager.aidl b/core/java/android/view/IWindowManager.aidl
-index 00fc6721..bc522b91 100644
+index 00fc67214f75..2be544edc35b 100644
 --- a/core/java/android/view/IWindowManager.aidl
 +++ b/core/java/android/view/IWindowManager.aidl
-@@ -102,6 +102,7 @@ interface IWindowManager
- 
-     @UnsupportedAppUsage
-     void getInitialDisplaySize(int displayId, out Point size);
+@@ -762,4 +762,5 @@ interface IWindowManager
+      */
+     void requestScrollCapture(int displayId, IBinder behindClient, int taskId,
+             IScrollCaptureController controller);
 +    void getOrigDisplaySize(int displayId, out Point size);
-     @UnsupportedAppUsage
-     void getBaseDisplaySize(int displayId, out Point size);
-     void setForcedDisplaySize(int displayId, int width, int height);
+ }
 diff --git a/core/java/android/view/ViewRootImpl.java b/core/java/android/view/ViewRootImpl.java
 index 18e9ef0e..3954888b 100644
 --- a/core/java/android/view/ViewRootImpl.java
