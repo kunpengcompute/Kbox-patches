@@ -223,7 +223,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
     ![Memory Configuration设置界面](./figures/zh-cn_image_0000002549712123.png)
 
-2. 进入Memory Configuration设置页面后，硬件配置方案三将**Memory Frequency**选项设置为“4800”，配置方案四将**Memory Frequency**选项设置为“5200”，配置方案四将**Memory Frequency**选项设置为“3200”，将**Custom Refresh Rate**选项设置为“Auto”后保存BIOS配置并退出设置界面。
+2. 进入Memory Configuration设置页面后，硬件配置方案三将**Memory Frequency**选项设置为“4800”，配置方案四将**Memory Frequency**选项设置为“5200”，配置方案五将**Memory Frequency**选项设置为“3200”，将**Custom Refresh Rate**选项设置为“Auto”后保存BIOS配置并退出设置界面。
 
     ![Memory Frequency设置界面](./figures/zh-cn_image_0000002518352278.png)
 
