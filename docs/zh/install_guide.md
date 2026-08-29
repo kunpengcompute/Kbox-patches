@@ -227,7 +227,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
     ![Memory Configuration设置界面](./figures/zh-cn_image_0000002549712123.png)
 
-2. 进入Memory Configuration设置页面后，硬件配置方案三将**Memory Frequency**选项设置为“4800”，配置方案四将**Memory Frequency**选项设置为“5200”，将**“Custom Refresh Rate”**选项设置为“Auto”后保存BIOS配置并退出设置界面。
+2. 进入Memory Configuration设置页面后，硬件配置方案三将**Memory Frequency**选项设置为“4800”，配置方案四将**Memory Frequency**选项设置为“5200”，将**Custom Refresh Rate**选项设置为“Auto”后保存BIOS配置并退出设置界面。
 
     ![Memory Frequency设置界面](./figures/zh-cn_image_0000002518352278.png)
 
@@ -254,7 +254,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 2. 执行命令，查询网卡涉及的中断。
 
-    命令中的**${id_pci}**为[1](#zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512)中查到的网卡设备号。
+    命令中的`${id_pci}`为[1](#zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512)中查到的网卡设备号。
 
     ```bash
     cat /proc/interrupts | grep "${id_pci}" | awk -F: '{print $1}'
@@ -271,7 +271,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
     >
     >若查询网卡涉及的中断时，回显包含多个中断号，则需要判断中断是否分散地绑在不同CPU上，根据判断结果来确定是否修改中断绑定的CPU。
 
-3. 查询中断绑定在哪个CPU上，命令中的${break_value}为查询到的网卡中断号。
+3. 查询中断绑定在哪个CPU上，命令中的`${break_value}`为查询到的网卡中断号。
 
     ```bash
     cat /proc/irq/${break_value}/smp_affinity_list
@@ -282,7 +282,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 4. <a id="zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li1667182211497"></a>根据网卡的**pci设备号**，查看网卡所属的NUMA node。
 
-    命令中的${id_pci}为网卡设备号，可通过本节内容的[1](#zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512)进行查看。执行命令，回显中的NUMA node参数对应的值即为网卡所属的NUMA node。
+    命令中的`${id_pci}`为网卡设备号，可通过本节内容的[1](#zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li189522054171512)进行查看。执行命令，回显中的NUMA node参数对应的值即为网卡所属的NUMA node。
 
     ```bash
     lspci -vvvs ${id_pci}
@@ -303,15 +303,15 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 5. <a id="zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li1985492711497"></a>网卡中断绑定至预留CPU（优先网卡所属的NUMA node CPU）上。
 
-    命令中的${break_1}、${break_2}依次为两个网卡中断的值。
+    命令中的`${break_1}`、`${break_2}`依次为两个网卡中断的值。
 
-    - 将中断${break_1}绑定至1 CPU。
+    - 将中断`${break_1}`绑定至1 CPU。
 
         ```bash
         echo 1 > /proc/irq/${break_1}/smp_affinity_list
         ```
 
-    - 将中断${break_2}绑定至2 CPU。
+    - 将中断`${break_2}`绑定至2 CPU。
 
         ```bash
         echo 2 > /proc/irq/${break_2}/smp_affinity_list
