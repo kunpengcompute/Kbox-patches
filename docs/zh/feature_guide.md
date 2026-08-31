@@ -256,7 +256,7 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 若回显中出现"f2fs"，则直接跳到下方"新建f2fs磁盘并挂载指定目录"章节继续执行。
 
-如果回显为空，说明当前内核不支持f2fs文件格式，则需要重新编一个支持f2fs格式的内核，编译时在”配置内核编译选项“步骤中需要把.config文件里的CONFIG_F2FS_FS设置为Y，重新编内核的步骤可以参照install_guide.md的[编译及安装内核](install_guide.md#ZH-CN_TOPIC_0000002549832103)章节。
+如果回显为空，说明当前内核不支持f2fs文件格式，则需要重新编一个支持f2fs格式的内核，编译时在“配置内核编译选项”步骤中需要把.config文件里的CONFIG_F2FS_FS设置为Y，重新编内核的步骤可以参照install_guide.md的[编译及安装内核](install_guide.md#ZH-CN_TOPIC_0000002549832103)章节。
 
 ##### 新建f2fs磁盘并挂载指定目录
 
@@ -425,7 +425,7 @@ SYSTEM_PARTITION_SIZE_MB=${预期要实现的/system分区大小值(MB)}
 
 #### 约束与限制
 
-NFS采用典型的**客户端/服务器（C/S）**架构，客户端/服务器均需要包含内核模块nfs、nfsd、nfsv4，安装nfs-utils、rpcbind。
+NFS采用典型的客户端/服务器（C/S）架构，客户端/服务器均需要包含内核模块nfs、nfsd、nfsv4，安装nfs-utils、rpcbind。
 
 #### 应用场景
 
@@ -655,13 +655,13 @@ chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufre
 2. 配置项START_SHARE_DATA设置为1后，按照视频流原有流程制作镜像，并启动安卓云手机实例。配置云手机实例，比如下载游戏、软件后，执行命令
 
     ```bash
-     docker commit 云手机实例  镜像名称
+     docker commit 云手机实例 镜像名称
      ```
    
    比如
    
     ```bash
-     docker commit android_1 video11:wzry
+     docker commit kbox_1 kbox11:wzry
      ```
 
    此时云手机实例的数据被冻结为新的镜像层。然后基于这个新镜像，启动新的云手机，所有的新云手机实例将能共享新镜像中的数据。
