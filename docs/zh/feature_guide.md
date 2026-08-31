@@ -637,7 +637,7 @@ chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufre
 #### 约束与限制
 
 - 无法制作android_base或android_base.img数据卷。
-- 无法tstart、tdelete方式保存账号数据。仅支持start/delete/restart来创建/删除/重启容器
+- 无法tstart、tdelete方式保存账号数据。仅支持start/delete/restart来创建/删除/重启容器。
 - 遇到游戏更新的情况，建议重新制作共享数据卷的镜像。
 - F2FS、NFS挂载方案不支持。
 - K8s方案不支持。
