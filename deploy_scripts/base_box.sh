@@ -1660,7 +1660,7 @@ function bb_select_amd_gpu_map() {
     VSYNC_OFFSET_MAP=("${_vsync[@]}")
 }
 
-# 选择 XD GPU MAP（参考HB方式，仅与XD卡数相关，与CPU核数无关）
+# 选择 XD GPU MAP（仅与XD卡数相关，与CPU核数无关）
 # 参数：$1=xd_gpu_count（$2=num_of_cpus 保留兼容，不再参与查表）
 # 设置全局变量 GPU_MAP, VPU_MAP
 function bb_select_xd_gpu_map() {
