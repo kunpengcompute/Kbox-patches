@@ -1660,16 +1660,15 @@ function bb_select_amd_gpu_map() {
     VSYNC_OFFSET_MAP=("${_vsync[@]}")
 }
 
-# 选择 XD GPU MAP（仅128核支持）
-# 参数：$1=xd_gpu_count $2=num_of_cpus
+# 选择 XD GPU MAP（参考HB方式，仅与XD卡数相关，与CPU核数无关）
+# 参数：$1=xd_gpu_count（$2=num_of_cpus 保留兼容，不再参与查表）
 # 设置全局变量 GPU_MAP, VPU_MAP
 function bb_select_xd_gpu_map() {
     local xd_count=$1
-    local num_of_cpus=$2
-    local -n _gpu="VIDEO_GPU_MAP_XD${xd_count}_${num_of_cpus}CORE"
-    local -n _vpu="VIDEO_VPU_MAP_XD${xd_count}_${num_of_cpus}CORE"
+    local -n _gpu="VIDEO_GPU_MAP_XD${xd_count}"
+    local -n _vpu="VIDEO_VPU_MAP_XD${xd_count}"
     if [ -z "${_gpu[*]}" ]; then
-        bb_log_info "No XD GPU map for count=${xd_count}, core=${num_of_cpus}"
+        bb_log_info "No XD GPU map for count=${xd_count}"
         return 1
     fi
     GPU_MAP=("${_gpu[@]}")
@@ -1699,9 +1698,8 @@ function bb_select_hb_gpu_map() {
 }
 
 # 按 GPU 类型优先级（AMD > XD > Hantro）选择 GPU_MAP
-# 参数：$1=num_of_cpus $2=xd_gpus $3=amd_gpus $4=hantro_gpus
+# 参数：$1=num_of_cpus（保留兼容，GPU_MAP 查表已与核数无关）$2=xd_gpus $3=amd_gpus $4=hantro_gpus
 function bb_select_gpu_map_by_type() {
-    local num_of_cpus=$1
     local -n _xd=$2
     local -n _amd=$3
     local -n _hantro=$4
@@ -1709,9 +1707,9 @@ function bb_select_gpu_map_by_type() {
     if [ ${#_amd[@]} -ne 0 ]; then
         bb_select_amd_gpu_map ${#_amd[@]}
     elif [ ${#_xd[@]} -ne 0 ]; then
-        bb_select_xd_gpu_map ${#_xd[@]} "$num_of_cpus"
+        bb_select_xd_gpu_map ${#_xd[@]}
     elif [ ${#_hantro[@]} -ne 0 ]; then
-        bb_select_hb_gpu_map ${#_hantro[@]} "$num_of_cpus"
+        bb_select_hb_gpu_map ${#_hantro[@]}
     else
         bb_log_info "No GPU exists on the host. Enable soft render..."
     fi
