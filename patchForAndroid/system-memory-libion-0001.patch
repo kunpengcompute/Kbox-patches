@@ -1,8 +1,36 @@
+diff --git a/Android.bp b/Android.bp
+index 67ac2abf43b170bc..1bbf4c98bbf62452 100644
+--- a/Android.bp
++++ b/Android.bp
+@@ -7,7 +7,7 @@
+         support_system_process: true,
+     },
+     srcs: ["ion.c"],
+-    shared_libs: ["liblog"],
++    shared_libs: ["liblog", "libcutils"],
+     local_include_dirs: [
+         "include",
+         "kernel-headers",
 diff --git a/ion.c b/ion.c
-index 1a2b3c4..9d8e7f6 100644
+index 07b4caf33a0c3578..936a243771156e82 100644
 --- a/ion.c
 +++ b/ion.c
-@@ -35,6 +35,16 @@
+@@ -23,6 +23,7 @@
+ #include <fcntl.h>
+ #include <linux/ion.h>
+ #include <stdatomic.h>
++#include <stdbool.h>
+ #include <stdio.h>
+ #include <string.h>
+ #include <sys/ioctl.h>
+@@ -30,18 +31,49 @@
+ #include <sys/types.h>
+ #include <unistd.h>
+ 
++#include <cutils/properties.h>
++
+ #include <ion/ion.h>
+ #include <linux/ion_4.19.h>
  
  #include <log/log.h>
  
@@ -19,23 +47,34 @@ index 1a2b3c4..9d8e7f6 100644
  #define ION_ABI_VERSION_MODULAR_HEAPS 2
  
  enum ion_version { ION_VERSION_UNKNOWN, ION_VERSION_MODERN, ION_VERSION_LEGACY };
-@@ -42,23 +52,18 @@ enum ion_version { ION_VERSION_UNKNOWN, ION_VERSION_MODERN, ION_VERSION_LEGACY }
+ 
  static atomic_int g_ion_version = ATOMIC_VAR_INIT(ION_VERSION_UNKNOWN);
  
++static bool g_use_dma_heap = false;
++
++static bool use_dma_heap(void) {
++    static bool g_use_dma_heap_initialized = false;
++    if (!g_use_dma_heap_initialized) {
++        char value[PROPERTY_VALUE_MAX] = {0};
++        if (property_get("ro.hardware.enableC2decode", value, "0") > 0) {
++            g_use_dma_heap = (strcmp(value, "1") == 0);
++        }
++        g_use_dma_heap_initialized = true;
++    }
++    return g_use_dma_heap;
++}
++
  int ion_is_legacy(int fd) {
--    int version = atomic_load_explicit(&g_ion_version, memory_order_acquire);
--    if (version == ION_VERSION_UNKNOWN) {
--        /**
--          * Check for FREE IOCTL here; it is available only in the old
--          * kernels, not the new ones.
--          */
--        int err = ion_free(fd, (ion_user_handle_t)NULL);
--        version = (err == -ENOTTY) ? ION_VERSION_MODERN : ION_VERSION_LEGACY;
--        atomic_store_explicit(&g_ion_version, version, memory_order_release);
--    }
--    return version == ION_VERSION_LEGACY;
-+    (void)fd;
-+    return 0;
++    if (use_dma_heap()) {
++        (void)fd;
++        return 0;
++    }
++
+     int version = atomic_load_explicit(&g_ion_version, memory_order_acquire);
+     if (version == ION_VERSION_UNKNOWN) {
+         /**
+@@ -55,10 +87,20 @@
+     return version == ION_VERSION_LEGACY;
  }
  
 -int ion_open() {
@@ -43,77 +82,83 @@ index 1a2b3c4..9d8e7f6 100644
 -    if (fd < 0) ALOGE("open /dev/ion failed: %s", strerror(errno));
  
 +int ion_open() {
-+    int fd = open("/dev/dma_heap/system", O_RDONLY | O_CLOEXEC);
-+    if (fd < 0) {
-+        ALOGE("open /dev/dma_heap/system failed: %s", strerror(errno));
++    int fd;
++    if (use_dma_heap()) {
++        fd = open("/dev/dma_heap/system", O_RDONLY | O_CLOEXEC);
++        if (fd < 0) {
++            ALOGE("open /dev/dma_heap/system failed: %s", strerror(errno));
++        } else {
++            ALOGI("open /dev/dma_heap/system success");
++        }
 +    } else {
-+        ALOGI("open /dev/dma_heap/system success");
++        fd = open("/dev/ion", O_RDONLY | O_CLOEXEC);
++        if (fd < 0) ALOGE("open /dev/ion failed: %s", strerror(errno));
 +    }
      return fd;
  }
  
-@@ -69,12 +74,27 @@ int ion_close(int fd) {
+@@ -69,6 +111,30 @@
  }
  
  static int ion_ioctl(int fd, int req, void* arg) {
--    int ret = ioctl(fd, req, arg);
--    if (ret < 0) {
--        ALOGE("ioctl %x failed with code %d: %s", req, ret, strerror(errno));
--        return -errno;
-+    if (req == ION_IOC_ALLOC || req == ION_IOC_NEW_ALLOC) {
-+        struct dma_heap_allocation_data dma_data;
-+        uint64_t* len_ptr = (uint64_t*)arg;
++    if (use_dma_heap()) {
++        if (req == ION_IOC_ALLOC || req == ION_IOC_NEW_ALLOC) {
++            struct dma_heap_allocation_data dma_data;
++            uint64_t* len_ptr = (uint64_t*)arg;
 +
-+        dma_data.len = *len_ptr;
-+        dma_data.fd_flags = O_RDWR | O_CLOEXEC;
-+        dma_data.heap_flags = 0;
++            dma_data.len = *len_ptr;
++            dma_data.fd_flags = O_RDWR | O_CLOEXEC;
++            dma_data.heap_flags = 0;
 +
-+        if(ioctl(fd, DMA_HEAP_IOCTL_ALLOC, &dma_data) >= 0){
-+              uint32_t* out_fd_ptr = (uint32_t*)((char*)arg + 8);
-+              *out_fd_ptr = dma_data.fd;
-+              return 0;
++            if(ioctl(fd, DMA_HEAP_IOCTL_ALLOC, &dma_data) >= 0){
++                  uint32_t* out_fd_ptr = (uint32_t*)((char*)arg + 8);
++                  *out_fd_ptr = dma_data.fd;
++                  return 0;
++            }
++             int err = errno;
++             ALOGD("ion_ioctl failed");
++             return -err;
 +        }
-+         int err = errno;
-+         ALOGD("ion_ioctl failed");
-+         return -err;
-     }
--    return ret;
-+    if (req == ION_IOC_FREE) {
-+         return 0;
++        if (req == ION_IOC_FREE) {
++             return 0;
++        }
++        return 0;
 +    }
-+    return 0;
- }
- 
- int ion_is_using_modular_heaps(int fd) {
-@@ -159,11 +179,28 @@ int ion_share(int fd, ion_user_handle_t handle, int* share_fd) {
++
+     int ret = ioctl(fd, req, arg);
+     if (ret < 0) {
+         ALOGE("ioctl %x failed with code %d: %s", req, ret, strerror(errno));
+@@ -159,11 +225,30 @@
  
  int ion_alloc_fd(int fd, size_t len, size_t align, unsigned int heap_mask, unsigned int flags,
                   int* handle_fd) {
--    ion_user_handle_t handle;
--    int ret;
--
-     if (!handle_fd) return -EINVAL;
-+    static int system_heap_fd = -1;
-+    if (system_heap_fd < 0) {
-+         system_heap_fd = open("/dev/dma_heap/system", O_RDONLY | O_CLOEXEC);
-+    }
- 
-+    if (system_heap_fd >= 0) {
-+         struct dma_heap_allocation_data data = {
-+              .len = (__u64)len,
-+              .fd_flags =O_RDWR | O_CLOEXEC,
-+              .heap_flags = 0,
-+         };
++    if (!handle_fd) return -EINVAL;
++    if (use_dma_heap()) {
++        static int system_heap_fd = -1;
++        if (system_heap_fd < 0) {
++             system_heap_fd = open("/dev/dma_heap/system", O_RDONLY | O_CLOEXEC);
++        }
 +
-+         if (ioctl(system_heap_fd, DMA_HEAP_IOCTL_ALLOC, &data) >= 0) {
-+              *handle_fd = data.fd;
-+              return 0;
-+         } else {
-+              ALOGD("ion_alloc_fd ioctl failed");
-+         }
++        if (system_heap_fd >= 0) {
++             struct dma_heap_allocation_data data = {
++                  .len = (__u64)len,
++                  .fd_flags =O_RDWR | O_CLOEXEC,
++                  .heap_flags = 0,
++             };
++
++             if (ioctl(system_heap_fd, DMA_HEAP_IOCTL_ALLOC, &data) >= 0) {
++                  *handle_fd = data.fd;
++                  return 0;
++             } else {
++                  ALOGD("ion_alloc_fd ioctl failed");
++             }
++        }
 +    }
-+    ion_user_handle_t handle;
-+    int ret;
+     ion_user_handle_t handle;
+     int ret;
+-
+-    if (!handle_fd) return -EINVAL;
+-
      if (!ion_is_legacy(fd)) {
          struct ion_new_allocation_data data = {
              .len = len,
