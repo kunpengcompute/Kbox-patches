@@ -261,7 +261,7 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
 若回显中出现"f2fs"，则直接跳到下方"新建f2fs磁盘并挂载指定目录"章节继续执行。
 
-如果回显为空，说明当前内核不支持f2fs文件格式，则需要重新编一个支持f2fs格式的内核，编译时在”配置内核编译选项“步骤中需要把.config文件里的CONFIG_F2FS_FS设置为Y，重新编内核的步骤可以参照install_guide.md的[编译及安装内核](install_guide.md#ZH-CN_TOPIC_0000002518385420)章节
+如果回显为空，说明当前内核不支持f2fs文件格式，则需要重新编一个支持f2fs格式的内核，编译时在“配置内核编译选项”步骤中需要把.config文件里的CONFIG_F2FS_FS设置为Y，重新编内核的步骤可以参照install_guide.md的[编译及安装内核](install_guide.md#ZH-CN_TOPIC_0000002518385420)章节
 
 ##### **新建f2fs磁盘并挂载指定目录**
 
@@ -671,7 +671,7 @@ chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufre
      比如
 
    ```bash
-     docker commit android_1 video15:wzry
+     docker commit kbox_1 kbox15:wzry
      ```
 
    此时云手机实例的数据被冻结为新的镜像层。然后基于这个新镜像，启动新的云手机，所有的新云手机实例将能共享新镜像中的数据。
