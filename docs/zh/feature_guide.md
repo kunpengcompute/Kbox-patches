@@ -435,7 +435,7 @@ SYSTEM_PARTITION_SIZE_MB=${预期要实现的/system分区大小值(MB)}
 
 #### 约束与限制
 
-NFS采用典型的<b>客户端/服务器（C/S）</b>架构，客户端/服务器均需要包含内核模块nfs、nfsd、nfsv4，安装nfs-utils、rpcbind。
+NFS采用典型的客户端/服务器（C/S）架构，客户端/服务器均需要包含内核模块nfs、nfsd、nfsv4，安装nfs-utils、rpcbind。
 
 #### 应用场景
 
