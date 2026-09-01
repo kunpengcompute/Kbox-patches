@@ -1121,3 +1121,9 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 | 通过**docker stats/docker inspect**收集docker相关日志 |
 
 为了便于使用，特基于Kbox_maintainer（维护工具）提供一键式日志收集能力，Kbox_maintainer工具收集日志的方法，请参见《[例行维护](routine_maintenance.md)》的“日志收集”章节。
+
+## 修订记录
+
+|文档版本|发布日期|修改说明|
+|--|--|--|
+|01|2026-09-30|第一次正式发布|

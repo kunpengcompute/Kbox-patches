@@ -1081,3 +1081,9 @@ NUMA node: 2
     magic 7f454c4601010100000000000000000002002800
     mask ffffffffffffff00fffffffffffffffffeffffff
     ```
+
+## 修订记录
+
+|文档版本|发布日期|修改说明|
+|--|--|--|
+|01|2026-09-30|第一次正式发布|
