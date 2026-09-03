@@ -1,101 +1,46 @@
-diff --git a/src/com/android/gallery3d/app/MoviePlayer.java b/src/com/android/gallery3d/app/MoviePlayer.java
-index 9104357a2..5e0997aa0 100644
---- a/src/com/android/gallery3d/app/MoviePlayer.java
-+++ b/src/com/android/gallery3d/app/MoviePlayer.java
-@@ -38,6 +38,9 @@
- import android.view.View;
- import android.view.ViewGroup;
- import android.widget.VideoView;
-+import android.app.Activity;
-+import android.os.Handler;
-+import android.os.Looper;
+diff --git a/src/com/android/gallery3d/glrenderer/TiledTexture.java b/src/com/android/gallery3d/glrenderer/TiledTexture.java
+index 78cb2f2de..b6ac47459 100644
+--- a/src/com/android/gallery3d/glrenderer/TiledTexture.java
++++ b/src/com/android/gallery3d/glrenderer/TiledTexture.java
+@@ -113,6 +113,7 @@ public class TiledTexture implements Texture {
+         public int offsetX;
+         public int offsetY;
+         public Bitmap bitmap;
++        public Bitmap sourceBitmap;
+         public Tile nextFreeTile;
+         public int contentWidth;
+         public int contentHeight;
+@@ -134,6 +135,8 @@ public class TiledTexture implements Texture {
+             Bitmap localBitmapRef = bitmap;
+             bitmap = null;
  
- import com.android.gallery3d.R;
- import com.android.gallery3d.common.ApiHelper;
-@@ -76,7 +79,7 @@
-     private static final long RESUMEABLE_TIMEOUT = 3 * 60 * 1000; // 3 mins
- 
-     private Context mContext;
--    private final VideoView mVideoView;
-+    private VideoView mVideoView;
-     private final View mRootView;
-     private final Bookmarker mBookmarker;
-     private final Uri mUri;
-@@ -277,18 +280,38 @@
-     public void onPause() {
-         mHasPaused = true;
-         mHandler.removeCallbacksAndMessages(null);
--        mVideoPosition = mVideoView.getCurrentPosition();
--        mBookmarker.setBookmark(mUri, mVideoPosition, mVideoView.getDuration());
--        mVideoView.suspend();
++            if (localBitmapRef == null) localBitmapRef = sourceBitmap;
 +
-+        if (mVideoView != null) {
-+            mVideoPosition = mVideoView.getCurrentPosition();
-+            mBookmarker.setBookmark(mUri, mVideoPosition, mVideoView.getDuration());
-+
-+            mVideoView.stopPlayback();
-+            mVideoView.setVideoURI(null);
-+
-+            mVideoView.getHolder().setFixedSize(320, 240);
-+            mVideoView.setVisibility(android.view.View.GONE);
-+        }
-         mResumeableTime = System.currentTimeMillis() + RESUMEABLE_TIMEOUT;
-     }
- 
-     public void onResume() {
-         if (mHasPaused) {
--            mVideoView.seekTo(mVideoPosition);
--            mVideoView.resume();
-+            if (mVideoView != null) {
-+                mVideoView.getHolder().setSizeFromLayout();
-+                mVideoView.setVisibility(android.view.View.VISIBLE);
-+                mVideoView.post(new Runnable() {
-+                    @Override
-+                    public void run() {
-+                        if (mVideoView != null) {
-+                            mVideoView.setVideoURI(mUri);
-+                            mVideoView.seekTo(mVideoPosition);
-+                            mVideoView.resume();
-+                            Log.d("MoviePlayer", "Resume: Layout size restored and playback started");
-+                        }
-+                    }
-+                });
-+            }
- 
--            // If we have slept for too long, pause the play
-             if (System.currentTimeMillis() > mResumeableTime) {
-                 pauseVideo();
+             if (localBitmapRef != null) {
+                 int x = BORDER_SIZE - offsetX;
+                 int y = BORDER_SIZE - offsetY;
+@@ -147,6 +150,8 @@ public class TiledTexture implements Texture {
+                 if (y > 0) sCanvas.drawLine(0, y - 1, TILE_SIZE, y - 1, sPaint);
+                 if (r < CONTENT_SIZE) sCanvas.drawLine(r, 0, r, TILE_SIZE, sPaint);
+                 if (b < CONTENT_SIZE) sCanvas.drawLine(0, b, TILE_SIZE, b, sPaint);
++            } else {
++                sCanvas.drawColor(Color.TRANSPARENT, Mode.SRC);
              }
-diff --git a/src/com/android/gallery3d/app/MovieActivity.java b/src/com/android/gallery3d/app/MovieActivity.java
-index 9104357a2..5e0997aa0 100644
---- a/src/com/android/gallery3d/app/MovieActivity.java
-+++ b/src/com/android/gallery3d/app/MovieActivity.java
-@@ -267,6 +267,28 @@
-     }
  
-     @Override
-+    public void finish() {
-+        if (mPlayer != null) {
-+            mPlayer.onPause();
-+        }
-+        overridePendingTransition(0, 0);
-+
-+        final android.view.View decor = getWindow().getDecorView();
-+        if (decor != null) {
-+            decor.setBackgroundColor(android.graphics.Color.BLACK);
-+            decor.postDelayed(new Runnable() {
-+                @Override
-+                public void run() {
-+                    MovieActivity.super.finish();
-+                    overridePendingTransition(0, 0);
-+                }
-+            }, 250); 
-+        } else {
-+            super.finish();
-+        }
-+    }
-+
-+    @Override
-     public boolean onKeyUp(int keyCode, KeyEvent event) {
-         return mPlayer.onKeyUp(keyCode, event)
-                 || super.onKeyUp(keyCode, event);
+             return sUploadBitmap;
+@@ -161,6 +166,7 @@ public class TiledTexture implements Texture {
+     private static void freeTile(Tile tile) {
+         tile.invalidateContent();
+         tile.bitmap = null;
++        tile.sourceBitmap = null;
+         synchronized (sFreeTileLock) {
+             tile.nextFreeTile = sFreeTileHead;
+             sFreeTileHead = tile;
+@@ -210,6 +216,7 @@ public class TiledTexture implements Texture {
+                 tile.offsetX = x;
+                 tile.offsetY = y;
+                 tile.bitmap = bitmap;
++                tile.sourceBitmap = bitmap;
+                 tile.setSize(
+                         Math.min(CONTENT_SIZE, mWidth - x),
+                         Math.min(CONTENT_SIZE, mHeight - y));
