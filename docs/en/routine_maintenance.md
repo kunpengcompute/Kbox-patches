@@ -46,7 +46,7 @@ docker exec -it kbox_${index} sh
 getprop | grep boot
 ```
 
-If the value of `sys.boot_completed` is `1` in the command output, the container is started successfully. Otherwise, the container fails to be started. In this case, contact Huawei technical support. Command output:
+If the value of `sys.boot_completed` is `1` in the command output, the container is started successfully. Otherwise, the container fails to be started. In this case, Please submit an ISSUE feedback. Command output:
 
 ```shell
 [service.bootanim.exit]: [1]
@@ -66,7 +66,7 @@ docker exec -it kbox_${index} sh
 ps -elf
 ```
 
-If the parent process of more than 10 processes changes to `sh` (the process ID is 1), as shown in the following figure, a crash occurs in the container. In this case, restart the container or contact Huawei technical support.
+If the parent process of more than 10 processes changes to `sh` (the process ID is 1), as shown in the following figure, a crash occurs in the container. In this case, restart the container or Please submit an ISSUE feedback.
 
 ![](figures/zh-cn_image_0000002518186124.png)
 
@@ -194,7 +194,7 @@ In the Kbox cloud phone container operating environment, run the following comma
 cat /sys/kernel/debug/dri/*/amdgpu_pm_info |grep Temp
 ```
 
-The following figure shows the query result. If the temperature is higher than 80°C for a long time, contact Huawei technical support.
+The following figure shows the query result. If the temperature is higher than 80°C for a long time, Please submit an ISSUE feedback.
 
 ![](figures/zh-cn_image_0000002518186122.png)
 
@@ -406,7 +406,7 @@ python3 kbox_maintainer.py recover kbox_1
 
 ### 5.1 Forbidden Operations<a name="ZH-CN_TOPIC_0000002549705883"></a>
 
-None. If you have any questions, contact Huawei technical support.
+None. If you have any questions, Please submit an ISSUE feedback.
 
 ### 5.2 Risky Operations<a name="ZH-CN_TOPIC_0000002518186112"></a>
 

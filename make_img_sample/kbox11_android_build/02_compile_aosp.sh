@@ -55,7 +55,7 @@ function aosp_compile(){
     # 生成release key
     rm -rf ./build/target/product/security/release*
     chmod +x ./development/tools/make_key || error "无法设置make_key为可执行"
-    echo -e "\n" | ./development/tools/make_key build/target/product/security/releasekey '/C=CN/O=Huawei/CN=kunpeng' ||
+    echo -e "\n" | ./development/tools/make_key build/target/product/security/releasekey '/C=CN/O=Xxx/CN=Xxx' ||
         true
     source build/envsetup.sh || error "无法加载build环境"
     lunch kbox_arm64-user || error "lunch命令执行失败"
