@@ -45,12 +45,12 @@ Currently, the Kbox Android container supports Android 15. [Table 1 Software req
 |No.|Software Package|Description|How to Obtain|Configuration Scheme 1|Configuration Scheme 2|Configuration Scheme 3|Configuration Scheme 4|
 |--|--|--|--|--|--|--|--|
 | 1 | android.tar | Kbox Android image package.| Prepare it by yourself. For details, see [Compilation Guide](compile_guide.md).| √ | √ | √ | √ |
-| 2 | BoostKit-boostcph-kbox_*_15.zip | Android Kbox binary package| Contact Huawei technical support.| √ | √ | √ | √ |
+| 2 | BoostKit-boostcph-kbox_*_15.zip | Android Kbox binary package| Please submit an ISSUE feedback.| √ | √ | √ | √ |
 | 3 | kernel-6.6.0-72.0.0.zip | openEuler 24.03 LTS SP1 kernel source code.| [Link](https://gitee.com/openeuler/kernel/repository/archive/6.6.0-72.0.0.zip)| √ | √ | √ | √ |
-| 4 | ExaGear_ARM32-ARM64.tar.gz | Binary package for ExaGear transcoding.| Contact Huawei technical support.| √ | √ | √ | √ |
+| 4 | ExaGear_ARM32-ARM64.tar.gz | Binary package for ExaGear transcoding.| Please submit an ISSUE feedback.| √ | √ | √ | √ |
 | 5 | Kbox-patches-AOSP15.zip | Demo kernel patch package and demo container deployment script package.| [Link](https://gitcode.com/boostkit/Kbox-patches/tree/AOSP15)| √ | √ | √ | √ |
 | 6 | Quadra_V*XXX*.zip | Quadra software, firmware, and document packages of the NETINT encoding card. The matching version is V4.8.F-Android15.| [Link](https://www.netint.cn/quadra-firmware-downloads-android15/)<br>Download password: **test123**| √ | - | - | - |
-| 7 | VAGPU-25.03.01.01-RC13-A15.tgz | GPU driver| Contact Huawei technical support.| - | √ | √ | √ |
+| 7 | VAGPU-25.03.01.01-RC13-A15.tgz | GPU driver| Please submit an ISSUE feedback.| - | √ | √ | √ |
 | 8 | docker-24.0.0.tgz | Docker 24.0.0 binary package.| [Link](https://download.docker.com/linux/static/stable/aarch64/docker-24.0.0.tgz)| √ | √ | √ | √ |
 
 >![](public_sys-resources/icon-note.gif) **NOTE:**
@@ -69,7 +69,7 @@ To prevent software packages from being maliciously tampered with during transfe
 
 >![](public_sys-resources/icon-note.gif) **NOTE:**
 >
->- If the verification fails, do not use the software package. Contact Huawei technical support.
+>- If the verification fails, do not use the software package. Please submit an ISSUE feedback.
 >- Before a software package is used for installation or upgrade, its digital signature also needs to be verified to ensure that the software package is not tampered with.
 >- Before using the software package, read and agree to [Kunpeng BoostKit User License Agreement 2.0](https://www.hikunpeng.com/en/legal/developer/boostkit/software/protocol).
 
@@ -482,7 +482,7 @@ During the compilation, use the **root** user to log in and perform operations.
 
     >![](public_sys-resources/icon-note.gif) **NOTE:**
     >
-    >If an error is reported during lxcfs startup, restart the service or contact Huawei technical support.
+    >If an error is reported during lxcfs startup, restart the service or Please submit an ISSUE feedback.
 
 6. Upgrade Docker to version 24.0.0 if the Docker version installed using **yum** is earlier than 24.0.0.
 

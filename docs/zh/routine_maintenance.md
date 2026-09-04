@@ -48,7 +48,7 @@ docker exec -it kbox_${index} sh
 getprop | grep boot
 ```
 
-若回显信息中，sys.boot_completed显示为“1”，则表示启动成功，否则，说明容器启动失败，请联系华为技术支持。回显示例如下。
+若回显信息中，sys.boot_completed显示为“1”，则表示启动成功，否则，说明容器启动失败，通过提交ISSUE反馈。回显示例如下。
 
 ```bash
 [service.bootanim.exit]: [1]
@@ -68,7 +68,7 @@ docker exec -it kbox_${index} sh
 ps -elf
 ```
 
-若超过10个进程的父进程变为进程sh（进程号为1），如下图所示，则说明容器内发生了crash，容器当前处于异常情况，请重启容器或联系华为技术支持。
+若超过10个进程的父进程变为进程sh（进程号为1），如下图所示，则说明容器内发生了crash，容器当前处于异常情况，请重启容器或通过提交ISSUE反馈。
 
 ![](./figures/zh-cn_image_0000002549825431.png)
 
@@ -194,7 +194,7 @@ df -h
 cat /sys/kernel/debug/dri/*/amdgpu_pm_info |grep Temp
 ```
 
-如下图所示为查询结果。若温度长期高于80°C，请联系华为技术支持。
+如下图所示为查询结果。若温度长期高于80°C，请通过提交ISSUE反馈。
 
 ![](./figures/zh-cn_image_0000002549825411.png)
 
@@ -406,7 +406,7 @@ python3 kbox_maintainer.py recover kbox_1
 
 ### 禁用操作一览表<a name="ZH-CN_TOPIC_0000002518185474"></a>
 
-暂无，如有疑问，请联系华为技术支持。
+暂无，如有疑问，请通过提交ISSUE反馈。
 
 ### 高危操作一览表<a name="ZH-CN_TOPIC_0000002549705241"></a>
 
