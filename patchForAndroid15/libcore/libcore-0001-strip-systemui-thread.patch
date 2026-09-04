@@ -1,0 +1,103 @@
+diff --git a/ojluni/src/main/java/java/lang/Runtime.java b/ojluni/src/main/java/java/lang/Runtime.java
+index 162a9ecdd9c..d8281eae892 100644
+--- a/ojluni/src/main/java/java/lang/Runtime.java
++++ b/ojluni/src/main/java/java/lang/Runtime.java
+@@ -725,7 +725,23 @@ public class Runtime {
+      * @since 1.4
+      */
+     public int availableProcessors() {
+-        return (int) Libcore.os.sysconf(_SC_NPROCESSORS_CONF);
++        // 云手机（容器化）场景定制：宿主机配置核数（如 128）会导致各进程线程池
++        // （SystemUIBg、ART GC/JIT、HWUI、ForkJoinPool 及第三方应用自身）按该值预创建
++        // 大量常驻空闲线程。通过 ro.config.available_processors 覆盖为实例实际分配核数，
++        // 可在不改动各线程池调用方的前提下统一收缩。属性未设置或非法时回退到系统默认值。
++        // 注意：必须经 nativeGetSystemProperty 直接读取 Android 原生系统属性——
++        // java.lang.System 的 Java 属性表不会镜像任意 ro.* 属性，System.getProperty 恒为 null。
++        String override = System.nativeGetSystemProperty("ro.config.available_processors");
++        int n = 0;
++        if (override != null && !override.isEmpty()) {
++            try {
++                n = Integer.parseInt(override);
++            } catch (NumberFormatException ignored) {
++                // 非法取值，回退到默认实现。
++            }
++        }
++        int result = n > 0 ? n : (int) Libcore.os.sysconf(_SC_NPROCESSORS_CONF);
++        return result;
+     }
+ 
+     /**
+diff --git a/ojluni/src/main/java/java/lang/System.java b/ojluni/src/main/java/java/lang/System.java
+index e7c1d59e30f..6b744fa491c 100644
+--- a/ojluni/src/main/java/java/lang/System.java
++++ b/ojluni/src/main/java/java/lang/System.java
+@@ -1873,4 +1873,14 @@ public final class System {
+     }
+ 
+     private static native void log(char type, String message, Throwable th);
++
++    /**
++     * 云手机定制：直接读取 Android 原生系统属性（ro.*）。
++     * Java 属性表不会自动镜像任意 ro.* 属性（见 {@link #initUnchangeableSystemProperties}），
++     * 且 libcore 不能依赖 framework 的 android.os.SystemProperties，故经 libjavacore 的
++     * __system_property_get 读取。属性不存在时返回 null。
++     *
++     * @hide internal use only
++     */
++    static native String nativeGetSystemProperty(String name);
+ }
+diff --git a/ojluni/src/main/native/System.c b/ojluni/src/main/native/System.c
+index 39332ce5ed8..7a004087913 100644
+--- a/ojluni/src/main/native/System.c
++++ b/ojluni/src/main/native/System.c
+@@ -28,6 +28,10 @@
+ #include <string.h>
+ #include <time.h>
+ 
++#if defined(__ANDROID__)
++#include <sys/system_properties.h>
++#endif
++
+ #include <log/log.h>
+ 
+ #include "io_util.h"
+@@ -261,6 +265,31 @@ static jlong System_currentTimeMillis() {
+   return JVM_CurrentTimeMillis(NULL, NULL);
+ }
+ 
++/*
++ * 云手机（容器化）定制：读取 Android 原生系统属性（ro.*）。
++ * java.lang.System 的 Java 属性表并不会镜像任意 ro.* 属性（见
++ * System.initUnchangeableSystemProperties），而 core-oj（libcore）在编译期
++ * 又不能依赖 framework 的 android.os.SystemProperties，因此通过 bionic
++ * __system_property_get 在此直接读取。非 Android（host）构建返回 NULL。
++ */
++static jstring System_nativeGetSystemProperty(JNIEnv* env, jclass ignored, jstring name) {
++#if defined(__ANDROID__)
++  const char* name_chars = (*env)->GetStringUTFChars(env, name, NULL);
++  if (name_chars == NULL) {
++    return NULL;  // OutOfMemoryError already thrown.
++  }
++  char value[PROP_VALUE_MAX];
++  int len = __system_property_get(name_chars, value);
++  (*env)->ReleaseStringUTFChars(env, name, name_chars);
++  if (len <= 0) {
++    return NULL;  // 属性未设置。
++  }
++  return (*env)->NewStringUTF(env, value);
++#else
++  return NULL;
++#endif
++}
++
+ static JNINativeMethod gMethods[] = {
+   NATIVE_METHOD(System, mapLibraryName, "(Ljava/lang/String;)Ljava/lang/String;"),
+   NATIVE_METHOD(System, setErr0, "(Ljava/io/PrintStream;)V"),
+@@ -268,6 +297,7 @@ static JNINativeMethod gMethods[] = {
+   NATIVE_METHOD(System, setIn0, "(Ljava/io/InputStream;)V"),
+   NATIVE_METHOD(System, specialProperties, "()[Ljava/lang/String;"),
+   NATIVE_METHOD(System, log, "(CLjava/lang/String;Ljava/lang/Throwable;)V"),
++  NATIVE_METHOD(System, nativeGetSystemProperty, "(Ljava/lang/String;)Ljava/lang/String;"),
+   CRITICAL_NATIVE_METHOD(System, currentTimeMillis, "()J"),
+   CRITICAL_NATIVE_METHOD(System, nanoTime, "()J"),
+ };

@@ -1,3 +1,43 @@
+diff --git a/services/surfaceflinger/CompositionEngine/include/compositionengine/DisplaySurface.h b/services/surfaceflinger/CompositionEngine/include/compositionengine/DisplaySurface.h
+index 643b458067..5932b87016 100644
+--- a/services/surfaceflinger/CompositionEngine/include/compositionengine/DisplaySurface.h
++++ b/services/surfaceflinger/CompositionEngine/include/compositionengine/DisplaySurface.h
+@@ -18,14 +18,18 @@
+ 
+ #include <cinttypes>
+ 
++#include <ui/GraphicTypes.h>
+ #include <ui/Size.h>
+ #include <utils/Errors.h>
+ #include <utils/RefBase.h>
+ #include <utils/StrongPointer.h>
+ 
++#include <cstdint>
++
+ namespace android {
+ 
+ class Fence;
++class GraphicBuffer;
+ class IGraphicBufferProducer;
+ class String8;
+ 
+@@ -62,6 +66,16 @@ public:
+     // advanceFrame may be called again.
+     virtual status_t advanceFrame(float hdrSdrRatio) = 0;
+ 
++    // Called instead of advanceFrame() when the frame's client composition
++    // was bypassed for a single layer: the layer buffer is submitted to HWC
++    // directly as the client target, so the surface's own buffer flow is not
++    // used for this frame. Only FramebufferSurface implements this; the
++    // default implementation returns an error, which makes the caller fall
++    // back to the regular advanceFrame() path.
++    virtual status_t setBypassClientTarget(const sp<GraphicBuffer>& buffer,
++                                           const sp<Fence>& acquireFence,
++                                           ui::Dataspace dataspace, float hdrSdrRatio);
++
+     // onFrameCommitted is called after the frame has been committed to the
+     // hardware composer. The surface collects the release fence for this
+     // frame's buffer.
 diff --git a/services/surfaceflinger/CompositionEngine/include/compositionengine/Output.h b/services/surfaceflinger/CompositionEngine/include/compositionengine/Output.h
 index 191d475e5d..b80b59b693 100644
 --- a/services/surfaceflinger/CompositionEngine/include/compositionengine/Output.h
@@ -10,11 +50,42 @@ index 191d475e5d..b80b59b693 100644
  
      // Gets the current render color mode for the output
      virtual DisplayColorProfile* getDisplayColorProfile() const = 0;
+diff --git a/services/surfaceflinger/CompositionEngine/include/compositionengine/RenderSurface.h b/services/surfaceflinger/CompositionEngine/include/compositionengine/RenderSurface.h
+index 02cea0d1ce..ac32d8c438 100644
+--- a/services/surfaceflinger/CompositionEngine/include/compositionengine/RenderSurface.h
++++ b/services/surfaceflinger/CompositionEngine/include/compositionengine/RenderSurface.h
+@@ -88,6 +88,16 @@ public:
+     // which will fire when the buffer is ready for consumption.
+     virtual void queueBuffer(base::unique_fd readyFence, float hdrSdrRatio) = 0;
+ 
++    // Presents the given buffer to HWC as the client target for a frame whose
++    // client composition was bypassed for a single layer. The client-target
++    // buffer previously dequeued for this frame was never rendered into; it is
++    // returned to the buffer queue (with cancelFence, its original dequeue
++    // fence) instead of being presented. Falls back to the regular queue path
++    // if the display surface does not support presenting a foreign buffer.
++    virtual void queueBypassBuffer(const sp<GraphicBuffer>& buffer,
++                                   const sp<Fence>& acquireFence, ui::Dataspace dataspace,
++                                   base::unique_fd cancelFence, float hdrSdrRatio) = 0;
++
+     // Called after the HWC calls are made to present the display
+     virtual void onPresentDisplayCompleted() = 0;
+ 
 diff --git a/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h b/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h
-index 9990a742db..62aab317ed 100644
+index 9990a742db..4971387d2c 100644
 --- a/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h
 +++ b/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/Output.h
-@@ -63,6 +63,7 @@ public:
+@@ -27,6 +27,9 @@
+ #include <compositionengine/impl/planner/Planner.h>
+ #include <renderengine/DisplaySettings.h>
+ #include <renderengine/LayerSettings.h>
++#include <ui/Fence.h>
++#include <ui/GraphicBuffer.h>
++#include <ui/GraphicTypes.h>
+ 
+ #include <memory>
+ #include <utility>
+@@ -63,6 +66,7 @@ public:
  
      const std::string& getName() const override;
      void setName(const std::string&) override;
@@ -22,16 +93,77 @@ index 9990a742db..62aab317ed 100644
  
      compositionengine::DisplayColorProfile* getDisplayColorProfile() const override;
      void setDisplayColorProfile(std::unique_ptr<compositionengine::DisplayColorProfile>) override;
-@@ -192,6 +193,7 @@ private:
+@@ -192,6 +196,23 @@ private:
  
      // Whether the content must be recomposed this frame.
      bool mMustRecompose = false;
 +    int32_t mSingleLayerCount = 0;
++
++    // Log the first bypass of a consecutive bypass sequence only; reset when
++    // the output leaves the single-layer state.
++    bool mBypassLogPrinted = false;
++
++    // Single-layer composition bypass (debug.sf.compositionBypass=1): when
++    // the frame's client composition reduces to a single layer, that layer's
++    // buffer is submitted to HWC directly as the client target and
++    // RenderEngine is skipped. Valid only within one frame cycle, from
++    // composeSurfaces() setting it until presentFrameAndReleaseLayers()
++    // consumes it; reset by the next frame's beginFrame().
++    bool mBypassComposition = false;
++    LayerFE* mBypassLayerFE = nullptr;
++    sp<GraphicBuffer> mBypassBuffer;
++    sp<Fence> mBypassAcquireFence = Fence::NO_FENCE;
++    ui::Dataspace mBypassDataspace{ui::Dataspace::UNKNOWN};
  };
  
  // This template factory function standardizes the implementation details of the
+diff --git a/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/RenderSurface.h b/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/RenderSurface.h
+index 202145ed6c..9a05826ad2 100644
+--- a/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/RenderSurface.h
++++ b/services/surfaceflinger/CompositionEngine/include/compositionengine/impl/RenderSurface.h
+@@ -61,6 +61,9 @@ public:
+     std::shared_ptr<renderengine::ExternalTexture> dequeueBuffer(
+             base::unique_fd* bufferFence) override;
+     void queueBuffer(base::unique_fd readyFence, float hdrSdrRatio) override;
++    void queueBypassBuffer(const sp<GraphicBuffer>& buffer, const sp<Fence>& acquireFence,
++                           ui::Dataspace dataspace, base::unique_fd cancelFence,
++                           float hdrSdrRatio) override;
+     void onPresentDisplayCompleted() override;
+     bool supportsCompositionStrategyPrediction() const override;
+ 
+diff --git a/services/surfaceflinger/CompositionEngine/include/compositionengine/mock/RenderSurface.h b/services/surfaceflinger/CompositionEngine/include/compositionengine/mock/RenderSurface.h
+index c35fd3fbf6..d5904f1fc6 100644
+--- a/services/surfaceflinger/CompositionEngine/include/compositionengine/mock/RenderSurface.h
++++ b/services/surfaceflinger/CompositionEngine/include/compositionengine/mock/RenderSurface.h
+@@ -41,6 +41,10 @@ public:
+     MOCK_METHOD2(prepareFrame, void(bool, bool));
+     MOCK_METHOD1(dequeueBuffer, std::shared_ptr<renderengine::ExternalTexture>(base::unique_fd*));
+     MOCK_METHOD(void, queueBuffer, (base::unique_fd, float), (override));
++    MOCK_METHOD(void, queueBypassBuffer,
++                (const sp<GraphicBuffer>&, const sp<Fence>&, ui::Dataspace, base::unique_fd,
++                 float),
++                (override));
+     MOCK_METHOD0(onPresentDisplayCompleted, void());
+     MOCK_CONST_METHOD1(dump, void(std::string& result));
+     MOCK_CONST_METHOD0(supportsCompositionStrategyPrediction, bool());
+diff --git a/services/surfaceflinger/CompositionEngine/src/DisplaySurface.cpp b/services/surfaceflinger/CompositionEngine/src/DisplaySurface.cpp
+index 28900af162..8f302e02d4 100644
+--- a/services/surfaceflinger/CompositionEngine/src/DisplaySurface.cpp
++++ b/services/surfaceflinger/CompositionEngine/src/DisplaySurface.cpp
+@@ -24,4 +24,11 @@ bool DisplaySurface::supportsCompositionStrategyPrediction() const {
+     return true;
+ }
+ 
++status_t DisplaySurface::setBypassClientTarget(const sp<GraphicBuffer>&, const sp<Fence>&,
++                                               ui::Dataspace, float) {
++    // Not supported by this display surface; the caller falls back to the
++    // regular advanceFrame() path.
++    return INVALID_OPERATION;
++}
++
+ } // namespace android::compositionengine
 diff --git a/services/surfaceflinger/CompositionEngine/src/Output.cpp b/services/surfaceflinger/CompositionEngine/src/Output.cpp
-index 2d8f98f2a4..46eb2c218e 100644
+index 2d8f98f2a4..2ecc6e10d2 100644
 --- a/services/surfaceflinger/CompositionEngine/src/Output.cpp
 +++ b/services/surfaceflinger/CompositionEngine/src/Output.cpp
 @@ -53,6 +53,7 @@
@@ -53,25 +185,182 @@ index 2d8f98f2a4..46eb2c218e 100644
  void Output::setCompositionEnabled(bool enabled) {
      auto& outputState = editState();
      if (outputState.isEnabled == enabled) {
-@@ -1350,6 +1355,18 @@ std::optional<base::unique_fd> Output::composeSurfaces(
+@@ -1052,6 +1057,10 @@ compositionengine::Output::ColorProfile Output::pickColorProfile(
+ 
+ void Output::beginFrame() {
+     auto& outputState = editState();
++    // The bypass state recorded by the previous frame cycle is no longer
++    // valid.
++    mBypassComposition = false;
++    mBypassLayerFE = nullptr;
+     const bool dirty = !getDirtyRegion().isEmpty();
+     const bool empty = getOutputLayerCount() == 0;
+     const bool wasEmpty = !outputState.lastCompositionHadVisibleLayers;
+@@ -1220,8 +1229,17 @@ void Output::finishFrame(GpuCompositionResult&& result) {
+         setHintSessionGpuFence(
+                 std::make_unique<FenceTime>(sp<Fence>::make(dup(optReadyFence->get()))));
+     }
+-    // swap buffers (presentation)
+-    mRenderSurface->queueBuffer(std::move(*optReadyFence), getHdrSdrRatio(buffer));
++    if (mBypassComposition) {
++        // The frame was bypassed: submit the single layer buffer to HWC
++        // directly as the client target. The dequeued client-target buffer
++        // was never rendered into; queueBypassBuffer() returns it to the
++        // buffer queue instead of presenting it.
++        mRenderSurface->queueBypassBuffer(mBypassBuffer, mBypassAcquireFence, mBypassDataspace,
++                                          std::move(*optReadyFence), getHdrSdrRatio(buffer));
++    } else {
++        // swap buffers (presentation)
++        mRenderSurface->queueBuffer(std::move(*optReadyFence), getHdrSdrRatio(buffer));
++    }
+ }
+ 
+ void Output::updateProtectedContentState() {
+@@ -1350,6 +1368,66 @@ std::optional<base::unique_fd> Output::composeSurfaces(
                     });
  
      const nsecs_t renderEngineStart = systemTime();
 +    char tempChar[PROPERTY_VALUE_MAX];
-+    int bypassCompositionSwitch = property_get("ro.hardware.compositionBypass", tempChar, "0") > 0 ? std::atoi(tempChar) : 0;
-+    int offset = property_get("ro.hardware.compositionBypass.offset", tempChar, "0") > 0 ? std::atoi(tempChar) : 0;
++    // Legacy bypass (ro.hardware.compositionBypass=1): relies on a
++    // cooperating HWC that presents the first layer by itself; SF simply
++    // skips RenderEngine.
++    int legacyBypassSwitch = property_get("ro.hardware.compositionBypass", tempChar, "0") > 0 ? std::atoi(tempChar) : 0;
++    int legacyOffset = property_get("ro.hardware.compositionBypass.offset", tempChar, "0") > 0 ? std::atoi(tempChar) : 0;
++    // Client-target bypass (debug.sf.compositionBypass=1): works with an
++    // unmodified HWC2; SF submits the single layer buffer to HWC directly as
++    // the client target. Read from a writable property on every frame so
++    // that it can be toggled at runtime (setprop debug.sf.compositionBypass
++    // 1/0) and takes effect on the next composed frame.
++    int clientTargetBypassSwitch = property_get("debug.sf.compositionBypass", tempChar, "0") > 0 ? std::atoi(tempChar) : 0;
++    int clientTargetBypassOffset = property_get("debug.sf.compositionBypass.offset", tempChar, "0") > 0 ? std::atoi(tempChar) : 0;
 +    size_t layerCount = clientRenderEngineLayers.size();
-+    if ((bypassCompositionSwitch == 1) && (layerCount == 1)) {
++    if (layerCount == 1) {
 +        mSingleLayerCount++;
-+        if (mSingleLayerCount > offset) {
++        if ((legacyBypassSwitch == 1) && (mSingleLayerCount > legacyOffset)) {
++            // Legacy path: skip RenderEngine; the HWC presents the first
++            // layer.
 +            return base::unique_fd(std::move(fd));
++        }
++        if ((clientTargetBypassSwitch == 1) && (mSingleLayerCount > clientTargetBypassOffset) &&
++            (clientCompositionLayersFE.size() == 1)) {
++            // Client-target bypass path: skip RenderEngine and present the
++            // single layer buffer itself. Instead of relying on HWC to
++            // capture the first layer (the legacy path above), submit it to
++            // HWC directly as the client target, which works with an
++            // unmodified HWC2: client-composed layer buffers are not
++            // consumed by HWC individually, the presented frame is the
++            // client target.
++            const auto* bypassLayerFEState = clientCompositionLayersFE[0]->getCompositionState();
++            if (bypassLayerFEState != nullptr && bypassLayerFEState->buffer != nullptr) {
++                mBypassComposition = true;
++                mBypassLayerFE = clientCompositionLayersFE[0];
++                mBypassBuffer = bypassLayerFEState->buffer;
++                mBypassAcquireFence = bypassLayerFEState->acquireFence;
++                // Present the buffer with the display dataspace, not the raw
++                // layer dataspace: the HAL may reject a dataspace it does not
++                // recognize (e.g. SMPTE_170M transfer with an unspecified
++                // standard), and because HWC2 commands are executed
++                // asynchronously the failure is not visible to
++                // setBypassClientTarget, so the client target stays un-set and
++                // the screen freezes. The display dataspace is exactly what
++                // the regular client-composition path submits for the client
++                // target, so it is always accepted. Color conversion for
++                // layers whose dataspace differs can be added later.
++                mBypassDataspace = getState().dataspace;
++                if (!mBypassLogPrinted) {
++                    ALOGE("skip compose (layer dataspace 0x%x, present 0x%x)",
++                          static_cast<uint32_t>(bypassLayerFEState->dataspace),
++                          static_cast<uint32_t>(mBypassDataspace));
++                    mBypassLogPrinted = true;
++                }
++                return base::unique_fd(std::move(fd));
++            }
 +        }
 +    } else {
 +        mSingleLayerCount = 0;
++        mBypassLogPrinted = false;
 +    }
      auto fenceResult = renderEngine
                                 .drawLayers(clientCompositionDisplay, clientRenderEngineLayers, tex,
                                             std::move(fd))
+@@ -1588,6 +1666,11 @@ void Output::presentFrameAndReleaseLayers(bool flushEvenWhenDisabled) {
+ 
+     mRenderSurface->onPresentDisplayCompleted();
+ 
++    // Snapshot the bypass state before the next frame's beginFrame() resets
++    // it (only relevant for the offloaded-present path).
++    const bool bypassComposition = mBypassComposition;
++    const LayerFE* bypassLayerFE = mBypassLayerFE;
++
+     for (auto* layer : getOutputLayersOrderedByZ()) {
+         // The layer buffer from the previous frame (if any) is released
+         // by HWC only when the release fence from this frame (if any) is
+@@ -1600,13 +1683,18 @@ void Output::presentFrameAndReleaseLayers(bool flushEvenWhenDisabled) {
+             }
+         }
+ 
+-        // If the layer was client composited in the previous frame, we
+-        // need to merge with the previous client target acquire fence.
+-        // Since we do not track that, always merge with the current
+-        // client target acquire fence when it is available, even though
+-        // this is suboptimal.
+-        // TODO(b/121291683): Track previous frame client target acquire fence.
+-        if (outputState.usesClientComposition) {
++        if (bypassComposition && &layer->getLayerFE() == bypassLayerFE) {
++            // The bypassed layer buffer was submitted directly as the client
++            // target for this frame: HWC reads it during present, so it can
++            // only be released once the present fence signals.
++            releaseFence = frame.presentFence;
++        } else if (outputState.usesClientComposition) {
++            // If the layer was client composited in the previous frame, we
++            // need to merge with the previous client target acquire fence.
++            // Since we do not track that, always merge with the current
++            // client target acquire fence when it is available, even though
++            // this is suboptimal.
++            // TODO(b/121291683): Track previous frame client target acquire fence.
+             releaseFence =
+                     Fence::merge("LayerRelease", releaseFence, frame.clientTargetAcquireFence);
+         }
+diff --git a/services/surfaceflinger/CompositionEngine/src/RenderSurface.cpp b/services/surfaceflinger/CompositionEngine/src/RenderSurface.cpp
+index d6028bf4cf..24dcbc1d21 100644
+--- a/services/surfaceflinger/CompositionEngine/src/RenderSurface.cpp
++++ b/services/surfaceflinger/CompositionEngine/src/RenderSurface.cpp
+@@ -247,6 +247,35 @@ void RenderSurface::queueBuffer(base::unique_fd readyFence, float hdrSdrRatio) {
+     }
+ }
+ 
++void RenderSurface::queueBypassBuffer(const sp<GraphicBuffer>& buffer,
++                                      const sp<Fence>& acquireFence, ui::Dataspace dataspace,
++                                      base::unique_fd cancelFence, float hdrSdrRatio) {
++    status_t result =
++            mDisplaySurface->setBypassClientTarget(buffer, acquireFence, dataspace, hdrSdrRatio);
++    if (result != NO_ERROR) {
++        // The display surface cannot present a foreign buffer (e.g. a virtual
++        // display). Fall back to the regular path and present the client
++        // target as-is, matching the behavior of the previous bypass
++        // implementation which relied on a cooperating HWC.
++        queueBuffer(std::move(cancelFence), hdrSdrRatio);
++        return;
++    }
++
++    // The client-target buffer was dequeued but never rendered into for this
++    // bypassed frame. Return it to the buffer queue with its original dequeue
++    // fence (cancelFence) so the slot can be reused; presenting it would show
++    // a stale frame.
++    if (mTexture != nullptr) {
++        const int fenceFd = cancelFence.get() >= 0 ? dup(cancelFence.get()) : -1;
++        int error = mNativeWindow->cancelBuffer(mNativeWindow.get(),
++                                                mTexture->getBuffer()->getNativeBuffer(), fenceFd);
++        ALOGW_IF(error != NO_ERROR,
++                 "ANativeWindow::cancelBuffer failed for display [%s] with error: %d",
++                 mDisplay.getName().c_str(), error);
++        mTexture = nullptr;
++    }
++}
++
+ void RenderSurface::onPresentDisplayCompleted() {
+     mDisplaySurface->onFrameCommitted();
+ }
 diff --git a/services/surfaceflinger/DisplayDevice.cpp b/services/surfaceflinger/DisplayDevice.cpp
 index 402a3d2e2f..5a87448cd0 100644
 --- a/services/surfaceflinger/DisplayDevice.cpp
@@ -99,21 +388,97 @@ index 3e3f558cee..273f55f694 100644
      const std::string& getDisplayName() const { return mDisplayName; }
  
      surfaceflinger::frontend::DisplayInfo getFrontEndInfo() const;
-diff --git a/services/surfaceflinger/SurfaceFlinger.cpp b/services/surfaceflinger/SurfaceFlinger.cpp
-index b2f9f32acf..6195a724ee 100644
---- a/services/surfaceflinger/SurfaceFlinger.cpp
-+++ b/services/surfaceflinger/SurfaceFlinger.cpp
-@@ -2270,6 +2270,10 @@ void SurfaceFlinger::onComposerHalSeamlessPossible(hal::HWDisplayId) {
- 
- void SurfaceFlinger::onComposerHalRefresh(hal::HWDisplayId) {
-     Mutex::Autolock lock(mStateLock);
-+
-+    for (const auto& [token, display] : mDisplays) {
-+        display->setSingleLayerCount(0);
-+    }
-     scheduleComposite(FrameHint::kNone);
+diff --git a/services/surfaceflinger/DisplayHardware/FramebufferSurface.cpp b/services/surfaceflinger/DisplayHardware/FramebufferSurface.cpp
+index 748765a4e4..bd08c705dc 100644
+--- a/services/surfaceflinger/DisplayHardware/FramebufferSurface.cpp
++++ b/services/surfaceflinger/DisplayHardware/FramebufferSurface.cpp
+@@ -149,6 +149,58 @@ status_t FramebufferSurface::advanceFrame(float hdrSdrRatio) {
+     return NO_ERROR;
  }
  
++status_t FramebufferSurface::setBypassClientTarget(const sp<GraphicBuffer>& buffer,
++                                                   const sp<Fence>& acquireFence,
++                                                   ui::Dataspace dataspace, float hdrSdrRatio) {
++    Mutex::Autolock lock(mMutex);
++    if (buffer == nullptr) {
++        return BAD_VALUE;
++    }
++
++    // The presented buffer is not one of ours: it is the single bypassed
++    // layer buffer given to HWC directly. Invalidate the per-slot HWC buffer
++    // cache so the next regular frame re-sends its buffer for every slot
++    // instead of relying on a stale slot-to-buffer mapping.
++    for (size_t i = 0; i < sizeof(mHwcBufferIds) / sizeof(mHwcBufferIds[0]); ++i) {
++        mHwcBufferIds[i] = UINT64_MAX;
++    }
++
++    // The bypass buffer has no BufferQueue slot of ours; reuse slot 0 for
++    // the HWC client-target cache entry. SF always sends the full buffer
++    // handle for the bypass frame (and for the frames following the cache
++    // invalidation above), so the slot choice is self-correcting.
++    const uint32_t bypassSlot = 0;
++    status_t result = mHwc.setClientTarget(mDisplayId, bypassSlot, acquireFence, buffer, dataspace,
++                                           hdrSdrRatio);
++    if (result != NO_ERROR) {
++        ALOGE("error posting bypass client target: %s (%d)", strerror(-result), result);
++        return result;
++    }
++
++    // The client-target buffer acquired by the previous regular frame is no
++    // longer presented. Convert it to a pending release, mirroring the
++    // slot-change handling in advanceFrame(), so that onFrameCommitted()
++    // releases it after this frame's present. Dropping the reference without
++    // releasing would leave the slot permanently ACQUIRED: with only
++    // maxFrameBufferAcquiredBuffers slots in the queue, a later dequeueBuffer
++    // would then block the SurfaceFlinger main thread forever.
++    if (mCurrentBufferSlot != BufferQueue::INVALID_BUFFER_SLOT) {
++        mHasPendingRelease = true;
++        mPreviousBufferSlot = mCurrentBufferSlot;
++        mPreviousBuffer = mCurrentBuffer;
++    }
++    mCurrentBufferSlot = BufferQueue::INVALID_BUFFER_SLOT;
++    mCurrentBuffer.clear();
++
++    // Keep the client target state consistent for the rest of the frame:
++    // mCurrentFence is reported as the client target acquire fence, and it
++    // is exactly the acquire fence of the buffer now being presented.
++    mCurrentFence = acquireFence;
++    mDataspace = static_cast<Dataspace>(dataspace);
++
++    return NO_ERROR;
++}
++
+ void FramebufferSurface::freeBufferLocked(int slotIndex) {
+     ConsumerBase::freeBufferLocked(slotIndex);
+     if (slotIndex == mCurrentBufferSlot) {
+diff --git a/services/surfaceflinger/DisplayHardware/FramebufferSurface.h b/services/surfaceflinger/DisplayHardware/FramebufferSurface.h
+index 6ca64a2437..b6fc750221 100644
+--- a/services/surfaceflinger/DisplayHardware/FramebufferSurface.h
++++ b/services/surfaceflinger/DisplayHardware/FramebufferSurface.h
+@@ -55,6 +55,9 @@ public:
+     virtual status_t beginFrame(bool mustRecompose);
+     virtual status_t prepareFrame(CompositionType compositionType);
+     virtual status_t advanceFrame(float hdrSdrRatio);
++    virtual status_t setBypassClientTarget(const sp<GraphicBuffer>& buffer,
++                                           const sp<Fence>& acquireFence,
++                                           ui::Dataspace dataspace, float hdrSdrRatio) override;
+     virtual void onFrameCommitted();
+     virtual void dumpAsString(String8& result) const;
+ 
+diff --git a/services/surfaceflinger/ScreenCaptureRenderSurface.h b/services/surfaceflinger/ScreenCaptureRenderSurface.h
+index 50ba9bff3f..3c14cfaa2b 100644
+--- a/services/surfaceflinger/ScreenCaptureRenderSurface.h
++++ b/services/surfaceflinger/ScreenCaptureRenderSurface.h
+@@ -41,6 +41,9 @@ public:
+         mRenderFence = sp<Fence>::make(readyFence.release());
+     }
+ 
++    void queueBypassBuffer(const sp<GraphicBuffer>&, const sp<Fence>&, ui::Dataspace,
++                           base::unique_fd, float) override {}
++
+     const sp<Fence>& getClientTargetAcquireFence() const override { return mRenderFence; }
+ 
+     bool supportsCompositionStrategyPrediction() const override { return false; }
 diff --git a/services/surfaceflinger/tests/unittests/HWComposerTest.cpp b/services/surfaceflinger/tests/unittests/HWComposerTest.cpp
 index e0753a3cfb..6f9ee91b6b 100644
 --- a/services/surfaceflinger/tests/unittests/HWComposerTest.cpp
@@ -127,3 +492,18 @@ index e0753a3cfb..6f9ee91b6b 100644
      MOCK_METHOD3(onComposerHalVsync,
                   void(hal::HWDisplayId, int64_t timestamp, std::optional<hal::VsyncPeriodNanos>));
      MOCK_METHOD2(onComposerHalVsyncPeriodTimingChanged,
+diff --git a/services/surfaceflinger/SurfaceFlinger.cpp b/services/surfaceflinger/SurfaceFlinger.cpp
+index 65a0ed3065..cb5f798a61 100644
+--- a/services/surfaceflinger/SurfaceFlinger.cpp
++++ b/services/surfaceflinger/SurfaceFlinger.cpp
+@@ -2239,6 +2239,10 @@ void SurfaceFlinger::onComposerHalSeamlessPossible(hal::HWDisplayId) {
+ 
+ void SurfaceFlinger::onComposerHalRefresh(hal::HWDisplayId) {
+     Mutex::Autolock lock(mStateLock);
++
++    for (const auto& [token, display] : mDisplays) {
++        display->setSingleLayerCount(0);
++    }
+     scheduleComposite(FrameHint::kNone);
+ }
+ 
