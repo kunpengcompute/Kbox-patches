@@ -45,14 +45,14 @@ Currently, the Kbox Android container supports Android 11. [**Table 2**](#softwa
 |No.|Software Package|Description|How to Obtain|Configuration Scheme 1|Configuration Scheme 2|Configuration Scheme 3|Configuration Scheme 4|
 |--|--|--|--|--|--|--|--|
 |1|android.tar| Kbox Android image package, which is used to deploy the Kbox basic environment.|Prepare it by yourself. For details, see [Compilation Guide](compile_guide.md).|√|√|√|√|
-|2|BoostKit-boostcph-kbox_*.zip| Android Kbox binary package, which contains required components.|Contact Huawei technical support.|√|√|√|√|
+|2|BoostKit-boostcph-kbox_*.zip| Android Kbox binary package, which contains required components.|Please submit an ISSUE feedback.|√|√|√|√|
 |3|kernel-5.10.0-216.0.0.zip| openEuler 22.03 LTS SP4 kernel source code.|[Link](https://gitee.com/openeuler/kernel/repository/archive/5.10.0-216.0.0.zip)|√|√|√|√|
 |4|ExaGear_ARM32-ARM64_V2.5.tar.gz| Binary package for ExaGear transcoding.||√|√|√|√|
 |5|linux-firmware-20210919.tar.gz| Firmware for running Kbox.|[Link](https://mirrors.aliyun.com/linux-kernel/firmware/linux-firmware-20210919.tar.gz)|√|-|-|-|
 |6|Kbox-patches-AOSP11.zip| Demo kernel patch package and demo container deployment script package.|[Link](https://gitcode.com/boostkit/Kbox-patches)<br>Click the download icon on the AOSP11 branch page.|√|√|√|√|
 |7|NETINT-vXXX.tar.gz| NETINT codec library. This software package is required for enabling hardware decoding. The matching version is 4.8.F-adapt.|[Link](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)<br>Download password: test123|√|-|-|-|
 |8|Quadra_V*XXX*.zip| Quadra software, firmware, and document packages of the NETINT encoding card.|[Link](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)<br>Download password: test123|√|-|-|-|
-|9|VAGPU-25.03.01.01-RC20.tgz| Graphics card driver|Contact Huawei technical support.|-|√|√|√|
+|9|VAGPU-25.03.01.01-RC20.tgz| Graphics card driver|Please submit an ISSUE feedback.|-|√|√|√|
 
 >![](public_sys-resources/icon-note.gif) **NOTE:**
 >
@@ -64,13 +64,13 @@ Currently, the Kbox Android container supports Android 11. [**Table 2**](#softwa
 
 To prevent software packages from being maliciously tampered with during transfer or storage, download also the corresponding digital signature files for integrity verification while obtaining the software packages from the Kunpeng community.
 
-1. Obtain the software packages based on [**Table 2** Software requirement](#software-requirements).
+1. Obtain the software packages based on [**Table 2** Software requirement](#software-requirements).Copy the corresponding SHA256 integrity checksum value.
 2. <a name="zh-cn_topic_0000001506119857_zh-cn_topic_0000001323011582_zh-cn_topic_0000001214652748_li1273482318125"></a>Obtain the verification tool and guide from the [Huawei enterprise website](https://support.huawei.com/enterprise/en/tool/pgp-verify-TL1000000054) or [Huawei carrier website](http://support.huawei.com/carrier/digitalSignatureAction).
 3. Based on the *OpenPGP Signature Verification Guide* obtained in [2](#zh-cn_topic_0000001506119857_zh-cn_topic_0000001323011582_zh-cn_topic_0000001214652748_li1273482318125), verify the PGP digital signatures of the software packages.
 
 >![](public_sys-resources/icon-note.gif) **NOTE:**
 >
->- If the verification fails, do not use the software package, and contact Huawei technical support.
+>- If the verification fails, do not use the software package, and Please submit an ISSUE feedback.
 >- Before a software package is used for installation or upgrade, its digital signature also needs to be verified to ensure that the software package is not tampered with.
 >- Before using the software packages, read and agree to [Kunpeng BoostKit User License Agreement 2.0](https://www.hikunpeng.com/en/legal/developer/boostkit/software/protocol).
 

@@ -36,7 +36,7 @@ Before compiling the Kbox Android image, obtain the following packages from addr
 |3|LLVM source code|Version: 13.0.1|[Link](https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/llvm-13.0.1.src.tar.xz)|
 |4|libdrm source code|Version: 2.4.111|[Link](https://gitlab.freedesktop.org/mesa/drm/-/archive/libdrm-2.4.111/drm-libdrm-2.4.111.zip)|
 |5|libva source code|Version: 2.14.0|[Link](https://github.com/intel/libva/archive/refs/tags/2.14.0.tar.gz)|
-|6|BoostKit-boostcph-kbox_*.zip|Android Kbox binary package|Contact Huawei technical support.|
+|6|BoostKit-boostcph-kbox_*.zip|Android Kbox binary package|Please submit an ISSUE feedback.|
 |7|Kbox-patches-AOSP11.zip|Android code patch demo package and compilation script demo package|[Link](https://raw.gitcode.com/boostkit/Kbox-patches/archive/refs/heads/AOSP11.zip)|
 |8|ExaGear_ARM32-ARM64_V2.5.tar.gz|Binary package for ExaGear transcoding|[Link](https://kunpeng-repo.obs.cn-north-4.myhuaweicloud.com/Exagear%20ARM32-ARM64/Exagear%20ARM32-ARM64%20202.0.0/ExaGear_ARM32-ARM64_V2.5.tar.gz)|
 |9|Meson|0.63.2|[Link](https://github.com/mesonbuild/meson/releases/download/0.63.2/meson-0.63.2.tar.gz)|
@@ -59,7 +59,7 @@ To prevent software packages from being maliciously tampered with during transfe
 
 >![](public_sys-resources/icon-note.gif) **NOTE:**
 >
->If the verification fails, do not use the software package, and contact Huawei technical support.
+>If the verification fails, do not use the software package, Please submit an ISSUE feedback.
 >Before a software package is used for installation or upgrade, its digital signature also needs to be verified to ensure that the software package is not tampered with.
 >Before using the software package, read and agree to [Kunpeng BoostKit User License Agreement 2.0](https://www.hikunpeng.com/en/legal/developer/boostkit/software/protocol).
 
@@ -133,7 +133,7 @@ The automation script implements the operations described in [4 Installing Depen
     ./kbox11_android_build.sh
     ```
 
-    The script execution takes more than one hour. If the script is executed successfully, the following information is displayed. If an error is reported during the execution, check the script and contact Huawei technical support.
+    The script execution takes more than one hour. If the script is executed successfully, the following information is displayed. If an error is reported during the execution, check the script and Please submit an ISSUE feedback.
 
     ```shell
     ---------------Success--------------
@@ -525,7 +525,7 @@ Apply the Kbox binary file package into the AOSP source package.
     >
     >- The example is for reference only. Configure an available public DNS address to ensure that the container is connected to the network.
     >- You can also configure the DNS address in the `/system/vendor/build.prop` file of the Kbox container. The configuration takes effect after the container is restarted.
-    >- If you have any questions about the configuration, contact Huawei O&M engineers.
+    >- If you have any questions about the configuration, Please submit an ISSUE feedback.
 
 ### 5.6 Compiling the AOSP and Creating an Image<a name="ZH-CN_TOPIC_0000002518185486"></a>
 
