@@ -641,6 +641,7 @@ chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufre
 - 遇到游戏更新的情况，建议重新制作共享数据卷的镜像。
 - F2FS、NFS挂载方案不支持。
 - K8s方案不支持。
+- 使能共享数据卷后，容器数据保存在docker工作路径中，启动容器前需确认docker工作路径容量充足。
 
 #### 应用场景
 
