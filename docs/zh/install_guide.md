@@ -48,7 +48,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 |6|Kbox-patches-AOSP11.zip| 包含内核补丁Demo包、容器部署脚本Demo包 |[获取链接](https://gitcode.com/boostkit/Kbox-patches)切换到AOSP11分支，并单击“下载zip”进行下载。|√|√|√|√|
 |7|NETINT-vXXX.tar.gz| NETINT编解码库，当使能硬解的时候获取该软件包，配套版本4.8.F-adapt |[获取链接](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)下载密码：test123|√|-|-|-|
 |8|Quadra_V*XXX*.zip| 包含NETINT编码卡Quadra软固件及文档包 |[获取链接](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)下载密码：test123|√|-|-|-|
-|9|VAGPU-25.03.01.01-RC24-SP1.tgz| 显卡驱动 |请联系华为技术支持获取。|-|√|√|√|
+|9|VAGPU-25.03.01.01-RC24-SP1.tgz| 显卡驱动 |通过提交ISSUE反馈。|-|√|√|√|
 
 >![](./public_sys-resources/icon-note.gif) **说明：**
 >
@@ -66,7 +66,7 @@ Kbox安卓容器目前支持Android 11系统，环境部署的软件环境要求
 
 >![](./public_sys-resources/icon-note.gif) **说明：**
 >
->- 如果校验失败，请不要使用该软件包，先联系华为技术支持工程师解决。
+>- 如果校验失败，请不要使用该软件包，通过提交ISSUE反馈。
 >- 使用软件包安装/升级之前，也需要按上述过程先验证软件包的数字签名，确保软件包未被篡改。
 >- 使用软件包前请先阅读《[鲲鹏应用使能套件BoostKit用户许可协议 2.0](https://www.hikunpeng.com/zh/legal/developer/boostkit/software/protocol)》，如确认继续使用，则默认同意协议的条款和条件。
 

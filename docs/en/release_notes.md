@@ -246,11 +246,7 @@ None
 ### Known Issues<a name="ZH-CN_TOPIC_0000002518346098"></a>
 
 <a name="zh-cn_topic_0000001498002964_table1077520124617"></a>
-<table><tbody><tr id="zh-cn_topic_0000001498002964_row07751817464"><th class="firstcol" valign="top" width="20.830000000000002%" id="mcps1.1.3.1.1"><p id="zh-cn_topic_0000001498002964_p177751174618"><a name="zh-cn_topic_0000001498002964_p177751174618"></a><a name="zh-cn_topic_0000001498002964_p177751174618"></a>Trouble Ticket No.</p>
-</th>
-<td class="cellrowborder" valign="top" width="79.17%" headers="mcps1.1.3.1.1 "><p id="p12376102249"><a name="p12376102249"></a><a name="p12376102249"></a>DTS2024031108664</p>
-</td>
-</tr>
+<table><tbody>
 <tr id="zh-cn_topic_0000001498002964_row157751511464"><th class="firstcol" valign="top" width="20.830000000000002%" id="mcps1.1.3.2.1"><p id="zh-cn_topic_0000001498002964_p167751810462"><a name="zh-cn_topic_0000001498002964_p167751810462"></a><a name="zh-cn_topic_0000001498002964_p167751810462"></a>Severity</p>
 </th>
 <td class="cellrowborder" valign="top" width="79.17%" headers="mcps1.1.3.2.1 "><p id="p5376142147"><a name="p5376142147"></a><a name="p5376142147"></a>Minor</p>
@@ -345,11 +341,7 @@ None
 ### Known Issues<a name="ZH-CN_TOPIC_0000002518186194"></a>
 
 <a name="zh-cn_topic_0000001498002964_table1077520124617"></a>
-<table><tbody><tr id="zh-cn_topic_0000001498002964_row07751817464"><th class="firstcol" valign="top" width="20.830000000000002%" id="mcps1.1.3.1.1"><p id="zh-cn_topic_0000001498002964_p177751174618"><a name="zh-cn_topic_0000001498002964_p177751174618"></a><a name="zh-cn_topic_0000001498002964_p177751174618"></a>Trouble Ticket No.</p>
-</th>
-<td class="cellrowborder" valign="top" width="79.17%" headers="mcps1.1.3.1.1 "><p id="zh-cn_topic_0000001498002964_p377511134615"><a name="zh-cn_topic_0000001498002964_p377511134615"></a><a name="zh-cn_topic_0000001498002964_p377511134615"></a>DTS2023051802653</p>
-</td>
-</tr>
+<table><tbody>
 <tr id="zh-cn_topic_0000001498002964_row157751511464"><th class="firstcol" valign="top" width="20.830000000000002%" id="mcps1.1.3.2.1"><p id="zh-cn_topic_0000001498002964_p167751810462"><a name="zh-cn_topic_0000001498002964_p167751810462"></a><a name="zh-cn_topic_0000001498002964_p167751810462"></a>Severity</p>
 </th>
 <td class="cellrowborder" valign="top" width="79.17%" headers="mcps1.1.3.2.1 "><p id="zh-cn_topic_0000001498002964_p87750114611"><a name="zh-cn_topic_0000001498002964_p87750114611"></a><a name="zh-cn_topic_0000001498002964_p87750114611"></a>Minor</p>
@@ -384,11 +376,7 @@ None
 </table>
 
 <a name="zh-cn_topic_0000001498002964_table82294384613"></a>
-<table><tbody><tr id="zh-cn_topic_0000001498002964_row22292034467"><th class="firstcol" valign="top" width="20.919999999999998%" id="mcps1.1.3.1.1"><p id="zh-cn_topic_0000001498002964_p132293318462"><a name="zh-cn_topic_0000001498002964_p132293318462"></a><a name="zh-cn_topic_0000001498002964_p132293318462"></a>Trouble Ticket No.</p>
-</th>
-<td class="cellrowborder" valign="top" width="79.08%" headers="mcps1.1.3.1.1 "><p id="zh-cn_topic_0000001498002964_p7230438463"><a name="zh-cn_topic_0000001498002964_p7230438463"></a><a name="zh-cn_topic_0000001498002964_p7230438463"></a>DTS2023051004239</p>
-</td>
-</tr>
+<table><tbody>
 <tr id="zh-cn_topic_0000001498002964_row92301316468"><th class="firstcol" valign="top" width="20.919999999999998%" id="mcps1.1.3.2.1"><p id="zh-cn_topic_0000001498002964_p1523053184614"><a name="zh-cn_topic_0000001498002964_p1523053184614"></a><a name="zh-cn_topic_0000001498002964_p1523053184614"></a>Severity</p>
 </th>
 <td class="cellrowborder" valign="top" width="79.08%" headers="mcps1.1.3.2.1 "><p id="zh-cn_topic_0000001498002964_p202309318461"><a name="zh-cn_topic_0000001498002964_p202309318461"></a><a name="zh-cn_topic_0000001498002964_p202309318461"></a>Minor</p>
@@ -448,11 +436,7 @@ None
 ### Known Issues<a name="ZH-CN_TOPIC_0000002549705963"></a>
 
 <a name="zh-cn_topic_0000001473642402_table1170965710134"></a>
-<table><tbody><tr id="zh-cn_topic_0000001473642402_row8709457201314"><th class="firstcol" valign="top" width="15.6%" id="mcps1.1.3.1.1"><p id="zh-cn_topic_0000001473642402_p5709557171320"><a name="zh-cn_topic_0000001473642402_p5709557171320"></a><a name="zh-cn_topic_0000001473642402_p5709557171320"></a>Trouble Ticket No.</p>
-</th>
-<td class="cellrowborder" valign="top" width="84.39999999999999%" headers="mcps1.1.3.1.1 "><p id="zh-cn_topic_0000001473642402_p127092057121318"><a name="zh-cn_topic_0000001473642402_p127092057121318"></a><a name="zh-cn_topic_0000001473642402_p127092057121318"></a>DTS2023022301216</p>
-</td>
-</tr>
+<table><tbody>
 <tr id="zh-cn_topic_0000001473642402_row1870915712137"><th class="firstcol" valign="top" width="15.6%" id="mcps1.1.3.2.1"><p id="zh-cn_topic_0000001473642402_p18526151631413"><a name="zh-cn_topic_0000001473642402_p18526151631413"></a><a name="zh-cn_topic_0000001473642402_p18526151631413"></a>Severity</p>
 </th>
 <td class="cellrowborder" valign="top" width="84.39999999999999%" headers="mcps1.1.3.2.1 "><p id="zh-cn_topic_0000001473642402_p1170917579131"><a name="zh-cn_topic_0000001473642402_p1170917579131"></a><a name="zh-cn_topic_0000001473642402_p1170917579131"></a>Notice</p>
@@ -542,11 +526,7 @@ None
 ### Known Issues<a name="ZH-CN_TOPIC_0000002549705961"></a>
 
 <a name="zh-cn_topic_0000001420053432_table41842027194519"></a>
-<table><tbody><tr id="zh-cn_topic_0000001420053432_row2236202774512"><th class="firstcol" valign="top" width="23%" id="mcps1.1.3.1.1"><p id="zh-cn_topic_0000001420053432_p123692754520"><a name="zh-cn_topic_0000001420053432_p123692754520"></a><a name="zh-cn_topic_0000001420053432_p123692754520"></a>Trouble Ticket No.</p>
-</th>
-<td class="cellrowborder" valign="top" width="77%" headers="mcps1.1.3.1.1 "><p id="zh-cn_topic_0000001420053432_p323612273450"><a name="zh-cn_topic_0000001420053432_p323612273450"></a><a name="zh-cn_topic_0000001420053432_p323612273450"></a>DTS202105190IPKB9P1300</p>
-</td>
-</tr>
+<table><tbody>
 <tr id="zh-cn_topic_0000001420053432_row1823632717450"><th class="firstcol" valign="top" width="23%" id="mcps1.1.3.2.1"><p id="zh-cn_topic_0000001420053432_p172361627124515"><a name="zh-cn_topic_0000001420053432_p172361627124515"></a><a name="zh-cn_topic_0000001420053432_p172361627124515"></a>Symptom</p>
 </th>
 <td class="cellrowborder" valign="top" width="77%" headers="mcps1.1.3.2.1 "><p id="zh-cn_topic_0000001420053432_p1236102794512"><a name="zh-cn_topic_0000001420053432_p1236102794512"></a><a name="zh-cn_topic_0000001420053432_p1236102794512"></a>Condition: The CTS test suite is used in the CI daily build scenario.</p>
@@ -599,11 +579,7 @@ None
 </table>
 
 <a name="zh-cn_topic_0000001420053432_table85082284479"></a>
-<table><tbody><tr id="zh-cn_topic_0000001420053432_row115371528134717"><th class="firstcol" valign="top" width="23%" id="mcps1.1.3.1.1"><p id="zh-cn_topic_0000001420053432_p953792815479"><a name="zh-cn_topic_0000001420053432_p953792815479"></a><a name="zh-cn_topic_0000001420053432_p953792815479"></a>Trouble Ticket No.</p>
-</th>
-<td class="cellrowborder" valign="top" width="77%" headers="mcps1.1.3.1.1 "><p id="zh-cn_topic_0000001420053432_p553715286471"><a name="zh-cn_topic_0000001420053432_p553715286471"></a><a name="zh-cn_topic_0000001420053432_p553715286471"></a>DTS202107210KJTJ7P1400</p>
-</td>
-</tr>
+<table><tbody>
 <tr id="zh-cn_topic_0000001420053432_row205371728164714"><th class="firstcol" valign="top" width="23%" id="mcps1.1.3.2.1"><p id="zh-cn_topic_0000001420053432_p19537192894712"><a name="zh-cn_topic_0000001420053432_p19537192894712"></a><a name="zh-cn_topic_0000001420053432_p19537192894712"></a>Symptom</p>
 </th>
 <td class="cellrowborder" valign="top" width="77%" headers="mcps1.1.3.2.1 "><p id="zh-cn_topic_0000001420053432_p353772874720"><a name="zh-cn_topic_0000001420053432_p353772874720"></a><a name="zh-cn_topic_0000001420053432_p353772874720"></a>Condition: Video streaming cloud phone testing with Cocos during CI daily builds.</p>
@@ -627,11 +603,7 @@ None
 </table>
 
 <a name="zh-cn_topic_0000001420053432_table919416369514"></a>
-<table><tbody><tr id="zh-cn_topic_0000001420053432_row16268203685118"><th class="firstcol" valign="top" width="23%" id="mcps1.1.3.1.1"><p id="zh-cn_topic_0000001420053432_p192681636145116"><a name="zh-cn_topic_0000001420053432_p192681636145116"></a><a name="zh-cn_topic_0000001420053432_p192681636145116"></a>Trouble Ticket No.</p>
-</th>
-<td class="cellrowborder" valign="top" width="77%" headers="mcps1.1.3.1.1 "><p id="zh-cn_topic_0000001420053432_p10268133611512"><a name="zh-cn_topic_0000001420053432_p10268133611512"></a><a name="zh-cn_topic_0000001420053432_p10268133611512"></a>DTS2021090912581</p>
-</td>
-</tr>
+<table><tbody>
 <tr id="zh-cn_topic_0000001420053432_row172689368517"><th class="firstcol" valign="top" width="23%" id="mcps1.1.3.2.1"><p id="zh-cn_topic_0000001420053432_p926833695111"><a name="zh-cn_topic_0000001420053432_p926833695111"></a><a name="zh-cn_topic_0000001420053432_p926833695111"></a>Symptom</p>
 </th>
 <td class="cellrowborder" valign="top" width="77%" headers="mcps1.1.3.2.1 "><p id="zh-cn_topic_0000001420053432_p16268173665114"><a name="zh-cn_topic_0000001420053432_p16268173665114"></a><a name="zh-cn_topic_0000001420053432_p16268173665114"></a>Condition: Upgrade the server firmware (BIOS 177, CPLD 5.14, and iBMC 3.01.12.23).</p>
