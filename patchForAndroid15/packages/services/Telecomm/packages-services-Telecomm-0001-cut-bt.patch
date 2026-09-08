@@ -1,0 +1,17 @@
+diff --git a/src/com/android/server/telecom/bluetooth/BluetoothDeviceManager.java b/src/com/android/server/telecom/bluetooth/BluetoothDeviceManager.java
+index 0f27dad17..ab4b3835b 100644
+--- a/src/com/android/server/telecom/bluetooth/BluetoothDeviceManager.java
++++ b/src/com/android/server/telecom/bluetooth/BluetoothDeviceManager.java
+@@ -424,6 +424,12 @@ public class BluetoothDeviceManager {
+ 
+     public BluetoothHeadset getBluetoothHeadset() {
+         if (mFeatureFlags.useRefactoredAudioRouteSwitching()) {
++            if (mBluetoothHeadsetFuture == null) {
++                // BluetoothAdapter was null at construction (e.g. FEATURE_BLUETOOTH not
++                // present in cloud phone), so the future was never initialized. All
++                // callers already handle a null BluetoothHeadset.
++                return null;
++            }
+             try {
+                 mBluetoothHeadset = mBluetoothHeadsetFuture.get(500L,
+                         TimeUnit.MILLISECONDS);

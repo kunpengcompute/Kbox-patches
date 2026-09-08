@@ -32,7 +32,7 @@ For details, see [**Table 1** Software requirements](#software-requirements).
 |No.|Software|Description|How to Obtain|
 |--|--|--|--|
 |1|AOSP source code|Version: android-15.0.0_r17|[Link](https://android.googlesource.com/platform/manifest)|
-|2|BoostKit-boostcph-kbox_*_15.zip|Android Kbox binary package|Contact Huawei technical support.|
+|2|BoostKit-boostcph-kbox_*_15.zip|Android Kbox binary package|Please submit an ISSUE feedback.|
 |3|Kbox-patches-AOSP15.zip|Android code patch demo package and compilation script demo package|[Link](https://raw.gitcode.com/boostkit/Kbox-patches/archive/refs/heads/AOSP15.zip)|
 |4|Meson|1.1.0|[Link](https://github.com/mesonbuild/meson/releases/download/1.1.0/meson-1.1.0.tar.gz)|
 |5|Mesa|Refer to Demo 24.3.4.|[Link](https://gitcode.com/boostkit/mesa/tree/24.3.4)|
@@ -55,7 +55,7 @@ To prevent software packages from being maliciously tampered with during transfe
 
 >![](public_sys-resources/icon-note.gif) **NOTE:**
 >
->If the verification fails, do not use the software package. Contact Huawei technical support.
+>If the verification fails, do not use the software package. Please submit an ISSUE feedback.
 >Before a software package is used for installation or upgrade, its digital signature also needs to be verified to ensure that the software package is not tampered with.
 >Before using the software package, read and agree to [Kunpeng BoostKit User License Agreement 2.0](https://www.hikunpeng.com/en/legal/developer/boostkit/software/protocol).
 
@@ -285,7 +285,7 @@ Apply the Kbox binary file package into the AOSP source package.
     >
     >- The example is for reference only. Configure an available public DNS address to ensure that the container is connected to the network.
     >- You can also configure the DNS address in the **/system/vendor/build.prop** file of the Kbox container. The configuration takes effect after the container is restarted.
-    >- If you have any questions about the configuration, contact Huawei O&M engineers.
+    >- If you have any questions about the configuration, Please submit an ISSUE feedback.
 
 ### 4.5 Compiling the AOSP and Creating an Image<a name="ZH-CN_TOPIC_0000002549826011"></a>
 

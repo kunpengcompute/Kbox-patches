@@ -1,0 +1,21 @@
+diff --git a/apex/Android.bp b/apex/Android.bp
+index 52b9631fb4..3fec90918a 100644
+--- a/apex/Android.bp
++++ b/apex/Android.bp
+@@ -25,7 +25,15 @@ apex {
+         "bluetoothapk-platform-compat-config",
+         "framework-bluetooth-compat-config",
+     ],
+-    apps: ["Bluetooth"],
++    // KBOX 蓝牙运行期裁剪：当 kbox.bluetooth_enabled 为 "false" 时，Bluetooth app 不打入 APEX。
++    // APEX 本身（含 bootclasspath/systemserverclasspath fragments）照常编译安装，编译链不受影响；
++    // 系统中不存在 com.android.bluetooth 包，AMS 不会拉起该 persistent 进程，杜绝无 HAL 环境下的 crash loop。
++    // 变量未设置（base / 非 kbox target）走 default 分支，行为与 AOSP 原生一致。
++    // 注意：default 分支必须写未加引号的 "default:"——带引号会被解析为字符串 pattern 而非 default pattern。
++    apps: select(soong_config_variable("kbox", "bluetooth_enabled"), {
++        "false": [],
++        default: ["Bluetooth"],
++    }),
+ 
+     multilib: {
+         first: {
