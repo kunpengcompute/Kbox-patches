@@ -43,11 +43,11 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 | 1 | android.tar | Kbox安卓镜像包，用于部署Kbox基础环境 | 自行编译（请参见[编译指南](compile_guide.md)进行编译） | √ | √ | √ | √ |√ |
 | 2 | BoostKit-boostcph-kbox_*_15.zip | Android Kbox二进制文件包，包含运行所需组件 | [获取链接](https://www.hikunpeng.com/zh/developer/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft) | √ | √ | √ | √ |√ |
 | 3 | kernel-6.6.0-72.0.0.zip | openEuler 24.03 LTS SP1 Kernel源码 | [获取链接](https://atomgit.com/openeuler/kernel/tree/6.6.0-72.0.0) | √ | √ | √ | √ |√ |
-| 4 | ExaGear_ARM32-ARM64.tar.gz | ExaGear转码二进制包 | 请联系华为技术支持获取 | √ | √ | √ | √ |√ |
+| 4 | ExaGear_ARM32-ARM64.tar.gz | ExaGear转码二进制包 | 通过提交ISSUE反馈 | √ | √ | √ | √ |√ |
 | 5 | Kbox-patches-AOSP15.zip | 内核补丁Demo包、容器部署脚本Demo包 | [获取链接](https://gitcode.com/boostkit/Kbox-patches/tree/AOSP15) | √ | √ | √ | √ |√ |
 | 6 | NETINT-v*XXX*.tar.gz（可选） | NETINT编解码库，当使能硬解的时候获取该软件包，配套版本4.8.F-Android15 | [获取链接](https://www.netint.cn/quadra-firmware-downloads-android15)<br/>下载密码:test123 | √ | - | - | - | - |
 | 7 | Quadra_V*XXX*.zip | 包含NETINT编码卡Quadra软固件及文档包，配套版本V4.8.F-Android15 | [获取链接](https://www.netint.cn/quadra-firmware-downloads-android15/)<br>下载密码:test123 | √ | - | - | - | - |
-| 8 | VAGPU-A15-C-F-26.02.08.01.RC2.tgz | 显卡驱动 | 请联系华为技术支持获取 | - | √ | √ | √ |√ |
+| 8 | VAGPU-A15-C-F-26.02.08.01.RC2.tgz | 显卡驱动 | 通过提交ISSUE反馈 | - | √ | √ | √ |√ |
 | 9 | docker-24.0.0.tgz | Docker 24.0.0版本二进制包 | [获取链接](https://download.docker.com/linux/static/stable/aarch64/docker-24.0.0.tgz) | √ | √ | √ | √ |√ |
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
@@ -66,7 +66,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >
->- 如果校验失败，请不要使用该软件包，先联系华为技术支持工程师解决。
+>- 如果校验失败，请不要使用该软件包，通过提交ISSUE反馈。
 >- 使用软件包安装/升级之前，也需要按上述过程先验证软件包的数字签名，确保软件包未被篡改。
 >- 使用软件包前请先阅读《[鲲鹏应用使能套件BoostKit用户许可协议 2.0](https://www.hikunpeng.com/zh/legal/developer/boostkit/software/protocol)》，如确认继续使用，则默认同意协议的条款和条件。
 
@@ -480,7 +480,7 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >
-    >如遇到lxcfs启动报错，请尝试重启服务，或者联系华为技术支持工程师协助解决。
+    >如遇到lxcfs启动报错，请尝试重启服务，或者通过提交ISSUE反馈。
 
 6. Docker升级到24.0.0版本。若**yum**安装的Docker版本低于24.0.0版本，则需要升级版本。
 

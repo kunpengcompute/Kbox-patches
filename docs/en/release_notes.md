@@ -82,11 +82,7 @@ None
 ### Known Issues<a name="ZH-CN_TOPIC_0000002518186096"></a>
 
 <a name="table1427894420453"></a>
-<table><tbody><tr id="row227819445458"><th class="firstcol" valign="top" width="20.830000000000002%" id="mcps1.1.3.1.1"><p id="p827994484520"><a name="p827994484520"></a><a name="p827994484520"></a>Trouble Ticket No.</p>
-</th>
-<td class="cellrowborder" valign="top" width="79.17%" headers="mcps1.1.3.1.1 "><p id="p52791444164511"><a name="p52791444164511"></a><a name="p52791444164511"></a>DTS2025103008735</p>
-</td>
-</tr>
+<table><tbody>
 <tr id="row142796442455"><th class="firstcol" valign="top" width="20.830000000000002%" id="mcps1.1.3.2.1"><p id="p142791544124517"><a name="p142791544124517"></a><a name="p142791544124517"></a>Severity</p>
 </th>
 <td class="cellrowborder" valign="top" width="79.17%" headers="mcps1.1.3.2.1 "><p id="p10279194434511"><a name="p10279194434511"></a><a name="p10279194434511"></a>Minor</p>
