@@ -732,6 +732,10 @@ function bb_create_build_prop() {
         chmod 600 $LOCAL_PROP
     fi
 
+    if [ -f $THISDIR/local.prop ]; then
+        cp -f $THISDIR/local.prop $LOCAL_PROP
+    fi
+
     BUILD_PROP=$prop_root/build.prop
     if [ -f $BUILD_PROP ];then
         umount /var/lib/kbox/props/${container_name}/build.prop
