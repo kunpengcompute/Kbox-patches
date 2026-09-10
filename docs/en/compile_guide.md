@@ -44,7 +44,7 @@ For details, see [**Table 1** Software requirements](#software-requirements).
 
 **Verifying Software Package Integrity<a name="section12800195641510"></a>**
 
-To prevent software packages from being maliciously tampered with during transfer or storage, download also the corresponding SHA256 files for integrity verification while obtaining the software packages from the Kunpeng community.
+To prevent software packages from being maliciously tampered with during transfer or storage, download also the corresponding SHA256 files for integrity verification while obtaining the software packages.
 
 1. Obtain the software packages and corresponding digital certificates.
 

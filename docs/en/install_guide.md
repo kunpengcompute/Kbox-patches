@@ -61,7 +61,7 @@ Currently, the Kbox Android container supports Android 15. [Table 1 Software req
 
 **Verifying Software Package Integrity<a name="zh-cn_topic_0000001506119857_zh-cn_topic_0000001323011582_zh-cn_topic_0000001214652748_section1134661021416"></a>**
 
-To prevent software packages from being maliciously tampered with during transfer or storage, download also the corresponding SHA256 files for integrity verification while obtaining the software packages from the Kunpeng community.
+To prevent software packages from being maliciously tampered with during transfer or storage, download also the corresponding SHA256 files for integrity verification while obtaining the software packages.
 
 1. Obtain the software packages and the corresponding SHA256 files by referring to [**Table 1** Software requirements](#software-requirements).
 
