@@ -72,3 +72,9 @@ ASLR（Address space layout randomization）是一种针对缓冲区溢出的安
 ```bash
 echo 2 > /proc/sys/kernel/randomize_va_space
 ```
+
+## 修订记录
+
+|文档版本|发布日期|修改说明|
+|--|--|--|
+|01|2026-09-30|第一次正式发布。|
