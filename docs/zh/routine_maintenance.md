@@ -573,4 +573,4 @@ docker exec -it kbox_${index} getprop ro.product.system_ext.brand
 
 |文档版本|发布日期|修改说明|
 |--|--|--|
-|01|2026-09-30|第一次正式发布|
+|01|2026-09-30|第一次正式发布。|
