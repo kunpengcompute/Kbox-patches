@@ -50,8 +50,21 @@ To prevent software packages from being maliciously tampered with during transfe
 
     For details, see [**Table 1** Software requirements](#software-requirements).
 
-2. <a name="li1273482318125"></a>Obtain the verification tool and method from the [Huawei enterprise website](https://support.huawei.com/enterprise/en/tool/pgp-verify-TL1000000054) or [carrier website](http://support.huawei.com/carrier/digitalSignatureAction).
-3. Based on the *OpenPGP Signature Verification Guide* obtained in [2](#li1273482318125), verify the PGP digital signature of the software package.
+2. Calculate the SHA256 checksum of the file. Run the following command on Linux:
+
+    ```bash
+    sha256sum <package>
+    ```
+
+    Run the following command on Windows:
+
+    ```bash
+    certutil -hashfile <package> SHA256
+    ```
+
+    After the command is executed, the checksum is output.
+
+3. Compare the calculated checksum with the checksum in the SHA file. If the checksums are consistent, the file is intact. If the checksums are inconsistent, the file integrity has been compromised and you need to obtain the file again.
 
 >![](public_sys-resources/icon-note.gif) **NOTE:**
 >
