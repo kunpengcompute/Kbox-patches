@@ -86,9 +86,9 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 环境部署指定的服务器BIOS版本对内存的插入格式有限制。在进行BIOS设置之前，请确保内存插入格式如本章节提供的所示。
 
-内存插入格式如[**图 1** 内存插入格式](#内存插入格式)所示。表格的每一行对应CPU的编号，每一列对应插入内存数量，分别根据插入内存的数量和CPU编号找到表格中对应的行和列，确定插入内存条的卡槽位置。
+内存插入格式如[**图 2** 内存插入格式](#内存插入格式)所示。表格的每一行对应CPU的编号，每一列对应插入内存数量，分别根据插入内存的数量和CPU编号找到表格中对应的行和列，确定插入内存条的卡槽位置。
 
-**图 1** 内存插入格式<a name="fig10693358191820"></a><a id="内存插入格式"></a>
+**图 2** 内存插入格式<a name="fig10693358191820"></a><a id="内存插入格式"></a>
 ![](./figures/内存插入格式.png "内存插入格式")
 
 ### （硬件配置方案一、二）配置BIOS<a name="ZH-CN_TOPIC_0000002549865263"></a>
@@ -603,12 +603,12 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
 
 5. 配置内核编译选项。
 
-    在出现如[**图 1** 内核配置界面](#内核配置界面)所示的内核配置界面中，进行内核编译选项的配置，具体配置项如[**表 1** 内核编译选项配置说明](#内核编译选项配置说明)所示。
+    在出现如[**图 3** 内核配置界面](#内核配置界面)所示的内核配置界面中，进行内核编译选项的配置，具体配置项如[**表 3** 内核编译选项配置说明](#内核编译选项配置说明)所示。
 
-    **图 1** 内核配置界面<a name="fig4732181117012"></a><a id="内核配置界面"></a>
+    **图 3** 内核配置界面<a name="fig4732181117012"></a><a id="内核配置界面"></a>
     ![](./figures/内核配置界面.jpg "内核配置界面")
 
-    **表 1** 内核编译选项配置说明<a id="内核编译选项配置说明"></a>
+    **表 3** 内核编译选项配置说明<a id="内核编译选项配置说明"></a>
 
     |配置项|配置要求|配置结果对照|.config中显示的配置结果|
     |--|--|--|--|
@@ -619,15 +619,15 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
     |DEBUG_INFO_DWARF4|N（回车进入Debug information，在选项中单击空格选择Disable debug information）|Debug information (Disable debug information)|# CONFIG_DEBUG_INFO_DWARF4 is not set|
     |PSI_DEFAULT_DISABLED|N|[  ] Require boot parameter to enable pressure stall information tracking|# CONFIG_PSI_DEFAULT_DISABLED is not set|
 
-    **表 2** 使能f2fs内核编译选项配置说明<a id="使能f2fs内核编译选项配置说明"></a>
+    **表 4** 使能f2fs内核编译选项配置说明<a id="使能f2fs内核编译选项配置说明"></a>
 
     |配置项|配置要求|配置结果对照|.config中显示的配置结果|
     |--|--|--|--|
-    |CONFIG_F2FS_FS|Y|[\*] F2FS filesystem support|CONFIG_F2FS_FS=y|  
+    |CONFIG_F2FS_FS|Y|<\*> F2FS filesystem support|CONFIG_F2FS_FS=y|  
 
     如果要使能容器支持以f2fs文件格式启动，则还要进行上面内核编译选项的配置。
 
-    **表 3** （可选）使能nfs内核编译选项配置说明<a id="使能nfs内核编译选项配置说明"></a>
+    **表 5** （可选）使能nfs内核编译选项配置说明<a id="使能nfs内核编译选项配置说明"></a>
 
     |配置项|配置要求|配置结果对照|.config中显示的配置结果|
     |--|--|--|--|
@@ -1050,3 +1050,9 @@ NUMA node: 2
     magic 7f454c4601010100000000000000000002002800 
     mask ffffffffffffff00fffffffffffffffffeffffff
     ```
+
+## 修订记录
+
+|文档版本|发布日期|修改说明|
+|--|--|--|
+|01|2026-09-30|第一次正式发布。|
