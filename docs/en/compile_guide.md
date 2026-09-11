@@ -48,20 +48,32 @@ Before compiling the Kbox Android image, obtain the following packages from addr
 
 **Verifying Software Package Integrity<a name="section12800195641510"></a>**
 
-To prevent software packages from being maliciously tampered with during transfer or storage, download also the corresponding digital signature files for integrity verification while obtaining the software packages from the Kunpeng community.
+To prevent software packages from being maliciously tampered with during transfer or storage, download also the corresponding SHA256 files for integrity verification while obtaining the software packages.
 
 1. Obtain the software packages and corresponding digital certificates.
 
     For details, see [**Table 1**](#software-requirements).
 
-2. <a name="li1273482318125"></a> Obtain the verification tool and guide from the [Huawei enterprise website](https://support.huawei.com/enterprise/en/tool/pgp-verify-TL1000000054) or [Huawei carrier website](http://support.huawei.com/carrier/digitalSignatureAction).
-3. Based on the *OpenPGP Signature Verification Guide* obtained in [2](#li1273482318125), verify the PGP digital signatures of the software packages.
+2. Calculate the SHA256 checksum of the file. Run the following command on Linux:
+
+    ```bash
+    sha256sum <package>
+    ```
+
+    Run the following command on Windows:
+
+    ```bash
+    certutil -hashfile <package> SHA256
+    ```
+
+    After the command is executed, the checksum is output.
+
+3. Compare the calculated checksum with the checksum in the SHA file. If the checksums are consistent, the file is intact. If the checksums are inconsistent, the file integrity has been compromised and you need to obtain the file again.
 
 >![](public_sys-resources/icon-note.gif) **NOTE:**
 >
 >If the verification fails, do not use the software package, Please submit an ISSUE feedback.
->Before a software package is used for installation or upgrade, its digital signature also needs to be verified to ensure that the software package is not tampered with.
->Before using the software package, read and agree to [Kunpeng BoostKit User License Agreement 2.0](https://www.hikunpeng.com/en/legal/developer/boostkit/software/protocol).
+>Before a software package is used for installation or upgrade, its SHA256 checksum also needs to be verified to ensure that the software package is not tampered with.
 
 ## 2 Compilation Process <a name="ZH-CN_TOPIC_0000002549825249"></a>
 
