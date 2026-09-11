@@ -510,7 +510,7 @@ docker inspect kbox_1 | jq -r '.[].Mounts[] | select(.Destination=="/data") | .S
 
 1. 在云手机配置文件kbox_config.cfg设置相关配置项START_SHARE_DATA，该配置项默认为0，即不使能，设置为1即可使能共享数据卷功能。
 
-2. 配置项START_SHARE_DATA设置为1后，按照视频流原有流程制作镜像，并启动安卓云手机实例。配置云手机实例，比如下载游戏、软件后，执行命令
+2. 配置项START_SHARE_DATA设置为1后，按照视频流原有流程制作镜像，并启动安卓云手机实例。配置云手机实例，比如下载游戏、软件后，执行命令。
 
     ```bash
     docker commit 云手机实例  镜像名称
@@ -526,7 +526,7 @@ docker inspect kbox_1 | jq -r '.[].Mounts[] | select(.Destination=="/data") | .S
    
 #### 校验是否生效
 
-   启动容器后，在容器中能看到已经打包在镜像中的软件，则共享数据卷生效成功
+   启动容器后，在容器中能看到已经打包在镜像中的软件，则共享数据卷生效成功。
    
 ## ARDC测试<a id="ZH-CN_TOPIC_0000002549712565"></a>
 
