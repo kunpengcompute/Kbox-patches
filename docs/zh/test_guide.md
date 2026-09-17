@@ -210,7 +210,7 @@
 | 测试目的 | 验证vinput设备能够正常发送与接收事件。 |
 | 测试组网 | 无 |
 | 预置条件 | 1. Kbox云手机基本环境已部署完成。<br>2. 已创建Kbox云手机容器，并使用adb连接。 |
-| 测试步骤 | 1. 完成[vinput设备](#vinput设备创建)创建相关设置后，打开另一个服务器端远程连接窗口B输入命令`getevent`侦听事件。<br>2. 在服务器远程连接窗口A使用命令`docker exec -it kbox_<x> sh`进入容器。输入命令getevent -p获取相应事件的[device][type][code][value]参数。<br>3. 在容器中使用命令`sendevent [device] [type] [code] [value]`发送事件。 <br>说明： 其中x表示容器编号数字部分。 |
+| 测试步骤 | 1. 完成[vinput设备创建](#vinput设备创建)相关设置后，打开另一个服务器端远程连接窗口B输入命令`getevent`侦听事件。<br>2. 在服务器远程连接窗口A使用命令`docker exec -it kbox_<x> sh`进入容器。输入命令getevent -p获取相应事件的[device][type][code][value]参数。<br>3. 在容器中使用命令`sendevent [device] [type] [code] [value]`发送事件。 <br>说明： 其中x表示容器编号数字部分。 |
 | 预期结果 | 窗口A发送事件无报错，窗口B可以成功侦听到事件。 |
 | 测试结果 |  |
 | 备注 |  |
