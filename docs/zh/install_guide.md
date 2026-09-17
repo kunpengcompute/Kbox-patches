@@ -864,7 +864,7 @@ Kbox云手机容器支持在openEuler 22.03 LTS SP4（对应内核版本5.10.0-2
     cat /sys/bus/pci/devices/0000\:XX\:00.0/numa_node
     ```
 
-    其中，指令中的“XX”应按[1](#li34656503552)中的实际回显IP地址进行修改。以回显renderD128为例，查询指令应为：
+    其中，指令中的“XX”应按[1](#li34656503552)中的实际回显PCI地址进行修改。以回显renderD128为例，查询指令应为：
 
     ```bash
     cat /sys/bus/pci/devices/0000\:03\:00.0/numa_node
