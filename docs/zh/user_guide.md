@@ -1123,13 +1123,13 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 |日志类别|详情|
 |--|--|
 | Android日志 | 通过**logcat**命令收集日志缓存区中日志 |
-| 收集ANR时的应用堆栈信息（/data/anr） |
-| 通过dumpsys activity，dumpsys meminfo，dumpsys input收集必要的dumpsys信息 |
-| 通过**ps –a**收集进程信息 |
-| 通过**getprop**收集系统属性信息 |
+| Android日志| 收集ANR时的应用堆栈信息（/data/anr） |
+| Android日志| 通过dumpsys activity，dumpsys meminfo，dumpsys input收集必要的dumpsys信息 |
+| Android日志| 通过**ps –a**收集进程信息 |
+| Android日志| 通过**getprop**收集系统属性信息 |
 | 服务器日志 | 收集/var/log底下的syslog和kernel日志 |
-| 通过**dmesg -T**收集查看开机信息 |
-| 通过**docker stats/docker inspect**收集Docker相关日志 |
+| 服务器日志 | 通过**dmesg -T**收集查看开机信息 |
+| 服务器日志 | 通过**docker stats/docker inspect**收集Docker相关日志 |
 
 为了便于使用，特基于Kbox_maintainer（维护工具）提供一键式日志收集能力，Kbox_maintainer工具收集日志的方法，请参见《[例行维护](routine_maintenance.md)》的“日志收集”章节。
 

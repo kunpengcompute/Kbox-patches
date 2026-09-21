@@ -19,7 +19,7 @@ Kbox云手机容器环境部署的硬件环境配置方案要求如[**表 1** Kb
 |CPU|2\*鲲鹏920 7260处理器，64核，2.6GHz|2\*鲲鹏920 7260处理器，64核，2.6GHz|2\*鲲鹏920 7280Z处理器，80核，2.9GHz|2\*鲲鹏920 7260W处理器，64核，2.2GHz|2\*鲲鹏920 7282C处理器，80核，2.9GHz|
 |内存|16\*DDR4 RDIMM内存-32GB-2933MT/s|16\*DDR4 RDIMM内存-32GB-2933MT/s|16\*DDR5 DIMM内存-64GB-4800MT/s|16\*DDR5 DIMM内存-64GB-5200MT/s|16\*DDR4 DIMM内存-64GB-3200MT/s|
 |编码卡|1\*NETINT Quadra T2A（X8）|无|无|无|无|
-|GPU|2\*AMD W6800|4\*道客DC1000|8\*道客DC1000 或 8\*道客DC1000C|8\*道客DC1000|8\*道客DC1000|8\*道客DC1000|
+|GPU|2\*AMD W6800|4\*道客DC1000|8\*道客DC1000或8\*道客DC1000C|8\*道客DC1000|8\*道客DC1000|
 |操作系统|openEuler 24.03 LTS SP1|openEuler 24.03 LTS SP1|openEuler 24.03 LTS SP1|openEuler 24.03 LTS SP1|openEuler 24.03 LTS SP1|
 |内核版本|6.6.0-72.0.0|6.6.0-72.0.0|6.6.0-72.0.0|6.6.0-72.0.0|6.6.0-72.0.0|
 
@@ -97,7 +97,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 ### 内存插入顺序说明<a name="ZH-CN_TOPIC_0000002518385442"></a>
 
-环境部署指定的服务器BIOS版本对内存的插入格式有限制。在进行BIOS设置之前，请确保内存插入格式如本章节提供的所示。
+环境部署指定的服务器BIOS版本对内存的插入格式有限制。在进行BIOS设置之前，请确保内存插入格式如本章节提供的说明所示。
 
 内存插入格式如[**图 2** 内存插入格式](#内存插入格式)所示。表格的每一行对应CPU的编号，每一列对应插入内存数量，分别根据插入内存的数量和CPU编号找到表格中对应的行和列，确定插入内存条的卡槽位置。
 
@@ -677,7 +677,7 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
 
     4. 返回到内核配置首页，进行下一项的配置。
 
-6. 完成配置后，在内核配置首页选择，选择“Save”。
+6. 完成配置后，在内核配置首页选择“Save”。
 
     ![](./figures/内核configure_save.png)
 
@@ -834,7 +834,7 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
     cat /sys/bus/pci/devices/0000\:XX\:00.0/numa_node 
     ```
 
-    其中，指令中的“XX”应按[1](#li34656503552)中的实际回显IP地址进行修改。以回显renderD128为例，查询指令应为：
+    其中，指令中的“XX”应按[1](#li34656503552)中的实际回显PCI地址进行修改。以回显renderD128为例，查询指令应为：
 
     ```bash
     cat /sys/bus/pci/devices/0000\:03\:00.0/numa_node

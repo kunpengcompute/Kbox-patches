@@ -6,7 +6,7 @@ Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的核心能力组件，
 
 云手机是基于ARM服务器虚拟出的带有AOSP （Android Open Source Project，安卓开放源代码项目）系统的虚拟手机服务。简而言之，云手机=ARM服务器+Android OS。您可以远程实时控制云手机，实现Android APP的云端运行；也可以基于云手机的基础算力，高效搭建应用，如云游戏、移动办公、直播互娱等场景。
 
-Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的重要组成部分，是实现Android应用运行的基础软件。它将AOSP系统直接运行在容器内，实现GPS、加速度传感器、陀螺仪、IMEI、Wi-Fi等外设硬件的数据Mock功能，以及Gralloc&HWComposor模块，确保AOSP系统可以正常启动运行；以及一系列可选特性，用于在各种业务场景下增强云手机功能或性能。
+Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的重要组成部分，是实现Android应用运行的基础软件。它将AOSP系统直接运行在容器内，实现GPS、加速度传感器、陀螺仪、IMEI、Wi-Fi等外设硬件的数据Mock功能，以及Gralloc&HWComposer模块，确保AOSP系统可以正常启动运行；以及一系列可选特性，用于在各种业务场景下增强云手机功能或性能。
 
 Kbox支持的所有基础功能和可选特性见[**表 1** Kbox基础功能清单](#Kbox基础功能清单)和[**表 2** Kbox可选特性清单](#Kbox可选特性清单)。对于Kbox基础功能，可按照[编译指南](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP15/docs/zh/compile_guide.md)与[安装指南](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP15/docs/zh/install_guide.md)中描述集成Kbox云手机容器组件，即可支持。可选功能的相关信息在下文章节中详细描述。
 
@@ -50,7 +50,7 @@ Kbox支持的所有基础功能和可选特性见[**表 1** Kbox基础功能清�
 
 #### 应用场景
 
-本特性在大量使用ETC纹理的Vulkan应用、或者大量使用ASTC纹理的OpenGL ES应用使用效果最佳，其他场景或者没优化或者优化不明显。
+本特性在大量使用ETC纹理的Vulkan应用中、或者大量使用ASTC纹理的OpenGL ES应用中，使用效果最佳，其他场景或者没优化或者优化不明显。
 
 ### 安装特性
 
@@ -127,7 +127,7 @@ Kbox支持的所有基础功能和可选特性见[**表 1** Kbox基础功能清�
 
 1. 容器配置属性`ro.hardware.dynamicfps`为1，即使能特性。
 2. `ro.hardware.downfps`为动态帧率调整目标值，可配置为12/24。
-3. 云机启动后，连接再断开云机出流，观察云机出流帧率，若正常生效应该在断开后出流帧率与配置的ro.hardware.downfps属性值一致（渲染帧率会最终体现在出流帧率上）。
+3. 云机启动后，连接后再断开云机出流，观察云机出流帧率，若正常生效应该在断开后出流帧率与配置的ro.hardware.downfps属性值一致（渲染帧率会最终体现在出流帧率上）。
 
 ## Android轻量化裁剪
 
@@ -220,11 +220,11 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 1. 首先需要使能该特性，即将配置文件（Kbox镜像的配置文件为**kbox_config.cfg**，视频流镜像则为**cfct_config**）中的**ENABLE_RENDER_LAYER**设置为1；
 2. 从软件包Kbox-patches-AOSP15.zip中拷贝kbox_render_accelerating_configuration.xml配置文件到当前启动路径；
 3. 打开kbox_render_accelerating_configuration.xml配置文件，对应用的Shader缓存行为进行配置。具体配置项描述请参见[3.1.2 图形加速层配置项](https://gitcode.com/boostkit/vmi/blob/CloudPhone15/docs/zh/user_guide.md#312-图形加速层配置项)。
-4. 启动一个云手机，运行已配置好的应用，可查看到容器内vender/shader_cache路径下已生成对应应用的缓存文件。
+4. 启动一个云手机，运行已配置好的应用，可查看到容器内vendor/shader_cache路径下已生成对应应用的缓存文件。
    > **注意**：使能该特性以及设置`SHADER_CACHE_DIR_SIZE`均需要启动一个新的云手机才能生效。
 5. 若要修改Shader Cache的模式，需要先修改kbox_render_accelerating_configuration.xml配置文件中的`SHADER_CACHE_MODE`参数，并将配置文件拷贝至云手机容器内/data/local/tmp/目录下，最后重启应用即可生效。
 
-## 以f2fs文件格式启动<a name="ZH-CN_TOPIC_0000002549865949"></a>
+## 以f2fs文件格式启动<a name="ZH-CN_TOPIC_00000025498659491"></a>
 
 ### 特性介绍<a name="ZH-CN_TOPIC_0000002549865950"></a>
 
@@ -310,7 +310,7 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
    3. 挂载新分区，使能新分区挂载生效。
 
       ```bash
-      mount -a  
+      mount -a
       systemctl daemon-reload
       ```
 
@@ -408,7 +408,7 @@ Android系统中默认包含了许多内置应用与系统服务进程，在系�
 
       ```bash
       modprobe xfs
-      mount -a 
+      mount -a
       systemctl daemon-reload
       ```
 
@@ -451,7 +451,7 @@ NFS采用典型的客户端/服务器（C/S）架构，客户端/服务器均需
    cat /lib/modules/$(uname -r)/build/.config | grep NFS
    ```
 
-   CONFIG_NFS_FS、CONFIG_NFS_V4、CONFIG_NFSD为m需要执行如下命令加载该模块。
+   CONFIG_NFS_FS、CONFIG_NFS_V4、CONFIG_NFSD为m时，需要执行如下命令加载该模块。
 
    ```bash
    modprobe nfs
@@ -511,7 +511,7 @@ NFS采用典型的客户端/服务器（C/S）架构，客户端/服务器均需
 
    >![](public_sys-resources/icon-note.gif) **说明：**
    >
-   >由于服务器的/etc/exports对/home目录配置了fsid=0，因此在客户端时不可见的，所以只需要挂载/nfs目录即可。
+   >由于服务器的/etc/exports对/home目录配置了fsid=0，因此在客户端不可见，所以只需要挂载/nfs目录即可。
 
 ### 使用特性
 
@@ -666,7 +666,7 @@ chmod u+w /sys/devices/system/cpu/cpu${需要新增权限的cpu的编号}/cpufre
 2. 配置项START_SHARE_DATA设置为1后，按照视频流原有流程制作镜像，并启动安卓云手机实例。配置云手机实例，比如下载游戏、软件后，执行命令。
 
    ```bash
-     docker commit 云手机实例  镜像名称
+     docker commit 云手机实例 镜像名称
      ```
 
      比如
