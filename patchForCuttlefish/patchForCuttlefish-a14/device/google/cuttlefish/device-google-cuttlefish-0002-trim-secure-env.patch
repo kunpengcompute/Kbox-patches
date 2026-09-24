@@ -1,0 +1,112 @@
+From f9854dd8 Mon Sep 17 00:00:00 2001
+From: kp-cvd-trim <kp@cuttlefish>
+Date: Sun, 20 Jul 2026 00:00:00 +0800
+Subject: [PATCH] trim secure-env: keymaster/gatekeeper/confirmationui
+
+[PROCESS_TRIM] main.cc(SecureEnv) + keymaster/gatekeeper/confui HVC->sink + device.mk.
+
+--- --- a/host/commands/run_cvd/main.cc	2026-07-27 09:51:10.731949885 +0000
++++ +++ b/host/commands/run_cvd/main.cc	2026-07-27 09:51:10.747950024 +0000
+@@ -141,7 +141,8 @@
+       .install(PicaComponent)
+       .install(RootCanalComponent)
+       .install(NetsimServerComponent)
+-      .install(SecureEnvComponent)
++      // [PROCESS_TRIM] SecureEnv 禁用
++      //.install(SecureEnvComponent)
+       .install(TombstoneReceiverComponent)
+       .install(WmediumdServerComponent)
+       .install(launchModemComponent)
+--- --- a/host/libs/vm_manager/crosvm_manager.cpp	2026-07-27 09:51:10.735949919 +0000
++++ +++ b/host/libs/vm_manager/crosvm_manager.cpp	2026-07-27 09:51:10.771950232 +0000
+@@ -384,12 +384,9 @@
+   // Serial port for logcat, redirected to a pipe
+   crosvm_cmd.AddHvcReadOnly(instance.logcat_pipe_name());
+ 
+-  crosvm_cmd.AddHvcReadWrite(
+-      instance.PerInstanceInternalPath("keymaster_fifo_vm.out"),
+-      instance.PerInstanceInternalPath("keymaster_fifo_vm.in"));
+-  crosvm_cmd.AddHvcReadWrite(
+-      instance.PerInstanceInternalPath("gatekeeper_fifo_vm.out"),
+-      instance.PerInstanceInternalPath("gatekeeper_fifo_vm.in"));
++  // [PROCESS_TRIM] secure_env 已禁用：keymaster/gatekeeper FIFO 替换为 sink
++  crosvm_cmd.AddHvcSink();
++  crosvm_cmd.AddHvcSink();
+ 
+   if (config.enable_host_bluetooth()) {
+     crosvm_cmd.AddHvcReadWrite(
+@@ -411,9 +408,8 @@
+     }
+   }
+ 
+-  crosvm_cmd.AddHvcReadWrite(
+-      instance.PerInstanceInternalPath("confui_fifo_vm.out"),
+-      instance.PerInstanceInternalPath("confui_fifo_vm.in"));
++  // [PROCESS_TRIM] secure_env 已禁用：confui FIFO 替换为 sink
++  crosvm_cmd.AddHvcSink();
+ 
+   if (config.enable_host_uwb()) {
+     crosvm_cmd.AddHvcReadWrite(
+--- --- a/host/libs/vm_manager/qemu_manager.cpp	2026-07-27 09:51:10.739949954 +0000
++++ +++ b/host/libs/vm_manager/qemu_manager.cpp	2026-07-27 09:51:10.803950510 +0000
+@@ -498,8 +498,9 @@
+   // Serial port for logcat, redirected to a pipe
+   add_hvc_ro(instance.logcat_pipe_name());
+ 
+-  add_hvc(instance.PerInstanceInternalPath("keymaster_fifo_vm"));
+-  add_hvc(instance.PerInstanceInternalPath("gatekeeper_fifo_vm"));
++  // [PROCESS_TRIM] secure_env 已禁用：keymaster/gatekeeper HVC 替换为 sink
++  add_hvc_sink();
++  add_hvc_sink();
+   if (config.enable_host_bluetooth()) {
+     add_hvc(instance.PerInstanceInternalPath("bt_fifo_vm"));
+   } else {
+--- --- a/shared/device.mk	2026-07-27 09:51:10.743949989 +0000
++++ +++ b/shared/device.mk	2026-07-27 09:51:10.835950788 +0000
+@@ -422,13 +422,12 @@
+ 
+ -include vendor/widevine/libwvdrmengine/apex/device/device.mk
+ 
++# [PROCESS_TRIM] ConfirmationUI 服务移除
+ #
+-# Confirmation UI HAL
+-#
+-ifeq ($(LOCAL_CONFIRMATIONUI_PRODUCT_PACKAGE),)
+-    LOCAL_CONFIRMATIONUI_PRODUCT_PACKAGE := android.hardware.confirmationui-service.cuttlefish
+-endif
+-PRODUCT_PACKAGES += $(LOCAL_CONFIRMATIONUI_PRODUCT_PACKAGE)
++#ifeq ($(LOCAL_CONFIRMATIONUI_PRODUCT_PACKAGE),)
++#    LOCAL_CONFIRMATIONUI_PRODUCT_PACKAGE := android.hardware.confirmationui-service.cuttlefish
++#endif
++#PRODUCT_PACKAGES += $(LOCAL_CONFIRMATIONUI_PRODUCT_PACKAGE)
+ 
+ #
+ # Dumpstate HAL
+@@ -438,11 +437,12 @@
+ endif
+ PRODUCT_PACKAGES += $(LOCAL_DUMPSTATE_PRODUCT_PACKAGE)
+ 
++# [PROCESS_TRIM] gatekeeper 切换到本地实现
+ #
+ # Gatekeeper
+ #
+ ifeq ($(LOCAL_GATEKEEPER_PRODUCT_PACKAGE),)
+-       LOCAL_GATEKEEPER_PRODUCT_PACKAGE := android.hardware.gatekeeper-service.remote
++       LOCAL_GATEKEEPER_PRODUCT_PACKAGE := android.hardware.gatekeeper-service
+ endif
+ PRODUCT_PACKAGES += \
+     $(LOCAL_GATEKEEPER_PRODUCT_PACKAGE)
+@@ -498,11 +498,12 @@
+ PRODUCT_PACKAGES += \
+     android.hardware.lights-service.example \
+ 
++# [PROCESS_TRIM] KeyMint 切换到本地实现
+ #
+ # KeyMint HAL
+ #
+ ifeq ($(LOCAL_KEYMINT_PRODUCT_PACKAGE),)
+-    LOCAL_KEYMINT_PRODUCT_PACKAGE := android.hardware.security.keymint-service.rust
++    LOCAL_KEYMINT_PRODUCT_PACKAGE := android.hardware.security.keymint-service
+ endif
+ 
+ ifeq ($(LOCAL_KEYMINT_PRODUCT_PACKAGE),android.hardware.security.keymint-service.rust)

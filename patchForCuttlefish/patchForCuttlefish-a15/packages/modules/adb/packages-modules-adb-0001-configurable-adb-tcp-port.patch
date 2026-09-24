@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: kp-cvd-adb <kp@cuttlefish>
+Date: Thu, 10 Sep 2026 00:00:00 +0800
+Subject: [PATCH] adb: configurable adbd listening port
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+[KBOX_ADB] adbd listening port can be configured via the kernel cmdline parameter
+androidboot.adb.tcp.port (e.g. launch_cvd --extra_kernel_cmdline="androidboot.adb.tcp.port=44400").
+Property priority: service.adb.tcp.port > ro.boot.adb.tcp.port > persist.adb.tcp.port
+(Cuttlefish default 5555).
+
+Pairs with device-google-cuttlefish-0005-configurable-adb-guest-port.patch which
+injects androidboot.adb.tcp.port via --adb_guest_port.
+
+---
+diff --git a/daemon/main.cpp b/daemon/main.cpp
+index 77e535af..7635b168 100644
+--- a/daemon/main.cpp
++++ b/daemon/main.cpp
+@@ -266,6 +266,13 @@ int adbd_main(int server_port) {
+     std::string prop_addr = android::base::GetProperty("service.adb.listen_addrs", "");
+     if (prop_addr.empty()) {
+         std::string prop_port = android::base::GetProperty("service.adb.tcp.port", "");
++        if (prop_port.empty()) {
++            // [KBOX] adbd 监听端口可通过 kernel cmdline 参数 androidboot.adb.tcp.port 配置，
++            // 例如：launch_cvd ... --extra_kernel_cmdline="androidboot.adb.tcp.port=44400"。
++            // init 会将 androidboot.* 转换为 ro.boot.* 属性。未配置时回落到
++            // persist.adb.tcp.port（Cuttlefish 默认 5555）。
++            prop_port = android::base::GetProperty("ro.boot.adb.tcp.port", "");
++        }
+         if (prop_port.empty()) {
+             prop_port = android::base::GetProperty("persist.adb.tcp.port", "");
+         }
+-- 
+2.34.1

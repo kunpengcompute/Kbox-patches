@@ -1,0 +1,45 @@
+diff --git a/system/hwc3/DisplayFinder.cpp b/system/hwc3/DisplayFinder.cpp
+index 1bbb56c2..ede5c7eb 100644
+--- a/system/hwc3/DisplayFinder.cpp
++++ b/system/hwc3/DisplayFinder.cpp
+@@ -31,12 +31,22 @@ constexpr int32_t HertzToPeriodNanos(uint32_t hertz) {
+   return 1000 * 1000 * 1000 / hertz;
+ }
+ 
++// Forward declaration: used as fallback when config_server is unavailable
++HWC3::Error findNoOpDisplays(std::vector<DisplayMultiConfigs>* outDisplays);
++
+ HWC3::Error findCuttlefishDisplays(std::vector<DisplayMultiConfigs>* outDisplays) {
+   DEBUG_LOG("%s", __FUNCTION__);
+ 
+   // TODO: replace with initializing directly from DRM info.
+   const auto deviceConfig = cuttlefish::GetDeviceConfig();
+ 
++  if (deviceConfig.display_config_size() == 0) {
++    ALOGE("%s: No display config available (config_server unavailable?), "
++          "falling back to NoOp display",
++          __FUNCTION__);
++    return findNoOpDisplays(outDisplays);
++  }
++
+   int64_t displayId = 0;
+   for (const auto& deviceDisplayConfig : deviceConfig.display_config()) {
+     const auto vsyncPeriodNanos =
+@@ -258,7 +268,16 @@ HWC3::Error findDisplays(const DrmClient* drm,
+     }
+     error = findDrmDisplays(*drm, outDisplays);
+   } else if (IsCuttlefish()) {
+-    error = findCuttlefishDisplays(outDisplays);
++    // When on Cuttlefish without an explicit display finder mode set,
++    // the pipeline normally relies on config_server for display config.
++    // If no explicit mode is configured (e.g. config_server is
++    // unavailable), fall back to NoOp displays to avoid a 30-second
++    // vsock-connect timeout inside DeviceConfigHelper::Get().
++    if (IsInNoOpDisplayFinderMode()) {
++      error = findNoOpDisplays(outDisplays);
++    } else {
++      error = findCuttlefishDisplays(outDisplays);
++    }
+   } else {
+     error = findGoldfishDisplays(outDisplays);
+   }

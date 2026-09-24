@@ -1,0 +1,164 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: kp-cvd-adb <kp@cuttlefish>
+Date: Thu, 10 Sep 2026 06:00:00 +0800
+Subject: [PATCH] adb: configurable guest adbd port with matching vsock proxies
+
+[KBOX_ADB] Make the guest adbd listening port configurable end to end
+via --adb_guest_port (default 5555, behavior unchanged):
+
+- assemble_cvd/flags.cc: new adb_guest_port flag, stored in the
+  instance config (cuttlefish_config.{h,_instance.cpp})
+- kernel_args.cpp: non-default port is passed to the guest as
+  androidboot.adb.tcp.port, so guest adbd listens on it (requires the
+  packages-modules-adb-0001 patch, which reads ro.boot.adb.tcp.port)
+- host config/adb/launch.cpp: VsockHalfTunnel sv proxy
+  (--client_vsock_port) and the vsock connector arg use the same port
+  instead of hardcoded 5555
+- guest config/init.vendor.rc: socket_vsock_proxy tcp target follows
+  ${ro.boot.adb.tcp.port:-5555}
+
+With e.g. launch_cvd --adb_guest_port=44400, the host sv proxy tunnels
+host tcp to vsock:cid:44400 and the guest sv proxy forwards to
+tcp:44400 where adbd listens, keeping adb over vsock_proxy working.
+
+---
+diff --git a/host/commands/assemble_cvd/flags.cc b/host/commands/assemble_cvd/flags.cc
+index cfe0dc83cc31c6fb3c75ce64bdf82a5d18d69b0a..114bebec59420868055790fd70f5c2c6704a1ad9 100644
+--- a/host/commands/assemble_cvd/flags.cc
++++ b/host/commands/assemble_cvd/flags.cc
+@@ -128,6 +128,13 @@ DEFINE_vec(initramfs_path, CF_DEFAULTS_INITRAMFS_PATH,
+               "Path to the initramfs");
+ DEFINE_string(extra_kernel_cmdline, CF_DEFAULTS_EXTRA_KERNEL_CMDLINE,
+               "Additional flags to put on the kernel command line");
++// [KBOX] guest 侧 adbd 监听端口（TCP/VSOCK），host 侧 adb 隧道与之保持一致。
++// 非 5555 时注入 androidboot.adb.tcp.port=<port>，guest 侧 init 将其转为
++// ro.boot.adb.tcp.port 属性，adbd 与 guest socket_vsock_proxy 均以该端口为准。
++DEFINE_int32(adb_guest_port, 5555,
++             "Port the guest adbd listens on (TCP and VSOCK). When not 5555, "
++             "it is passed to the guest as androidboot.adb.tcp.port and used "
++             "by the host socket_vsock_proxy adb tunnels.");
+ DEFINE_string(extra_bootconfig_args, CF_DEFAULTS_EXTRA_BOOTCONFIG_ARGS,
+               "Space-separated list of extra bootconfig args. "
+               "Note: overwriting an existing bootconfig argument "
+@@ -1918,6 +1925,8 @@ Result<CuttlefishConfig> InitializeCuttlefishConfiguration(
+     instance.set_qemu_vnc_server_port(544 + num - 1);
+     instance.set_adb_host_port(6520 + num - 1);
+     instance.set_adb_ip_and_port("0.0.0.0:" + std::to_string(6520 + num - 1));
++    // [KBOX] guest adbd 监听端口（TCP/VSOCK），host 侧 sv proxy 隧道与之保持一致
++    instance.set_adb_guest_port(FLAGS_adb_guest_port);
+     instance.set_fastboot_host_port(const_instance.adb_host_port());
+ 
+     std::uint8_t ethernet_mac[6] = {};
+diff --git a/host/libs/config/adb/launch.cpp b/host/libs/config/adb/launch.cpp
+index 1e09946ccbbabd16295a8943cd47c8eaa151cef6..3f3edbeffd8fe41ddca50b4020550f54958203c0 100644
+--- a/host/libs/config/adb/launch.cpp
++++ b/host/libs/config/adb/launch.cpp
+@@ -47,7 +47,9 @@ class AdbHelper {
+   }
+ 
+   std::string ConnectorVsockArg() const {
+-    return "vsock:" + std::to_string(instance_.vsock_guest_cid()) + ":5555";
++    // [KBOX] guest adbd 监听端口可配（--adb_guest_port，默认 5555）
++    return "vsock:" + std::to_string(instance_.vsock_guest_cid()) + ":" +
++           std::to_string(instance_.adb_guest_port());
+   }
+ 
+   bool VsockTunnelEnabled() const {
+@@ -178,13 +180,16 @@ class SocketVsockProxy : public CommandSource, public KernelLogPipeConsumer {
+        * cooperates with the adbd inside the guest. See this file:
+        *  shared/device.mk, especially the line says "persist.adb.tcp.port="
+        *
+-       * The guest adbd is listening on vsock:cid:5555 across cuttlefish
++       * [KBOX] The guest adbd is listening on vsock:cid:<adb_guest_port>
++       * (default 5555, configurable via --adb_guest_port) across cuttlefish
+        * instances. Sv proxy faces the host adb daemon via tcp. The server type
+        * should be therefore tcp, and the port should differ from instance to
+        * instance and be equal to instance.adb_host_port()
+        */
+       adb_tunnel.AddParameter("--client_type=vsock");
+-      adb_tunnel.AddParameter("--client_vsock_port=", 5555);
++      // [KBOX] 与 guest adbd 监听端口保持一致（--adb_guest_port，默认 5555）
++      adb_tunnel.AddParameter("--client_vsock_port=",
++                              instance_.adb_guest_port());
+     }
+ 
+     adb_tunnel.AddParameter("--client_vsock_id=", instance_.vsock_guest_cid());
+diff --git a/host/libs/config/cuttlefish_config.h b/host/libs/config/cuttlefish_config.h
+index 5c8e45e5ee7bb8ed0e049e060109108efda35d7a..e81f864d8313938df0d62fa8526b3a0fa260168d 100644
+--- a/host/libs/config/cuttlefish_config.h
++++ b/host/libs/config/cuttlefish_config.h
+@@ -342,6 +342,9 @@ class CuttlefishConfig {
+     int audiocontrol_server_port() const;
+     // Port number to connect to the adb server on the host
+     int adb_host_port() const;
++    // [KBOX] Port the guest adbd listens on, both for TCP inside the guest
++    // and for the vsock tunnel used by the host socket_vsock_proxy
++    int adb_guest_port() const;
+     // Port number to connect to the fastboot server on the host
+     int fastboot_host_port() const;
+     // Device-specific ID to distinguish modem simulators. Must be 4 digits.
+@@ -782,6 +785,7 @@ class CuttlefishConfig {
+     void set_audiocontrol_server_port(int audiocontrol_server_port);
+     void set_lights_server_port(int lights_server_port);
+     void set_adb_host_port(int adb_host_port);
++    void set_adb_guest_port(int adb_guest_port);
+     void set_modem_simulator_host_id(int modem_simulator_id);
+     void set_adb_ip_and_port(const std::string& ip_port);
+     void set_fastboot_host_port(int fastboot_host_port);
+diff --git a/host/libs/config/cuttlefish_config_instance.cpp b/host/libs/config/cuttlefish_config_instance.cpp
+index 4edb9cfe968a0da4d38091bf292303ecfc5eca18..3888246604463ab488d9a5bdf04a0323ac5a112c 100644
+--- a/host/libs/config/cuttlefish_config_instance.cpp
++++ b/host/libs/config/cuttlefish_config_instance.cpp
+@@ -1856,6 +1856,15 @@ void CuttlefishConfig::MutableInstanceSpecific::set_adb_host_port(int port) {
+   (*Dictionary())[kHostPort] = port;
+ }
+ 
++// [KBOX] guest adbd 监听端口（TCP/VSOCK），host 侧 sv proxy 隧道与之保持一致
++static constexpr char kGuestAdbPort[] = "adb_guest_port";
++int CuttlefishConfig::InstanceSpecific::adb_guest_port() const {
++  return (*Dictionary())[kGuestAdbPort].asInt();
++}
++void CuttlefishConfig::MutableInstanceSpecific::set_adb_guest_port(int port) {
++  (*Dictionary())[kGuestAdbPort] = port;
++}
++
+ static constexpr char kFastbootHostPort[] = "fastboot_host_port";
+ int CuttlefishConfig::InstanceSpecific::fastboot_host_port() const {
+   return (*Dictionary())[kFastbootHostPort].asInt();
+diff --git a/host/libs/config/kernel_args.cpp b/host/libs/config/kernel_args.cpp
+index f5bdf7dc09227ad89f8d108f60785f1cbb5da374..9fc0287a53148fa689374381432146e4dde95a14 100644
+--- a/host/libs/config/kernel_args.cpp
++++ b/host/libs/config/kernel_args.cpp
+@@ -109,6 +109,14 @@ std::vector<std::string> KernelCommandLineFromConfig(
+   std::vector<std::string> kernel_cmdline;
+   AppendVector(&kernel_cmdline, VmManagerKernelCmdline(config, instance));
+   AppendVector(&kernel_cmdline, config.extra_kernel_cmdline());
++  // [KBOX] guest adbd 监听端口可配（--adb_guest_port，默认 5555）。非默认值时
++  // 注入 androidboot.adb.tcp.port=<port>：guest init 将其转为 ro.boot.adb.tcp.port
++  // 属性，adbd 与 guest socket_vsock_proxy（init.vendor.rc）均以该端口为准；
++  // host 侧 sv proxy 隧道（adb/launch.cpp）同样使用该端口。
++  if (instance.adb_guest_port() != 5555) {
++    kernel_cmdline.push_back("androidboot.adb.tcp.port=" +
++                             std::to_string(instance.adb_guest_port()));
++  }
+   return kernel_cmdline;
+ }
+ 
+diff --git a/shared/config/init.vendor.rc b/shared/config/init.vendor.rc
+index b39e855eacde9e34b62cce108be7ba8bd150ed17..1e128c5afe96288311c167894cf0d71ce75949a5 100644
+--- a/shared/config/init.vendor.rc
++++ b/shared/config/init.vendor.rc
+@@ -112,7 +112,10 @@ service metrics_helper /vendor/bin/metrics_helper
+     group system
+     user root
+ 
+-service socket_vsock_proxy /vendor/bin/socket_vsock_proxy -server_type=vsock -server_vsock_port=6520 -client_type=tcp -client_tcp_host=0.0.0.0 -client_tcp_port=5555
++# [KBOX] guest sv proxy 的 TCP 转发目标端口跟随 adbd 监听端口：由 kernel cmdline
++# 参数 androidboot.adb.tcp.port（--adb_guest_port 注入）转为 ro.boot.adb.tcp.port
++# 属性；未配置时回落默认 5555。与 host 侧 sv proxy 隧道（--client_vsock_port）一致。
++service socket_vsock_proxy /vendor/bin/socket_vsock_proxy -server_type=vsock -server_vsock_port=6520 -client_type=tcp -client_tcp_host=0.0.0.0 -client_tcp_port=${ro.boot.adb.tcp.port:-5555}
+     user root
+ 
+ service bugreport /system/bin/dumpstate -d -p -z
+
+2.34.1

@@ -1,0 +1,22 @@
+diff --git a/bootloader/crosvm_aarch64/u-boot.bin b/bootloader/crosvm_aarch64/u-boot.bin
+index 8d2c14d1001128c4e7389cb7f6b7d3289976c770..554364c58b977ef372e160605d7392e9a2693a73 100644
+GIT binary patch
+delta 76
+zcmbQyq&=fad&7f54h4pWpaabD*A~AhWaMCga+*IBwSOpL1Y#y2W(HywAZ7((HXvpP
+PVh$kY-2S16OT!NU24Ny8
+
+delta 76
+zcmbQyq&=fad&7f54hM#YAVvlTk;N|x895Swoc;g*i#LBLYX4Bg2*gZ4%nZaVK+Fon
+TY(UHo#2i4(x&1>Cmxdnz+MFSx
+
+diff --git a/bootloader/qemu_aarch64/u-boot.bin b/bootloader/qemu_aarch64/u-boot.bin
+index 4e56559ec12acfb86cbd3fdf216c5de46519fd8f..b380768819f90cfbd589a30d6583d2c1dc31461a 100644
+GIT binary patch
+delta 76
+zcmey+sr{i-d&7-F76pceplNlCB9lK9e&ApLat<)ZUu%9*)c&G~5r~<9m>Gy!fS47C
+T*?^cGh&h0mbNh=TE{-4oGlU|4
+
+delta 76
+zcmey+sr{i-d&7-F4hM#YAVvlTk;M-R895Swoc;g*i#NY0YJXA02*gZ4%nZaVK+Fon
+TY(UHo#2i4(x&1{E7e^2P1uP-l
+

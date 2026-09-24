@@ -1,0 +1,274 @@
+From f9854dd8 Mon Sep 17 00:00:00 2001
+From: kp-cvd-trim <kp@cuttlefish>
+Date: Sun, 20 Jul 2026 00:00:00 +0800
+Subject: [PATCH] trim log monitoring: KernelLog HVC sink, log_tee, events
+
+[PROCESS_TRIM] kernel_log_monitor stub + crosvm/qemu HVC sink + adb events + init.vendor.rc.
+
+--- a/host/commands/run_cvd/launch/kernel_log_monitor.cpp
++++ b/host/commands/run_cvd/launch/kernel_log_monitor.cpp
+@@ -52,21 +52,9 @@
+ 
+   // CommandSource
+   Result<std::vector<MonitorCommand>> Commands() override {
+-    Command command(KernelLogMonitorBinary());
+-    command.AddParameter("-log_pipe_fd=", fifo_);
+-
+-    if (!event_pipe_write_ends_.empty()) {
+-      command.AddParameter("-subscriber_fds=");
+-      for (size_t i = 0; i < event_pipe_write_ends_.size(); i++) {
+-        if (i > 0) {
+-          command.AppendToLastParameter(",");
+-        }
+-        command.AppendToLastParameter(event_pipe_write_ends_[i]);
+-      }
+-    }
+-    std::vector<MonitorCommand> commands;
+-    commands.emplace_back(std::move(command));
+-    return commands;
++    // [PROCESS_TRIM] kernel_log_monitor 子进程禁用；
++    // crosvm/qemu 侧改为写入 sink，不再写入 fifo pipe，避免无人读取时阻塞
++    return std::vector<MonitorCommand>();
+   }
+ 
+   // KernelLogPipeProvider
+--- a/host/libs/vm_manager/crosvm_manager.cpp
++++ b/host/libs/vm_manager/crosvm_manager.cpp
+@@ -76,6 +76,7 @@
+         {"androidboot.cpuvulkan.version", std::to_string(VK_API_VERSION_1_2)},
+         {"androidboot.hardware.gralloc", "minigbm"},
+         {"androidboot.hardware.hwcomposer", instance.hwcomposer()},
++        {"androidboot.hardware.hwcomposer.mode", "client"},
+         {"androidboot.hardware.hwcomposer.display_finder_mode", "drm"},
+         {"androidboot.hardware.egl", "angle"},
+         {"androidboot.hardware.vulkan", "pastel"},
+@@ -103,6 +104,7 @@
+         {"androidboot.cpuvulkan.version", "0"},
+         {"androidboot.hardware.gralloc", "minigbm"},
+         {"androidboot.hardware.hwcomposer", instance.hwcomposer()},
++        {"androidboot.hardware.hwcomposer.mode", "client"},
+         {"androidboot.hardware.hwcomposer.display_finder_mode", "drm"},
+         {"androidboot.hardware.egl", gles_impl},
+         {"androidboot.hardware.vulkan", "ranchu"},
+@@ -150,8 +152,8 @@
+ 
+   CrosvmBuilder crosvm_cmd;
+ 
+-  crosvm_cmd.ApplyProcessRestarter(instance.crosvm_binary(),
+-                                   kCrosvmVmResetExitCode);
++  // 禁用 process_restarter，直接使用 crosvm
++  crosvm_cmd.Cmd().SetExecutableAndName(instance.crosvm_binary());
+   crosvm_cmd.Cmd().AddParameter("run");
+   crosvm_cmd.AddControlSocket(GetControlSocketPath(instance, crosvm_socket),
+                               instance.crosvm_binary());
+@@ -189,19 +191,24 @@
+       instance.enable_gpu_udmabuf() ? ",udmabuf=true" : "";
+ 
+   const std::string gpu_common_string = gpu_udmabuf_string + gpu_pci_bar_size;
+-  const std::string gpu_common_3d_string =
++  // virglrenderer-specific 3D parameters
++  const std::string gpu_virgl_3d_string =
+       gpu_common_string + ",egl=true,surfaceless=true,glx=false,gles=true";
+ 
+   if (gpu_mode == kGpuModeGuestSwiftshader) {
+     crosvm_cmd.Cmd().AddParameter("--gpu=backend=2D", gpu_common_string);
+   } else if (gpu_mode == kGpuModeDrmVirgl) {
+     crosvm_cmd.Cmd().AddParameter("--gpu=backend=virglrenderer",
+-                                  gpu_common_3d_string);
++                                  gpu_virgl_3d_string);
+   } else if (gpu_mode == kGpuModeGfxstream ||
+              gpu_mode == kGpuModeGfxstreamGuestAngle) {
++    // Note: Do NOT pass virglrenderer-specific params (egl,glx,gles) to
++    // the gfxstream backend, as gfxstream uses a different rendering pipeline
++    // through rutabaga. Passing virgl params may interfere with gfxstream
++    // display initialization and cause "HWC did not hotplug".
+     const std::string capset_names = ",context-types=gfxstream";
+     crosvm_cmd.Cmd().AddParameter("--gpu=backend=gfxstream,gles31=true",
+-                                  gpu_common_3d_string, gpu_angle_string,
++                                  gpu_common_string, gpu_angle_string,
+                                   capset_names);
+   }
+ 
+@@ -230,7 +237,9 @@
+                                   instance.frames_socket_path());
+   }
+ 
+-  // crosvm_cmd.Cmd().AddParameter("--null-audio");
++  // crosvm does not support --null-audio; audio was already disabled via
++  // --sound not being passed (enable_audio is false by default for crosvm).
++  // Nothing to do here.
+   crosvm_cmd.Cmd().AddParameter("--mem=", instance.memory_mb());
+   crosvm_cmd.Cmd().AddParameter("--cpus=", instance.cpus());
+   if (instance.mte()) {
+@@ -314,15 +323,9 @@
+     crosvm_cmd.Cmd().AddParameter("--cid=", instance.vsock_guest_cid());
+   }
+ 
+-  // If kernel log is enabled, the virtio-console port will be specified as
+-  // a true console for Linux, and kernel messages will be printed there.
+-  // Otherwise, the port will still be set up for bootloader and userspace
+-  // messages, but the kernel will not print anything here. This keeps our
+-  // kernel log event features working. If an alternative "earlycon" boot
+-  // console is configured below on a legacy serial port, it will control
+-  // the main log until the virtio-console takes over.
+-  crosvm_cmd.AddHvcReadOnly(instance.kernel_log_pipe_name(),
+-                            instance.enable_kernel_log());
++  // [PROCESS_TRIM] kernel_log_monitor 已禁用：将内核日志 HVC 替换为 sink，
++  // 避免 crosvm 因无人读取 fifo 而阻塞
++  crosvm_cmd.AddHvcSink();
+ 
+   if (instance.console()) {
+     // stdin is the only currently supported way to write data to a serial port
+@@ -349,10 +352,11 @@
+     // virtio-console driver may not be available for early messages
+     // In kgdb mode, earlycon is an interactive console, and so early
+     // dmesg will go there instead of the kernel.log
+-    if (instance.enable_kernel_log() &&
+-        (instance.kgdb() || instance.use_bootloader())) {
+-      crosvm_cmd.AddSerialConsoleReadOnly(instance.kernel_log_pipe_name());
+-    }
++    // [PROCESS_TRIM] kernel_log_monitor 已禁用：跳过 serial console 到内核日志管道的重定向
++    // if (instance.enable_kernel_log() &&
++    //     (instance.kgdb() || instance.use_bootloader())) {
++    //   crosvm_cmd.AddSerialConsoleReadOnly(instance.kernel_log_pipe_name());
++    // }
+ 
+     // as above, create a fake virtio-console 'sink' port when the serial
+     // console is disabled, so the PCI device ID assignments don't move
+@@ -366,23 +370,9 @@
+             "Failed to create log fifo for crosvm's stdout/stderr: "
+                 << crosvm_logs->StrError());
+ 
+-  Command crosvm_log_tee_cmd(HostBinaryPath("log_tee"));
+-  crosvm_log_tee_cmd.AddParameter("--process_name=crosvm");
+-  crosvm_log_tee_cmd.AddParameter("--log_fd_in=", crosvm_logs);
+-  crosvm_log_tee_cmd.SetStopper([](Subprocess* proc) {
+-    // Ask nicely so that log_tee gets a chance to process all the logs.
+-    int rval = kill(proc->pid(), SIGINT);
+-    if (rval != 0) {
+-      LOG(ERROR) << "Failed to stop log_tee nicely, attempting to KILL";
+-      return KillSubprocess(proc) == StopperResult::kStopSuccess
+-                 ? StopperResult::kStopCrash
+-                 : StopperResult::kStopFailure;
+-    }
+-    return StopperResult::kStopSuccess;
+-  });
+-
+-  // Serial port for logcat, redirected to a pipe
+-  crosvm_cmd.AddHvcReadOnly(instance.logcat_pipe_name());
++  // [PROCESS_TRIM] LogcatReceiver 已禁用：将 logcat HVC 替换为 sink，
++  // 避免 crosvm 因无人读取 fifo 而阻塞
++  crosvm_cmd.AddHvcSink();
+ 
+   // [PROCESS_TRIM] secure_env 已禁用：keymaster/gatekeeper FIFO 替换为 sink
+   crosvm_cmd.AddHvcSink();
+@@ -445,10 +435,7 @@
+   // This needs to be the last parameter
+   crosvm_cmd.Cmd().AddParameter("--bios=", instance.bootloader());
+ 
+-  // log_tee must be added before crosvm_cmd to ensure all of crosvm's logs are
+-  // captured during shutdown. Processes are stopped in reverse order.
+   std::vector<MonitorCommand> commands;
+-  commands.emplace_back(std::move(crosvm_log_tee_cmd));
+ 
+   if (gpu_capture_enabled) {
+     const std::string gpu_capture_basename =
+@@ -499,11 +486,7 @@
+     commands.emplace_back(std::move(gpu_capture_log_tee_cmd));
+     commands.emplace_back(std::move(gpu_capture_command));
+   } else {
+-    crosvm_cmd.Cmd().RedirectStdIO(Subprocess::StdIOChannel::kStdOut,
+-                                   crosvm_logs);
+-    crosvm_cmd.Cmd().RedirectStdIO(Subprocess::StdIOChannel::kStdErr,
+-                                   crosvm_logs);
+-    commands.emplace_back(std::move(crosvm_cmd.Cmd()), true);
++    commands.emplace_back(std::move(crosvm_cmd.Cmd()), false);
+   }
+ 
+   return commands;
+--- a/host/libs/vm_manager/qemu_manager.cpp
++++ b/host/libs/vm_manager/qemu_manager.cpp
+@@ -280,19 +280,6 @@
+     qemu_cmd.AddParameter("chardev:serial", serial_num);
+     serial_num++;
+   };
+-  auto add_hvc_ro = [&qemu_cmd, &hvc_num](const std::string& output) {
+-    qemu_cmd.AddParameter("-chardev");
+-    qemu_cmd.AddParameter("file,id=hvc", hvc_num, ",path=", output,
+-                          ",append=on");
+-    qemu_cmd.AddParameter("-device");
+-    qemu_cmd.AddParameter(
+-        "virtio-serial-pci-non-transitional,max_ports=1,id=virtio-serial",
+-        hvc_num);
+-    qemu_cmd.AddParameter("-device");
+-    qemu_cmd.AddParameter("virtconsole,bus=virtio-serial", hvc_num,
+-                          ".0,chardev=hvc", hvc_num);
+-    hvc_num++;
+-  };
+   auto add_hvc = [&qemu_cmd, &hvc_num](const std::string& prefix) {
+     qemu_cmd.AddParameter("-chardev");
+     qemu_cmd.AddParameter("pipe,id=hvc", hvc_num, ",path=", prefix);
+@@ -462,7 +449,8 @@
+   // (Note that QEMU does not automatically generate console= parameters for
+   //  the bootloader/kernel cmdline, so the control of whether this pipe is
+   //  actually managed by the kernel as a console is handled elsewhere.)
+-  add_hvc_ro(instance.kernel_log_pipe_name());
++  // [PROCESS_TRIM] kernel_log_monitor 已禁用：内核日志 HVC 替换为 sink
++  add_hvc_sink();
+ 
+   if (instance.console()) {
+     if (instance.kgdb() || instance.use_bootloader()) {
+@@ -490,8 +478,9 @@
+     add_hvc_sink();
+   }
+ 
+-  // Serial port for logcat, redirected to a pipe
+-  add_hvc_ro(instance.logcat_pipe_name());
++  // [PROCESS_TRIM] LogcatReceiver 已禁用：logcat HVC 替换为 sink，
++  // 避免 qemu 因无人读取 fifo 而阻塞
++  add_hvc_sink();
+ 
+   // [PROCESS_TRIM] secure_env 已禁用：keymaster/gatekeeper HVC 替换为 sink
+   add_hvc_sink();
+--- a/host/libs/config/adb/launch.cpp
++++ b/host/libs/config/adb/launch.cpp
+@@ -145,8 +145,9 @@
+        * instance.adb_host_port()
+        *
+        */
+-      adb_tunnel.AddParameter("--events_fd=", kernel_log_pipe_);
+-      adb_tunnel.AddParameter("--start_event_id=", monitor::Event::AdbdStarted);
++      // [PROCESS_TRIM] 移除 --events_fd 和 --start_event_id 参数：
++      // kernel_log_monitor 已禁用，AdbdStarted 事件不再可用，
++      // socket_vsock_proxy 改为立即启动而不等待 adbd 就绪
+       adb_tunnel.AddParameter("--server_type=tcp");
+       adb_tunnel.AddParameter("--server_fd=", tcp_server_);
+       adb_tunnel.AddParameter("--client_type=vsock");
+@@ -166,8 +167,9 @@
+        * should be therefore tcp, and the port should differ from instance to
+        * instance and be equal to instance.adb_host_port()
+        */
+-      adb_tunnel.AddParameter("--events_fd=", kernel_log_pipe_);
+-      adb_tunnel.AddParameter("--start_event_id=", monitor::Event::AdbdStarted);
++      // [PROCESS_TRIM] 移除 --events_fd 和 --start_event_id 参数：
++      // kernel_log_monitor 已禁用，AdbdStarted 事件不再可用，
++      // socket_vsock_proxy 改为立即启动而不等待 adbd 就绪
+       adb_tunnel.AddParameter("--server_type=tcp");
+       adb_tunnel.AddParameter("--server_fd=", tcp_server_);
+       adb_tunnel.AddParameter("--client_type=vsock");
+--- a/shared/config/init.vendor.rc
++++ b/shared/config/init.vendor.rc
+@@ -80,8 +80,11 @@
+     symlink /dev/hvc6 /dev/gnss0
+     symlink /dev/hvc7 /dev/gnss1
+ 
+-on property:sys.boot_completed=1
+-    trigger sys-boot-completed-set
++# [PROCESS_TRIM] sys-boot-completed-set trigger 移除：
++# 原用于在 boot_completed 时触发 swapon_all（zram），
++# 简化启动流程，不再需要此延迟触发机制
++# on property:sys.boot_completed=1
++#     trigger sys-boot-completed-set
+ 
+ # We want one opportunity per boot to enable zram, so we
+ # use a trigger we fire from the above stanza. If

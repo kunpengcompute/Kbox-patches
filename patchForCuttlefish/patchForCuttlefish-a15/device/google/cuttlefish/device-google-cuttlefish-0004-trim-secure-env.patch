@@ -1,0 +1,192 @@
+diff --git a/host/commands/assemble_cvd/boot_config.cc b/host/commands/assemble_cvd/boot_config.cc
+index e24f074ac..deab7b8c1 100644
+--- a/host/commands/assemble_cvd/boot_config.cc
++++ b/host/commands/assemble_cvd/boot_config.cc
+@@ -69,6 +69,9 @@ void WriteAndroidEnvironment(
+   if (!instance.boot_slot().empty()) {
+     env << "android_slot_suffix=_" << instance.boot_slot() << '\0';
+   }
++  // [PROCESS_TRIM] U-Boot 默认会把 unset 的 android_keymint_needed 当成需要
++  // 走 host keymint console；SecureEnv 裁剪后必须显式关掉，否则 AVB 死等。
++  env << "android_keymint_needed=N" << '\0';
+   env << '\0';
+ }
+ 
+diff --git a/host/commands/run_cvd/main.cc b/host/commands/run_cvd/main.cc
+index a5d909782..bfaec608a 100644
+--- a/host/commands/run_cvd/main.cc
++++ b/host/commands/run_cvd/main.cc
+@@ -165,7 +165,8 @@ fruit::Component<> runCvdComponent(
+       .install(AutoCmd<Casimir>::Component)
+       .install(NetsimServerComponent)
+       .install(AutoSnapshotControlFiles::Component)
+-      .install(AutoCmd<SecureEnv>::Component)
++      // [PROCESS_TRIM] SecureEnv 禁用
++      //.install(AutoCmd<SecureEnv>::Component)
+       .install(serverLoopComponent)
+       .install(WebRtcRecorderComponent)
+       .install(AutoSetup<ValidateTapDevices>::Component)
+diff --git a/host/libs/vm_manager/crosvm_manager.cpp b/host/libs/vm_manager/crosvm_manager.cpp
+index e015d8959..1153f9e0a 100644
+--- a/host/libs/vm_manager/crosvm_manager.cpp
++++ b/host/libs/vm_manager/crosvm_manager.cpp
+@@ -796,14 +796,17 @@ Result<std::vector<MonitorCommand>> CrosvmManager::StartCommands(
+   // Serial port for logcat, redirected to a pipe
+   crosvm_cmd.AddHvcReadOnly(instance.logcat_pipe_name());
+ 
++  // [PROCESS_TRIM] secure_env 已禁用：keymaster/gatekeeper FIFO 替换为 sink
+   // /dev/hvc3 = keymaster (C++ implementation)
+-  crosvm_cmd.AddHvcReadWrite(
+-      instance.PerInstanceInternalPath("keymaster_fifo_vm.out"),
+-      instance.PerInstanceInternalPath("keymaster_fifo_vm.in"));
++  // crosvm_cmd.AddHvcReadWrite(
++  //     instance.PerInstanceInternalPath("keymaster_fifo_vm.out"),
++  //     instance.PerInstanceInternalPath("keymaster_fifo_vm.in"));
++  crosvm_cmd.AddHvcSink();
+   // /dev/hvc4 = gatekeeper
+-  crosvm_cmd.AddHvcReadWrite(
+-      instance.PerInstanceInternalPath("gatekeeper_fifo_vm.out"),
+-      instance.PerInstanceInternalPath("gatekeeper_fifo_vm.in"));
++  // crosvm_cmd.AddHvcReadWrite(
++  //     instance.PerInstanceInternalPath("gatekeeper_fifo_vm.out"),
++  //     instance.PerInstanceInternalPath("gatekeeper_fifo_vm.in"));
++  crosvm_cmd.AddHvcSink();
+ 
+   // /dev/hvc5 = bt
+   if (config.enable_host_bluetooth()) {
+@@ -829,10 +832,12 @@ Result<std::vector<MonitorCommand>> CrosvmManager::StartCommands(
+     }
+   }
+ 
++  // [PROCESS_TRIM] secure_env 已禁用：confui FIFO 替换为 sink
+   // /dev/hvc8 = confirmationui
+-  crosvm_cmd.AddHvcReadWrite(
+-      instance.PerInstanceInternalPath("confui_fifo_vm.out"),
+-      instance.PerInstanceInternalPath("confui_fifo_vm.in"));
++  // crosvm_cmd.AddHvcReadWrite(
++  //     instance.PerInstanceInternalPath("confui_fifo_vm.out"),
++  //     instance.PerInstanceInternalPath("confui_fifo_vm.in"));
++  crosvm_cmd.AddHvcSink();
+ 
+   // /dev/hvc9 = uwb
+   if (config.enable_host_uwb()) {
+@@ -843,15 +848,18 @@ Result<std::vector<MonitorCommand>> CrosvmManager::StartCommands(
+     crosvm_cmd.AddHvcSink();
+   }
+ 
++  // [PROCESS_TRIM] secure_env 已禁用：oemlock/keymint FIFO 替换为 sink
+   // /dev/hvc10 = oemlock
+-  crosvm_cmd.AddHvcReadWrite(
+-      instance.PerInstanceInternalPath("oemlock_fifo_vm.out"),
+-      instance.PerInstanceInternalPath("oemlock_fifo_vm.in"));
++  // crosvm_cmd.AddHvcReadWrite(
++  //     instance.PerInstanceInternalPath("oemlock_fifo_vm.out"),
++  //     instance.PerInstanceInternalPath("oemlock_fifo_vm.in"));
++  crosvm_cmd.AddHvcSink();
+ 
+   // /dev/hvc11 = keymint (Rust implementation)
+-  crosvm_cmd.AddHvcReadWrite(
+-      instance.PerInstanceInternalPath("keymint_fifo_vm.out"),
+-      instance.PerInstanceInternalPath("keymint_fifo_vm.in"));
++  // crosvm_cmd.AddHvcReadWrite(
++  //     instance.PerInstanceInternalPath("keymint_fifo_vm.out"),
++  //     instance.PerInstanceInternalPath("keymint_fifo_vm.in"));
++  crosvm_cmd.AddHvcSink();
+ 
+   // /dev/hvc12 = NFC
+   if (config.enable_host_nfc()) {
+diff --git a/host/libs/vm_manager/qemu_manager.cpp b/host/libs/vm_manager/qemu_manager.cpp
+index 9693f9285..401a4046b 100644
+--- a/host/libs/vm_manager/qemu_manager.cpp
++++ b/host/libs/vm_manager/qemu_manager.cpp
+@@ -528,10 +528,13 @@ Result<std::vector<MonitorCommand>> QemuManager::StartCommands(
+   // 避免 QEMU 因无人读取 fifo 而阻塞
+   add_hvc_sink();
+ 
++  // [PROCESS_TRIM] secure_env 已禁用：keymaster/gatekeeper HVC 替换为 sink
+   // /dev/hvc3 = keymaster (C++ implementation)
+-  add_hvc(instance.PerInstanceInternalPath("keymaster_fifo_vm"));
++  // add_hvc(instance.PerInstanceInternalPath("keymaster_fifo_vm"));
++  add_hvc_sink();
+   // /dev/hvc4 = gatekeeper
+-  add_hvc(instance.PerInstanceInternalPath("gatekeeper_fifo_vm"));
++  // add_hvc(instance.PerInstanceInternalPath("gatekeeper_fifo_vm"));
++  add_hvc_sink();
+   // /dev/hvc5 = bt
+   if (config.enable_host_bluetooth()) {
+     add_hvc(instance.PerInstanceInternalPath("bt_fifo_vm"));
+@@ -571,11 +574,14 @@ Result<std::vector<MonitorCommand>> QemuManager::StartCommands(
+     add_hvc_sink();
+   }
+ 
++  // [PROCESS_TRIM] secure_env 已禁用：oemlock/keymint HVC 替换为 sink
+   // /dev/hvc10 = oemlock
+-  add_hvc(instance.PerInstanceInternalPath("oemlock_fifo_vm"));
++  // add_hvc(instance.PerInstanceInternalPath("oemlock_fifo_vm"));
++  add_hvc_sink();
+ 
+   // /dev/hvc11 = keymint (Rust implementation)
+-  add_hvc(instance.PerInstanceInternalPath("keymint_fifo_vm"));
++  // add_hvc(instance.PerInstanceInternalPath("keymint_fifo_vm"));
++  add_hvc_sink();
+ 
+   // /dev/hvc12 = nfc
+   if (config.enable_host_nfc()) {
+diff --git a/shared/device.mk b/shared/device.mk
+index 47c955348..70825b358 100644
+--- a/shared/device.mk
++++ b/shared/device.mk
+@@ -345,13 +345,14 @@ ifeq ($(LOCAL_ENABLE_WIDEVINE),true)
+ -include vendor/widevine/libwvdrmengine/apex/device/device.mk
+ endif
+ 
++# [PROCESS_TRIM] ConfirmationUI 服务移除
+ #
+ # Confirmation UI HAL
+ #
+-ifeq ($(LOCAL_CONFIRMATIONUI_PRODUCT_PACKAGE),)
+-    LOCAL_CONFIRMATIONUI_PRODUCT_PACKAGE := com.google.cf.confirmationui
+-endif
+-PRODUCT_PACKAGES += $(LOCAL_CONFIRMATIONUI_PRODUCT_PACKAGE)
++#ifeq ($(LOCAL_CONFIRMATIONUI_PRODUCT_PACKAGE),)
++#    LOCAL_CONFIRMATIONUI_PRODUCT_PACKAGE := com.google.cf.confirmationui
++#endif
++#PRODUCT_PACKAGES += $(LOCAL_CONFIRMATIONUI_PRODUCT_PACKAGE)
+ 
+ #
+ # Dumpstate HAL
+@@ -361,17 +362,18 @@ ifeq ($(LOCAL_DUMPSTATE_PRODUCT_PACKAGE),)
+ endif
+ PRODUCT_PACKAGES += $(LOCAL_DUMPSTATE_PRODUCT_PACKAGE)
+ 
++# [PROCESS_TRIM] gatekeeper 切换到本地实现
++# com.android.hardware.gatekeeper.cf_remote \
+ #
+ # Gatekeeper
+ #
+ PRODUCT_PACKAGES += \
+-  com.android.hardware.gatekeeper.cf_remote \
+   com.android.hardware.gatekeeper.nonsecure \
+ 
+ #
+ # Oemlock
+ #
+-LOCAL_ENABLE_OEMLOCK ?= true
++LOCAL_ENABLE_OEMLOCK ?= false
+ ifeq ($(LOCAL_ENABLE_OEMLOCK),true)
+ ifeq ($(LOCAL_OEMLOCK_PRODUCT_PACKAGE),)
+     LOCAL_OEMLOCK_PRODUCT_PACKAGE := com.google.cf.oemlock
+@@ -424,11 +426,12 @@ ifeq ($(TRUSTY_SYSTEM_VM),nonsecure)
+     PRODUCT_PACKAGES += lk_trusty.elf trusty_vm_launcher cf-early_vms.xml
+ endif
+ 
++# [PROCESS_TRIM] KeyMint 切换到本地实现
++# com.android.hardware.keymint.rust_cf_remote \
+ #
+ # KeyMint HAL
+ #
+ PRODUCT_PACKAGES += \
+-	com.android.hardware.keymint.rust_cf_remote \
+ 	com.android.hardware.keymint.rust_nonsecure \
+ 	com.android.hardware.keymint.rust_cf_guest_trusty_nonsecure \
+ 
