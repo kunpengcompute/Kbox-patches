@@ -1,0 +1,160 @@
+diff --git a/CubeMaster/cmd/cubemastercli/commands/cubebox/template.go b/CubeMaster/cmd/cubemastercli/commands/cubebox/template.go
+--- a/CubeMaster/cmd/cubemastercli/commands/cubebox/template.go
++++ b/CubeMaster/cmd/cubemastercli/commands/cubebox/template.go
+@@ -872,6 +872,7 @@
+ 		cli.IntFlag{Name: "probe", Usage: "enable HTTP GET probe on the specified port (e.g. --probe 9000); sets timeout_ms=30000, period_ms=500"},
+ 		cli.StringFlag{Name: "probe-path", Value: "/health", Usage: "HTTP path for the readiness probe (default: /health); only effective when --probe is set"},
+ 		cli.IntFlag{Name: "probe-timeout-ms", Value: 30000, Usage: "probe timeout in milliseconds (default: 30000). Increase for slow-booting guests (e.g. Android boots in 1-2min before envd listens)"},
++		cli.StringSliceFlag{Name: "annotation", Usage: "set container annotation, KEY=VALUE format; repeat for multiple annotations"},
+ 		cli.IntFlag{Name: "cpu", Value: 2000, Usage: "CPU millicores for the template container (default: 2000, i.e. 2 cores)"},
+ 		cli.IntFlag{Name: "memory", Value: 2000, Usage: "Memory for the template container in MB (default: 2000 MB)"},
+ 		cli.BoolTFlag{Name: "with-cube-ca", Usage: "bake the CubeEgress root CA at /etc/cube/ca/cube-root-ca.crt into the template rootfs so sandboxes trust CubeEgress's MITM. Pass --with-cube-ca=false to skip (default: true)"},
+@@ -1491,11 +1492,12 @@
+ 	dnsServers := c.StringSlice("dns")
+ 	probePort := c.Int("probe")
+ 	probeTimeoutMs := c.Int("probe-timeout-ms")
++	rawAnnotations := c.StringSlice("annotation")
+ 	cpuMillicores := c.Int("cpu")
+ 	memoryMB := c.Int("memory")
+ 	enableInjectEnvd := c.Bool("enable-inject-envd")
+ 
+-	if len(cmds) == 0 && len(args) == 0 && len(rawEnvs) == 0 && len(dnsServers) == 0 && probePort == 0 && !c.IsSet("cpu") && !c.IsSet("memory") && !enableInjectEnvd {
++	if len(cmds) == 0 && len(args) == 0 && len(rawEnvs) == 0 && len(dnsServers) == 0 && len(rawAnnotations) == 0 && probePort == 0 && !c.IsSet("cpu") && !c.IsSet("memory") && !enableInjectEnvd {
+ 		return nil, nil
+ 	}
+ 
+@@ -1559,3 +1561,21 @@
+ 			SuccessThreshold: 1,
+ 		}
+ 	}
++	for _, kv := range rawAnnotations {
++		idx := strings.IndexByte(kv, '=')
++		if idx < 0 {
++			return nil, fmt.Errorf("invalid annotation %q: expected KEY=VALUE format", kv)
++		}
++		if overrides.Annotations == nil {
++			overrides.Annotations = map[string]string{}
++		}
++		overrides.Annotations[kv[:idx]] = kv[idx+1:]
++	}
++	if enableInjectEnvd {
++		if overrides.Annotations == nil {
++			overrides.Annotations = map[string]string{}
++		}
++		overrides.Annotations[constants.CubeAnnotationsInjectEnvd] = constants.CubeAnnotationsInjectEnvdOptIn
++	}
++	return overrides, nil
++}
+diff --git a/CubeMaster/pkg/templatecenter/template_request.go b/CubeMaster/pkg/templatecenter/template_request.go
+index b920201..5bb70f9 100644
+--- a/CubeMaster/pkg/templatecenter/template_request.go
++++ b/CubeMaster/pkg/templatecenter/template_request.go
+@@ -33,6 +33,13 @@ func generateTemplateCreateRequest(req *types.CreateTemplateFromImageReq, artifa
+ 	if ShouldInjectEnvdIntoTemplate(req) {
+ 		annotations[constants.CubeAnnotationsInjectEnvd] = constants.CubeAnnotationsInjectEnvdOptIn
+ 	}
++	// Merge container override annotations (e.g. cube.vm.cgroup.unified_hierarchy=false)
++	// into sandbox-level annotations so they reach the shim during template build.
++	if req.ContainerOverrides != nil {
++		for k, v := range req.ContainerOverrides.Annotations {
++			annotations[k] = v
++		}
++	}
+ 	sizeGi, err := quantityToGi(req.WritableLayerSize)
+ 	if err == nil && sizeGi > 0 {
+ 		annotations[constants.CubeAnnotationsSystemDiskSize] = strconv.FormatInt(sizeGi, 10)
+diff --git a/CubeShim/shim/src/sandbox/config.rs b/CubeShim/shim/src/sandbox/config.rs
+index ab96f40..4539920 100644
+--- a/CubeShim/shim/src/sandbox/config.rs
++++ b/CubeShim/shim/src/sandbox/config.rs
+@@ -24,6 +24,9 @@ pub const ANNO_SNAPSHOT_NOTIFY: &str = "cube.snapshot.healthcheck";
+ pub const ANNO_VM_KERNEL: &str = "cube.vm.kernel.path";
+ /// Annotation key used to append extra kernel cmdline parameters.
+ pub const ANNO_VM_KERNEL_CMDLINE_APPEND: &str = "cube.vm.kernel.cmdline.append";
++/// Annotation key controlling whether to inject `agent.unified_cgroup_hierarchy=true`.
++/// Android guests mount cgroup themselves; set to "false" for Android templates.
++pub const ANNO_VM_UNIFIED_CGROUP_HIERARCHY: &str = "cube.vm.cgroup.unified_hierarchy";
+ /// Override path to cube-agent.ext4 (virtio-pmem1).
+ pub const ANNO_VM_AGENT: &str = "cube.vm.agent.path";
+ /// Override path to guest OS image (virtio-pmem0).
+@@ -74,6 +77,9 @@ pub struct Config {
+     pub use_passfd_io: bool,
+     /// Extra kernel cmdline parameters injected through annotations.
+     pub extra_kernel_params: Vec<String>,
++    /// Whether to inject `agent.unified_cgroup_hierarchy=true` (guest mounts
++    /// unified cgroup v2). Disabled for Android guests.
++    pub unified_cgroup_hierarchy: bool,
+ }
+ 
+ impl Default for Config {
+@@ -103,6 +109,7 @@ impl Default for Config {
+             app_snapshot_restore: false,
+             use_passfd_io: true,
+             extra_kernel_params: Vec::new(),
++            unified_cgroup_hierarchy: true,
+         }
+     }
+ }
+@@ -248,6 +255,11 @@ impl Config {
+             Vec::new()
+         };
+ 
++        let unified_cgroup_hierarchy = anno
++            .get(ANNO_VM_UNIFIED_CGROUP_HIERARCHY)
++            .map(|v| !v.eq_ignore_ascii_case("false"))
++            .unwrap_or(true);
++
+         let c = Config {
+             net,
+             disk,
+@@ -273,6 +285,7 @@ impl Config {
+             app_snapshot_restore,
+             use_passfd_io,
+             extra_kernel_params,
++            unified_cgroup_hierarchy,
+         };
+         Ok(c)
+     }
+diff --git a/CubeShim/shim/src/sandbox/sb.rs b/CubeShim/shim/src/sandbox/sb.rs
+index e89f52b..478f5c1 100644
+--- a/CubeShim/shim/src/sandbox/sb.rs
++++ b/CubeShim/shim/src/sandbox/sb.rs
+@@ -777,7 +777,9 @@ impl SandBox {
+         }
+         vc.add_cmdline("highres=off".to_string());
+         vc.add_cmdline("clocksource=kvm-clock".to_string());
+-        vc.add_cmdline("agent.unified_cgroup_hierarchy=true".to_string());
++        if self.conf.unified_cgroup_hierarchy {
++            vc.add_cmdline("agent.unified_cgroup_hierarchy=true".to_string());
++        }
+ 
+         // Add externally passed pmem
+         vc.add_pmems(&self.conf.pmem);
+diff --git a/Cubelet/pkg/constants/const.go b/Cubelet/pkg/constants/const.go
+index d910745..4aa9454 100644
+--- a/Cubelet/pkg/constants/const.go
++++ b/Cubelet/pkg/constants/const.go
+@@ -297,6 +297,7 @@ const (
+ 	AnnotationContaineRootfsPropagation = "cube.container.rootfs.propagation"
+ 
+ 	AnnotationVMKernelCmdlineAppend = "cube.vm.kernel.cmdline.append"
++	AnnotationVMCgroupUnifiedHierarchy = "cube.vm.cgroup.unified_hierarchy"
+ 	AnnotationVirtiofs              = "cube.virtiofs"
+ 
+ 	AnnotationPropagationMounts          = "cube.propagation.mounts"
+diff --git a/Cubelet/plugins/cbri/cubeboxcbri/cubebox.go b/Cubelet/plugins/cbri/cubeboxcbri/cubebox.go
+index bfa2858..d682bc5 100644
+--- a/Cubelet/plugins/cbri/cubeboxcbri/cubebox.go
++++ b/Cubelet/plugins/cbri/cubeboxcbri/cubebox.go
+@@ -341,6 +341,11 @@ func (e *cubeboxInstancePlugin) CreateSandbox(ctx context.Context, flowOpts *wor
+ 			"annotations": annotations,
+ 		}).Debugf("create sandbox annotations")
+ 	}
++	// Pass through the cgroup unified hierarchy annotation to the shim so
++	// Android templates can disable the guest-side cgroup v2 pre-mount.
++	if v, ok := realReq.GetAnnotations()[constants.AnnotationVMCgroupUnifiedHierarchy]; ok {
++		annotations[constants.AnnotationVMCgroupUnifiedHierarchy] = v
++	}
+ 	specOpts = append(specOpts, oci.WithAnnotations(annotations))
+ 
+ 	videoOpts, err := e.genVideoAnnotationOpt(ctx, flowOpts)

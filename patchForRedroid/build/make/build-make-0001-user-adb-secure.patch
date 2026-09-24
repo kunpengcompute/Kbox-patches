@@ -1,0 +1,18 @@
+diff --git a/core/main.mk b/core/main.mk
+index c1cafc0..9cc1c83 100644
+--- a/core/main.mk
++++ b/core/main.mk
+@@ -392,7 +392,12 @@ ifneq (,$(user_variant))
+   ADDITIONAL_SYSTEM_PROPERTIES += security.perf_harden=1
+ 
+   ifeq ($(user_variant),user)
+-    ADDITIONAL_SYSTEM_PROPERTIES += ro.adb.secure=1
++    # redroid 云手机 user 变体无 UI 可点授权，需免认证 adb（ro.adb.secure=0）
++    ifneq ($(filter redroid%,$(TARGET_PRODUCT)),)
++      ADDITIONAL_SYSTEM_PROPERTIES += ro.adb.secure=0
++    else
++      ADDITIONAL_SYSTEM_PROPERTIES += ro.adb.secure=1
++    endif
+   endif
+ 
+   ifeq ($(user_variant),userdebug)

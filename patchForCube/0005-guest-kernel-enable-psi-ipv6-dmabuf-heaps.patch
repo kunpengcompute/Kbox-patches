@@ -1,0 +1,31 @@
+diff --git a/configs/kernel-oc9.aarch64.config b/configs/kernel-oc9.aarch64.config
+index fcc8036..e9eefcb 100644
+--- a/configs/kernel-oc9.aarch64.config
++++ b/configs/kernel-oc9.aarch64.config
+@@ -125,7 +125,7 @@ CONFIG_TASKSTATS=y
+ CONFIG_TASK_XACCT=y
+ CONFIG_TASK_IO_ACCOUNTING=y
+ CONFIG_RQM=y
+-# CONFIG_PSI is not set
++CONFIG_PSI=y
+ # CONFIG_PSI_DEFAULT_DISABLED is not set
+ CONFIG_PSI_DYN_SWITCH=y
+ CONFIG_PSI_USE_JIFFIES=y
+@@ -1342,7 +1342,7 @@ CONFIG_DEFAULT_CUBIC=y
+ # CONFIG_DEFAULT_RENO is not set
+ CONFIG_DEFAULT_TCP_CONG="cubic"
+ # CONFIG_TCP_MD5SIG is not set
+-CONFIG_IPV6=m
++CONFIG_IPV6=y
+ # CONFIG_IPV6_ROUTER_PREF is not set
+ CONFIG_IPV6_ROUTE_INFO=y
+ # CONFIG_IPV6_OPTIMISTIC_DAD is not set
+@@ -6980,7 +6980,7 @@ CONFIG_SYNC_FILE=y
+ # CONFIG_DMABUF_MOVE_NOTIFY is not set
+ # CONFIG_DMABUF_DEBUG is not set
+ # CONFIG_DMABUF_SELFTESTS is not set
+-# CONFIG_DMABUF_HEAPS is not set
++CONFIG_DMABUF_HEAPS=y
+ # CONFIG_DMABUF_SYSFS_STATS is not set
+ CONFIG_DMABUF_HEAPS_SYSTEM=y
+ # end of DMABUF options
