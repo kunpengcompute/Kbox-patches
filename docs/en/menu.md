@@ -1,5 +1,6 @@
-# kbox-patches-AOSP11
+# Kbox Cloud Phone Container（Android 11）
 
+- [Project Introduction](../../README_EN.md)
 - [Release Notes](./release_notes.md)
 - [Feature Guide](./feature_guide.md)
 - [Compilation Guide](./compile_guide.md)
