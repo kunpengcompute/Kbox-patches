@@ -56,7 +56,7 @@ Currently, the Kbox Android container supports Android 11. [**Table 2**](#softwa
 >
 >- **√** indicates that the software needs to be installed for the respective configuration scheme.
 >- **-** indicates that the software is not required for the respective configuration scheme.
->The preceding software package names are for reference only, and the actual package names are subject to the download methods. You are advised to rename the packages based on the preceding table to facilitate subsequent operations.
+>- The preceding software package names are for reference only, and the actual package names are subject to the download methods. You are advised to rename the packages based on the preceding table to facilitate subsequent operations.
 
 #### Verifying Software Package Integrity<a id="zh-cn_topic_0000001506119857_zh-cn_topic_0000001323011582_zh-cn_topic_0000001214652748_section1134661021416"></a>
 
@@ -312,7 +312,7 @@ When the CPU occupied by the network service is the same as the CPU bound to the
             Capabilities: [40] Express (v2) Endpoint, MSI 00
     ```
 
-5. <a id="zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li1985492711497"></a>Bind NIC interrupts to a reserved CPU. The CPU in the NUMA node to which the NIC belongs is preferred.
+5. <a id="zh-cn_topic_0000001259692597_zh-cn_topic_0000001256733899_li1985492711497"></a>Bind NIC interrupts to reserved CPUs. CPUs in the NUMA node to which the NIC belongs are preferred.
 
     In the following commands, ${break_1} and ${break_2} are the IDs of the two NIC interrupts.
 
@@ -548,7 +548,7 @@ During the compilation, use the `root` user to log in and perform operations.
 
     >![](./public_sys-resources/icon-note.gif) **NOTE**
     >
-    >If an error is reported during lxcfs startup, restart the service or contact technical support.
+    >If an error is reported during lxcfs startup, restart the service or submit an issue to report the problem.
 
 6. (Hardware configuration scheme 1) Upgrade the Linux firmware if you use configuration scheme 1. If the firmware has been upgraded, skip this step.
 
@@ -651,7 +651,7 @@ Generate a `.config` file and configure kernel compilation options. This file is
 
 5. Configure the kernel compilation options.
 
-    On the page shown in [**Figure 3* Kernel configuration page](#kernel-configuration-page), configure the kernel compilation options based on [**Table 3** Kernel compilation options](#kernel-compilation-options).
+    On the page shown in [**Figure 3** Kernel configuration page](#kernel-configuration-page), configure the kernel compilation options based on [**Table 3** Kernel compilation options](#kernel-compilation-options).
 
     **Figure 3** Kernel configuration page<a name="fig4732181117012"></a><a id="kernel-configuration-page"></a>
     ![](./figures/kernel-configuration-page.jpg "kernel-configuration-page")
@@ -888,7 +888,7 @@ Check the NUMA node to which the GPU nodes belong.
 lspci -vvv -d :0200 | grep NUMA
 ```
 
-Each DaoCloud DC1000/1000C has four GPU nodes. The following uses the 4 x DaoCloud DC1000 configuration as an example. Each line in the command output corresponds to a GPU node (renderD node, numbered from 128) in sequence. Example command output:
+Each DaoCloud DC1000/DC1000C has four GPU nodes. The following uses the 4 x DaoCloud DC1000 configuration as an example. Each line in the command output corresponds to a GPU node (renderD node, numbered from 128) in sequence. Example command output:
 
 ```bash
 NUMA node: 0

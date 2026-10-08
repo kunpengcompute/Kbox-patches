@@ -38,7 +38,7 @@ Please refer to the *Feature Guide* of the corresponding version, for example, [
 
 #### New Features<a id="section78241436103817"></a>
 
-|No.|Description|Purpose|
+|No.|Feature|Purpose|
 |---|---|---|
 |1|Shared data volume|Kbox supports the shared data volume feature.|
 
@@ -64,7 +64,7 @@ None
 
 #### New Features<a id="section78241436103817"></a>
 
-|No.|Description|Purpose|
+|No.|Feature|Purpose|
 |---|---|---|
 |1|NFS mount|Kbox supports NFS mount.|
 |2|Enhanced CPU/F2FS file system/System partition/init process emulation|To enhance system emulation capabilities.|
@@ -91,7 +91,7 @@ None
 
 #### New Features<a id="section78241436103817"></a>
 
-|No.|Description|Purpose|
+|No.|Feature|Purpose|
 |---|---|---|
 |1|Codec 2.0|Kbox supports the Codec 2.0 encoding and decoding framework.|
 
@@ -117,7 +117,7 @@ None
 
 #### New Features<a id="section78241436103817"></a>
 
-|No.|Description|Purpose|
+|No.|Feature|Purpose|
 |--|--|--|
 |1|Graphics acceleration layer|Enables the graphics acceleration layer in Kbox and provides steps for enabling related functions.|
 
@@ -143,7 +143,7 @@ None
 
 #### New Features<a id="section78241436103817"></a>
 
-|No.|Description|Purpose|
+|No.|Feature|Purpose|
 |--|--|--|
 |1|Generalization of adaptive frame synchronization| Expands the benefits of adaptive frame synchronization to most applications.|
 |2|Support for thread-level shader cache| The shader binary can be pre-built to reduce the first launch time of large OpenGL ES rendering applications by 40% and the frame freezing rate in high-dynamic scenarios by 50%.|
@@ -170,7 +170,7 @@ None
 
 #### New Features<a id="section78241436103817"></a>
 
-|No.|Description|Purpose|
+|No.|Feature|Purpose|
 |--|--|--|
 |1|Memory overcommitment| If the GPU load is greater than or equal to 90%, enabling the memory overcommitment feature can reduce the RAM usage by 10% when launching an identical number of 720p@30 fps cloud phones.|
 
@@ -196,7 +196,7 @@ None
 
 #### New Features<a id="section78241436103817"></a>
 
-|No.|Description|Purpose|
+|No.|Feature|Purpose|
 |--|--|--|
 |1|Android lightweight trimming| Removes unnecessary system services and built-in applications to reduce cloud phone resource usage, thereby improving system performance and optimizing user experience.|
 |2|Dynamic frame rate adjustment| Dynamically decreases the frame rate to reduce rendering overhead when the client is disconnected from the cloud phone in the away from keyboard (AFK) scenario. When the client is disconnected from the cloud phone, the frame rate is decreased. When the client is reconnected to the cloud phone, the frame rate is restored to the normal value.|
@@ -224,7 +224,7 @@ None
 
 #### New Features<a id="section78241436103817"></a>
 
-|No.|Description|Purpose|
+|No.|Feature|Purpose|
 |--|--|--|
 |1|Adaptive scalable texture compression (ASTC)| Implements the ASTC function through Vulkan.|
 |2|Texture compression| Enables texture compression for cloud phones to reduce the video RAM usage. A switch is provided for toggling this function (enabled by default).|
@@ -255,7 +255,7 @@ None
 
 #### New Features<a id="section78241436103817"></a>
 
-|No.|Description|Purpose|
+|No.|Feature|Purpose|
 |--|--|--|
 |1|Android system property customization|Allows users to customize system properties and override original system properties as required.|
 |2|Process restart upon unexpected exits|Delivers the process of the binary file. After the process exits abnormally (for example, the process crashes or is forcibly terminated), you can restart the process to resume the functions.|
@@ -314,7 +314,7 @@ None
 
 #### New Features<a id="section78241436103817"></a>
 
-|No.|Description|Purpose|
+|No.|Feature|Purpose|
 |--|--|--|
 |1|Custom patch modification for the Kbox kernel|Provides custom ashmem and binder patch modification for Kbox kernel 5.15 to reduce kernel customization and reuse kernel capabilities.|
 |2|Network emulation modification for Kbox|Provides the emulation of Kbox network functions. With the IP address, gateway, subnet mask, and DNS information, it can enable the cloud phone to access the network.|
@@ -343,7 +343,7 @@ None
 
 #### New Features<a id="zh-cn_topic_0000001549282537_section78241436103817"></a>
 
-|No.|Description|Purpose|
+|No.|Feature|Purpose|
 |--|--|--|
 |1|Hardware-based acceleration for video playback on cloud phones based on codec cards|Implements hardware-based H.264/H.265 decoding acceleration for video playback on cloud phones based on the NETINT T432 hardware codec card and OMX media framework adaptation.|
 |2|Query and display of the Kbox component version|Supports the query and standard display of the Kbox component version.|
@@ -392,7 +392,7 @@ None
 
 #### New Features<a id="zh-cn_topic_0000001473962058_section78241436103817"></a>
 
-|No.|Description|Purpose|
+|No.|Feature|Purpose|
 |--|--|--|
 |1|ExaGear+openEuler 22.03 LTS transcoding| Enables Kbox to run ExaGear adapted for openEuler 22.03 LTS|
 |2|Kbox adaptation based on openEuler 22.03 LTS| Enhances the OS compatibility.|
@@ -426,7 +426,7 @@ None
 
 #### New Features<a id="zh-cn_topic_0000001468009680_section78241436103817"></a>
 
-|No.|Description|Purpose|
+|No.|Feature|Purpose|
 |--|--|--|
 |1|GPU adaptation| Enhances hardware compatibility.|
 |2|Bsic cloud phone documentation| Provides guidance for users to use the Kbox cloud phone container.|
@@ -456,7 +456,7 @@ This release inherits all features available from release 2.0.RC1 to release 2.0
 
 #### New Features<a id="zh-cn_topic_0000001420053428_section78241436103817"></a>
 
-|No.|Description|Purpose|
+|No.|Feature|Purpose|
 |--|--|--|
 |1|Trustworthiness enhancement during the use of open-source software and Docker containers|Remediates open-source software and Docker container usage during development to meet trustworthiness and compliance requirements.|
 

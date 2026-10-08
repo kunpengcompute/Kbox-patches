@@ -493,7 +493,7 @@ Apply the ExaGear transcoding patch package into the AOSP source package.
 Apply the Kbox Android patch into the AOSP source package.
 
 1. Decompress `Kbox-patches-AOSP11.zip`. Go to the extracted `Kbox-patches-AOSP11` folder, and upload its `patchForAndroid` sub-directory to `~/dependency`. Assign appropriate permissions on the uploaded files and directories. You are not advised to assign the write permission for other user groups.
-2. Apply the Kbox Android patch.
+2. Apply the Kbox Android patches.
 
     ```bash
     aosp_path=~/aosp; \
@@ -553,7 +553,7 @@ Apply the Kbox binary file package into the AOSP source package.
     >- You can also configure the DNS address in the `/system/vendor/build.prop` file of the Kbox container. The configuration takes effect after the container is restarted.
     >- If you have any questions about the configuration, please submit an issue.
 
-### Compiling the AOSP and Creating an Image<a id="ZH-CN_TOPIC_0000002518185486"></a>
+### Compiling AOSP and Creating an Image<a id="ZH-CN_TOPIC_0000002518185486"></a>
 
 Compile the AOSP source code to generate the Kbox Android image.
 
@@ -635,7 +635,7 @@ Compile the AOSP source code to generate the Kbox Android image.
 
     Assign appropriate permissions on the uploaded files and directories. You are not advised to assign the write permission for other user groups.
 
-3. Copy the generated image script to the `~/aosp` directory and grant the execute permission on the script.
+3. Copy the image generation script to the `~/aosp` directory and grant the execute permission on the script.
 
     ```bash
     cd ~/dependency/make_img_sample/kbox11_android_build

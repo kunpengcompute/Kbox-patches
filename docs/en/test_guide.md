@@ -76,7 +76,7 @@ The test results are defined as follows:
 | Case No.| 4.1.3 |
 | Test Objective| Verify that a Kbox cloud phone container can be deleted.|
 | Test Networking| None|
-| Preconditions| 1. The basic environment of the Kbox cloud phone has been deployed.<br>2. A Kbox cloud phone container has been started.|
+| Prerequisites| 1. The basic environment of the Kbox cloud phone has been deployed.<br>2. A Kbox cloud phone container has been started.|
 | Test Procedure | 1. Run `./android11_kbox.sh delete <x>` to delete the Kbox cloud phone container. <br>Note: `x` indicates the numeric part of the container ID.<br>2. Run `docker ps -a` to view the Kbox cloud phone containers in the current environment. |
 | Expected Result | 1. A success flag is returned after the Kbox cloud phone container is deleted.<br>2. The list of Kbox cloud phone containers does not contain the deleted Kbox cloud phone container. |
 | Test Result|    |
@@ -138,7 +138,7 @@ The test results are defined as follows:
 | Test Networking| None|
 | Prerequisites| 1. The basic environment of the Kbox cloud phone has been deployed.<br>2. A Kbox cloud phone container has been created and connected.<br>3. Baidu Map or AMap has been installed in the container.|
 | Test Procedure| 1. Use ARDC to connect to the Kbox cloud phone container and display the GUI.<br>2. Open Baidu Map or AMap to view your current location.|
-| Expected Result| The current location is the preset mock location (Hangzhou Research Center of Huawei).|
+| Expected Result| The current location is the preset mock location.|
 | Test Result|    |
 | Remarks|    |
 
@@ -213,7 +213,7 @@ The test results are defined as follows:
 | Test Networking| None|
 | Prerequisites| 1. The basic environment of the Kbox cloud phone has been deployed.<br>2. A Kbox cloud phone container has been created and connected via ADB.|
 | Test Procedure | 1. After setting [vinput devices](#creating-a-vinput-device), open another server remote connection window B and enter the command `getevent` to listen for events.<br>2. In server remote connection window A, run the command `docker exec -it kbox_<x> sh` to enter the container. Run the command `getevent -p` to obtain the `[device][type][code][value]` parameters of the corresponding event.<br>3. In the container, run the command `sendevent [device] [type] [code] [value]` to send the event. <br>Note: `x` indicates the numeric part of the container ID. |
-| Expected Result| No error is reported when window A sends events, and window B can successfully listen to the events.|
+| Expected Result| No error is reported when window A sends events, and window B can successfully listen for the events.|
 | Test Result|    |
 | Remarks|    |
 
@@ -226,7 +226,7 @@ The test results are defined as follows:
 | Case No. | 4.1.13 |
 | Test Objective | Verify that the values of GPS mock properties can be modified and queried. |
 | Test Networking | None |
-| Prerequisites | 1. The basic environment of the Kbox cloud phone has been deployed.<br>2. One Kbox cloud phone container has been created and connected. |
+| Prerequisites | 1. The basic environment of the Kbox cloud phone has been deployed.<br>2. A Kbox cloud phone container has been created and connected. |
 | Test Procedure | 1.<a id="step1"></a> In the CMD window on the PC, after connecting to the container, run the command `adb -s [ip:port] shell setprop persist.gps.mock.[accuracy/altitude/longitude/latitude/bearing/speed] <xx>` to modify the values of the GPS properties respectively. <br>Note: `xx` is the valid value of each property. *ip:port* (replace with the actual IP address and port number) is the deployment IP address of the Kbox cloud phone and the port corresponding to the started container.<br>2. In the CMD window on the PC, run the command `adb -s [ip:port] shell getprop persist.gps.mock.[accuracy/altitude/longitude/latitude/bearing/speed]` to query the values of the GPS properties. |
 | Expected Result | 1. No error message about setting failure is displayed.<br>2. The values of the GPS properties set in test step [1](#step1) can be queried, and the values are correct. |
 | Test Result |  |
@@ -242,7 +242,7 @@ The test results are defined as follows:
 | Test Objective| Verify that the sensor mock properties on the three axes (x, y, and z) and data collection frequency properties can be modified.|
 | Test Networking| None|
 | Prerequisites| 1. The basic environment of the Kbox cloud phone has been deployed.<br>2. A Kbox cloud phone container has been created and connected via ADB.|
-| Test Procedure | 1. In the CMD window on the PC or on the server, run the command `adb -s [ip:port] shell setprop persist.sensors.mock.[acce/gyro].data.[x/y/z] <xx>` (`xx` is any value within ±3.402823466e+38) to modify the x/y/z-axis parameters of the sensor (`acce` indicates the acceleration sensor, and `gyro` indicates the gyroscope).<br>2. Open `sensors_test.apk` to query the values of each sensor property.<br>3. In the CMD window on the PC or on the server, run the command `adb -s [ip:port] shell setprop persist.sensors.mock.delaytime <xx>` (`xx` is any value within [20000,1000000]) to set the data collection frequency property value in the sensor mock.<br>4. Perform steps 1 and 2 again.<br>5. Observe the change duration of the property values of the modified sensor after the data collection frequency is modified. |
+| Test Procedure | 1. In the CMD window on the PC or on the server, run the command `adb -s [ip:port] shell setprop persist.sensors.mock.[acce/gyro].data.[x/y/z] <xx>` (`xx` is any value within ±3.402823466e+38) to modify the x/y/z-axis parameters of the sensor (`acce` indicates the acceleration sensor, and `gyro` indicates the gyroscope).<br>2. Open `sensors_test.apk` to query the values of each sensor property.<br>3. In the CMD window on the PC or on the server, run the command `adb -s [ip:port] shell setprop persist.sensors.mock.delaytime <xx>` (`xx` is any value within [20000,1000000]) to set the data collection frequency property value in the sensor mock.<br>4. Perform steps 1 and 2 again.<br>5. Observe how long the sensor property values take to change after the data collection frequency is modified. |
 | Expected Result| 1. No error is reported during the setting.<br>2. The parameters are set successfully.<br>3. The parameters are queried successfully.<br>4. The change duration of the sensor property values varies with the data collection frequency.|
 | Test Result|    |
 | Remarks|    |

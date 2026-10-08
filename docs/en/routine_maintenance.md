@@ -366,7 +366,7 @@ Kbox_maintainer provides the resource check function. It collects information ab
 
 **Table 1** Checking resources using Kbox_maintainer<a id="checking-resources-using-kbox-maintainer"></a>
 
-|Log Category|Details (run the corresponding command in the container)|
+|Resource Category|Details (run the corresponding command in the container)|
 |---|---|
 |Memory information| Run `dumpsys meminfo` to obtain the memory information.|
 |CPU information| Run the `top` command to collect the top 10 processes with the highest CPU usage.|
@@ -390,7 +390,7 @@ Kbox_maintainer allows you to view the service status of the Kbox cloud phone co
 
 |Category|Details|
 |---|---|
-|Basic cloud phone status|**getprop | grep sys.boot_completed**|
+|Basic cloud phone status|getprop \| grep sys.boot_completed|
 
 Kbox_maintainer provides the `check` subcommand. You can add a container ID or container name after `check` to check the service status of the specified container. If no container ID is specified, the status of all containers is checked by default. See the following examples:
 

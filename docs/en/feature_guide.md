@@ -227,7 +227,7 @@ To use this feature, perform the following steps:
 
 #### Overview
 
-In the mobile hardware domain, F2FS is the standard file system format for modern Android retail devices. Currently, cloud phones operate within host environments that typically utilize the ext4 file system. This discrepancy in file formats significantly degrades device emulation fidelity and escalates the risk of detection and interception by risk control policies. Therefore, to enhance the emulation fidelity of cloud phones, underlying support for the F2FS format has been implemented within the cloud phone containers.
+In the mobile hardware domain, F2FS is the standard file system format for modern Android physical devices. Currently, cloud phones operate within host environments that typically utilize the ext4 file system. This discrepancy in file formats significantly degrades device emulation fidelity and escalates the risk of detection and interception by risk control policies. Therefore, to enhance the emulation fidelity of cloud phones, underlying support for the F2FS format has been implemented within the cloud phone containers.
 
 #### Constraints
 

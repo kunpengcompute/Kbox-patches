@@ -524,7 +524,7 @@ Currently, the data volumes of cloud phone containers are mounted independently 
    docker commit kbox_1 kbox:game_name
    ```
 
-   At this point, the data of the cloud phone instance is frozen as a new image layer. Then, based on this new image, start new cloud phones, and all new cloud phone instances can share the data in the new image.
+   At this point, the data of the cloud phone instance is frozen into a new image layer. Then, based on this new image, start new cloud phones, and all new cloud phone instances can share the data in the new image.
 
 #### Verifying Whether the Configuration Takes Effect
 
@@ -695,7 +695,7 @@ This document provides two methods for accessing a container: [Using the CLI on 
 |persist.gps.mock.longitude| Longitude|double|[-180, 180]|120.199818| The default value is the longitude of Hangzhou, China. Due to code restrictions, the longitude and latitude cannot be set to `0` at the same time in the Android 11 environment.|
 |persist.gps.mock.altitude| Altitude, in meters.|double|Unlimited. It can be positive, negative, or 0.|0| The default value indicates that the current altitude is 0 m.|
 |persist.gps.mock.speed| Current moving speed, in meters per second|float|[0, 400]|0| The default value indicates that the device is currently stationary. If the speed exceeds 400 m/s, the Android system stops reporting GPS data.|
-|persist.gps.mock.bearing| Current steering angle, in degrees|float|[0, 360)|0| The initial value indicates due north.|
+|persist.gps.mock.bearing| Current bearing angle, in degrees|float|[0, 360)|0| The initial value indicates due north.|
 |persist.gps.mock.accuracy| Current positioning accuracy, in meters|float|Greater than or equal to 0|20| The initial value indicates that the positioning error is ±20 m.|
 
 ##### Configuration Examples<a id="ZH-CN_TOPIC_0000002549712541"></a>
@@ -746,7 +746,7 @@ This document provides two methods for accessing a container: [Using the CLI on 
     |gps|Location information. The format is [Latitude],[Longitude].|
     |hAcc|Current positioning error, in meters|
     |alt|Altitude, in meters|
-    |bear|Current steering angle, in degrees|
+    |bear|Current bearing angle, in degrees|
     |vel|Current moving speed, in meters per second|
 
 4. Check whether the GPS data of the location service matches the preset values.
