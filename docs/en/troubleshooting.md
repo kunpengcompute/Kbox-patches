@@ -1,16 +1,18 @@
-# Troubleshooting Cases<a name="ZH-CN_TOPIC_0000002552775783"></a>
+# Troubleshooting Cases<a id="ZH-CN_TOPIC_0000002552775783"></a>
 
-## 1 Troubleshooting 32-bit Application Faults<a name="ZH-CN_TOPIC_0000002518226310"></a>
+<!-- md-trans-meta sourceCommit=d43551c76ea35df62b20feebd7cb9fb9bd9f829b translatedAt=2026-09-18T11:18:42.086Z pushedAt=2026-09-22T06:36:40.285Z -->
 
-**Symptom<a name="section6713450123511"></a>**
+## Troubleshooting 32-bit Application Faults<a id="ZH-CN_TOPIC_0000002518226310"></a>
+
+### Symptom<a id="section6713450123511"></a>
 
 32-bit applications are faulty; for example, applications cannot be started or crash on startup. However, 64-bit applications are normal.
 
-**Impact on the System<a name="section1883411169412"></a>**
+### Impact on the System<a id="section1883411169412"></a>
 
 All 32-bit applications are affected.
 
-**Possible Causes<a name="section1777888184213"></a>**
+### Possible Causes<a id="section1777888184213"></a>
 
 If only 32-bit applications are faulty, the transcoding software may be faulty. Possible causes are as follows:
 
@@ -18,24 +20,24 @@ If only 32-bit applications are faulty, the transcoding software may be faulty. 
 2. The transcoding software version does not match.
 3. The transcoding software patch is not installed.
 
-**Procedure<a name="section12646853105012"></a>**
+### Procedure<a id="section12646853105012"></a>
 
-1. <a name="li1655995125318"></a>Run the following command to check whether the command output is normal. If <code>enable</code> is displayed, the command output is normal.
+1. <a id="li1655995125318"></a>Run the following command to check whether the command output is normal. If `enable` is displayed, the command output is normal.
 
-    ```shell
+    ```bash
     cat /proc/sys/fs/binfmt_misc/ubt_a32a64
     ```
 
 2. If the command output is abnormal, run the following command to register the transcoding software again:
 
-    ```shell
+    ```bash
     echo ":ubt_a32a64:M::\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x28\x00:\xff\xff\xff\xff\xff\xff\xff\x00\x00\x00\x00\x00\x00\x00\x00\x00\xfe\xff\xff\xff:/opt/exagear/ubt_a32a64:POCF" > /proc/sys/fs/binfmt_misc/register
     ```
 
 3. Perform [1](#li1655995125318) again and check whether the command output is normal.
 4. Run the following command to check the transcoding software version:
 
-    ```shell
+    ```bash
     /opt/exagear/ubt_a32a64 -V
     ```
 
@@ -43,27 +45,27 @@ If only 32-bit applications are faulty, the transcoding software may be faulty. 
 
     If the fault persists, collect information and contact technical support.
 
-## 2 Troubleshooting Patch Integration Faults<a name="ZH-CN_TOPIC_0000002518386224"></a>
+## Troubleshooting Patch Integration Faults<a id="ZH-CN_TOPIC_0000002518386224"></a>
 
-**Symptom<a name="section111416358916"></a>**
+### Symptom<a id="section111416358916"></a>
 
 Image compilation fails, and alarm information is displayed.
 
-**Impact on the System<a name="section1188785910917"></a>**
+### Impact on the System<a id="section1188785910917"></a>
 
 The system cannot compile and generate normal images, and services cannot run.
 
-**Possible Causes<a name="section393416205106"></a>**
+### Possible Causes<a id="section393416205106"></a>
 
 1. The patch fails to be integrated.
 2. The patch is not completely integrated.
 3. The patch version does not match the source code version.
 
-**Procedure<a name="section89841336161010"></a>**
+### Procedure<a id="section89841336161010"></a>
 
 1. Run the following command to search for the `.rej` file in the compilation directory:
 
-    ```shell
+    ```bash
     find ./ -name "*.rej"
     ```
 
@@ -71,21 +73,27 @@ The system cannot compile and generate normal images, and services cannot run.
 
 2. Check the source code version and match it with the version specified in the version mapping table. If the source code version does not match the version specified in the table, use the specified version.
 
-## 3 Troubleshooting System Breakdown<a name="ZH-CN_TOPIC_0000002518386232"></a>
+## Troubleshooting System Breakdown<a id="ZH-CN_TOPIC_0000002518386232"></a>
 
-**Symptom<a name="section55241852162719"></a>**
+### Symptom<a id="section55241852162719"></a>
 
 The server breaks down in some scenarios.
 
-**Impact on the System<a name="section69995352720"></a>**
+### Impact on the System<a id="section69995352720"></a>
 
 The system is unavailable and services are interrupted.
 
-**Possible Causes<a name="section854711548271"></a>**
+### Possible Causes<a id="section854711548271"></a>
 
 1. The software version does not match.
 2. Server configurations are incorrect.
 
-**Procedure<a name="section12953654202714"></a>**
+### Procedure<a id="section12953654202714"></a>
 
 Check the memory and BIOS configurations by following the instructions in [Configuring the BIOS](install_guide.md#configuring-the-BIOS).
+
+## Change History
+
+|Release|Date|Description|
+|--|--|--|
+|01|2026-09-30|This is the first official release.|
