@@ -1,0 +1,51 @@
+diff --git a/Cubelet/plugins/cube/internals/cgroup/cgroup.go b/Cubelet/plugins/cube/internals/cgroup/cgroup.go
+index 198770e..3203734 100644
+--- a/Cubelet/plugins/cube/internals/cgroup/cgroup.go
++++ b/Cubelet/plugins/cube/internals/cgroup/cgroup.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"path"
++	"strings"
+ 	"time"
+ 
+ 	jsoniter "github.com/json-iterator/go"
+@@ -227,6 +228,13 @@ func AddProc(path string, pid uint64) error {
+ 	if l.poolV1Handle == nil {
+ 		return fmt.Errorf("cgroup plugin not initialized")
+ 	}
++	// Route by group path: poolV2 groups (NUMA-bound, live under
++	// /cube_sandbox_v2) must use the poolV2 handle so the process joins
++	// the cpu+memory+cpuset hierarchies; poolV1 keeps the legacy handle.
++	h := l.poolV1Handle
++	if l.poolV2Handle != nil && strings.HasPrefix(path, handle.DefaultPathPoolV2) {
++		h = l.poolV2Handle
++	}
+ 	var err error
+ 
+ 	delay := 10 * time.Millisecond
+@@ -236,7 +244,7 @@ func AddProc(path string, pid uint64) error {
+ 			delay *= 2
+ 		}
+ 
+-		if err = l.poolV1Handle.AddProc(path, pid); err == nil {
++		if err = h.AddProc(path, pid); err == nil {
+ 			return nil
+ 		}
+ 	}
+diff --git a/Cubelet/plugins/cube/internals/cgroup/local.go b/Cubelet/plugins/cube/internals/cgroup/local.go
+index 8b35058..8917695 100644
+--- a/Cubelet/plugins/cube/internals/cgroup/local.go
++++ b/Cubelet/plugins/cube/internals/cgroup/local.go
+@@ -317,7 +317,10 @@ func (l *CgPlugin) Create(ctx context.Context, opts *workflow.CreateContext) (er
+ 		}
+ 	}
+ 	var fullCgID *uint32
+-	usePoolV2 := false
++	// poolV2 = NUMA-aware cgroup pool: sandbox is pinned to
++	// /cube_sandbox_v2/sandbox/numa<N> with cpuset.cpus + cpuset.mems
++	// bound to host NUMA node N (cpu+memory locality).
++	usePoolV2 := true
+ 	numa := opts.GetNumaNode()
+ 
+ 	defer func() {

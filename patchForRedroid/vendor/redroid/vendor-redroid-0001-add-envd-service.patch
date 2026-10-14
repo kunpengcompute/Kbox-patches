@@ -1,0 +1,61 @@
+diff --git a/envd.rc b/envd.rc
+new file mode 100644
+index 0000000..2735cbd
+--- /dev/null
++++ b/envd.rc
+@@ -0,0 +1,12 @@
++# CubeSandbox guest 探活服务: envd 监听 49983 端口(/health)
++# 在系统 boot 完成后启动(sys.boot_completed=1)。
++# 此时 APEX 已挂载, /system/bin/linker64 可用, 可正常加载 envd
++# (纯 Go 静态编译, GOOS=android, interpreter=/system/bin/linker64)。
++service envd /vendor/bin/envd -port 49983
++    class main
++    user root
++    group root
++    disabled
++
++on property:sys.boot_completed=1
++    start envd
+diff --git a/envd/Android.bp b/envd/Android.bp
+new file mode 100644
+index 0000000..97bbe69
+--- /dev/null
++++ b/envd/Android.bp
+@@ -0,0 +1,17 @@
++// CubeSandbox guest 探活服务 envd（来源 e2b-dev/runtime packages/envd）
++// 纯 Go 静态编译：GOOS=android GOARCH=arm64 CGO_ENABLED=0，
++// interpreter=/system/bin/linker64，无额外 .so 依赖（DT_NEEDED 为空）。
++// 由 envd.rc（on property:sys.boot_completed=1）在系统 boot 完成后拉起。
++cc_prebuilt_binary {
++    name: "envd",
++    arch: {
++        arm64: {
++            srcs: ["envd"],
++        },
++    },
++    compile_multilib: "64",
++    vendor: true,
++    strip: {
++        none: true,
++    },
++}
+diff --git a/vendor.mk b/vendor.mk
+index 3b38e0c..5099d19 100644
+--- a/vendor.mk
++++ b/vendor.mk
+@@ -5,6 +5,7 @@ PRODUCT_PACKAGES += \
+ 	binder_alloc \
+ 	gralloc.redroid \
+ 	ipconfigstore \
++	envd \
+ 
+ 
+ PRODUCT_COPY_FILES += \
+@@ -12,6 +13,7 @@ PRODUCT_COPY_FILES += \
+     vendor/redroid/post-fs-data.redroid.sh:$(TARGET_COPY_OUT_VENDOR)/bin/post-fs-data.redroid.sh \
+     vendor/redroid/redroid.common.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/redroid.common.rc \
+     vendor/redroid/redroid.legacy.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/redroid.legacy.rc \
++    vendor/redroid/envd.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/envd.rc \
+ 
+ 
+ PRODUCT_COPY_FILES += \

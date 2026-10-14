@@ -1,0 +1,58 @@
+diff --git a/init/main.cpp b/init/main.cpp
+index b01a3ee..eba72fa 100644
+--- a/init/main.cpp
++++ b/init/main.cpp
+@@ -23,6 +23,9 @@
+ 
+ #include <android-base/logging.h>
+ 
++#include <sys/resource.h>
++#include <unistd.h>
++
+ #if __has_feature(address_sanitizer)
+ #include <sanitizer/asan_interface.h>
+ #elif __has_feature(hwaddress_sanitizer)
+@@ -50,6 +53,24 @@ AsanReportCallback(const char* str) {
+ 
+ using namespace android::init;
+ 
++// Cube/redroid: 关闭 CubeShim 泄漏给 guest 的继承文件描述符(FD>=3)。
++// 这些 FIFO FD 若不被关闭, 会随 init 及其所有子进程一直存活, 导致
++// CubeShim 侧对 FIFO 的读写端无法感知 EOF 而永久阻塞。
++// 优先使用 close_range(3, ~0U) 一次性关闭; 旧内核回退为逐个 close。
++static void CloseLeakedFileDescriptors() {
++    if (close_range(3, ~0U, 0) == 0) {
++        return;
++    }
++    // close_range 不可用(如 ENOSYS)时回退: 关闭到 soft RLIMIT_NOFILE。
++    struct rlimit limit;
++    if (getrlimit(RLIMIT_NOFILE, &limit) != 0) {
++        return;
++    }
++    for (unsigned int fd = 3; fd < static_cast<unsigned int>(limit.rlim_cur); ++fd) {
++        close(fd);
++    }
++}
++
+ int main(int argc, char** argv) {
+ #if __has_feature(address_sanitizer)
+     __asan_set_error_report_callback(AsanReportCallback);
+@@ -58,6 +79,7 @@ int main(int argc, char** argv) {
+ #endif
+     // Boost prio which will be restored later
+     setpriority(PRIO_PROCESS, 0, -20);
++
+     if (!strcmp(basename(argv[0]), "ueventd")) {
+         return ueventd_main(argc, argv);
+     }
+@@ -79,5 +101,10 @@ int main(int argc, char** argv) {
+         }
+     }
+ 
++    // Cube/redroid: 仅在 first stage(PID 1 初始路径)关闭 CubeShim 泄漏的继承 FD。
++    // 不能在 ueventd/subcontext/second_stage 分支之前关闭: subcontext 的 socket fd
++    // 经 argv[3] 以继承方式传递, 提前 close_range 会误关它, 导致 init subcontext 崩溃。
++    CloseLeakedFileDescriptors();
++
+     return FirstStageMain(argc, argv);
+ }

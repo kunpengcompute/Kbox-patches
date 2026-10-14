@@ -1,0 +1,343 @@
+diff --git a/hypervisor/hypervisor/src/kvm/aarch64/gic/dist_regs.rs b/hypervisor/hypervisor/src/kvm/aarch64/gic/dist_regs.rs
+index 0c1a978..95a5742 100644
+--- a/hypervisor/hypervisor/src/kvm/aarch64/gic/dist_regs.rs
++++ b/hypervisor/hypervisor/src/kvm/aarch64/gic/dist_regs.rs
+@@ -77,11 +77,11 @@ static VGIC_DIST_REGS: &[DistReg] = &[
+     VGIC_DIST_REG!(GICD_IPRIORITYR, 8, 0),
+ ];
+ 
+-fn dist_attr_access(gic: &DeviceFd, offset: u32, val: &u32, set: bool) -> Result<()> {
++fn dist_attr_access(gic: &DeviceFd, offset: u32, val: &mut u32, set: bool) -> Result<()> {
+     let mut gic_dist_attr = kvm_device_attr {
+         group: KVM_DEV_ARM_VGIC_GRP_DIST_REGS,
+         attr: offset as u64,
+-        addr: val as *const u32 as u64,
++        addr: val as *mut u32 as u64,
+         flags: 0,
+     };
+     if set {
+@@ -98,23 +98,24 @@ fn dist_attr_access(gic: &DeviceFd, offset: u32, val: &u32, set: bool) -> Result
+ 
+ /// Get the distributor control register.
+ pub fn read_ctlr(gic: &DeviceFd) -> Result<u32> {
+-    let val: u32 = 0;
+-    dist_attr_access(gic, GICD_CTLR, &val, false)?;
++    let mut val: u32 = 0;
++    dist_attr_access(gic, GICD_CTLR, &mut val, false)?;
+     Ok(val)
+ }
+ 
+ /// Set the distributor control register.
+ pub fn write_ctlr(gic: &DeviceFd, val: u32) -> Result<()> {
+-    dist_attr_access(gic, GICD_CTLR, &val, true)
++    let mut val = val;
++    dist_attr_access(gic, GICD_CTLR, &mut val, true)
+ }
+ 
+ fn get_interrupts_num(gic: &DeviceFd) -> Result<u32> {
+-    let num_irq = 0;
++    let mut num_irq = 0u32;
+ 
+     let mut nr_irqs_attr = kvm_device_attr {
+         group: KVM_DEV_ARM_VGIC_GRP_NR_IRQS,
+         attr: 0,
+-        addr: &num_irq as *const u32 as u64,
++        addr: &mut num_irq as *mut u32 as u64,
+         flags: 0,
+     };
+     gic.get_device_attr(&mut nr_irqs_attr).map_err(|e| {
+@@ -158,8 +159,8 @@ pub fn set_dist_regs(gic: &DeviceFd, state: &[u32]) -> Result<()> {
+         let end = compute_reg_len(gic, dreg, base)?;
+ 
+         while base < end {
+-            let val = state[idx];
+-            dist_attr_access(gic, base, &val, true)?;
++            let mut val = state[idx];
++            dist_attr_access(gic, base, &mut val, true)?;
+             idx += 1;
+             base += REG_SIZE as u32;
+         }
+@@ -175,8 +176,8 @@ pub fn get_dist_regs(gic: &DeviceFd) -> Result<Vec<u32>> {
+         let end = compute_reg_len(gic, dreg, base)?;
+ 
+         while base < end {
+-            let val: u32 = 0;
+-            dist_attr_access(gic, base, &val, false)?;
++            let mut val: u32 = 0;
++            dist_attr_access(gic, base, &mut val, false)?;
+             state.push(val);
+             base += REG_SIZE as u32;
+         }
+diff --git a/hypervisor/hypervisor/src/kvm/aarch64/gic/icc_regs.rs b/hypervisor/hypervisor/src/kvm/aarch64/gic/icc_regs.rs
+index 8124ed6..b5c0487 100644
+--- a/hypervisor/hypervisor/src/kvm/aarch64/gic/icc_regs.rs
++++ b/hypervisor/hypervisor/src/kvm/aarch64/gic/icc_regs.rs
+@@ -79,11 +79,11 @@ static VGIC_ICC_REGS: &[u64] = &[
+     SYS_ICC_AP1R3_EL1,
+ ];
+ 
+-fn icc_attr_access(gic: &DeviceFd, offset: u64, typer: u64, val: &u32, set: bool) -> Result<()> {
++fn icc_attr_access(gic: &DeviceFd, offset: u64, typer: u64, val: &mut u32, set: bool) -> Result<()> {
+     let mut gic_icc_attr = kvm_device_attr {
+         group: KVM_DEV_ARM_VGIC_GRP_CPU_SYSREGS,
+         attr: ((typer & KVM_DEV_ARM_VGIC_V3_MPIDR_MASK) | offset), // this needs the mpidr
+-        addr: val as *const u32 as u64,
++        addr: val as *mut u32 as u64,
+         flags: 0,
+     };
+     if set {
+@@ -107,10 +107,10 @@ pub fn get_icc_regs(gic: &DeviceFd, gicr_typer: &[u64]) -> Result<Vec<u32>> {
+     for ix in gicr_typer {
+         let i = *ix;
+         for icc_offset in VGIC_ICC_REGS {
+-            let val = 0;
++            let mut val = 0u32;
+             if *icc_offset == SYS_ICC_CTLR_EL1 {
+                 // calculate priority bits by reading the ctrl_el1 register.
+-                icc_attr_access(gic, *icc_offset, i, &val, false)?;
++                icc_attr_access(gic, *icc_offset, i, &mut val, false)?;
+                 // The priority bits are found in the ICC_CTLR_EL1 register (bits from  10:8).
+                 // See page 194 from https://static.docs.arm.com/ihi0069/c/IHI0069C_gic_
+                 // architecture_specification.pdf.
+@@ -130,7 +130,7 @@ pub fn get_icc_regs(gic: &DeviceFd, gicr_typer: &[u64]) -> Result<Vec<u32>> {
+             // 7 bits of priority.
+             else if *icc_offset == SYS_ICC_AP0R1_EL1 || *icc_offset == SYS_ICC_AP1R1_EL1 {
+                 if num_priority_bits >= 6 {
+-                    icc_attr_access(gic, *icc_offset, i, &val, false)?;
++                    icc_attr_access(gic, *icc_offset, i, &mut val, false)?;
+                     state.push(val);
+                 }
+             } else if *icc_offset == SYS_ICC_AP0R2_EL1
+@@ -139,11 +139,11 @@ pub fn get_icc_regs(gic: &DeviceFd, gicr_typer: &[u64]) -> Result<Vec<u32>> {
+                 || *icc_offset == SYS_ICC_AP1R3_EL1
+             {
+                 if num_priority_bits == 7 {
+-                    icc_attr_access(gic, *icc_offset, i, &val, false)?;
++                    icc_attr_access(gic, *icc_offset, i, &mut val, false)?;
+                     state.push(val);
+                 }
+             } else {
+-                icc_attr_access(gic, *icc_offset, i, &val, false)?;
++                icc_attr_access(gic, *icc_offset, i, &mut val, false)?;
+                 state.push(val);
+             }
+         }
+@@ -165,7 +165,8 @@ pub fn set_icc_regs(gic: &DeviceFd, gicr_typer: &[u64], state: &[u32]) -> Result
+             }
+             if *icc_offset == SYS_ICC_AP0R1_EL1 || *icc_offset == SYS_ICC_AP1R1_EL1 {
+                 if num_priority_bits >= 6 {
+-                    icc_attr_access(gic, *icc_offset, i, &state[idx], true)?;
++                    let mut val = state[idx];
++                    icc_attr_access(gic, *icc_offset, i, &mut val, true)?;
+                     idx += 1;
+                 }
+                 continue;
+@@ -176,12 +177,14 @@ pub fn set_icc_regs(gic: &DeviceFd, gicr_typer: &[u64], state: &[u32]) -> Result
+                 || *icc_offset == SYS_ICC_AP1R3_EL1
+             {
+                 if num_priority_bits == 7 {
+-                    icc_attr_access(gic, *icc_offset, i, &state[idx], true)?;
++                    let mut val = state[idx];
++                    icc_attr_access(gic, *icc_offset, i, &mut val, true)?;
+                     idx += 1;
+                 }
+                 continue;
+             }
+-            icc_attr_access(gic, *icc_offset, i, &state[idx], true)?;
++            let mut val = state[idx];
++            icc_attr_access(gic, *icc_offset, i, &mut val, true)?;
+             idx += 1;
+         }
+     }
+diff --git a/hypervisor/hypervisor/src/kvm/aarch64/gic/mod.rs b/hypervisor/hypervisor/src/kvm/aarch64/gic/mod.rs
+index d90b233..2f4a9df 100644
+--- a/hypervisor/hypervisor/src/kvm/aarch64/gic/mod.rs
++++ b/hypervisor/hypervisor/src/kvm/aarch64/gic/mod.rs
+@@ -31,13 +31,13 @@ pub fn gicv3_its_attr_access(
+     its_device: &DeviceFd,
+     group: u32,
+     attr: u32,
+-    val: &u64,
++    val: &mut u64,
+     set: bool,
+ ) -> Result<()> {
+     let mut gicv3_its_attr = kvm_bindings::kvm_device_attr {
+         group,
+         attr: attr as u64,
+-        addr: val as *const u64 as u64,
++        addr: val as *mut u64 as u64,
+         flags: 0,
+     };
+     if set {
+@@ -324,59 +324,59 @@ impl Vgic for KvmGicV3Its {
+ 
+         let icc_state = get_icc_regs(&self.device, &gicr_typers)?;
+ 
+-        let its_baser_state: [u64; 8] = [0; 8];
++        let mut its_baser_state: [u64; 8] = [0; 8];
+         for i in 0..8 {
+             gicv3_its_attr_access(
+                 self.its_device.as_ref().unwrap(),
+                 kvm_bindings::KVM_DEV_ARM_VGIC_GRP_ITS_REGS,
+                 GITS_BASER + i * 8,
+-                &its_baser_state[i as usize],
++                &mut its_baser_state[i as usize],
+                 false,
+             )?;
+         }
+ 
+-        let its_ctlr_state: u64 = 0;
++        let mut its_ctlr_state: u64 = 0;
+         gicv3_its_attr_access(
+             self.its_device.as_ref().unwrap(),
+             kvm_bindings::KVM_DEV_ARM_VGIC_GRP_ITS_REGS,
+             GITS_CTLR,
+-            &its_ctlr_state,
++            &mut its_ctlr_state,
+             false,
+         )?;
+ 
+-        let its_cbaser_state: u64 = 0;
++        let mut its_cbaser_state: u64 = 0;
+         gicv3_its_attr_access(
+             self.its_device.as_ref().unwrap(),
+             kvm_bindings::KVM_DEV_ARM_VGIC_GRP_ITS_REGS,
+             GITS_CBASER,
+-            &its_cbaser_state,
++            &mut its_cbaser_state,
+             false,
+         )?;
+ 
+-        let its_creadr_state: u64 = 0;
++        let mut its_creadr_state: u64 = 0;
+         gicv3_its_attr_access(
+             self.its_device.as_ref().unwrap(),
+             kvm_bindings::KVM_DEV_ARM_VGIC_GRP_ITS_REGS,
+             GITS_CREADR,
+-            &its_creadr_state,
++            &mut its_creadr_state,
+             false,
+         )?;
+ 
+-        let its_cwriter_state: u64 = 0;
++        let mut its_cwriter_state: u64 = 0;
+         gicv3_its_attr_access(
+             self.its_device.as_ref().unwrap(),
+             kvm_bindings::KVM_DEV_ARM_VGIC_GRP_ITS_REGS,
+             GITS_CWRITER,
+-            &its_cwriter_state,
++            &mut its_cwriter_state,
+             false,
+         )?;
+ 
+-        let its_iidr_state: u64 = 0;
++        let mut its_iidr_state: u64 = 0;
+         gicv3_its_attr_access(
+             self.its_device.as_ref().unwrap(),
+             kvm_bindings::KVM_DEV_ARM_VGIC_GRP_ITS_REGS,
+             GITS_IIDR,
+-            &its_iidr_state,
++            &mut its_iidr_state,
+             false,
+         )?;
+ 
+@@ -407,44 +407,49 @@ impl Vgic for KvmGicV3Its {
+         set_icc_regs(&self.device, &gicr_typers, &state.icc)?;
+ 
+         //Restore GICv3ITS registers
++        let mut v = state.its_iidr;
+         gicv3_its_attr_access(
+             self.its_device.as_ref().unwrap(),
+             kvm_bindings::KVM_DEV_ARM_VGIC_GRP_ITS_REGS,
+             GITS_IIDR,
+-            &state.its_iidr,
++            &mut v,
+             true,
+         )?;
+ 
++        let mut v = state.its_cbaser;
+         gicv3_its_attr_access(
+             self.its_device.as_ref().unwrap(),
+             kvm_bindings::KVM_DEV_ARM_VGIC_GRP_ITS_REGS,
+             GITS_CBASER,
+-            &state.its_cbaser,
++            &mut v,
+             true,
+         )?;
+ 
++        let mut v = state.its_creadr;
+         gicv3_its_attr_access(
+             self.its_device.as_ref().unwrap(),
+             kvm_bindings::KVM_DEV_ARM_VGIC_GRP_ITS_REGS,
+             GITS_CREADR,
+-            &state.its_creadr,
++            &mut v,
+             true,
+         )?;
+ 
++        let mut v = state.its_cwriter;
+         gicv3_its_attr_access(
+             self.its_device.as_ref().unwrap(),
+             kvm_bindings::KVM_DEV_ARM_VGIC_GRP_ITS_REGS,
+             GITS_CWRITER,
+-            &state.its_cwriter,
++            &mut v,
+             true,
+         )?;
+ 
+         for i in 0..8 {
++            let mut v = state.its_baser[i as usize];
+             gicv3_its_attr_access(
+                 self.its_device.as_ref().unwrap(),
+                 kvm_bindings::KVM_DEV_ARM_VGIC_GRP_ITS_REGS,
+                 GITS_BASER + i * 8,
+-                &state.its_baser[i as usize],
++                &mut v,
+                 true,
+             )?;
+         }
+@@ -452,11 +457,12 @@ impl Vgic for KvmGicV3Its {
+         // Restore ITS tables
+         gicv3_its_tables_access(self.its_device.as_ref().unwrap(), false)?;
+ 
++        let mut v = state.its_ctlr;
+         gicv3_its_attr_access(
+             self.its_device.as_ref().unwrap(),
+             kvm_bindings::KVM_DEV_ARM_VGIC_GRP_ITS_REGS,
+             GITS_CTLR,
+-            &state.its_ctlr,
++            &mut v,
+             true,
+         )
+     }
+diff --git a/hypervisor/hypervisor/src/kvm/aarch64/gic/redist_regs.rs b/hypervisor/hypervisor/src/kvm/aarch64/gic/redist_regs.rs
+index e92e4d0..03b7a4a 100644
+--- a/hypervisor/hypervisor/src/kvm/aarch64/gic/redist_regs.rs
++++ b/hypervisor/hypervisor/src/kvm/aarch64/gic/redist_regs.rs
+@@ -96,11 +96,11 @@ static VGIC_SGI_REGS: &[RdistReg] = &[
+     VGIC_RDIST_REG!(GICR_IPRIORITYR0, 32),
+ ];
+ 
+-fn redist_attr_access(gic: &DeviceFd, offset: u32, typer: u64, val: &u32, set: bool) -> Result<()> {
++fn redist_attr_access(gic: &DeviceFd, offset: u32, typer: u64, val: &mut u32, set: bool) -> Result<()> {
+     let mut gic_redist_attr = kvm_device_attr {
+         group: KVM_DEV_ARM_VGIC_GRP_REDIST_REGS,
+         attr: (typer & KVM_DEV_ARM_VGIC_V3_MPIDR_MASK) | (offset as u64), // this needs the mpidr
+-        addr: val as *const u32 as u64,
++        addr: val as *mut u32 as u64,
+         flags: 0,
+     };
+     if set {
+@@ -132,10 +132,10 @@ fn access_redists_aux(
+                 let mut val = 0;
+                 if set {
+                     val = state[*idx];
+-                    redist_attr_access(gic, base, *i, &val, true)?;
++                    redist_attr_access(gic, base, *i, &mut val, true)?;
+                     *idx += 1;
+                 } else {
+-                    redist_attr_access(gic, base, *i, &val, false)?;
++                    redist_attr_access(gic, base, *i, &mut val, false)?;
+                     state.push(val);
+                 }
+                 base += REG_SIZE as u32;

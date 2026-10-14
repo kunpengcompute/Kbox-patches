@@ -1,0 +1,56 @@
+diff --git a/CubeMaster/cmd/cubemastercli/commands/cubebox/template.go b/CubeMaster/cmd/cubemastercli/commands/cubebox/template.go
+--- a/CubeMaster/cmd/cubemastercli/commands/cubebox/template.go
++++ b/CubeMaster/cmd/cubemastercli/commands/cubebox/template.go
+@@ -871,6 +871,7 @@
+ 		cli.StringSliceFlag{Name: "dns", Usage: "set container DNS nameserver; repeat for multiple servers"},
+ 		cli.IntFlag{Name: "probe", Usage: "enable HTTP GET probe on the specified port (e.g. --probe 9000); sets timeout_ms=30000, period_ms=500"},
+ 		cli.StringFlag{Name: "probe-path", Value: "/health", Usage: "HTTP path for the readiness probe (default: /health); only effective when --probe is set"},
++		cli.IntFlag{Name: "probe-timeout-ms", Value: 30000, Usage: "probe timeout in milliseconds (default: 30000). Increase for slow-booting guests (e.g. Android boots in 1-2min before envd listens)"},
+ 		cli.IntFlag{Name: "cpu", Value: 2000, Usage: "CPU millicores for the template container (default: 2000, i.e. 2 cores)"},
+ 		cli.IntFlag{Name: "memory", Value: 2000, Usage: "Memory for the template container in MB (default: 2000 MB)"},
+ 		cli.BoolTFlag{Name: "with-cube-ca", Usage: "bake the CubeEgress root CA at /etc/cube/ca/cube-root-ca.crt into the template rootfs so sandboxes trust CubeEgress's MITM. Pass --with-cube-ca=false to skip (default: true)"},
+@@ -1489,6 +1490,7 @@
+ 	rawEnvs := c.StringSlice("env")
+ 	dnsServers := c.StringSlice("dns")
+ 	probePort := c.Int("probe")
++	probeTimeoutMs := c.Int("probe-timeout-ms")
+ 	cpuMillicores := c.Int("cpu")
+ 	memoryMB := c.Int("memory")
+ 	enableInjectEnvd := c.Bool("enable-inject-envd")
+@@ -1534,6 +1536,15 @@
+ 			probePath = "/health"
+ 		}
+ 		host := ""
++		timeoutMs := int32(probeTimeoutMs)
++		if timeoutMs <= 0 {
++			timeoutMs = 30000
++		}
++		periodMs := int32(500)
++		failureThreshold := int32(60)
++		if timeoutMs > periodMs {
++			failureThreshold = (timeoutMs + periodMs - 1) / periodMs
++		}
+ 		overrides.Probe = &types.Probe{
+ 			ProbeHandler: &types.ProbeHandler{
+ 				HttpGet: &types.HTTPGetAction{
+@@ -1542,17 +1553,9 @@
+ 					Host: &host,
+ 				},
+ 			},
+-			TimeoutMs:        30000,
+-			PeriodMs:         500,
+-			FailureThreshold: 60,
++			TimeoutMs:        timeoutMs,
++			PeriodMs:         periodMs,
++			FailureThreshold: failureThreshold,
+ 			SuccessThreshold: 1,
+ 		}
+ 	}
+-	if enableInjectEnvd {
+-		if overrides.Annotations == nil {
+-			overrides.Annotations = map[string]string{}
+-		}
+-		overrides.Annotations[constants.CubeAnnotationsInjectEnvd] = constants.CubeAnnotationsInjectEnvdOptIn
+-	}
+-	return overrides, nil
+-}
