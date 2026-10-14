@@ -124,6 +124,30 @@ pack_image() {
     [ -f vendor/bin/envd ] || die "vendor/bin/envd 缺失（envd 未编入镜像，检查步骤 1 与 vendor-redroid-0002 patch）"
 
     log "  tar + docker import ..."
+    # GMS 三件套（MindTheGapps 14 核心组件）以 prebuilt 载荷形式在打包期叠加。
+    # 载荷位于 patchForRedroid/prebuilts/gms/system/，成员路径带 system/ 前缀，
+    # 与镜像内 /product -> /system/product、/system_ext -> /system/system_ext 布局一致。
+    # 注意：只显式列出"新增目录 + 文件"叶子成员——显式列举不会带出父目录条目，
+    # 若带出会与 system.img 已有目录重复，docker import 拒绝重复路径。
+    # 载荷不存在时跳过，产出无 GMS 的基础镜像。
+    local gms_dir="$SCRIPT_DIR/../patchForRedroid/prebuilts/gms"
+    local gms_args=()
+    if [ -f "$gms_dir/system/product/priv-app/GmsCore/GmsCore.apk" ]; then
+        log "  叠加 GMS prebuilt 载荷 ..."
+        gms_args=(-C "$gms_dir" \
+            system/product/priv-app/GmsCore \
+            system/product/priv-app/Phonesky \
+            system/system_ext/priv-app/GoogleServicesFramework \
+            system/product/etc/permissions/privapp-permissions-google-product.xml \
+            system/system_ext/etc/permissions/privapp-permissions-google-system-ext.xml)
+    else
+        log "  未找到 GMS prebuilt 载荷，打包无 GMS 基础镜像"
+    fi
+    # --owner=0 --group=0：payload 在构建机上 checkout 后 owner 是构建用户
+    # （uid 可能为 1000，在 Android 里恰好是 system），统一固化为 root:root，
+    # 与 system.img 原有文件（uid 0）及已验证的镜像布局保持一致。
+    tar --xattrs --owner=0 --group=0 \
+        -c vendor -C system --exclude="./vendor" . "${gms_args[@]}" \
     tar --xattrs -c vendor -C system --exclude="./vendor" . \
         | docker import --platform=linux/arm64 \
             -c 'ENTRYPOINT ["/init", "qemu=1", "androidboot.hardware=redroid"]' \

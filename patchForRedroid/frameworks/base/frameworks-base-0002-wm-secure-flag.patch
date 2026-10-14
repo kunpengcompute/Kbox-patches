@@ -1,0 +1,54 @@
+diff --git a/services/core/java/com/android/server/wm/WindowState.java b/services/core/java/com/android/server/wm/WindowState.java
+index 852a145..abd74cb 100644
+--- a/services/core/java/com/android/server/wm/WindowState.java
++++ b/services/core/java/com/android/server/wm/WindowState.java
+@@ -1892,17 +1892,10 @@ class WindowState extends WindowContainer<WindowState> implements WindowManagerP
+     }
+ 
+     boolean isSecureLocked() {
+-        if ((mAttrs.flags & WindowManager.LayoutParams.FLAG_SECURE) != 0) {
+-            return true;
+-        }
+-
+-        // block screen capture to protect sensitive notifications or content on the screen.
+-        if (mWmService.mSensitiveContentPackages.shouldBlockScreenCaptureForApp(
+-                getOwningPackage(), getOwningUid(), getWindowToken())) {
+-            return true;
+-        }
+-
+-        return !DevicePolicyCache.getInstance().isScreenCaptureAllowed(mShowUserId);
++        // Cube/redroid: FLAG_SECURE surfaces render black in the container GPU
++        // composition path (e.g. Zoom login screen). Report every window as
++        // non-secure so WMS does not apply secure-surface special handling.
++        return false;
+     }
+ 
+     /**
+@@ -6018,23 +6011,9 @@ class WindowState extends WindowContainer<WindowState> implements WindowManagerP
+     }
+ 
+     void setSecureLocked(boolean isSecure) {
+-        ProtoLog.i(WM_SHOW_TRANSACTIONS, "SURFACE isSecure=%b: %s", isSecure, getName());
+-        if (secureWindowState()) {
+-            if (mSurfaceControl == null) {
+-                return;
+-            }
+-            getPendingTransaction().setSecure(mSurfaceControl, isSecure);
+-        } else {
+-            if (mWinAnimator.mSurfaceController == null
+-                    || mWinAnimator.mSurfaceController.mSurfaceControl == null) {
+-                return;
+-            }
+-            getPendingTransaction().setSecure(mWinAnimator.mSurfaceController.mSurfaceControl,
+-                    isSecure);
+-        }
+-        if (mDisplayContent != null) {
+-            mDisplayContent.refreshImeSecureFlag(getSyncTransaction());
+-        }
+-        mWmService.scheduleAnimationLocked();
++        // Cube/redroid: never burn the SECURE flag into the SurfaceControl
++        // transaction - secure surfaces render black inside the container
++        // (Zoom login black screen). The client-visible window flags are left
++        // untouched, only their effect on the surface is suppressed.
+     }
+ }
