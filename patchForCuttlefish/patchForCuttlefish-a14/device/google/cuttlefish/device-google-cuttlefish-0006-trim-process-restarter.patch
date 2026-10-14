@@ -1,0 +1,27 @@
+From f9854dd8 Mon Sep 17 00:00:00 2001
+From: kp-cvd-trim <kp@cuttlefish>
+Date: Sun, 20 Jul 2026 00:00:00 +0800
+Subject: [PATCH] trim ProcessRestarter: direct launch root-canal
+
+[PROCESS_TRIM] root_canal 移除 ProcessRestarter wrapper。
+
+--- a/host/commands/run_cvd/launch/root_canal.cpp
++++ b/host/commands/run_cvd/launch/root_canal.cpp
+@@ -40,14 +40,9 @@
+ 
+   // CommandSource
+   Result<std::vector<MonitorCommand>> Commands() override {
+-    // Create the root-canal command with the process_restarter
+-    // as runner to restart root-canal when it crashes.
+-    Command command(ProcessRestarterBinary());
+-    command.AddParameter("-when_killed");
+-    command.AddParameter("-when_dumped");
+-    command.AddParameter("-when_exited_with_failure");
+-    command.AddParameter("--");
+-    command.AddParameter(RootCanalBinary());
++    // [PROCESS_TRIM] 禁用 process_restarter wrapper，直接启动 root-canal，
++    // 不再需要崩溃自动重启机制
++    Command command(RootCanalBinary());
+ 
+     // Test port
+     command.AddParameter("--test_port=", config_.rootcanal_test_port());

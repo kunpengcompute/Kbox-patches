@@ -1,0 +1,102 @@
+diff --git a/host/commands/run_cvd/launch/kernel_log_monitor.cpp b/host/commands/run_cvd/launch/kernel_log_monitor.cpp
+index d409214..2ce59ff 100644
+--- a/host/commands/run_cvd/launch/kernel_log_monitor.cpp
++++ b/host/commands/run_cvd/launch/kernel_log_monitor.cpp
+@@ -52,21 +52,11 @@ class KernelLogMonitor : public CommandSource,
+ 
+   // CommandSource
+   Result<std::vector<MonitorCommand>> Commands() override {
+-    Command command(KernelLogMonitorBinary());
+-    command.AddParameter("-log_pipe_fd=", fifo_);
+-
+-    if (!event_pipe_write_ends_.empty()) {
+-      command.AddParameter("-subscriber_fds=");
+-      for (size_t i = 0; i < event_pipe_write_ends_.size(); i++) {
+-        if (i > 0) {
+-          command.AppendToLastParameter(",");
+-        }
+-        command.AppendToLastParameter(event_pipe_write_ends_[i]);
+-      }
+-    }
+-    std::vector<MonitorCommand> commands;
+-    commands.emplace_back(std::move(command));
+-    return commands;
++    // [PROCESS_TRIM] kernel_log_monitor 子进程禁用；
++    // VMM 侧改为写入 sink，不再写入 fifo，避免无人读取时阻塞。
++    // 注意：boot_state_machine 会因此永远等不到 BootCompleted 事件，
++    // launch_cvd 将挂起，但 VM 自身正常运行且 adb 可用。
++    return std::vector<MonitorCommand>();
+   }
+ 
+   // KernelLogPipeProvider
+diff --git a/host/libs/config/adb/launch.cpp b/host/libs/config/adb/launch.cpp
+index e5d78dc..1e09946 100644
+--- a/host/libs/config/adb/launch.cpp
++++ b/host/libs/config/adb/launch.cpp
+@@ -143,10 +143,9 @@ class SocketVsockProxy : public CommandSource, public KernelLogPipeConsumer {
+     Command adb_tunnel(SocketVsockProxyBinary());
+     adb_tunnel.AddParameter("--vhost_user_vsock=",
+                             instance_.vhost_user_vsock());
+-    adb_tunnel.AddParameter("--events_fd=", kernel_log_pipe_);
+-    adb_tunnel.AddParameter("--start_event_id=", monitor::Event::AdbdStarted);
+-    adb_tunnel.AddParameter("--stop_event_id=",
+-                            monitor::Event::FastbootStarted);
++    // [PROCESS_TRIM] 移除 --events_fd 和 --start_event_id 参数：
++    // kernel_log_monitor 已禁用，AdbdStarted 事件不再可用，
++    // socket_vsock_proxy 改为立即启动而不等待 adbd 就绪
+     // We assume that snapshots are always taken after ADBD has started. That
+     // means the start event will never come for a restored device, so we pass
+     // a flag to the proxy to allow it to alter its behavior.
+diff --git a/host/libs/vm_manager/qemu_manager.cpp b/host/libs/vm_manager/qemu_manager.cpp
+index 660e8b3..251cb71 100644
+--- a/host/libs/vm_manager/qemu_manager.cpp
++++ b/host/libs/vm_manager/qemu_manager.cpp
+@@ -513,10 +513,11 @@ Result<std::vector<MonitorCommand>> QemuManager::StartCommands(
+     // dmesg will go there instead of the kernel.log. On QEMU, we do this
+     // bit of logic up before the hvc console is set up, so the command line
+     // flags appear in the right order and "append=on" does the right thing
+-    if (instance.enable_kernel_log() &&
+-        (instance.kgdb() || instance.use_bootloader())) {
+-      add_serial_console_ro(instance.kernel_log_pipe_name());
+-    }
++    // [PROCESS_TRIM] kernel_log_monitor 已禁用：跳过 serial console 到内核日志管道的重定向
++    // if (instance.enable_kernel_log() &&
++    //     (instance.kgdb() || instance.use_bootloader())) {
++    //   add_serial_console_ro(instance.kernel_log_pipe_name());
++    // }
+   }
+ 
+   qemu_cmd.AddParameter("-device");
+@@ -525,17 +526,9 @@ Result<std::vector<MonitorCommand>> QemuManager::StartCommands(
+       ",id=virtio-serial");
+ 
+   // /dev/hvc0 = kernel console
+-  // If kernel log is enabled, the virtio-console port will be specified as
+-  // a true console for Linux, and kernel messages will be printed there.
+-  // Otherwise, the port will still be set up for bootloader and userspace
+-  // messages, but the kernel will not print anything here. This keeps our
+-  // kernel log event features working. If an alternative "earlycon" boot
+-  // console is configured above on a legacy serial port, it will control
+-  // the main log until the virtio-console takes over.
+-  // (Note that QEMU does not automatically generate console= parameters for
+-  //  the bootloader/kernel cmdline, so the control of whether this pipe is
+-  //  actually managed by the kernel as a console is handled elsewhere.)
+-  add_hvc_ro(instance.kernel_log_pipe_name());
++  // [PROCESS_TRIM] kernel_log_monitor 已禁用：将内核日志 HVC 替换为 sink，
++  // 避免 QEMU 因无人读取 fifo 而阻塞
++  add_hvc_sink();
+ 
+   // /dev/hvc1 = serial console
+   if (instance.console()) {
+@@ -565,8 +558,9 @@ Result<std::vector<MonitorCommand>> QemuManager::StartCommands(
+   }
+ 
+   // /dev/hvc2 = serial logging
+-  // Serial port for logcat, redirected to a pipe
+-  add_hvc_ro(instance.logcat_pipe_name());
++  // [PROCESS_TRIM] LogcatReceiver 已禁用：将 logcat HVC 替换为 sink，
++  // 避免 QEMU 因无人读取 fifo 而阻塞
++  add_hvc_sink();
+ 
+   // /dev/hvc3 = keymaster (C++ implementation)
+   add_hvc(instance.PerInstanceInternalPath("keymaster_fifo_vm"));

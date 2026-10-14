@@ -1,0 +1,28 @@
+From f9854dd8 Mon Sep 17 00:00:00 2001
+From: kp-cvd-trim <kp@cuttlefish>
+Date: Sun, 20 Jul 2026 00:00:00 +0800
+Subject: [PATCH] disable virtio_mac80211_hwsim
+
+[PROCESS_TRIM] 强制禁用 virtio_mac80211_hwsim 虚拟 WiFi 硬件仿真。
+
+diff --git a/host/commands/assemble_cvd/flags.cc b/host/commands/assemble_cvd/flags.cc
+index c5ef0344a..0f5640c2c 100644
+--- a/host/commands/assemble_cvd/flags.cc
++++ b/host/commands/assemble_cvd/flags.cc
+@@ -829,11 +829,12 @@ Result<CuttlefishConfig> InitializeCuttlefishConfiguration(
+ 
+   tmp_config_obj.set_enable_metrics(FLAGS_report_anonymous_usage_stats);
+ 
+-#ifdef ENFORCE_MAC80211_HWSIM
+-  tmp_config_obj.set_virtio_mac80211_hwsim(true);
+-#else
++// [PROCESS_TRIM] 强制禁用 virtio_mac80211_hwsim，不再需要虚拟 WiFi 硬件仿真
++//#ifdef ENFORCE_MAC80211_HWSIM
++//  tmp_config_obj.set_virtio_mac80211_hwsim(true);
++//#else
+   tmp_config_obj.set_virtio_mac80211_hwsim(false);
+-#endif
++//#endif
+ 
+   tmp_config_obj.set_vhost_user_mac80211_hwsim(FLAGS_vhost_user_mac80211_hwsim);
+

@@ -1,0 +1,52 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: kp-cvd-adb <kp@cuttlefish>
+Date: Tue, 22 Sep 2026 00:00:00 +0800
+Subject: [PATCH] cuttlefish: initialize ProxyPair state members
+
+[KBOX_VSOCK] Fix uninitialized members in ProxyPair
+(common/libs/utils/socket2socket_proxy.cpp). The default constructor only
+initialized stop_fd_, leaving `started_`, `c2t_running_` and `t2c_running_`
+indeterminate, while the move constructor reads `other.started_` and
+Start()/Running() read the same state.
+
+On the normal accept path, `watched.push_back(ProxyPair())` move-constructs a
+freshly default-constructed temporary. With a reused stack slot that still
+holds a stale pointer (e.g. left by the previous loop iteration's
+watched.remove_if() bookkeeping), `started_` can be read as a non-zero byte and
+the FATAL "ProxyPair cannot be moved after Start() being executed" aborts
+socket_vsock_proxy via SIGABRT, even though Start() was never called. This
+surfaces as repeated proxy crashes and failed ADB readiness checks under
+run_cvd/KASandbox.
+
+Value-initialize started_ and both atomics, matching the upstream Android 16
+code. This removes the undefined behavior at its source; it is not covered by
+the FATAL check, which is intentionally kept.
+
+---
+diff --git a/common/libs/utils/socket2socket_proxy.cpp b/common/libs/utils/socket2socket_proxy.cpp
+index 63cc631ca..dfe7371d1 100644
+--- a/common/libs/utils/socket2socket_proxy.cpp
++++ b/common/libs/utils/socket2socket_proxy.cpp
+@@ -101,10 +101,17 @@ class ProxyPair {
+     LOG(DEBUG) << label << ": Proxy thread completed";
+   }
+ 
+-  bool started_;
++  // [KBOX] These members must be explicitly initialized: the default
++  // constructor does not set them, yet the move constructor reads `started_`
++  // (and Start()/Running() read the atomics) before any assignment. Relying on
++  // zero-initialized storage is undefined behavior; with a reused stack slot
++  // the move constructor can observe a garbage non-zero `started_` and abort
++  // with "ProxyPair cannot be moved after Start() being executed", crashing
++  // socket_vsock_proxy. Matches the upstream fix in Android 16.
++  bool started_ = false;
+   SharedFD stop_fd_;
+-  std::atomic<bool> c2t_running_;
+-  std::atomic<bool> t2c_running_;
++  std::atomic<bool> c2t_running_ = false;
++  std::atomic<bool> t2c_running_ = false;
+   std::thread c2t_;
+   std::thread t2c_;
+ };
+
+2.34.1

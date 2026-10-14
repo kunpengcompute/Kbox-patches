@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: kp-cvd-adb <kp@cuttlefish>
+Date: Thu, 10 Sep 2026 00:00:00 +0800
+Subject: [PATCH] art: skip StartupCompletedTask scheduling inside (child) zygote
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+[KBOX_ART] Fix webview_zygote crash on Android 14. ZygoteHooks_nativePostForkChild
+unconditionally scheduled a StartupCompletedTask, including when forking a child
+zygote (webview_zygote forks with is_zygote=true). ~5s later the task runs on the
+HeapTaskDaemon and calls Runtime::NotifyStartupCompleted(), which DCHECKs
+!IsZygote() and aborts, killing the webview zygote; subsequently WebView renderer
+processes (sandboxed_processN) can no longer be spawned (ZygoteStartFailedEx) and
+pages render as a blank error page. Guard the scheduling with `if (!is_zygote)`,
+matching the upstream Android 15 fix.
+
+Change-Id: I3b7d6a1f2e9c4b8d5a0f7c6e9d2b5a8f1c4e7d90
+---
+diff --git a/runtime/native/dalvik_system_ZygoteHooks.cc b/runtime/native/dalvik_system_ZygoteHooks.cc
+index 3c73cc569e..72f4f1e126 100644
+--- a/runtime/native/dalvik_system_ZygoteHooks.cc
++++ b/runtime/native/dalvik_system_ZygoteHooks.cc
+@@ -347,10 +347,17 @@ static void ZygoteHooks_nativePostForkChild(JNIEnv* env,
+ 
+   runtime->GetHeap()->PostForkChildAction(thread);
+ 
+-  // Setup an app startup complete task in case the app doesn't notify it
+-  // through VMRuntime::notifyStartupCompleted.
+-  static constexpr uint64_t kMaxAppStartupTimeNs = MsToNs(5000);  // 5 seconds
+-  runtime->GetHeap()->AddHeapTask(new StartupCompletedTask(NanoTime() + kMaxAppStartupTimeNs));
++  if (!is_zygote) {
++    // Setup an app startup complete task in case the app doesn't notify it
++    // through VMRuntime::notifyStartupCompleted.
++    // [KBOX] Skip scheduling this task inside a (child) zygote: webview_zygote
++    // forks with is_zygote=true, and running StartupCompletedTask there would
++    // later hit DCHECK(!IsZygote()) in Runtime::NotifyStartupCompleted() and
++    // abort, killing the webview zygote ~5s after boot and breaking WebView
++    // rendering. This matches the upstream fix in Android 15.
++    static constexpr uint64_t kMaxAppStartupTimeNs = MsToNs(5000);  // 5 seconds
++    runtime->GetHeap()->AddHeapTask(new StartupCompletedTask(NanoTime() + kMaxAppStartupTimeNs));
++  }
+ 
+   if (runtime->GetJit() != nullptr) {
+     if (!is_system_server) {
+
+2.34.1

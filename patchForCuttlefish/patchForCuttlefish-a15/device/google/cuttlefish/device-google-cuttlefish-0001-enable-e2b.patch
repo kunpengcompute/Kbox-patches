@@ -1,0 +1,198 @@
+diff --git a/Android.bp b/Android.bp
+index 64ad350ec..76c278dd4 100644
+--- a/Android.bp
++++ b/Android.bp
+@@ -184,3 +184,21 @@ java_test_host {
+ 
+     test_suites: ["general-tests"],
+ }
++
++// [ENVD_PACKAGING] envd 预编译二进制（arm64 only），作为 vendor 分区预置服务
++// 由 shared/device.mk 中的 PRODUCT_PACKAGES 打包到系统镜像，
++// 通过 envd.rc init 脚本在系统启动完成后自动拉起
++cc_prebuilt_binary {
++    name: "envd",
++    arch: {
++        arm64: {
++            srcs: ["envd/envd-android-arm64"],
++        },
++    },
++    compile_multilib: "64",
++    vendor: true,
++    strip: {
++        none: true,
++    },
++    check_elf_files: false,
++}
+diff --git a/envd/envd.rc b/envd/envd.rc
+new file mode 100644
+index 000000000..7c8382b2b
+--- /dev/null
++++ b/envd/envd.rc
+@@ -0,0 +1,22 @@
++# [ENVD_PACKAGING] envd 服务 init 脚本
++# 在 post-fs-data 阶段创建 /data/e2b 目录结构，
++# 在 boot_completed 后以 root 身份拉起 envd 服务
++on post-fs-data
++    mkdir /data/e2b 0777 root root
++    mkdir /data/e2b/home 0777 root root
++    mkdir /data/e2b/run 0777 root root
++    mkdir /data/e2b/log 0777 root root
++    chmod 0777 /data/e2b
++    chmod 0777 /data/e2b/home
++    chmod 0777 /data/e2b/run
++    chmod 0777 /data/e2b/log
++
++service envd /system/bin/sh /vendor/bin/start-envd-init.sh
++    class late_start
++    user root
++    group root inet
++    seclabel u:r:su:s0
++    disabled
++
++on property:sys.boot_completed=1
++    start envd
+diff --git a/envd/envd.te b/envd/envd.te
+new file mode 100644
+index 000000000..eaeaad006
+--- /dev/null
++++ b/envd/envd.te
+@@ -0,0 +1,6 @@
++# [ENVD_PACKAGING] envd 服务的 SELinux 类型定义
++# 声明 envd_exec 类型，标记 /vendor/bin/envd 为可执行文件
++type envd_exec, exec_type, vendor_file_type, file_type;
++
++# 允许 shell 对 envd 二进制文件执行 getattr，便于调试
++allow shell envd_exec:file getattr;
+diff --git a/envd/start-envd-init.sh b/envd/start-envd-init.sh
+new file mode 100644
+index 000000000..9abcf832a
+--- /dev/null
++++ b/envd/start-envd-init.sh
+@@ -0,0 +1,21 @@
++#!/system/bin/sh
++# [ENVD_PACKAGING] envd 服务启动脚本
++# 由 init 通过 envd.rc 在 boot_completed 后调用，
++# 设置环境变量并启动 /vendor/bin/envd
++set -eu
++
++REMOTE_ROOT=/data/e2b
++PORT=49983
++IS_NOT_FC=false
++
++mkdir -p "$REMOTE_ROOT/home" "$REMOTE_ROOT/run" "$REMOTE_ROOT/log"
++chmod -R 777 "$REMOTE_ROOT" 2>/dev/null || true
++
++export E2B_HOME="$REMOTE_ROOT/home"
++export E2B_RUN_DIR="$REMOTE_ROOT/run"
++export E2B_FORWARD_DISABLED=true
++export E2B_SANDBOX=false
++
++cd /vendor/bin
++exec >> "$REMOTE_ROOT/log/envd.log" 2>&1
++exec /vendor/bin/envd -isnotfc="$IS_NOT_FC" -port="$PORT"
+diff --git a/envd/static_eth.rc b/envd/static_eth.rc
+new file mode 100644
+index 000000000..8af74177f
+--- /dev/null
++++ b/envd/static_eth.rc
+@@ -0,0 +1,10 @@
++service static_eth /system/bin/sh /vendor/bin/static_eth.sh
++    class main
++    user root
++    group root net_admin
++    seclabel u:r:su:s0
++    oneshot
++    disabled
++
++on property:sys.boot_completed=1
++    start static_eth
+diff --git a/envd/static_eth.sh b/envd/static_eth.sh
+new file mode 100644
+index 000000000..6da819023
+--- /dev/null
++++ b/envd/static_eth.sh
+@@ -0,0 +1,34 @@
++#!/system/bin/sh
++DEV=eth1
++TABLE=200
++i=0
++while [ $i -lt 12 ]; do
++    # 1) IP / 掩码 / 广播
++    if ! ip addr show dev $DEV 2>/dev/null | grep -q "169.254.0.21"; then
++        ip addr flush dev $DEV 2>/dev/null
++        ip addr add 169.254.0.21/30 broadcast 169.254.0.23 dev $DEV 2>/dev/null
++        ip link set $DEV up 2>/dev/null
++    fi
++    # 2) 自定义表内的链路路由
++    if ! ip route show table $TABLE 2>/dev/null | grep -q "169.254.0.20/30"; then
++        ip route add 169.254.0.20/30 dev $DEV scope link table $TABLE 2>/dev/null
++    fi
++    # 3) 自定义表内的默认网关
++    if ! ip route show table $TABLE 2>/dev/null | grep -q "default via 169.254.0.22"; then
++        ip route add default via 169.254.0.22 dev $DEV table $TABLE 2>/dev/null
++    fi
++    # 4) ip rule：源 .21 的流量查 table 200
++    if ! ip rule 2>/dev/null | grep -q "from 169.254.0.21 lookup $TABLE"; then
++        ip rule add from 169.254.0.21/32 lookup $TABLE 2>/dev/null
++    fi
++    i=$((i+1))
++    sleep 5
++done
++
++# 5) HTTP 代理：从内核命令行 androidboot.http_proxy=ip:port 读取
++#    若存在则写入 SettingsProvider，实现开机自配置
++#    实例启动时通过 --extra_kernel_cmdline="... androidboot.http_proxy=10.0.2.2:8080" 传入
++PROXY=$(getprop ro.boot.http_proxy)
++if [ -n "$PROXY" ]; then
++    settings put global http_proxy "$PROXY"
++fi
+diff --git a/shared/BoardConfig.mk b/shared/BoardConfig.mk
+index b9f1bcb36..eb7412a13 100644
+--- a/shared/BoardConfig.mk
++++ b/shared/BoardConfig.mk
+@@ -293,6 +293,7 @@ WIFI_DRIVER_FW_PATH_AP      := "/dev/null"
+ BOARD_VENDOR_SEPOLICY_DIRS += device/google/cuttlefish/shared/sepolicy/vendor
+ BOARD_VENDOR_SEPOLICY_DIRS += device/google/cuttlefish/shared/sepolicy/vendor/seriallogging
+ BOARD_VENDOR_SEPOLICY_DIRS += device/google/cuttlefish/shared/sepolicy/vendor/google
++BOARD_VENDOR_SEPOLICY_DIRS += device/google/cuttlefish/envd
+ 
+ BOARD_SEPOLICY_DIRS += system/bt/vendor_libs/linux/sepolicy
+ 
+diff --git a/shared/device.mk b/shared/device.mk
+index f9107ffc6..47c955348 100644
+--- a/shared/device.mk
++++ b/shared/device.mk
+@@ -592,4 +592,18 @@ PRODUCT_CHECK_VENDOR_SEAPP_VIOLATIONS := true
+ 
+ PRODUCT_CHECK_DEV_TYPE_VIOLATIONS := true
+ 
++# [ENVD_PACKAGING] envd 服务打包：将 envd 预编译二进制、init 脚本和
++# rc 配置文件安装到 vendor 分区，在系统启动完成后由 init 自动拉起
++PRODUCT_PACKAGES += envd
++PRODUCT_COPY_FILES += \
++    device/google/cuttlefish/envd/start-envd-init.sh:$(TARGET_COPY_OUT_VENDOR)/bin/start-envd-init.sh \
++    device/google/cuttlefish/envd/envd.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/envd.rc
++
++# [STATIC_ETH] 静态网络配置脚本和 init 服务，在 boot_completed 后由 init 自动拉起
++# 通过 ip 命令设置 eth1 的静态 IP 地址、路由表和策略路由
++# 放入 vendor 分区遵循通用系统镜像的路径约束要求
++PRODUCT_COPY_FILES += \
++    device/google/cuttlefish/envd/static_eth.sh:$(TARGET_COPY_OUT_VENDOR)/bin/static_eth.sh \
++    device/google/cuttlefish/envd/static_eth.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/static_eth.rc
++
+ TARGET_BOARD_FASTBOOT_INFO_FILE = device/google/cuttlefish/shared/fastboot-info.txt
+diff --git a/shared/sepolicy/vendor/file_contexts b/shared/sepolicy/vendor/file_contexts
+index f5a5cbec0..2481147a1 100644
+--- a/shared/sepolicy/vendor/file_contexts
++++ b/shared/sepolicy/vendor/file_contexts
+@@ -79,6 +79,9 @@
+ #
+ /vendor/bin/mac80211_create_radios u:object_r:mac80211_create_radios_exec:s0
+ /vendor/bin/socket_vsock_proxy  u:object_r:socket_vsock_proxy_exec:s0
++# [ENVD_PACKAGING] envd 服务的 SELinux 文件上下文标记
++/vendor/bin/envd  u:object_r:envd_exec:s0
++/vendor/bin/start-envd-init.sh  u:object_r:vendor_configs_file:s0
+ /vendor/bin/rename_netiface  u:object_r:rename_netiface_exec:s0
+ /vendor/bin/suspend_blocker  u:object_r:suspend_blocker_exec:s0
+ /vendor/bin/metrics_helper   u:object_r:metrics_helper_exec:s0
