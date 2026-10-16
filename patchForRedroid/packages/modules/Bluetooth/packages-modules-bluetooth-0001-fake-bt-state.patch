@@ -1,0 +1,138 @@
+diff --git a/framework/java/android/bluetooth/BluetoothAdapter.java b/framework/java/android/bluetooth/BluetoothAdapter.java
+index e0cdc2c..b3401b0 100644
+--- a/framework/java/android/bluetooth/BluetoothAdapter.java
++++ b/framework/java/android/bluetooth/BluetoothAdapter.java
+@@ -1479,6 +1479,15 @@ public final class BluetoothAdapter {
+         } finally {
+             mServiceLock.readLock().unlock();
+         }
++        // redroid: 容器内原生蓝牙栈缺失,adapter app 永不被绑定(mService 恒为 null),
++        // 原逻辑在此处恒返回 STATE_OFF,导致 UI 开关点"关"被误判、状态无法保持。
++        // 改为向 IBluetoothManager binder 查询状态(manager 侧以持久化设置值为唯一
++        // 状态源,与开关动作写入的值闭环),使 Settings/SystemUI 显示与真实状态同步。
++        try {
++            return mManagerService.getState();
++        } catch (RemoteException e) {
++            Log.e(TAG, "getStateInternal: getState binder failed", e);
++        }
+         return STATE_OFF;
+     }
+ 
+diff --git a/service/src/com/android/server/bluetooth/BluetoothManagerService.java b/service/src/com/android/server/bluetooth/BluetoothManagerService.java
+index 13172e8..a8d5a3c 100644
+--- a/service/src/com/android/server/bluetooth/BluetoothManagerService.java
++++ b/service/src/com/android/server/bluetooth/BluetoothManagerService.java
+@@ -823,6 +823,18 @@ class BluetoothManagerService {
+         }
+     }
+ 
++    /**
++     * redroid: 容器内没有原生蓝牙栈(HAL 无法启动,adapter app 无法绑定),真实状态机永远停在
++     * STATE_OFF。以持久化设置值为唯一状态源:开关时写入 settings 并广播状态变化,让 UI、
++     * dumpsys、settings 三方保持一致。
++     */
++    private void applyFakeBtState(boolean on) {
++        persistBluetoothSetting(on ? BLUETOOTH_ON_BLUETOOTH : BLUETOOTH_OFF);
++        final int prevState = on ? STATE_OFF : STATE_ON;
++        final int newState = on ? STATE_ON : STATE_OFF;
++        broadcastIntentStateChange(BluetoothAdapter.ACTION_STATE_CHANGED, prevState, newState);
++    }
++
+     /**
+      * Returns true if the Bluetooth Adapter's name and address is locally cached
+      *
+@@ -920,7 +932,8 @@ class BluetoothManagerService {
+     }
+ 
+     int getState() {
+-        return mState.get();
++        // redroid: 持久化设置值为唯一状态源,保证与 UI 开关/重启后状态一致
++        return isBluetoothPersistedStateOnBluetooth() ? STATE_ON : STATE_OFF;
+     }
+ 
+     class ClientDeathRecipient implements IBinder.DeathRecipient {
+@@ -1069,24 +1082,8 @@ class BluetoothManagerService {
+ 
+         // TODO(b/262605980): enableBle/disableBle should be on handler thread
+         updateBleAppCount(token, true, packageName);
+-
+-        if (mState.oneOf(
+-                STATE_ON,
+-                STATE_BLE_ON,
+-                STATE_TURNING_ON,
+-                STATE_TURNING_OFF,
+-                STATE_BLE_TURNING_ON)) {
+-            Log.i(TAG, "enableBle: Bluetooth is already in state" + mState);
+-            return true;
+-        }
+-        synchronized (mReceiver) {
+-            // waive WRITE_SECURE_SETTINGS permission check
+-            sendEnableMsg(
+-                    false,
+-                    BluetoothProtoEnums.ENABLE_DISABLE_REASON_APPLICATION_REQUEST,
+-                    packageName,
+-                    true);
+-        }
++        // redroid: 无原生蓝牙栈;BLE 请求只登记 app 计数,不驱动状态机,
++        // 也不翻转用户可见的蓝牙开关
+         return true;
+     }
+ 
+@@ -1103,25 +1100,10 @@ class BluetoothManagerService {
+             return false;
+         }
+ 
+-        if (mState.oneOf(STATE_OFF)) {
+-            Log.i(TAG, "disableBle: Already disabled");
+-            return false;
+-        }
++        // redroid: 无原生蓝牙栈;真实状态机恒为 STATE_OFF,原"已关闭"早退分支会导致
++        // BLE app 计数永不递减,故移除;只做计数登记
+         // TODO(b/262605980): enableBle/disableBle should be on handler thread
+         updateBleAppCount(token, false, packageName);
+-
+-        if (mState.oneOf(STATE_BLE_ON) && !isBleAppPresent()) {
+-            if (mEnable) {
+-                disableBleScanMode();
+-            }
+-            if (!mEnableExternal) {
+-                addActiveLog(
+-                        BluetoothProtoEnums.ENABLE_DISABLE_REASON_APPLICATION_REQUEST,
+-                        packageName,
+-                        false);
+-                sendBrEdrDownCallback(source);
+-            }
+-        }
+         return true;
+     }
+ 
+@@ -2220,7 +2202,9 @@ class BluetoothManagerService {
+     }
+ 
+     private void sendDisableMsg(int reason, String packageName) {
+-        mHandler.sendEmptyMessage(MESSAGE_DISABLE);
++        // redroid: 不再投递 MESSAGE_DISABLE 驱动真实状态机(会因绑定 adapter 失败而弹回),
++        // 直接同步假状态
++        applyFakeBtState(false);
+         addActiveLog(reason, packageName, false);
+     }
+ 
+@@ -2229,7 +2213,8 @@ class BluetoothManagerService {
+     }
+ 
+     private void sendEnableMsg(boolean quietMode, int reason, String packageName, boolean isBle) {
+-        mHandler.obtainMessage(MESSAGE_ENABLE, quietMode ? 1 : 0, isBle ? 1 : 0).sendToTarget();
++        // redroid: 不再投递 MESSAGE_ENABLE 驱动真实状态机,直接同步假状态
++        applyFakeBtState(true);
+         addActiveLog(reason, packageName, true);
+         mLastEnabledTime = SystemClock.elapsedRealtime();
+     }
+@@ -2453,7 +2438,7 @@ class BluetoothManagerService {
+ 
+         writer.println("Bluetooth Status");
+         writer.println("  enabled: " + isEnabled());
+-        writer.println("  state: " + mState);
++        writer.println("  state: " + (isBluetoothPersistedStateOnBluetooth() ? "ON" : "OFF"));
+         writer.println("  address: " + mAddress);
+         writer.println("  name: " + mName);
+         if (mEnable) {
