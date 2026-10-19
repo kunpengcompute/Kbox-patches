@@ -11,10 +11,15 @@
 #   bash build.sh [envd|patch|gms|redroid|pack|all]
 #     envd     仅编译 envd 二进制（放入 aosp-14/vendor/redroid/envd/envd）
 #     patch    仅应用 patchForRedroid/ 下的所有 patch
-#     gms      仅按 .url 描述文件下载/还原 GMS 载荷 APK（无需 sudo，可提前执行）
+#     gms      仅下载/还原 GMS 载荷（转发给 gms.sh fetch，无需 sudo，可提前执行）
 #     redroid  仅编译 AOSP 镜像（lunch + make）
-#     pack     仅打包 Docker 镜像（需 sudo；自动先执行 gms 步骤补齐缺失载荷）
+#     pack     仅打包 Docker 镜像（需 sudo；自动经 gms.sh 补齐载荷并注入）
 #     all      按顺序执行以上全部（默认）
+#
+# GMS 说明:
+#   所有 GMS 相关操作（下载源清单、APK/XML 下载校验、镜像注入参数）集中在
+#   同目录的 gms.sh 统一维护，本脚本仅在 pack 前调用其 fetch 补齐载荷、
+#   在 tar 拼接时调用其 tar-args 获取注入参数。详见 gms.sh 头部注释。
 #
 # 说明:
 #   - 假设代码仓已本地预制、目录结构与当前一致
@@ -39,15 +44,15 @@ LUNCH_TARGET="redroid_arm64_only-trunk_staging-user"
 TAG="redroid:14.0.0_r75_arm64_only"
 OUT_TAR="$AOSP/redroid-14.0.0_r75_arm64_only-docker.tar"
 PROD_DIR="$AOSP/out/target/product/$PRODUCT"
-# 大文件下载缓存目录（GMS zip 等，与代码仓分离避免误入库）
-DOWNLOAD_CACHE="$WORKSPACE/downloads"
+# GMS 统一维护脚本（下载源清单/载荷下载校验/注入参数均在其内）
+GMS_SCRIPT="$SCRIPT_DIR/gms.sh"
 
 log() { echo -e "\033[1;32m$*\033[0m"; }
 die() { echo -e "\033[1;31m错误: $*\033[0m" >&2; exit 1; }
 
 # ===== 步骤 1：编译 envd 二进制 =====
 build_envd() {
-    log "[1/5] 编译 envd 二进制"
+    log "[1/4] 编译 envd 二进制"
     command -v go >/dev/null || die "未找到 go。runtime 的 envd 需要 go 1.26.x（建议安装 go ≥ 1.21 并启用 GOTOOLCHAIN=auto 自动下载）"
     [ -d "$ENVD_SRC" ] || die "envd 源码目录不存在: $ENVD_SRC"
 
@@ -68,7 +73,7 @@ build_envd() {
 
 # ===== 步骤 2：应用 patchForRedroid 下的所有 patch =====
 apply_patches() {
-    log "[2/5] 应用 Kbox-patches/patchForRedroid 下的所有 patch"
+    log "[2/4] 应用 Kbox-patches/patchForRedroid 下的所有 patch"
     [ -d "$PATCH_DIR" ] || die "patch 目录不存在: $PATCH_DIR"
 
     # 参照 apply-patch.sh：用 patch 文件在 patchForRedroid/ 下的相对路径
@@ -91,112 +96,25 @@ apply_patches() {
     log "  共应用 $count 个 patch"
 }
 
-# ===== 步骤 3：下载/还原 GMS prebuilt 载荷 =====
-# APK 二进制不入库（gitcode 仓库不允许托管 APK），仅入库 *.apk.url 下载源描述
-# 文件；本步骤按描述文件从官方源下载 MindTheGapps zip，解出三个 APK 还原到
-# 载荷目录并逐个 sha256 校验。优先使用 $DOWNLOAD_CACHE 缓存避免重复下载。
-# 下载源依次尝试：环境变量 GMS_ZIP_URL 覆盖 → GitHub 官方直连 → 公共镜像；
-# 所有源内容一致，最终以 zip_sha256/apk_sha256 校验兜底，镜像不可信无影响。
-fetch_gms_payload() {
-    log "[3/5] 检查/下载 GMS prebuilt 载荷"
-    command -v curl >/dev/null   || die "未找到 curl（GMS 下载需要）"
-    command -v unzip >/dev/null || die "未找到 unzip（GMS 解压需要）"
-
-    local gms_dir="$PATCH_DIR/prebuilts/gms"
-    local -a apks=(
-        "system/product/priv-app/GmsCore/GmsCore.apk"
-        "system/product/priv-app/Phonesky/Phonesky.apk"
-        "system/system_ext/priv-app/GoogleServicesFramework/GoogleServicesFramework.apk"
-    )
-
-    # 三个 APK 均已就位且 sha256 校验通过 → 跳过下载
-    local apk want sha missing=0
-    for apk in "${apks[@]}"; do
-        want="$(awk -F= '$1=="apk_sha256"{print $2}' "$gms_dir/$apk.url" 2>/dev/null)" || true
-        if [ -z "$want" ] || [ ! -f "$gms_dir/$apk" ]; then missing=1; break; fi
-        sha="$(sha256sum "$gms_dir/$apk" | awk '{print $1}')"
-        [ "$sha" = "$want" ] || { missing=1; break; }
-    done
-    if [ "$missing" -eq 0 ]; then
-        log "  三个 APK 均已就位且校验通过，跳过下载"
-        return 0
-    fi
-
-    # 读取 zip 下载源（三个 .url 文件指向同一 zip，取第一个即可）
-    local desc="$gms_dir/${apks[0]}.url"
-    [ -f "$desc" ] || die "缺少 GMS 下载源描述文件: $desc"
-    local zip_url zip_sha256
-    zip_url="$(awk -F= '$1=="zip_url"{print $2}' "$desc")"
-    zip_sha256="$(awk -F= '$1=="zip_sha256"{print $2}' "$desc")"
-    [ -n "$zip_url" ] && [ -n "$zip_sha256" ] || die "下载源描述文件缺 zip_url/zip_sha256: $desc"
-
-    mkdir -p "$DOWNLOAD_CACHE"
-    local zip_file="$DOWNLOAD_CACHE/${zip_url##*/}"
-
-    # 缓存命中（校验通过）直接使用，否则依次尝试各下载源
-    if [ -f "$zip_file" ] && echo "$zip_sha256  $zip_file" | sha256sum -c --status 2>/dev/null; then
-        log "  使用已缓存的 zip: $zip_file"
-    else
-        rm -f "$zip_file"
-        local -a sources=()
-        [ -n "${GMS_ZIP_URL:-}" ] && sources+=("${GMS_ZIP_URL}")
-        sources+=(
-            "$zip_url"
-            "https://gh-proxy.com/$zip_url"
-            "https://hub.gitmirror.com/$zip_url"
-            "https://ghfast.top/$zip_url"
-        )
-        local ok=0 src
-        for src in "${sources[@]}"; do
-            log "  下载 GMS zip (~430MB): $src"
-            if curl -fL --retry 3 --retry-delay 2 -C - -o "$zip_file" "$src" \
-               && echo "$zip_sha256  $zip_file" | sha256sum -c --status 2>/dev/null; then
-                ok=1; break
-            fi
-            rm -f "$zip_file"
-            log "  下载失败或校验不通过，尝试下一个源 ..."
-        done
-        [ "$ok" -eq 1 ] || die "GMS zip 下载失败。可 export GMS_ZIP_URL=<可用地址> 后重试，或手动下载 $zip_url 放到 $zip_file"
-        log "  zip sha256 校验通过: ${zip_file##*/}"
-    fi
-
-    # 从 zip 还原三个 APK（zip 内路径与载荷目录内相对路径一致）并逐个校验
-    for apk in "${apks[@]}"; do
-        want="$(awk -F= '$1=="apk_sha256"{print $2}' "$gms_dir/$apk.url" 2>/dev/null)" || true
-        [ -n "$want" ] || die "缺少下载源描述文件: $gms_dir/$apk.url"
-        mkdir -p "$(dirname "$gms_dir/$apk")"
-        unzip -p "$zip_file" "$apk" > "$gms_dir/$apk" || die "从 zip 解压失败: $apk"
-        sha="$(sha256sum "$gms_dir/$apk" | awk '{print $1}')"
-        [ "$sha" = "$want" ] || die "APK sha256 不匹配: $apk（期望 $want，实际 $sha）"
-        log "  还原并校验通过: $apk"
-    done
-
-    # sudo 场景下把产物属主还给真实用户，避免工作区出现 root 属主文件
-    if [ -n "${SUDO_USER:-}" ]; then
-        chown "$SUDO_USER":"$(id -gn "$SUDO_USER")" "$zip_file" \
-            "$gms_dir"/system/product/priv-app/*/*.apk \
-            "$gms_dir"/system/system_ext/priv-app/*/*.apk 2>/dev/null || true
-    fi
-}
-
-# ===== 步骤 4：编译 AOSP 镜像 =====
+# ===== 步骤 3：编译 AOSP 镜像 =====
+# （GMS 载荷下载/注入统一由 gms.sh 维护，pack 前自动调用，无需单独步骤）
 build_redroid() {
-    log "[4/5] 编译 redroid arm64-only 镜像"
+    log "[3/4] 编译 redroid arm64-only 镜像"
     cd "$AOSP"
     source build/envsetup.sh
     lunch "$LUNCH_TARGET"
     make -j"$(nproc)"
 }
 
-# ===== 步骤 5：打包 Docker 镜像 =====
+# ===== 步骤 4：打包 Docker 镜像 =====
 pack_image() {
-    log "[5/5] 打包 Docker 镜像"
+    log "[4/4] 打包 Docker 镜像"
     [ "$(id -u)" -eq 0 ] || die "打包需 root（loop 挂载镜像），请用 sudo 运行"
     [ -f "$PROD_DIR/system.img" ] || die "缺少 system.img: $PROD_DIR"
     [ -f "$PROD_DIR/vendor.img" ] || die "缺少 vendor.img: $PROD_DIR"
 
-    # 打包前补齐 GMS 载荷（缺失时按 .url 描述自动下载；无网络且已有缓存/文件则直接通过）
-    fetch_gms_payload
+    # 打包前经 gms.sh 补齐 GMS 载荷（幂等；失败即终止，GMS_SKIP=1 可跳过产出无 GMS 镜像）
+    bash "$GMS_SCRIPT" fetch
 
     cd "$PROD_DIR"
     mkdir -p system vendor
@@ -218,26 +136,20 @@ pack_image() {
     [ -f vendor/bin/envd ] || die "vendor/bin/envd 缺失（envd 未编入镜像，检查步骤 1 与 vendor-redroid-0002 patch）"
 
     log "  tar + docker import ..."
-    # GMS 三件套（MindTheGapps 14 核心组件）以 prebuilt 载荷形式在打包期叠加。
-    # 载荷位于 patchForRedroid/prebuilts/gms/system/，成员路径带 system/ 前缀，
-    # 与镜像内 /product -> /system/product、/system_ext -> /system/system_ext 布局一致。
-    # 注意：只显式列出"新增目录 + 文件"叶子成员——显式列举不会带出父目录条目，
-    # 若带出会与 system.img 已有目录重复，docker import 拒绝重复路径。
-    # 载荷不存在时跳过，产出无 GMS 的基础镜像。
-    local gms_dir="$SCRIPT_DIR/../patchForRedroid/prebuilts/gms"
+    # GMS 三件套（MindTheGapps 14 核心组件）以 prebuilt 载荷形式在打包期叠加：
+    # 注入参数（载荷根 -C + 5 个叶子成员：3 个 priv-app 目录 + 2 份权限白名单 XML）
+    # 由 gms.sh 统一维护输出。成员路径带 system/ 前缀，与镜像内
+    # /product -> /system/product、/system_ext -> /system/system_ext 布局一致；
+    # 显式列举不会带出父目录条目，避免与 system.img 已有目录重复
+    # （docker import 拒绝重复路径）。GMS_SKIP=1 时参数表为空，产出无 GMS 基础镜像。
     local gms_args=()
-    if [ -f "$gms_dir/system/product/priv-app/GmsCore/GmsCore.apk" ]; then
-        log "  叠加 GMS prebuilt 载荷 ..."
-        gms_args=(-C "$gms_dir" \
-            system/product/priv-app/GmsCore \
-            system/product/priv-app/Phonesky \
-            system/system_ext/priv-app/GoogleServicesFramework \
-            system/product/etc/permissions/privapp-permissions-google-product.xml \
-            system/system_ext/etc/permissions/privapp-permissions-google-system-ext.xml)
+    mapfile -t gms_args < <(bash "$GMS_SCRIPT" tar-args)
+    if [ "${#gms_args[@]}" -gt 0 ]; then
+        log "  叠加 GMS 载荷（${#gms_args[@]} 个注入参数）..."
     else
-        log "  未找到 GMS prebuilt 载荷，打包无 GMS 基础镜像"
+        log "  GMS_SKIP=1，打包无 GMS 基础镜像"
     fi
-    # --owner=0 --group=0：payload 在构建机上 checkout 后 owner 是构建用户
+    # --owner=0 --group=0：payload 下载到本机后 owner 是构建用户
     # （uid 可能为 1000，在 Android 里恰好是 system），统一固化为 root:root，
     # 与 system.img 原有文件（uid 0）及已验证的镜像布局保持一致。
     tar --xattrs --owner=0 --group=0 \
@@ -265,7 +177,7 @@ pack_image() {
 case "${1:-all}" in
     envd)    build_envd ;;
     patch)   apply_patches ;;
-    gms)     fetch_gms_payload ;;
+    gms)     bash "$GMS_SCRIPT" fetch ;;
     redroid) build_redroid ;;
     pack)    pack_image ;;
     all)     build_envd; apply_patches; build_redroid; pack_image ;;

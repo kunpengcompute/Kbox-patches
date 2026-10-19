@@ -1,9 +1,0 @@
-# GoogleServicesFramework.apk（GSF）下载源描述（APK 二进制不入库，构建时由 build.sh 按本文件自动下载还原到同目录）
-# 官方来源: MindTheGapps 14.0.0 arm64 —— GitHub Releases（Android 14 / LineageOS 21 官方 GApps 包）
-# 主页: https://mindthegapps.com/   仓库: https://github.com/MindTheGapps/14.0.0-arm64
-# 国内加速: build.sh 自动依次尝试 gh-proxy.com / hub.gitmirror.com / ghfast.top 镜像；
-#           亦可用环境变量 GMS_ZIP_URL 指定自建代理/镜像地址覆盖。
-zip_url=https://github.com/MindTheGapps/14.0.0-arm64/releases/download/MindTheGapps-14.0.0-arm64-20250203_200051/MindTheGapps-14.0.0-arm64-20250203_200051.zip
-zip_sha256=6e1c3616862ce5b33e2b96074f86ae846eb1351a26a980e1ed140f8a7e7a4fd6
-zip_path=system/system_ext/priv-app/GoogleServicesFramework/GoogleServicesFramework.apk
-apk_sha256=e12c09b9af8e97397b68a464ea5613033c0404471d5c8259906f24c4aaed8783
