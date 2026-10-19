@@ -1,3 +1,0 @@
-# GMS 载荷 APK 由 build.sh 构建期按 *.apk.url 描述文件自动下载还原到本仓库
-# 对应目录（见 build/build.sh fetch_gms_payload），属本地构建产物，禁止入库。
-patchForRedroid/prebuilts/gms/**/*.apk
