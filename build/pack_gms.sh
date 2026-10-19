@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # =============================================================================
-# GMS 载荷统一维护脚本 —— 所有 GMS 相关操作集中于此
+# GMS 统一维护脚本 —— 所有 GMS 相关操作集中于此
 #
 # 职责:
 #   1. 集中维护 GMS 全部下载源与目录结构清单（APK 与 XML 均不入库）
-#   2. 自动下载官方 MindTheGapps zip → sha256 校验 → 解出 APK/XML 还原到载荷目录
+#   2. 自动下载官方 MindTheGapps zip → sha256 校验 → 解出 APK/XML 还原到GMS目录
 #      （<工作区>/gms-payload/，位于 git 仓库之外：项目内不保留任何 prebuilts
 #       目录，fetch 时按清单自动创建目录并下载填充）
-#   3. 输出镜像注入所需的 tar 参数（build.sh pack 拼入 Docker rootfs 流）
+#   3. 输出镜像注入所需的 tar 参数（build_redroid.sh pack 拼入 Docker rootfs 流）
 #
 # 用法:
-#   bash gms.sh fetch      下载/校验/还原载荷（幂等；pack 前自动执行，可提前单独跑）
-#   bash gms.sh tar-args   输出 tar 注入参数（每行一个，供 build.sh mapfile 读取）
-#   bash gms.sh            同 fetch
+#   bash pack_gms.sh fetch      下载/校验/还原（幂等；pack 前自动执行，可提前单独跑）
+#   bash pack_gms.sh tar-args   输出 tar 注入参数（每行一个，供 build_redroid.sh mapfile 读取）
+#   bash pack_gms.sh            同 fetch
 #
 # 环境变量:
 #   GMS_ZIP_URL    覆盖 zip 下载地址（自建代理/镜像），内容仍以 ZIP_SHA256 校验兜底
@@ -24,7 +24,7 @@ set -eo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"                # Kbox-patches-cubesanbox
 WORKSPACE="$(cd "$REPO_ROOT/.." && pwd)"                # 工作区根（aosp-14 同级）
-# 载荷根（tar -C 目标）：位于仓库外的工作区（与 downloads/ 缓存同级），
+# GMS根路径（tar -C 目标）：位于仓库外的工作区（与 downloads/ 缓存同级），
 # 项目内不保留任何 prebuilts 目录；fetch 时自动创建并下载填充
 GMS_DIR="$WORKSPACE/gms-payload"
 CACHE_DIR="${GMS_ZIP_CACHE:-$WORKSPACE/downloads}"
@@ -35,7 +35,7 @@ die() { echo -e "\033[1;31m错误: $*\033[0m" >&2; exit 1; }
 
 gms_skip() { [ "${GMS_SKIP:-0}" = "1" ]; }
 
-# ===== 下载源与载荷清单（GMS 唯一事实来源，升级 GMS 只改这里）=====
+# ===== 下载源与GMS清单（GMS 唯一事实来源，升级 GMS 只改这里）=====
 # 官方来源: MindTheGapps 14.0.0 arm64 —— GitHub Releases（Android 14 官方 GApps 包）
 #           主页 https://mindthegapps.com/   仓库 https://github.com/MindTheGapps/14.0.0-arm64
 # 只取核心三件套 + 两份 privapp 白名单；完整 GApps 含 SetupWizard/CarrierConfig 等
@@ -48,7 +48,7 @@ ZIP_MIRRORS=(
     "https://hub.gitmirror.com/"
     "https://ghfast.top/"
 )
-# 载荷清单: "zip 内相对路径（= 载荷目录相对路径）| 成员 sha256"
+# GMS清单: "zip 内相对路径（= GMS目录相对路径）| 成员 sha256"
 # 布局依据: 本 product 无独立 product/system_ext 分区镜像，分区内容实体在 system
 # 分区内（system/product/...、system/system_ext/...），rootfs 根下以
 # /product -> /system/product、/system_ext -> /system/system_ext 符号链接呈现，
@@ -64,7 +64,7 @@ MANIFEST=(
 
 # ===== 内部函数 =====
 
-# 全部载荷成员就位且 sha256 校验通过 → 返回 0
+# 全部GMS成员就位且 sha256 校验通过 → 返回 0
 all_present() {
     local e path want sha
     for e in "${MANIFEST[@]}"; do
@@ -105,15 +105,15 @@ ensure_zip() {
 
 # ===== 子命令 =====
 
-# fetch: 下载/校验/还原全部载荷（幂等）
+# fetch: 下载/校验/还原全部GMS（幂等）
 cmd_fetch() {
-    gms_skip && { log "[gms] GMS_SKIP=1，跳过 GMS 载荷下载"; return 0; }
-    log "[gms] 检查/下载 GMS 载荷（3 APK + 2 XML）"
+    gms_skip && { log "[gms] GMS_SKIP=1，跳过 GMS 下载"; return 0; }
+    log "[gms] 检查/下载 GMS （3 APK + 2 XML）"
     command -v curl >/dev/null   || die "未找到 curl（GMS 下载需要）"
     command -v unzip >/dev/null || die "未找到 unzip（GMS 解压需要）"
 
     if all_present; then
-        log "  5 个载荷成员均已就位且校验通过，跳过下载"
+        log "  5 个GMS成员均已就位且校验通过，跳过下载"
         return 0
     fi
 
@@ -125,7 +125,7 @@ cmd_fetch() {
         mkdir -p "$(dirname "$GMS_DIR/$path")"
         unzip -p "$zip_file" "$path" > "$GMS_DIR/$path" || die "从 zip 解压失败: $path"
         sha="$(sha256sum "$GMS_DIR/$path" | awk '{print $1}')"
-        [ "$sha" = "$want" ] || die "载荷成员 sha256 不匹配: $path（期望 $want，实际 $sha）"
+        [ "$sha" = "$want" ] || die "GMS成员 sha256 不匹配: $path（期望 $want，实际 $sha）"
         log "  还原并校验通过: $path"
     done
 
@@ -136,7 +136,7 @@ cmd_fetch() {
     fi
 }
 
-# tar-args: 向 stdout 输出 tar 注入参数（-C 载荷根 + 5 个成员），stdout 不得混入其他内容
+# tar-args: 向 stdout 输出 tar 注入参数（-C GMS根路径 + 5 个成员），stdout 不得混入其他内容
 cmd_tar_args() {
     gms_skip && return 0
     all_present || cmd_fetch          # 正常流程 pack 已先 fetch，这里只是幂等兜底

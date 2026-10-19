@@ -8,23 +8,23 @@
 #   - aosp-14/        AOSP 14.0.0_r75 源码（已应用 redroid 官方 patch）
 #
 # 用法:
-#   bash build.sh [envd|patch|gms|redroid|pack|all]
+#   bash build_redroid.sh [envd|patch|gms|redroid|pack|all]
 #     envd     仅编译 envd 二进制（放入 aosp-14/vendor/redroid/envd/envd）
 #     patch    仅应用 patchForRedroid/ 下的所有 patch
-#     gms      仅下载/还原 GMS 载荷（转发给 gms.sh fetch，无需 sudo，可提前执行）
+#     gms      仅下载/还原 GMS 载荷（转发给 pack_gms.sh fetch，无需 sudo，可提前执行）
 #     redroid  仅编译 AOSP 镜像（lunch + make）
-#     pack     仅打包 Docker 镜像（需 sudo；自动经 gms.sh 补齐载荷并注入）
+#     pack     仅打包 Docker 镜像（需 sudo；自动经 pack_gms.sh 补齐载荷并注入）
 #     all      按顺序执行以上全部（默认）
 #
 # GMS 说明:
 #   所有 GMS 相关操作（下载源清单、APK/XML 下载校验、镜像注入参数）集中在
-#   同目录的 gms.sh 统一维护，本脚本仅在 pack 前调用其 fetch 补齐载荷、
-#   在 tar 拼接时调用其 tar-args 获取注入参数。详见 gms.sh 头部注释。
+#   同目录的 pack_gms.sh 统一维护，本脚本仅在 pack 前调用其 fetch 补齐载荷、
+#   在 tar 拼接时调用其 tar-args 获取注入参数。详见 pack_gms.sh 头部注释。
 #
 # 说明:
 #   - 假设代码仓已本地预制、目录结构与当前一致
 #   - patch 需在“干净”源码树上应用（重复执行会因已应用而失败）
-#   - pack 步骤需要 root（loop 挂载镜像），用 sudo bash build.sh pack 执行
+#   - pack 步骤需要 root（loop 挂载镜像），用 sudo bash build_redroid.sh pack 执行
 # =============================================================================
 # 不启用 set -u（nounset）：source build/envsetup.sh 内部会引用未定义变量
 # （如 $TOP），启用 -u 会报 "TOP: unbound variable"。
@@ -45,7 +45,7 @@ TAG="redroid:14.0.0_r75_arm64_only"
 OUT_TAR="$AOSP/redroid-14.0.0_r75_arm64_only-docker.tar"
 PROD_DIR="$AOSP/out/target/product/$PRODUCT"
 # GMS 统一维护脚本（下载源清单/载荷下载校验/注入参数均在其内）
-GMS_SCRIPT="$SCRIPT_DIR/gms.sh"
+GMS_SCRIPT="$SCRIPT_DIR/pack_gms.sh"
 
 log() { echo -e "\033[1;32m$*\033[0m"; }
 die() { echo -e "\033[1;31m错误: $*\033[0m" >&2; exit 1; }
@@ -97,7 +97,7 @@ apply_patches() {
 }
 
 # ===== 步骤 3：编译 AOSP 镜像 =====
-# （GMS 载荷下载/注入统一由 gms.sh 维护，pack 前自动调用，无需单独步骤）
+# （GMS 载荷下载/注入统一由 pack_gms.sh 维护，pack 前自动调用，无需单独步骤）
 build_redroid() {
     log "[3/4] 编译 redroid arm64-only 镜像"
     cd "$AOSP"
@@ -113,7 +113,7 @@ pack_image() {
     [ -f "$PROD_DIR/system.img" ] || die "缺少 system.img: $PROD_DIR"
     [ -f "$PROD_DIR/vendor.img" ] || die "缺少 vendor.img: $PROD_DIR"
 
-    # 打包前经 gms.sh 补齐 GMS 载荷（幂等；失败即终止，GMS_SKIP=1 可跳过产出无 GMS 镜像）
+    # 打包前经 pack_gms.sh 补齐 GMS 载荷（幂等；失败即终止，GMS_SKIP=1 可跳过产出无 GMS 镜像）
     bash "$GMS_SCRIPT" fetch
 
     cd "$PROD_DIR"
@@ -138,7 +138,7 @@ pack_image() {
     log "  tar + docker import ..."
     # GMS 三件套（MindTheGapps 14 核心组件）以 prebuilt 载荷形式在打包期叠加：
     # 注入参数（载荷根 -C + 5 个叶子成员：3 个 priv-app 目录 + 2 份权限白名单 XML）
-    # 由 gms.sh 统一维护输出。成员路径带 system/ 前缀，与镜像内
+    # 由 pack_gms.sh 统一维护输出。成员路径带 system/ 前缀，与镜像内
     # /product -> /system/product、/system_ext -> /system/system_ext 布局一致；
     # 显式列举不会带出父目录条目，避免与 system.img 已有目录重复
     # （docker import 拒绝重复路径）。GMS_SKIP=1 时参数表为空，产出无 GMS 基础镜像。
