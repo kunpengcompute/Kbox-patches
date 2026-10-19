@@ -24,7 +24,7 @@ redroid 镜像编译仅支持在 x86\_64 服务器下进行（交叉编译 arm64
 
 ### 1.3 安装编译依赖包
 
-编译 AOSP 前需安装官方依赖。以 Ubuntu 22.04 为例：
+编译AOSP前需安装官方依赖。以 Ubuntu 22.04 为例：
 
 ```bash
 sudo apt update
@@ -71,7 +71,7 @@ repo sync -c -j"$(nproc)" \
   vendor/redroid
 ```
 
-> **说明：** 先同步专属仓库、再合入增量 patch（第 3 步），可避免后续 `repo sync` 覆盖 `device/redroid`、`vendor/redroid` 的本地修改。
+> **说明：** 先同步专属仓库、再合入增量patch（第3步），可避免后续`repo sync`覆盖`device/redroid`、`vendor/redroid`的本地修改。
 
 ### 2.3 同步 WebView（git-lfs）
 
@@ -113,9 +113,9 @@ git clone https://github.com/remote-android/redroid-patches.git
 ./redroid-patches/apply-patch.sh aosp-14 android-14.0.0_r75
 ```
 
-> **说明：** 该脚本遍历 `redroid-patches/android-14.0.0_r75/` 下各子目录，对每个 git 仓执行 `git am`，输出出现 `[ERROR]` 需排查。redroid 官方 patch 仅作用于 AOSP 核心仓（frameworks/av、system/core 等），不涉及 redroid 专属仓。
+> **说明：** 该脚本遍历`redroid-patches/android-14.0.0_r75/`下各子目录，对每个git仓执行`git am`，输出出现`[ERROR]`需排查。redroid官方patch仅作用于AOSP核心仓（frameworks/av、system/core等），不涉及redroid专属仓。
 
-完成本步骤后，`aosp-14` 达到 **redroid 默认基线**（不含 Kbox-patches 增量修改），可直接编译出官方 redroid 镜像。
+完成本步骤后，`aosp-14`达到**redroid默认基线**（不含Kbox-patches增量修改），可直接编译出官方redroid镜像。
 
 ### 3.3 验证默认基线（可选）
 
@@ -128,11 +128,11 @@ make -j"$(nproc)"
 
 产物：`out/target/product/redroid_arm64_only/{system.img,vendor.img}`
 
-> **说明：** 若基线编译失败，应先排查 AOSP / redroid 官方环节，再进入增量修改，避免把官方问题混入自定义 patch 排查。
+> **说明：** 若基线编译失败，应先排查AOSP/redroid官方环节，再进入增量修改，避免把官方问题混入自定义patch排查。
 
 ## 4. 注入GMS
 
-GMS（Google Mobile Services）为闭源组件，AOSP 镜像不含它，Google 应用启动即闪退。`build/pack_gms.sh` 统一维护 GMS 的下载源。
+GMS(Google Mobile Services)为闭源组件，AOSP(Android Open Source Project)镜像不含它，Google应用启动即闪退。`build/pack_gms.sh` 统一维护 GMS 的下载源。
 
 ### 4.1 脚本用法
 
@@ -143,10 +143,10 @@ bash pack_gms.sh fetch     # 下载/校验/还原GMS包（幂等，无需 sudo�
 bash pack_gms.sh tar-args  # 输出镜像注入参数（供 build_redroid.sh 拼入 rootfs tar 流）
 ```
 
-- `fetch`：从 GitHub 下载官方 zip（约 430MB，sha256 校验，缓存于 `<工作区>/downloads/`，直连失败自动切换 gh-proxy.com 等公共镜像），解出 5 个GMS成员还原到仓库外 `<工作区>/gms-payload/`（fetch 时自动创建目录）；
-- `tar-args`：向 stdout 输出 `-GMS包根路径` + 5 个成员路径，由 `build_redroid.sh pack` 在 tar 拼接时读入。
+- `fetch`：从GitHub下载官方zip（约430MB，sha256校验，缓存于`<工作区>/downloads/`，直连失败自动切换gh-proxy.com等公共镜像），解出5个GMS成员还原到仓库外`<工作区>/gms-payload/`（fetch时自动创建目录）；
+- `tar-args`：向stdout输出`-GMS包根路径`+5个成员路径，由`build_redroid.sh pack`在tar拼接时读入。
 
-日常构建**无需手动运行**：`sudo bash build_redroid.sh pack` 会在打包前自动 `fetch` 补齐、打包时自动 `tar-args` 注入镜像，产出自带 GMS 的 Docker 镜像。
+日常构建**无需手动运行**：`sudo bash build_redroid.sh pack`会在打包前自动`fetch`补齐、打包时自动`tar-args`注入镜像，产出自带GMS的Docker镜像。
 
 ### 4.2 可选配置
 
@@ -156,11 +156,11 @@ bash pack_gms.sh tar-args  # 输出镜像注入参数（供 build_redroid.sh 拼
 | `GMS_ZIP_URL=<地址>` | 覆盖 zip 下载地址（自建代理/镜像），内容仍以 sha256 校验兜底 |
 | `GMS_ZIP_CACHE=<目录>` | 覆盖 zip 缓存目录（默认 `<工作区>/downloads`） |
 
-更新 GMS 版本：修改 `pack_gms.sh` 内 `ZIP_URL`/`ZIP_SHA256`/`MANIFEST` 清单后重跑 `sudo bash build_redroid.sh pack` 即可，无需重新编译。
+更新GMS版本：修改`pack_gms.sh`内`ZIP_URL`/`ZIP_SHA256`/`MANIFEST`清单后重跑`sudo bash build_redroid.sh pack`即可，无需重新编译。
 
-> **注意：** 目录中的白名单 XML 必须与对应 APK 同分区，缺失则 user 版开机权限校验失败、容器无法 boot；**不要**替换为完整 GApps——多余组件（SetupWizard 等）会触发 APEX 冲突导致无法 boot。
+> **注意：** 目录中的白名单XML必须与对应APK同分区，缺失则user版开机权限校验失败、容器无法boot；**不要**替换为完整GApps——多余组件（SetupWizard等）会触发APEX冲突导致无法boot。
 
-镜像 `docker load` 并起沙箱后验证：
+镜像`docker load`并起沙箱后验证：
 
 ```bash
 adb connect <sandbox_ip>:5555
@@ -192,7 +192,7 @@ cd redroid-workspace/Kbox-patches/build
 sudo bash build_redroid.sh all
 ```
 
-> **说明：** `all` 依次执行：编译 envd 二进制 → 合入 Kbox-patches 增量 patch → lunch/make → 打包 Docker 镜像（打包前自动下载/还原GMS）。打包步骤需 root，故整体用 `sudo`。
+> **说明：** `all` 依次执行：编译envd二进制→合入Kbox-patches增量patch → lunch/make → 打包Docker镜像（打包前自动下载/还原GMS）。打包步骤需 root，故整体用 `sudo`。
 
 ### 5.3 分步构建
 
@@ -211,11 +211,11 @@ sudo bash build_redroid.sh pack       # 5) 打包 Docker 镜像
 
 > **说明：**
 >
-> - **patch 幂等性**：脚本假设在“干净”源码树上应用 patch。若 `aosp-14` 已应用过这些 patch，重复执行 `build_redroid.sh patch` 会因 `git apply` 失败而中止，需先还原源码树或跳过 patch 步骤。
-> - **Go 版本**：`runtime` 的 envd `go.mod` 要求 go 1.26.x，脚本用 `GOTOOLCHAIN=auto` 自动下载，但要求基础 go ≥ 1.21。
-> - **网络代理**：envd 编译会 `go mod download`，需可用 `GOPROXY`（脚本默认 `goproxy.cn`）。
-> - **编译时长**：`make` 全量编译约 2~3 小时（取决于核数），产物占用 100GB+ 磁盘。
-> - **打包验证**：`vendor/bin/envd` 缺失时打包失败——确认已执行 envd 编译且 `vendor-redroid-0002` patch 已应用。
-> - **构建变体与 adb**：`userdebug` 变体默认启动 adbd，`adb connect <沙箱IP>:5555` 开箱可用；`user` 变体不会启动 adbd（缺少 `persist.sys.usb.config=adb` 且 `ro.adb.secure=1`）。如需在 `user` 变体上使用 adb，见 [redroid_user_build_adb_fix.md](redroid_user_build_adb_fix.md)。
-> - **FLAG_SECURE 全局禁用（应用登录黑屏修复）**：`frameworks/base/frameworks-base-0002-wm-secure-flag.patch` 将 `WindowState.setSecureLocked()` 改为空实现、`isSecureLocked()` 恒返回 `false`。修复容器内 SECURE surface 合成输出黑屏，随 `build_redroid.sh patch` 自动合入。
-> - **注入GMS框架（应用闪退修复）**：`pack` 阶段自动调用 `build/pack_gms.sh` 下载 GMS 并叠加进镜像，产物镜像自带 GMS 三件套，见第 4 节。
+> - **patch幂等性**：脚本假设在“干净”源码树上应用patch。若`aosp-14`已应用过这些patch，重复执行`build_redroid.sh patch`会因`git apply` 失败而中止，需先还原源码树或跳过 patch 步骤。
+> - **Go 版本**：`runtime`的envd `go.mod`要求go 1.26.x，脚本用`GOTOOLCHAIN=auto`自动下载，但要求基础go ≥ 1.21。
+> - **网络代理**：envd编译会`go mod download`，需可用`GOPROXY`（脚本默认`goproxy.cn`）。
+> - **编译时长**：`make`全量编译约2~3小时（取决于核数），产物占用100GB+磁盘。
+> - **打包验证**：`vendor/bin/envd`缺失时打包失败——确认已执行envd编译且 `vendor-redroid-0002` patch 已应用。
+> - **构建变体与 adb**：`userdebug`变体默认启动adbd，`adb connect <沙箱IP>:5555`开箱可用；`user`变体不会启动adbd（缺少`persist.sys.usb.config=adb`且`ro.adb.secure=1`）。如需在`user`变体上使用adb，见[redroid_user_build_adb_fix.md](redroid_user_build_adb_fix.md)。
+> - **FLAG_SECURE 全局禁用（应用登录黑屏修复）**：`frameworks/base/frameworks-base-0002-wm-secure-flag.patch` 将 `WindowState.setSecureLocked()`改为空实现、`isSecureLocked()`恒返回`false`。修复容器内SECURE surface合成输出黑屏，随`build_redroid.sh patch`自动合入。
+> - **注入GMS框架（应用闪退修复）**：`pack`阶段自动调用`build/pack_gms.sh`下载GMS并叠加进镜像，产物镜像自带GMS三件套，见第4节。
