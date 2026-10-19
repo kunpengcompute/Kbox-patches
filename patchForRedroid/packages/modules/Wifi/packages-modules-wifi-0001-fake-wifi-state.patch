@@ -1,0 +1,26 @@
+diff --git a/service/java/com/android/server/wifi/WifiServiceImpl.java b/service/java/com/android/server/wifi/WifiServiceImpl.java
+index 785a06b..58aefc6 100644
+--- a/service/java/com/android/server/wifi/WifiServiceImpl.java
++++ b/service/java/com/android/server/wifi/WifiServiceImpl.java
+@@ -1518,13 +1518,14 @@ public class WifiServiceImpl extends BaseWifiService {
+     @Override
+     public int getWifiEnabledState() {
+         enforceAccessPermission();
+-        int state = mActiveModeWarden.getWifiState();
+-        // If the wifi is enabling, call it on the wifi handler to get the state after wifi enabled.
+-        // This is only needed for pre-T.
+-        if (state == WifiManager.WIFI_STATE_ENABLING && !SdkLevel.isAtLeastT()) {
+-            state = mWifiThreadRunner.call(() -> mActiveModeWarden.getWifiState(),
+-                    WifiManager.WIFI_STATE_ENABLING);
+-        }
++        // redroid: image has no native wifi stack (HAL/supplicant), so the
++        // ActiveModeWarden state machine never leaves Disabled. Read the
++        // persisted user preference instead to keep toggle & state in sync.
++        boolean on = Settings.Global.getInt(
++                mContext.getContentResolver(),
++                Settings.Global.WIFI_ON, 0) == 1;
++        int state = on ? WifiManager.WIFI_STATE_ENABLED
++                    : WifiManager.WIFI_STATE_DISABLED;
+         if (mVerboseLoggingEnabled) {
+             mLog.info("getWifiEnabledState uid=% state=%").c(Binder.getCallingUid()).c(
+                     state).flush();
