@@ -130,26 +130,35 @@ make -j"$(nproc)"
 
 > **说明：** 若基线编译失败，应先排查 AOSP / redroid 官方环节，再进入增量修改，避免把官方问题混入自定义 patch 排查。
 
-## 4. 注入 GMS 载荷（解决应用闪退）
+## 4. 注入GMS
 
-AOSP 不含闭源 GMS，Google 应用启动即闪退。下载源集中在 `build/gms.sh`，构建时自动下载到仓库外 `<工作区>/gms-payload/`，打包阶段叠加进镜像。
+GMS（Google Mobile Services）为闭源组件，AOSP 镜像不含它，Google 应用启动即闪退。`build/pack_gms.sh` 统一维护 GMS 的下载源。
 
-| 载荷 | 运行时落点 | 说明 |
-| --- | --- | --- |
-| GmsCore.apk（142MB） | /product/priv-app | Google Play services |
-| Phonesky.apk（71MB） | /product/priv-app | Google Play 商店 |
-| GoogleServicesFramework.apk（5.7MB） | /system_ext/priv-app | Google Services Framework |
-| privapp-permissions-google-product.xml | /product/etc/permissions | product 分区特权权限白名单 |
-| privapp-permissions-google-system-ext.xml | /system_ext/etc/permissions | system_ext 分区特权权限白名单 |
+### 4.1 脚本用法
 
-来源：MindTheGapps 14.0.0 arm64 官方包裁剪（https://github.com/MindTheGapps/14.0.0-arm64 ）。
+```bash
+cd redroid-workspace/Kbox-patches/build
 
-> **说明：**
->
-> - 白名单 XML 必须与对应 APK 同分区，缺失则 user 版开机权限校验失败、容器无法 boot；**不要**替换为完整 GApps——多余组件（SetupWizard 等）会触发 APEX 冲突导致无法 boot。
-> - `pack` 阶段自动执行 `gms.sh fetch`（下载 zip 并 sha256 校验，缓存于 `<工作区>/downloads/`，GitHub 直连失败自动切换 gh-proxy.com 等公共镜像），再经 `gms.sh tar-args` 输出注入参数，以附加 `-C` 根拼进 rootfs tar 流。
-> - 更新 GMS 版本只改 `gms.sh` 内 `ZIP_URL`/`ZIP_SHA256`/`MANIFEST` 清单，重跑 `sudo bash build.sh pack` 即可，无需重新编译。
-> - `GMS_SKIP=1` 跳过 GMS（产出无 GMS 基础镜像）；`GMS_ZIP_URL` 覆盖下载地址。
+bash pack_gms.sh fetch     # 下载/校验/还原GMS包（幂等，无需 sudo，可提前单独执行）
+bash pack_gms.sh tar-args  # 输出镜像注入参数（供 build_redroid.sh 拼入 rootfs tar 流）
+```
+
+- `fetch`：从 GitHub 下载官方 zip（约 430MB，sha256 校验，缓存于 `<工作区>/downloads/`，直连失败自动切换 gh-proxy.com 等公共镜像），解出 5 个GMS成员还原到仓库外 `<工作区>/gms-payload/`（fetch 时自动创建目录）；
+- `tar-args`：向 stdout 输出 `-GMS包根路径` + 5 个成员路径，由 `build_redroid.sh pack` 在 tar 拼接时读入。
+
+日常构建**无需手动运行**：`sudo bash build_redroid.sh pack` 会在打包前自动 `fetch` 补齐、打包时自动 `tar-args` 注入镜像，产出自带 GMS 的 Docker 镜像。
+
+### 4.2 可选配置
+
+| 环境变量 | 作用 |
+| --- | --- |
+| `GMS_SKIP=1` | 跳过 GMS 下载与注入，产出无 GMS 基础镜像 |
+| `GMS_ZIP_URL=<地址>` | 覆盖 zip 下载地址（自建代理/镜像），内容仍以 sha256 校验兜底 |
+| `GMS_ZIP_CACHE=<目录>` | 覆盖 zip 缓存目录（默认 `<工作区>/downloads`） |
+
+更新 GMS 版本：修改 `pack_gms.sh` 内 `ZIP_URL`/`ZIP_SHA256`/`MANIFEST` 清单后重跑 `sudo bash build_redroid.sh pack` 即可，无需重新编译。
+
+> **注意：** 目录中的白名单 XML 必须与对应 APK 同分区，缺失则 user 版开机权限校验失败、容器无法 boot；**不要**替换为完整 GApps——多余组件（SetupWizard 等）会触发 APEX 冲突导致无法 boot。
 
 镜像 `docker load` 并起沙箱后验证：
 
@@ -161,39 +170,39 @@ adb shell dumpsys package com.google.android.gsf | grep -i READ_DEVICE_CONFIG
 # 期望 granted=true（由 privapp-permissions XML 在 boot 期授予）
 ```
 
-## 5. 执行 build.sh
+## 5. 执行 build_redroid.sh
 
 ### 5.1 脚本用法
 
 ```bash
 cd redroid-workspace/Kbox-patches/build
 
-sudo bash build.sh all        # 一键全量（envd → patch → 编译 → 打包，pack 前自动下载 GMS 载荷）
-bash build.sh envd            # 仅编译 envd 二进制
-bash build.sh patch           # 仅合入 Kbox-patches 增量 patch
-bash build.sh gms             # 仅下载/还原 GMS 载荷 APK（pack 时也会自动执行）
-bash build.sh redroid         # 仅编译 AOSP 镜像
-sudo bash build.sh pack       # 仅打包 Docker 镜像
+sudo bash build_redroid.sh all        # 一键全量（envd → patch → 编译 → 打包，pack 前自动下载 GMS）
+bash build_redroid.sh envd            # 仅编译 envd 二进制
+bash build_redroid.sh patch           # 仅合入 Kbox-patches 增量 patch
+bash build_redroid.sh gms             # 仅下载/还原GMS的APK（pack 时也会自动执行）
+bash build_redroid.sh redroid         # 仅编译 AOSP 镜像
+sudo bash build_redroid.sh pack       # 仅打包 Docker 镜像
 ```
 
 ### 5.2 一键构建
 
 ```bash
 cd redroid-workspace/Kbox-patches/build
-sudo bash build.sh all
+sudo bash build_redroid.sh all
 ```
 
-> **说明：** `all` 依次执行：编译 envd 二进制 → 合入 Kbox-patches 增量 patch → lunch/make → 打包 Docker 镜像（打包前自动下载/还原 GMS 载荷）。打包步骤需 root，故整体用 `sudo`。
+> **说明：** `all` 依次执行：编译 envd 二进制 → 合入 Kbox-patches 增量 patch → lunch/make → 打包 Docker 镜像（打包前自动下载/还原GMS）。打包步骤需 root，故整体用 `sudo`。
 
 ### 5.3 分步构建
 
 ```bash
 cd redroid-workspace/Kbox-patches/build
-bash build.sh envd            # 1) 编译 envd 二进制
-bash build.sh patch           # 2) 合入 Kbox-patches 增量 patch
-bash build.sh gms             # 3) 下载/还原 GMS 载荷（转发 gms.sh fetch，pack 时自动执行，可省略）
-bash build.sh redroid         # 4) 编译 AOSP 镜像
-sudo bash build.sh pack       # 5) 打包 Docker 镜像
+bash build_redroid.sh envd            # 1) 编译 envd 二进制
+bash build_redroid.sh patch           # 2) 合入 Kbox-patches 增量 patch
+bash build_redroid.sh gms             # 3) 下载/还原 GMS（转发 pack_gms.sh fetch，pack 时自动执行，可省略）
+bash build_redroid.sh redroid         # 4) 编译 AOSP 镜像
+sudo bash build_redroid.sh pack       # 5) 打包 Docker 镜像
 ```
 
 ### 5.4 产物与注意事项
@@ -202,11 +211,11 @@ sudo bash build.sh pack       # 5) 打包 Docker 镜像
 
 > **说明：**
 >
-> - **patch 幂等性**：脚本假设在“干净”源码树上应用 patch。若 `aosp-14` 已应用过这些 patch，重复执行 `build.sh patch` 会因 `git apply` 失败而中止，需先还原源码树或跳过 patch 步骤。
+> - **patch 幂等性**：脚本假设在“干净”源码树上应用 patch。若 `aosp-14` 已应用过这些 patch，重复执行 `build_redroid.sh patch` 会因 `git apply` 失败而中止，需先还原源码树或跳过 patch 步骤。
 > - **Go 版本**：`runtime` 的 envd `go.mod` 要求 go 1.26.x，脚本用 `GOTOOLCHAIN=auto` 自动下载，但要求基础 go ≥ 1.21。
 > - **网络代理**：envd 编译会 `go mod download`，需可用 `GOPROXY`（脚本默认 `goproxy.cn`）。
 > - **编译时长**：`make` 全量编译约 2~3 小时（取决于核数），产物占用 100GB+ 磁盘。
 > - **打包验证**：`vendor/bin/envd` 缺失时打包失败——确认已执行 envd 编译且 `vendor-redroid-0002` patch 已应用。
 > - **构建变体与 adb**：`userdebug` 变体默认启动 adbd，`adb connect <沙箱IP>:5555` 开箱可用；`user` 变体不会启动 adbd（缺少 `persist.sys.usb.config=adb` 且 `ro.adb.secure=1`）。如需在 `user` 变体上使用 adb，见 [redroid_user_build_adb_fix.md](redroid_user_build_adb_fix.md)。
-> - **FLAG_SECURE 全局禁用（应用登录黑屏修复）**：`frameworks/base/frameworks-base-0002-wm-secure-flag.patch` 将 `WindowState.setSecureLocked()` 改为空实现、`isSecureLocked()` 恒返回 `false`。修复容器内 SECURE surface 合成输出黑屏，随 `build.sh patch` 自动合入。
-> - **注入GMS框架（应用闪退修复）**：`pack` 阶段自动调用 `build/gms.sh` 下载 GMS 载荷并叠加进镜像，产物镜像自带 GMS 三件套，见第 4 节。
+> - **FLAG_SECURE 全局禁用（应用登录黑屏修复）**：`frameworks/base/frameworks-base-0002-wm-secure-flag.patch` 将 `WindowState.setSecureLocked()` 改为空实现、`isSecureLocked()` 恒返回 `false`。修复容器内 SECURE surface 合成输出黑屏，随 `build_redroid.sh patch` 自动合入。
+> - **注入GMS框架（应用闪退修复）**：`pack` 阶段自动调用 `build/pack_gms.sh` 下载 GMS 并叠加进镜像，产物镜像自带 GMS 三件套，见第 4 节。

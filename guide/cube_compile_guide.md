@@ -126,12 +126,13 @@ cube-workspace/
 └── Kbox-patches/
     ├── build/
     │   ├── build-cube.sh         # 第 3 章执行的构建脚本（CubeSandbox + guest 内核）
-    │   └── build.sh              # redroid 镜像构建脚本，见 redroid_compile_guide.md
+    │   ├── build_redroid.sh      # redroid 镜像构建脚本，见 redroid_compile_guide.md
+    │   └── pack_gms.sh           # GMS 下载/注入脚本，由 build_redroid.sh 调用
     ├── deploy/
     │   └── cube_client.py        # 部署后的操作客户端，见 user_guide.md 第 6 章
     ├── guide/                    # 说明文档
     ├── patchForCube/             # 6 个 patch，由 build-cube.sh 自动应用
-    └── patchForRedroid/          # redroid 侧 patch，由 build.sh 自动应用
+    └── patchForRedroid/          # redroid 侧 patch，由 build_redroid.sh 自动应用
 ```
 
 > **说明：** `build-cube.sh` 按「脚本所在目录的上上级」定位工作区，因此 `CubeSandbox/`、`opencloudos-kernel/`、`Kbox-patches/` 三者必须同级。
