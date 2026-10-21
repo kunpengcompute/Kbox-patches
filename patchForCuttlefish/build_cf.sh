@@ -16,6 +16,18 @@
 
 set -euo pipefail
 
+# ── DAMON 模式解析 ─────────────────────────────────────
+DAMON_MODE=false
+ARGS=()
+for arg in "$@"; do
+    if [ "$arg" = "--damon" ]; then
+        DAMON_MODE=true
+    else
+        ARGS+=("$arg")
+    fi
+done
+set -- ${ARGS[@]+"${ARGS[@]}"}
+
 # ── arguments ──────────────────────────────────────────────
 AOSP_ROOT="${1:?Usage: $0 <AOSP_ROOT> [ANDROID_VERSION] [TARGET] [TARGET_TYPE]}"
 ANDROID_VERSION="${2:-a14}"
@@ -76,6 +88,15 @@ echo "============================================"
 
 # ── Step 1: apply all patches ──────────────────────────────
 echo ""
+# ── [0/5] DAMON 内核构建 (仅 --damon 模式) ──────
+if $DAMON_MODE; then
+    echo "[0/5] Building DAMON kernel for $ANDROID_VERSION..."
+    bash "$SCRIPT_DIR/kernel/build_$ANDROID_VERSION.sh" "$AOSP_ROOT"
+    bash "$SCRIPT_DIR/kernel/modules_$ANDROID_VERSION.sh" "$AOSP_ROOT"
+    echo "[0/5] DAMON kernel build complete."
+    echo ""
+fi
+
 echo "[1/4] Applying patches from $PATCH_ROOT ..."
 
 # Auto-discover all unique repo directories from patch paths,
@@ -154,5 +175,8 @@ ANDROID_QUIET_BUILD=true make dist -j"${JOBS}"
 echo ""
 echo "============================================"
 echo "  Build completed."
+if $DAMON_MODE; then
+    echo "  DAMON kernel enabled."
+fi
 echo "  Output artifacts: $AOSP_ROOT/out/dist/"
 echo "============================================"
