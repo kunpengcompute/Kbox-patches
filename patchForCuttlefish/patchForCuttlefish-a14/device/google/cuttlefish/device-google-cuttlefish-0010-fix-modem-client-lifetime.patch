@@ -1,0 +1,31 @@
+diff --git a/host/commands/modem_simulator/channel_monitor.cpp b/host/commands/modem_simulator/channel_monitor.cpp
+index 31bc5f357..56b7d6522 100644
+--- a/host/commands/modem_simulator/channel_monitor.cpp
++++ b/host/commands/modem_simulator/channel_monitor.cpp
+@@ -120,14 +120,9 @@ void ChannelMonitor::ReadCommand(Client& client) {
+     LOG(DEBUG) << "Error reading from client fd: "
+                << client.client_fd->StrError();
+     client.client_fd->Close();  // Ignore errors here
+-    // Erase client from the vector clients
+-    auto& clients = client.type == Client::REMOTE ? remote_clients_ : clients_;
+-    auto iter = std::find_if(
+-        clients.begin(), clients.end(),
+-        [&](std::unique_ptr<Client>& other) { return *other == client; });
+-    if (iter != clients.end()) {
+-      clients.erase(iter);
+-    }
++    // MonitorLoop may be iterating this vector. Defer erasure until the next
++    // loop so its iterators and cached end remain valid.
++    client.is_valid = false;
+     return;
+   }
+ 
+@@ -230,6 +225,8 @@ static void removeInvalidClients(std::vector<std::unique_ptr<Client>>& clients)
+ 
+ void ChannelMonitor::MonitorLoop() {
+   do {
++    removeInvalidClients(clients_);
++    removeInvalidClients(remote_clients_);
+     cuttlefish::SharedFDSet read_set;
+     read_set.Set(server_);
+     read_set.Set(read_pipe_);
