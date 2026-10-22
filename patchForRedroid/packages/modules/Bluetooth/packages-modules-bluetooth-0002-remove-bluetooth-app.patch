@@ -1,0 +1,16 @@
+diff --git a/apex/Android.bp b/apex/Android.bp
+index 31a54ab..d03ba10 100644
+--- a/apex/Android.bp
++++ b/apex/Android.bp
+@@ -25,7 +25,10 @@ apex {
+         "bluetoothapk-platform-compat-config",
+         "framework-bluetooth-compat-config",
+     ],
+-    apps: ["Bluetooth"],
++    // 不打包 Bluetooth app：仅需 framework/service 与 native stack，
++    // 上层蓝牙开关状态由 system_server(BluetoothManagerService) 维护，
++    // 无 app 可 bind，enable 时仍会写入 Settings.Global.bluetooth_on。
++    apps: [],
+ 
+     multilib: {
+         first: {
