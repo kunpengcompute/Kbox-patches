@@ -1,0 +1,18 @@
+diff --git a/redroid.mk b/redroid.mk
+index 7e6c7d2..0886631 100644
+--- a/redroid.mk
++++ b/redroid.mk
+@@ -94,9 +106,10 @@ endif
+ $(call inherit-product, hardware/redroid/c2/c2.mk)
+ 
+ 
+-DEVICE_MANIFEST_FILE += device/redroid/android.hardware.bluetooth@1.1.xml
+-
+-PRODUCT_PACKAGES += android.hardware.bluetooth@1.1-service.sim
++# redroid: 无可用蓝牙硬件，移除 sim HAL（其 ASan trampoline 缺 BTI 落点会 SIGILL 循环崩溃）
++# 上层蓝牙开关状态改由 BluetoothManagerService 的 fake-state patch 维护，不依赖该 HAL。
++# DEVICE_MANIFEST_FILE += device/redroid/android.hardware.bluetooth@1.1.xml
++# PRODUCT_PACKAGES += android.hardware.bluetooth@1.1-service.sim
+ 
+ 
+ PRODUCT_SOONG_NAMESPACES += frameworks/av/services/audiopolicy/config
