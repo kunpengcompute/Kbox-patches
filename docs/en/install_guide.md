@@ -1068,6 +1068,6 @@ If ExaGear transcoding fails to be automatically enabled, perform the following 
 
 ## Change History
 
-|Release|Date|Description|
+|Version|Date|Description|
 |--|--|--|
 |01|2026-09-30|This is the first official release.|

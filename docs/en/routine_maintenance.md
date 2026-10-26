@@ -537,6 +537,6 @@ For details about risky operations on server hardware, see [**Table 1** Risky op
 
 ## Change History
 
-|Release|Date|Description|
+|Version|Date|Description|
 |--|--|--|
 |01|2026-09-30|This is the first official release.|
