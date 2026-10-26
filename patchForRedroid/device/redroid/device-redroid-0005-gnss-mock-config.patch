@@ -1,0 +1,42 @@
+diff --git a/manifest.xml b/manifest.xml
+index 370982d..1a959b4 100644
+--- a/manifest.xml
++++ b/manifest.xml
+@@ -44,4 +44,13 @@
+             <instance>default</instance>
+         </interface>
+     </hal>
++    <hal format="hidl">
++        <name>android.hardware.gnss</name>
++        <transport>hwbinder</transport>
++        <version>1.0</version>
++        <interface>
++            <name>IGnss</name>
++            <instance>default</instance>
++        </interface>
++    </hal>
+ </manifest>
+diff --git a/redroid.mk b/redroid.mk
+index 9511886..75c0e73 100644
+--- a/redroid.mk
++++ b/redroid.mk
+@@ -124,6 +124,18 @@ PRODUCT_COPY_FILES += \
+ PRODUCT_COPY_FILES += \
+     frameworks/native/data/etc/android.hardware.usb.accessory.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.usb.accessory.xml \
+ 
++# GPS mock: legacy GNSS HAL (gps.redroid) + HIDL passthrough service
++PRODUCT_PACKAGES += \
++    gps.kbox \
++    android.hardware.gnss@1.0 \
++    android.hardware.gnss@1.0-service \
++    android.hardware.gnss@1.0-impl
++
++# GPS mock: 指定 legacy GNSS HAL 模块
++PRODUCT_PROPERTY_OVERRIDES += \
++    ro.hardware.gps=kbox
++
++
+ $(call inherit-product, frameworks/native/build/phone-xhdpi-6144-dalvik-heap.mk)
+ 
+ $(call inherit-product-if-exists, product.mk)
+

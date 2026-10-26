@@ -17,8 +17,8 @@
 #     all      按顺序执行以上全部（默认）
 #
 # GMS 说明:
-#   所有 GMS 相关操作（下载源清单、APK/XML 下载校验、镜像注入参数）集中在
-#   同目录的 pack_gms.sh 统一维护，本脚本仅在 pack 前调用其 fetch 补齐载荷、
+#   是否包含 GMS 由 conf 中的 ENABLE_GMS 控制（默认 0=不含，1=包含），
+#   本脚本在 ENABLE_GMS=1 时于 pack 前调用其 fetch 补齐载荷、
 #   在 tar 拼接时调用其 tar-args 获取注入参数。详见 pack_gms.sh 头部注释。
 #
 # 说明:
@@ -30,22 +30,18 @@
 # （如 $TOP），启用 -u 会报 "TOP: unbound variable"。
 set -eo pipefail
 
-# ===== 路径配置（相对脚本所在目录，与当前目录结构一致）=====
-# 脚本位于 Kbox-patches/build/ 下，工作区根为其上上级目录
+# 加载配置文件
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WORKSPACE="$(cd "$SCRIPT_DIR/../.." && pwd)"
-AOSP="$WORKSPACE/aosp-14"
-RUNTIME="$WORKSPACE/runtime"
-PATCH_DIR="$SCRIPT_DIR/../patchForRedroid"
-ENVD_SRC="$RUNTIME/packages/envd"
-ENVD_DST="$AOSP/vendor/redroid/envd/envd"
-PRODUCT="redroid_arm64_only"
-LUNCH_TARGET="redroid_arm64_only-trunk_staging-user"
-TAG="redroid:14.0.0_r75_arm64_only"
-OUT_TAR="$AOSP/redroid-14.0.0_r75_arm64_only-docker.tar"
-PROD_DIR="$AOSP/out/target/product/$PRODUCT"
-# GMS 统一维护脚本（下载源清单/载荷下载校验/注入参数均在其内）
-GMS_SCRIPT="$SCRIPT_DIR/pack_gms.sh"
+CONFIG_FILE="$SCRIPT_DIR/build_redroid.conf"
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "配置文件不存在: $CONFIG_FILE" >&2
+    exit 1
+fi
+source "$CONFIG_FILE"
+
+# GMS 控制：由 conf 的 ENABLE_GMS 决定是否包含 GMS（1=包含，0=不含），
+# 转换为 pack_gms.sh 内部使用的 GMS_SKIP 语义（1=跳过），pack_gms.sh 保持原逻辑
+export GMS_SKIP=$(( 1 - ${ENABLE_GMS:-0} ))
 
 log() { echo -e "\033[1;32m$*\033[0m"; }
 die() { echo -e "\033[1;31m错误: $*\033[0m" >&2; exit 1; }
@@ -113,7 +109,7 @@ pack_image() {
     [ -f "$PROD_DIR/system.img" ] || die "缺少 system.img: $PROD_DIR"
     [ -f "$PROD_DIR/vendor.img" ] || die "缺少 vendor.img: $PROD_DIR"
 
-    # 打包前经 pack_gms.sh 补齐 GMS 载荷（幂等；失败即终止，GMS_SKIP=1 可跳过产出无 GMS 镜像）
+    # 打包前经 pack_gms.sh 补齐 GMS 载荷（ENABLE_GMS=0 时产出无 GMS 镜像）
     bash "$GMS_SCRIPT" fetch
 
     cd "$PROD_DIR"
@@ -141,13 +137,13 @@ pack_image() {
     # 由 pack_gms.sh 统一维护输出。成员路径带 system/ 前缀，与镜像内
     # /product -> /system/product、/system_ext -> /system/system_ext 布局一致；
     # 显式列举不会带出父目录条目，避免与 system.img 已有目录重复
-    # （docker import 拒绝重复路径）。GMS_SKIP=1 时参数表为空，产出无 GMS 基础镜像。
+    # （docker import 拒绝重复路径）。ENABLE_GMS=0 时参数表为空，产出无 GMS 基础镜像。
     local gms_args=()
     mapfile -t gms_args < <(bash "$GMS_SCRIPT" tar-args)
     if [ "${#gms_args[@]}" -gt 0 ]; then
         log "  叠加 GMS 载荷（${#gms_args[@]} 个注入参数）..."
     else
-        log "  GMS_SKIP=1，打包无 GMS 基础镜像"
+        log "  ENABLE_GMS=${ENABLE_GMS:-0}，打包无 GMS 基础镜像"
     fi
     # --owner=0 --group=0：payload 下载到本机后 owner 是构建用户
     # （uid 可能为 1000，在 Android 里恰好是 system），统一固化为 root:root，

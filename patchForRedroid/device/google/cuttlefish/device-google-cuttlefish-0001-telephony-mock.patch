@@ -1,0 +1,961 @@
+diff --git a/guest/hals/ril/reference-libril/RefRadioModem.cpp b/guest/hals/ril/reference-libril/RefRadioModem.cpp
+index 4dfffa4..9441491 100644
+--- a/guest/hals/ril/reference-libril/RefRadioModem.cpp
++++ b/guest/hals/ril/reference-libril/RefRadioModem.cpp
+@@ -13,32 +13,3 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-
+-#include "RefRadioModem.h"
+-#include "ril_service.h"
+-
+-using ::android::hardware::hidl_string;
+-
+-namespace cf::ril {
+-
+-    using ::ndk::ScopedAStatus;
+-    using namespace ::aidl::android::hardware::radio;
+-    constexpr auto ok = &ScopedAStatus::ok;
+-
+-    static RadioResponseInfo responseInfo(int32_t serial, RadioError error = RadioError::NONE) {
+-        return {
+-                .type = RadioResponseType::SOLICITED,
+-                .serial = serial,
+-                .error = error,
+-        };
+-    }
+-
+-    ScopedAStatus RefRadioModem::getImei(int32_t serial) {
+-        ::aidl::android::hardware::radio::modem::ImeiInfo imeiInfo = {};
+-        imeiInfo.type = (::aidl::android::hardware::radio::modem::ImeiInfo::ImeiType) 1;
+-        imeiInfo.imei = "867400022047199";
+-        imeiInfo.svn = "01";
+-        respond()->getImeiResponse(responseInfo(serial), imeiInfo);
+-        return ok();
+-    }
+-}
+diff --git a/guest/hals/ril/reference-libril/RefRadioModem.h b/guest/hals/ril/reference-libril/RefRadioModem.h
+index a0a20b1..f9573ef 100644
+--- a/guest/hals/ril/reference-libril/RefRadioModem.h
++++ b/guest/hals/ril/reference-libril/RefRadioModem.h
+@@ -14,16 +14,3 @@
+  * limitations under the License.
+  */
+ 
+-#pragma once
+-
+-#include <libradiocompat/RadioModem.h>
+-
+-namespace cf::ril {
+-
+-class RefRadioModem : public android::hardware::radio::compat::RadioModem {
+-    public:
+-        using android::hardware::radio::compat::RadioModem::RadioModem;
+-
+-         ::ndk::ScopedAStatus getImei(int32_t serial) override;
+-    };
+-}
+diff --git a/guest/hals/ril/reference-libril/ril.cpp b/guest/hals/ril/reference-libril/ril.cpp
+index f397bbb..5643a3f 100644
+--- a/guest/hals/ril/reference-libril/ril.cpp
++++ b/guest/hals/ril/reference-libril/ril.cpp
+@@ -23,6 +23,7 @@
+ #include <cutils/sockets.h>
+ #include <telephony/record_stream.h>
+ #include <utils/Log.h>
++#include <cutils/log.h>
+ #include <utils/SystemClock.h>
+ #include <pthread.h>
+ #include <sys/types.h>
+diff --git a/guest/hals/ril/reference-libril/ril_service.cpp b/guest/hals/ril/reference-libril/ril_service.cpp
+index 8d9d9d3..9fbaf7d 100644
+--- a/guest/hals/ril/reference-libril/ril_service.cpp
++++ b/guest/hals/ril/reference-libril/ril_service.cpp
+@@ -18,7 +18,6 @@
+ 
+ #include "RefImsMedia.h"
+ #include "RefRadioIms.h"
+-#include "RefRadioModem.h"
+ #include "RefRadioNetwork.h"
+ #include "RefRadioSim.h"
+ 
+@@ -13509,7 +13508,6 @@ void radio_1_6::registerService(RIL_RadioFunctions *callbacks, CommandInfo *comm
+         publishRadioHal<cf::ril::RefRadioIms>(context, radioHidl, callbackMgr, slot);
+         publishRadioHal<cf::ril::RefImsMedia>(context, radioHidl, callbackMgr,
+                                               std::string("default"));
+-        publishRadioHal<cf::ril::RefRadioModem>(context, radioHidl, callbackMgr, slot);
+         publishRadioHal<cf::ril::RefRadioSim>(context, radioHidl, callbackMgr, slot);
+ 
+         RLOGD("registerService: OemHook is enabled = %s", kOemHookEnabled ? "true" : "false");
+diff --git a/guest/hals/ril/reference-ril/reference-ril.c b/guest/hals/ril/reference-ril/reference-ril.c
+index 3c1f82e..723824d 100644
+--- a/guest/hals/ril/reference-ril/reference-ril.c
++++ b/guest/hals/ril/reference-ril/reference-ril.c
+@@ -46,8 +46,9 @@
+ #include <arpa/inet.h>
+ 
+ #include "guest/hals/ril/reference-libril/ril.h"
+-#define LOG_TAG "RIL"
++#define LOG_TAG "Cuttlefish-RIL"
+ #include <utils/Log.h>
++#include <cutils/log.h>
+ 
+ static void *noopRemoveWarning( void *a ) { return a; }
+ #define RIL_UNUSED_PARM(a) noopRemoveWarning((void *)&(a));
+@@ -332,7 +333,6 @@ static pthread_cond_t s_state_cond = PTHREAD_COND_INITIALIZER;
+ static int s_port = -1;
+ static const char * s_device_path = NULL;
+ static int          s_device_socket = 0;
+-static uint32_t s_modem_simulator_port = -1;
+ 
+ /* trigger change to this with s_state_cond */
+ static int s_closed = 0;
+@@ -6344,28 +6344,9 @@ mainLoop(void *param __unused)
+                 RLOGD("opening qemu_modem_port %d!", fd);
+             } else if (s_port > 0) {
+                 fd = socket_network_client("localhost", s_port, SOCK_STREAM);
+-            } else if (s_modem_simulator_port >= 0) {
+-              fd = socket(AF_VSOCK, SOCK_STREAM, 0);
+-              if (fd < 0) {
+-                 RLOGD("Can't create AF_VSOCK socket!");
+-                 continue;
+-              }
+-              struct sockaddr_vm sa;
+-              memset(&sa, 0, sizeof(struct sockaddr_vm));
+-              sa.svm_family = AF_VSOCK;
+-              sa.svm_cid = VMADDR_CID_HOST;
+-              sa.svm_port = s_modem_simulator_port;
+-
+-              if (connect(fd, (struct sockaddr *)(&sa), sizeof(sa)) < 0) {
+-                  RLOGD("Can't connect to port:%ud, errno: %s",
+-                      s_modem_simulator_port, strerror(errno));
+-                  close(fd);
+-                  fd = -1;
+-                  continue;
+-              }
+             } else if (s_device_socket) {
+                 fd = socket_local_client(s_device_path,
+-                                         ANDROID_SOCKET_NAMESPACE_FILESYSTEM,
++                                         ANDROID_SOCKET_NAMESPACE_ABSTRACT,
+                                          SOCK_STREAM);
+             } else if (s_device_path != NULL) {
+                 fd = open (s_device_path, O_RDWR);
+@@ -6418,7 +6399,7 @@ const RIL_RadioFunctions *RIL_Init(const struct RIL_Env *env, int argc, char **a
+     s_rilenv = env;
+ 
+     RLOGD("RIL_Init");
+-    while ( -1 != (opt = getopt(argc, argv, "p:d:s:c:m:"))) {
++    while ( -1 != (opt = getopt(argc, argv, "p:d:s:c:"))) {
+         switch (opt) {
+             case 'p':
+                 s_port = atoi(optarg);
+@@ -6444,19 +6425,13 @@ const RIL_RadioFunctions *RIL_Init(const struct RIL_Env *env, int argc, char **a
+                 RLOGI("Client id received %s\n", optarg);
+             break;
+ 
+-            case 'm':
+-              s_modem_simulator_port = strtoul(optarg, NULL, 10);
+-              RLOGI("Opening modem simulator port %ud\n", s_modem_simulator_port);
+-            break;
+-
+             default:
+                 usage(argv[0]);
+                 return NULL;
+         }
+     }
+ 
+-    if (s_port < 0 && s_device_path == NULL && !isInEmulator() &&
+-        s_modem_simulator_port < 0) {
++    if (s_port < 0 && s_device_path == NULL && !isInEmulator() ) {
+         usage(argv[0]);
+         return NULL;
+     }
+diff --git a/guest/hals/rild/rild_cuttlefish.c b/guest/hals/rild/rild_cuttlefish.c
+index 49f34ec..c861bce 100644
+--- a/guest/hals/rild/rild_cuttlefish.c
++++ b/guest/hals/rild/rild_cuttlefish.c
+@@ -195,14 +195,10 @@ int main(int argc, char **argv) {
+         argc = make_argv(args, rilArgv);
+     }
+ 
+-    rilArgv[argc++] = "-c";
+-    rilArgv[argc++] = (char*)clientId;
++    rilArgv[argc++] = "-s";
++    rilArgv[argc++] = "channel_simulator";
+     RLOGD("RIL_Init argc = %d clientId = %s", argc, rilArgv[argc-1]);
+ 
+-    if (strcmp(port, "")) {
+-      rilArgv[argc++] = "-m";
+-      rilArgv[argc++] = port;
+-    }
+ 
+     // Make sure there's a reasonable argv[0]
+     rilArgv[0] = argv[0];
+@@ -228,10 +224,9 @@ int main(int argc, char **argv) {
+ 
+     RLOGD("RIL_register_socket completed");
+ 
+-done:
+-
+     rilc_thread_pool();
+ 
++done:
+     RLOGD("RIL_Init starting sleep loop");
+     while (true) {
+         sleep(UINT32_MAX);
+diff --git a/host/commands/modem_simulator/Android.bp b/host/commands/modem_simulator/Android.bp
+index c0d0371..e05bec5 100644
+--- a/host/commands/modem_simulator/Android.bp
++++ b/host/commands/modem_simulator/Android.bp
+@@ -43,6 +43,7 @@ cc_defaults {
+         "libbase",
+         "libjsoncpp",
+         "libnl",
++        "libcutils",
+         "libcuttlefish_device_config",
+         "libcuttlefish_device_config_proto",
+     ],
+@@ -61,13 +62,14 @@ cc_binary {
+         "main.cpp"
+     ],
+     defaults: ["cuttlefish_host", "modem_simulator_base"],
++    init_rc: ["modem_simulator.rc"],
+ }
+ 
+ prebuilt_etc {
+-    name: "iccprofile_for_sim0.xml",
++    name: "modem_simulator_config",
+     vendor: true,
+-    src: "files/iccprofile_for_sim0.xml",
+-    filename: "iccprofile_for_sim0.xml",
++    src: "files/.cuttlefish_config.json",
++    filename: ".cuttlefish_config.json",
+     sub_dir: "modem_simulator/files",
+ }
+ 
+diff --git a/host/commands/modem_simulator/files/.cuttlefish_config.json b/host/commands/modem_simulator/files/.cuttlefish_config.json
+new file mode 100644
+index 0000000..1d84db8
+--- /dev/null
++++ b/host/commands/modem_simulator/files/.cuttlefish_config.json
+@@ -0,0 +1,11 @@
++{
++	"instances" :
++	{
++		"0" :
++		{
++			"instance_dir" : "/vendor/etc/modem_simulator/files/",
++			"ril_dns" : "8.8.8.8"
++		}
++	},
++	"root_dir" : "/vendor/etc/modem_simulator/files/"
++}
+diff --git a/host/commands/modem_simulator/files/iccprofile_for_sim0.xml b/host/commands/modem_simulator/files/iccprofile_for_sim0.xml
+index 655c37a..5e55891 100755
+--- a/host/commands/modem_simulator/files/iccprofile_for_sim0.xml
++++ b/host/commands/modem_simulator/files/iccprofile_for_sim0.xml
+@@ -11,7 +11,7 @@
+         <SIMIO cmd="C0" p1="0" p2="0" p3="F" data="">144,0,62178202412183022FE28A01058B032F06038002000A880110</SIMIO>
+         <SIMIO cmd="B0" p1="0" p2="0" p3="A" data="">144,0,98683081462002318379</SIMIO>
+         <!-- Special ATC to read ICCID from modem cache -->
+-        <CCID>89860318640220133897</CCID>
++        <CCID>89860318640220111111</CCID>
+     </EF>
+     <EF name="EF_PL" id="2F05" structure="transparent">
+         <SIMIO cmd="C0" p1="0" p2="0" p3="F" data="">144,0,62178202412183022F058A01058B032F060280020004880128</SIMIO>
+@@ -76,11 +76,11 @@
+ 
+     <ADF name="USIM" path="7FFF" aid="A0000000871002FF86FF0389FFFFFFFF">
+         <EF name="EF_IMSI" id="6F07" structure="transparent">
+-            <CIMI>311740123456789</CIMI>
++            <CIMI>460000123456789</CIMI>
+         </EF>
+         <EF name="EF_MSISDN" id="6F40" structure="linear fixed">
+             <SIMIO cmd="C0" p1="0" p2="0" p3="F" data="">144,0,621982054221001C0283026F408A01058B036F0605800200388800</SIMIO>
+-            <SIMIO cmd="B2" p1="1" p2="4" p3="1C" data="">144,0,000000000000000000000000000007915155214365F7FFFFFFFFFFFF</SIMIO>
++            <SIMIO cmd="B2" p1="1" p2="4" p3="1C" data="">144,0,000000000000000000000000000007915155216365F5FFFFFFFFFFFF</SIMIO>
+         </EF>
+         <EF name="EF_MBI" id="6FC9" structure="linear fixed">
+             <SIMIO cmd="C0" p1="0" p2="0" p3="F" data="">144,0,62198205422100050183026FC98A01058B036F0602800200058800</SIMIO>
+@@ -92,7 +92,7 @@
+        </EF>
+        <EF name="EF_AD" id="6FAD" structure="transparent">
+             <SIMIO cmd="C0" p1="0" p2="0" p3="F" data="">144,0,62178202412183026FAD8A01058B036F060180020004880118</SIMIO>
+-            <SIMIO cmd="B0" p1="0" p2="0" p3="4" data="">144,0,00000003</SIMIO>
++            <SIMIO cmd="B0" p1="0" p2="0" p3="4" data="">144,0,00000002</SIMIO>
+        </EF>
+        <EF name="EF_MWIS" id="6FCA" structure="linear fixed">
+            <SIMIO cmd="C0" p1="0" p2="0" p3="F" data="">144,0,62198205422100050183026FCA8A01058B036F060E800200058800</SIMIO>
+diff --git a/host/commands/modem_simulator/files/numeric_operator.xml b/host/commands/modem_simulator/files/numeric_operator.xml
+index 202c84b..f3f6162 100644
+--- a/host/commands/modem_simulator/files/numeric_operator.xml
++++ b/host/commands/modem_simulator/files/numeric_operator.xml
+@@ -2,8 +2,6 @@
+ <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+     <add-resource name="numeric_to_operator" type="array"/>
+     <string-array name="numeric_to_operator">
+-        <item numeric="311740">TelAlaska=TelAlaska</item>
+-        <item numeric="310260">T-Mobile=TMOBILE</item>
+         <item numeric="46000">China Mobile=CMCC</item>
+         <item numeric="46001">China UNICOM=UNICOM</item>
+         <item numeric="46002">China Mobile=CMCC</item>
+@@ -14,6 +12,7 @@
+         <item numeric="46007">China Mobile=CMCC</item>
+         <item numeric="46008">China Mobile=CMCC</item>
+         <item numeric="46009">China UNICOM=UNICOM</item>
++        <item numeric="46010">China Mobile=CMCC</item>
+         <item numeric="46011">China Telecom=CT</item>
+     </string-array>
+ </resources>
+diff --git a/host/commands/modem_simulator/main.cpp b/host/commands/modem_simulator/main.cpp
+index a979c36..d5f0d58 100644
+--- a/host/commands/modem_simulator/main.cpp
++++ b/host/commands/modem_simulator/main.cpp
+@@ -13,9 +13,12 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ 
++#include <cutils/sockets.h>
+ #include <signal.h>
+ #include <unistd.h>
+ 
++#include <cstdio>
++
+ #include <android-base/strings.h>
+ #include <fmt/format.h>
+ #include <gflags/gflags.h>
+@@ -27,63 +30,43 @@
+ #include "host/commands/modem_simulator/modem_simulator.h"
+ #include "host/libs/config/cuttlefish_config.h"
+ 
+-// we can start multiple modems simultaneously; each modem
+-// will listent to one server fd for incoming sms/phone call
+-// there should be at least 1 valid fd
+-DEFINE_string(server_fds, "", "A comma separated list of file descriptors");
++// We start a single modem simulator; it listens on an abstract UNIX socket
++// named "channel_simulator" for incoming RIL connections.
+ DEFINE_int32(sim_type, 1, "Sim type: 1 for normal, 2 for CtsCarrierApiTestCases");
+ 
+ namespace cuttlefish {
+ namespace {
+ 
+-std::vector<SharedFD> ServerFdsFromCmdline() {
+-  // Validate the parameter
+-  std::string fd_list = FLAGS_server_fds;
+-  for (auto c: fd_list) {
+-    if (c != ',' && (c < '0' || c > '9')) {
+-      LOG(ERROR) << "Invalid file descriptor list: " << fd_list;
+-      std::exit(1);
+-    }
+-  }
+-
+-  auto fds = android::base::Split(fd_list, ",");
+-  std::vector<SharedFD> shared_fds;
+-  for (auto& fd_str: fds) {
+-    auto fd = std::stoi(fd_str);
+-    auto shared_fd = SharedFD::Dup(fd);
+-    close(fd);
+-    shared_fds.push_back(shared_fd);
+-  }
+-
+-  return shared_fds;
+-}
+-
+ int ModemSimulatorMain(int argc, char** argv) {
+   ::android::base::InitLogging(argv, android::base::StderrLogger);
+   google::ParseCommandLineFlags(&argc, &argv, false);
+ 
+-  // Modem simulator log saved in cuttlefish_runtime
+   auto config = CuttlefishConfig::Get();
+   auto instance = config->ForDefaultInstance();
+ 
+-  auto modem_log_path = instance.PerInstanceLogPath("modem_simulator.log");
++  std::string modem_log_path = "/data/vendor/hardware/modem_simulator.log";
+ 
+   {
+-    auto log_path = instance.launcher_log_path();
++    std::string log_path = "/data/vendor/hardware/launcher.log";
+     std::vector<std::string> log_files{log_path, modem_log_path};
+     android::base::SetLogger(LogToStderrAndFiles(log_files));
+   }
+ 
+-  LOG(INFO) << "Start modem simulator, server_fds: " << FLAGS_server_fds
+-            << ", Sim type: " << ((FLAGS_sim_type == 2) ?
+-                "special for CtsCarrierApiTestCases" : "normal" );
++  LOG(INFO) << "Start modem simulator";
+ 
+-  auto server_fds = ServerFdsFromCmdline();
+-  if (server_fds.empty()) {
+-    LOG(ERROR) << "Need to provide server fd";
+-    return -1;
++  std::string channel_socket_name = "channel_simulator";
++  std::vector<cuttlefish::SharedFD> server_fds;
++  int client_fd = socket_local_server(channel_socket_name.c_str(),
++                                      ANDROID_SOCKET_NAMESPACE_ABSTRACT,
++                                      SOCK_STREAM);
++  if (client_fd < 0) {
++    perror("socket_local_server failed");
++    return 1;
+   }
+ 
++  auto shared_fd = cuttlefish::SharedFD::Dup(client_fd);
++  close(client_fd);
++  server_fds.push_back(shared_fd);
+   NvramConfig::InitNvramConfigService(server_fds.size(), FLAGS_sim_type);
+ 
+   // Don't get a SIGPIPE from the clients
+@@ -91,35 +74,24 @@ int ModemSimulatorMain(int argc, char** argv) {
+     LOG(ERROR) << "Failed to set SIGPIPE to be ignored: " << strerror(errno);
+   }
+ 
+-  auto nvram_config = NvramConfig::Get();
+-  auto nvram_config_file = nvram_config->ConfigFileLocation();
+-
+   // Start channel monitor, wait for RIL to connect
+   int32_t modem_id = 0;
+   std::vector<std::unique_ptr<ModemSimulator>> modem_simulators;
+ 
+-  for (auto& fd : server_fds) {
+-    CHECK(fd->IsOpen()) << "Error creating or inheriting modem simulator server: "
+-        << fd->StrError();
++  auto modem_simulator = std::make_unique<ModemSimulator>(modem_id);
++  auto channel_monitor =
++      std::make_unique<ChannelMonitor>(*modem_simulator.get(), server_fds[0]);
+ 
+-    auto modem_simulator = std::make_unique<ModemSimulator>(modem_id);
+-    auto channel_monitor =
+-        std::make_unique<ChannelMonitor>(*modem_simulator.get(), fd);
++  modem_simulator->Initialize(std::move(channel_monitor));
+ 
+-    modem_simulator->Initialize(std::move(channel_monitor));
+-
+-    modem_simulators.emplace_back(std::move(modem_simulator));
+-
+-    modem_id++;
+-  }
++  modem_simulators.emplace_back(std::move(modem_simulator));
+ 
+-  // Monitor exit request and
+-  // remote call, remote sms from other cuttlefish instance
++  // Monitor exit request and remote call/remote sms from other instances
+   std::string monitor_socket_name =
+       fmt::format("modem_simulator{}", instance.modem_simulator_host_id());
+ 
+   auto monitor_socket = SharedFD::SocketLocalServer(monitor_socket_name.c_str(),
+-                                                    true, SOCK_STREAM, 0666);
++                                                     true, SOCK_STREAM, 0666);
+   if (!monitor_socket->IsOpen()) {
+     LOG(ERROR) << "Unable to create monitor socket for modem simulator";
+     std::exit(kServerError);
+@@ -143,14 +115,12 @@ int ModemSimulatorMain(int argc, char** argv) {
+       }
+       if (buf == "STOP") {  // Exit request from parent process
+         LOG(INFO) << "Exit request from parent process";
+-        nvram_config->SaveToFile(nvram_config_file);
+         for (auto& modem : modem_simulators) {
+           modem->SaveModemState();
+         }
+         WriteAll(conn, "OK");  // Ignore the return value. Exit anyway.
+         std::exit(kSuccess);
+-      } else if (buf.compare(0, 3, "REM") == 0) {  // REMO for modem id 0 ...
+-        // Remote request from other cuttlefish instance
++      } else if (buf.compare(0, 3, "REM") == 0) {  // REM0 for modem id 0 ...
+         int id = std::stoi(buf.substr(3, 1));
+         if (id >= modem_simulators.size()) {
+           LOG(ERROR) << "Not supported modem simulator count: " << id;
+diff --git a/host/commands/modem_simulator/misc_service.cpp b/host/commands/modem_simulator/misc_service.cpp
+index 005d9f9..aaff627 100644
+--- a/host/commands/modem_simulator/misc_service.cpp
++++ b/host/commands/modem_simulator/misc_service.cpp
+@@ -19,6 +19,10 @@
+ #include <iomanip>
+ 
+ #include "host/commands/modem_simulator/device_config.h"
++#include <cutils/properties.h>
++
++#define MIN_IMEI_LENGTH 15
++#define MAX_IMEI_LENGTH 17
+ 
+ namespace cuttlefish {
+ 
+@@ -104,10 +108,28 @@ std::vector<CommandHandler> MiscService::InitializeCommandHandlers() {
+   return (command_handlers);
+ }
+ 
++static inline bool isDigits(char* s) {
++	for (int i = 0; i < strlen(s); i++) {
++		if ('0' > s[i] || s[i] > '9') {
++			return false;
++		}
++	}
++	return true;
++}
++
+ void MiscService::HandleGetIMEI(const Client& client, std::string& command) {
+-  const std::string identityGsmImei = "867400022047199";
++  std::string identityGsmImei = "867400022047199";
+   const std::string identityGsmSvn = "01";
+   const std::string information = "modem simulator";
++  
++  char propBuf[PROPERTY_VALUE_MAX] = {0};
++  property_get("persist.sys.prop.writeimei", propBuf, NULL);
++  int imeiLength = strlen(propBuf);
++  if (imeiLength < MIN_IMEI_LENGTH || imeiLength > MAX_IMEI_LENGTH || !isDigits(propBuf)) {
++  	property_set("persist.sys.prop.writeimei", "");
++  }else{
++	identityGsmImei = propBuf;
++  }
+ 
+   std::vector<std::string> responses;
+ 
+diff --git a/host/commands/modem_simulator/modem_simulator.rc b/host/commands/modem_simulator/modem_simulator.rc
+new file mode 100644
+index 0000000..e420ef6
+--- /dev/null
++++ b/host/commands/modem_simulator/modem_simulator.rc
+@@ -0,0 +1,4 @@
++service modem_simulator-daemon /system/bin/modem_simulator
++	class main
++	user root 
++	group root
+diff --git a/host/commands/modem_simulator/network_service.cpp b/host/commands/modem_simulator/network_service.cpp
+index d0c8689..6296241 100644
+--- a/host/commands/modem_simulator/network_service.cpp
++++ b/host/commands/modem_simulator/network_service.cpp
+@@ -19,7 +19,9 @@
+ 
+ #include <map>
+ #include <sstream>
++#include <cstring>
+ 
++#include <cutils/properties.h>
+ #include "common/libs/utils/files.h"
+ #include "host/commands/modem_simulator/device_config.h"
+ #include "host/commands/modem_simulator/nvram_config.h"
+@@ -150,11 +152,7 @@ void NetworkService::InitializeServiceState() {
+ 
+ void NetworkService::InitializeNetworkOperator() {
+   operator_list_.push_back(
+-      {"311740", "Android Virtual Operator", "Android", NetworkOperator::OPER_STATE_AVAILABLE});
+-  operator_list_.push_back(
+-      {"310300", "Alternative Operator", "Alternative", NetworkOperator::OPER_STATE_AVAILABLE});
+-  operator_list_.push_back(
+-      {"310400", "Hermetic Network Operator", "Hermetic", NetworkOperator::OPER_STATE_FORBIDDEN});
++      {"46000", "China Mobile", "CMCC", NetworkOperator::OPER_STATE_AVAILABLE});
+ 
+   if (oper_selection_mode_ == OperatorSelectionMode::OPER_SELECTION_AUTOMATIC) {
+     current_operator_numeric_ = operator_list_.begin()->numeric;
+@@ -175,12 +173,91 @@ void NetworkService::InitializeNetworkOperator() {
+   }
+ }
+ 
++#define MIN_NUMERICCPH_LENGTH 5
++#define MAX_NUMERICCPH_LENGTH 6
++#define MIN_ALPHACPH_LENGTH 1
++#define MAX_ALPHACPH_LENGTH 20
++
++static inline bool isDigit(char c) {
++  return '0' <= c && c <= '9';
++}
++
++static inline bool isDigits(char* s) {
++  for (int i = 0; i < strlen(s); i++) {
++    if (!isDigit(s[i])) {
++      return false;
++    }
++  }
++  return true;
++}
++
++static inline bool isLetter(char c) {
++  return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || (c == ' ');
++}
++
++static inline bool isLetterOrDigit(char c) {
++  return isLetter(c) || isDigit(c);
++}
++
++static inline bool isLetterOrDigits(char* s) {
++  for (int i = 0; i < strlen(s); i++) {
++    if (!isLetterOrDigit(s[i])) {
++      return false;
++    }
++  }
++  return true;
++}
++
++static std::string get_operator_numericcph_prop() {
++  char propBuf[PROPERTY_VALUE_MAX] = {0};
++  property_get("persist.gsm.operator.numericcph", propBuf, NULL);
++
++  if (strlen(propBuf) < MIN_NUMERICCPH_LENGTH ||
++      strlen(propBuf) > MAX_NUMERICCPH_LENGTH) {
++    LOG(ERROR) << "operator numericcph length error: " << propBuf;
++    std::string numericcph = "46000";
++    property_set("persist.gsm.operator.numericcph", numericcph.c_str());
++    return numericcph;
++  }
++
++  if (!isDigits(propBuf)) {
++    LOG(ERROR) << "operator numericcph character error: " << propBuf;
++    std::string numericcph = "46000";
++    property_set("persist.gsm.operator.numericcph", numericcph.c_str());
++    return numericcph;
++  }
++
++  return std::string(propBuf);
++}
++
++static std::string get_operator_alphacph_prop() {
++  char propBuf[PROPERTY_VALUE_MAX] = {0};
++  property_get("persist.gsm.operator.alphacph", propBuf, NULL);
++  if (strlen(propBuf) < MIN_ALPHACPH_LENGTH ||
++      strlen(propBuf) > MAX_ALPHACPH_LENGTH) {
++    LOG(ERROR) << "operator alphacph length error: " << propBuf;
++    std::string alphacph = "China Mobile";
++    property_set("persist.gsm.operator.alphacph", alphacph.c_str());
++    return alphacph;
++  }
++
++  if (!isLetterOrDigits(propBuf)) {
++    LOG(ERROR) << "operator alphacph character error: " << propBuf;
++    std::string alphacph = "China Mobile";
++    property_set("persist.gsm.operator.alphacph", alphacph.c_str());
++    return alphacph;
++  }
++
++  return std::string(propBuf);
++}
++
+ void NetworkService::InitializeSimOperator() {
+   if (sim_service_ == nullptr) {
+     return;
+   }
+-  auto sim_operator_numeric = sim_service_->GetSimOperator();
+-  if (sim_operator_numeric == "") {
++  std::string sim_operator_numeric = get_operator_numericcph_prop();
++  std::string alphacph = get_operator_alphacph_prop();
++  if (sim_operator_numeric == "" || alphacph == "") {
+     return;
+   }
+ 
+@@ -193,47 +270,11 @@ void NetworkService::InitializeSimOperator() {
+     }
+   }
+ 
+-  {
+-    const char *operator_numeric_xml = "etc/modem_simulator/files/numeric_operator.xml";
+-    auto file = cuttlefish::modem::DeviceConfig::DefaultHostArtifactsPath(
+-        operator_numeric_xml);
+-    if (!cuttlefish::FileExists(file) || !cuttlefish::FileHasContent(file)) {
+-      return;
+-    }
+-
+-    XMLDocument doc;
+-    auto err = doc.LoadFile(file.c_str());
+-    if (err != tinyxml2::XML_SUCCESS) {
+-      LOG(ERROR) << "unable to load XML file '" << file << " ', error " << err;
+-      return;
+-    }
+-    XMLElement *resources = doc.RootElement();
+-    if (resources == NULL)  return;
+-
+-    XMLElement *stringArray = resources->FirstChildElement("string-array");
+-    if (stringArray == NULL) return;
++  NetworkOperator sim_operator(sim_operator_numeric, alphacph,
++      alphacph, NetworkOperator::OPER_STATE_AVAILABLE);
++  operator_list_.insert(operator_list_.begin(), sim_operator);
++  current_operator_numeric_ = sim_operator_numeric;
+ 
+-    XMLElement *item = stringArray->FirstChildElement("item");
+-    while (item) {
+-      const XMLAttribute *attr_numeric = item->FindAttribute("numeric");
+-      std::string numeric = attr_numeric ? attr_numeric->Value() : "";
+-      if (numeric == sim_operator_numeric) {
+-        break;
+-      }
+-      item = item->NextSiblingElement("item");
+-    }
+-    if (item) {
+-      std::string names = item->GetText();
+-      auto pos = names.find('=');
+-      if (pos != std::string::npos) {
+-        auto long_name = names.substr(0, pos);
+-        auto short_name = names.substr(pos + 1);
+-        NetworkOperator sim_operator(sim_operator_numeric, long_name,
+-            short_name, NetworkOperator::OPER_STATE_AVAILABLE);
+-        operator_list_.insert(operator_list_.begin(), sim_operator);
+-      }
+-    }
+-  }
+   InitializeNetworkOperator();
+ }
+ 
+diff --git a/host/commands/modem_simulator/sim_service.cpp b/host/commands/modem_simulator/sim_service.cpp
+index 2b7f3c2..780ce2b 100644
+--- a/host/commands/modem_simulator/sim_service.cpp
++++ b/host/commands/modem_simulator/sim_service.cpp
+@@ -24,6 +24,9 @@
+ #include "host/commands/modem_simulator/pdu_parser.h"
+ #include "host/commands/modem_simulator/nvram_config.h"
+ 
++#include <cstring>
++#include <cutils/properties.h>
++
+ namespace cuttlefish {
+ 
+ const std::pair<int, int> kSimPinSizeRange(4, 8);
+@@ -46,9 +49,15 @@ static const std::string DF_ADF       = "7FFF";  // UICC access
+ constexpr int kFooterSizeBytes = 14;
+ // Maximum size of the un-extended number field
+ constexpr int kMaxNumberSizeBytes = 11;
++constexpr int kMinNumberSizeBytes = 7;
+ 
+ constexpr int kMaxLogicalChannels = 3;
+ 
++constexpr int LENGTH_OF_IMSI = 15;
++constexpr int LENGTH_OF_ICCID = 20;
++#define MIN_ALPHACPH_LENGTH 1
++#define MAX_ALPHACPH_LENGTH 20
++
+ const std::map<SimService::SimStatus, std::string> gSimStatusResponse = {
+     {SimService::SIM_STATUS_ABSENT,     ModemService::kCmeErrorSimNotInserted},
+     {SimService::SIM_STATUS_NOT_READY,  ModemService::kCmeErrorSimBusy},
+@@ -368,6 +377,50 @@ void SimService::InitializeServiceState() {
+   };
+ }
+ 
++static inline bool isDigit(char c) {
++  return '0' <= c && c <= '9';
++}
++
++static inline bool isDigits(char* s) {
++  for (int i = 0; i < strlen(s); i++) {
++    if ('0' > s[i] || s[i] > '9') {
++      return false;
++    }
++  }
++  return true;
++}
++
++static inline bool isLetter(char c) {
++  return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || (c == ' ');
++}
++
++static inline bool isLetterOrDigit(char c) {
++  return isLetter(c) || isDigit(c);
++}
++
++static inline bool isLetterOrDigits(char* s) {
++  for (int i = 0; i < strlen(s); i++) {
++    if (!isLetterOrDigit(s[i])) {
++      return false;
++    }
++  }
++  return true;
++}
++
++void SimService::GetPropAndSetPhoneNumber() {
++  char propBuf[PROPERTY_VALUE_MAX] = {0};
++  property_get("persist.sys.prop.writephonenum", propBuf, NULL);
++  int number1Len = strlen(propBuf);
++  if (number1Len < kMinNumberSizeBytes || number1Len > kMaxNumberSizeBytes ||
++      !isDigits(propBuf)) {
++    LOG(INFO) << "set phoneNumber prop error";
++    propBuf[0] = '\0';
++    property_set("persist.sys.prop.writephonenum", "");
++    return;
++  }
++  SetPhoneNumber(std::string_view(propBuf));
++}
++
+ void SimService::InitializeSimFileSystemAndSimState() {
+   auto nvram_config = NvramConfig::Get();
+   auto sim_type = nvram_config->sim_type();
+@@ -379,8 +432,8 @@ void SimService::InitializeSimFileSystemAndSimState() {
+   }
+   auto icc_profile_name = ss.str();
+ 
+-  auto icc_profile_path = cuttlefish::modem::DeviceConfig::PerInstancePath(
+-      icc_profile_name.c_str());
++  std::string icc_profile_path =
++      "/vendor/etc/modem_simulator/files/iccprofile_for_sim0.xml";
+   std::string file = icc_profile_path;
+ 
+   if (!cuttlefish::FileExists(icc_profile_path) ||
+@@ -475,6 +528,7 @@ void SimService::InitializeSimFileSystemAndSimState() {
+       pin2_status_.puk_remaining_times_ = std::stoi(puk2_remaining_times->GetText());
+     }
+   }
++  GetPropAndSetPhoneNumber();
+ }
+ 
+ void SimService::InitializeFacilityLock() {
+@@ -780,6 +834,19 @@ SimService::SimStatus SimService::GetSimStatus() const {
+   return sim_status_;
+ }
+ 
++std::string SimService::GetPropImsi() {
++  char propBuf[PROPERTY_VALUE_MAX] = {0};
++  property_get("persist.sys.prop.writeimsi", propBuf, NULL);
++  std::string propStr(propBuf);
++  int number1Len = strlen(propBuf);
++  if (!isDigits(propBuf) || number1Len != LENGTH_OF_IMSI) {
++    LOG(INFO) << "set imsi prop error";
++    property_set("persist.sys.prop.writeimsi", "");
++    return "";
++  }
++  return propStr;
++}
++
+ std::string SimService::GetSimOperator() {
+   XMLElement *root = sim_file_system_.GetRootElement();
+   if (!root) return "";
+@@ -797,26 +864,11 @@ std::string SimService::GetSimOperator() {
+   if (!cimi) return "";
+   std::string imsi = cimi->GetText();
+ 
+-  ef = SimFileSystem::FindAttribute(df, "id", "6FAD");
+-  if (!ef) return "";
+-
+-  XMLElement *sim_io = ef->FirstChildElement("SIMIO");
+-  while (sim_io) {
+-    const XMLAttribute *attr_cmd = sim_io->FindAttribute("cmd");
+-    std::string attr_value = attr_cmd ? attr_cmd->Value() : "";
+-    if (attr_cmd && attr_value == "B0") {
+-      break;
+-    }
+-
+-    sim_io = sim_io->NextSiblingElement("SIMIO");
++  std::string propImsi = GetPropImsi();
++  if (propImsi.size() > 0) {
++    imsi = propImsi;
+   }
+-
+-  if (!sim_io) return "";
+-
+-  std::string length = sim_io->GetText();
+-  int mnc_size = std::stoi(length.substr(length.size() -2));
+-
+-  return imsi.substr(0, 3 + mnc_size);
++  return imsi.substr(0, 5);
+ }
+ 
+ void SimService::SetupDependency(NetworkService* net) {
+@@ -894,6 +946,20 @@ void SimService::HandleSIMStatusReq(const Client& client) {
+  */
+ void SimService::HandleSIM_IO(const Client& client,
+                               const std::string& command) {
++  char propBuf[PROPERTY_VALUE_MAX] = {0};
++  property_get("persist.gsm.sim.operator.alphacph", propBuf, NULL);
++  std::string propStr(propBuf);
++  property_set("gsm.sim.operator.alpha", propStr.c_str());
++  if (strlen(propBuf) < MIN_ALPHACPH_LENGTH ||
++      strlen(propBuf) > MAX_ALPHACPH_LENGTH) {
++    LOG(ERROR) << "operator alphacph length error: " << propBuf;
++    property_set("gsm.sim.operator.alpha", "China Mobile");
++  }
++  if (!isLetterOrDigits(propBuf)) {
++    LOG(ERROR) << "operator alphacph character error: " << propBuf;
++    property_set("gsm.sim.operator.alpha", "China Mobile");
++  }
++
+   std::vector<std::string> kFileNotFoud = {"+CRSM: 106,130", "OK"};
+   std::vector<std::string> responses;
+ 
+@@ -1238,7 +1304,32 @@ void SimService::HandleGetIMSI(const Client& client) {
+     return;
+   }
+ 
+-  responses.push_back(final->GetText());
++  std::string imsi = final->GetText();
++
++  std::string propImsi = GetPropImsi();
++  if (propImsi.size() > 0) {
++    imsi = propImsi;
++    ef = SimFileSystem::FindAttribute(df, "id", "6FAD");
++    if (ef) {
++      XMLElement *sim_io = ef->FirstChildElement("SIMIO");
++      while (sim_io) {
++        const XMLAttribute *attr_cmd = sim_io->FindAttribute("cmd");
++        std::string attr_value = attr_cmd ? attr_cmd->Value() : "";
++        if (attr_cmd && attr_value == "B0") {
++          break;
++        }
++        sim_io = sim_io->NextSiblingElement("SIMIO");
++      }
++      if (sim_io) {
++        if (propImsi.substr(0, 3) == "310") {
++          sim_io->SetText("144,0,00000003");
++        } else {
++          sim_io->SetText("144,0,00000002");
++        }
++      }
++    }
++  }
++  responses.push_back(imsi);
+   responses.push_back("OK");
+   client.SendCommandResponse(responses);
+ }
+@@ -1250,6 +1341,19 @@ void SimService::HandleGetIMSI(const Client& client) {
+  *
+  * see RIL_REQUEST_GET_SIM_STATUS in RIL
+  */
++std::string SimService::GetPropIccid() {
++  char propBuf[PROPERTY_VALUE_MAX] = {0};
++  property_get("persist.sys.prop.writesimserial", propBuf, NULL);
++  std::string propStr(propBuf);
++  int number1Len = strlen(propBuf);
++  if (number1Len != LENGTH_OF_ICCID || !isDigits(propBuf) ||
++      propStr.substr(0, 4) != "8986") {
++    property_set("persist.sys.prop.writesimserial", "");
++    return "";
++  }
++  return propStr;
++}
++
+ void SimService::HandleGetIccId(const Client& client) {
+   std::vector<std::string> responses;
+ 
+@@ -1277,7 +1381,12 @@ void SimService::HandleGetIccId(const Client& client) {
+     return;
+   }
+ 
+-  responses.push_back(final->GetText());
++  std::string iccid = final->GetText();
++  std::string propIccid = GetPropIccid();
++  if (propIccid.size() > 0) {
++    iccid = propIccid;
++  }
++  responses.push_back(iccid);
+   responses.push_back("OK");
+   client.SendCommandResponse(responses);
+ }
+diff --git a/host/commands/modem_simulator/sim_service.h b/host/commands/modem_simulator/sim_service.h
+index 889a5fb..af2acf5 100644
+--- a/host/commands/modem_simulator/sim_service.h
++++ b/host/commands/modem_simulator/sim_service.h
+@@ -80,6 +80,9 @@ class SimService : public ModemService, public std::enable_shared_from_this<SimS
+ 
+  private:
+   void InitializeServiceState();
++  void GetPropAndSetPhoneNumber();
++  std::string GetPropImsi();
++  std::string GetPropIccid();
+   std::vector<CommandHandler> InitializeCommandHandlers();
+   void InitializeSimFileSystemAndSimState();
+   void InitializeFacilityLock();
+diff --git a/host/libs/config/config_utils.cpp b/host/libs/config/config_utils.cpp
+index 0ee9911..92412e2 100644
+--- a/host/libs/config/config_utils.cpp
++++ b/host/libs/config/config_utils.cpp
+@@ -82,7 +82,7 @@ int GetVsockServerPort(const int base,
+ }
+ 
+ std::string GetGlobalConfigFileLink() {
+-  return StringFromEnv("HOME", ".") + "/.cuttlefish_config.json";
++  return "/vendor/etc/modem_simulator/files/.cuttlefish_config.json";
+ }
+ 
+ std::string ForCurrentInstance(const char* prefix) {

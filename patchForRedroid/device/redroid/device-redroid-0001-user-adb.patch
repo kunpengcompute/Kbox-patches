@@ -1,11 +1,11 @@
 diff --git a/redroid.mk b/redroid.mk
-index 36b7d46..9d720c6 100644
+index 7e6c7d2..8ca708a 100644
 --- a/redroid.mk
 +++ b/redroid.mk
-@@ -144,6 +144,13 @@ PRODUCT_PROPERTY_OVERRIDES += \
-     ro.boot.modem_simulator_ports=1 \
-     persist.gsm.operator.numericcph=46000
- 
+@@ -49,6 +49,14 @@ AUDIOSERVER_MULTILIB := first
+
+ TARGET_VENDOR_PROP += device/redroid/redroid.prop
+
 +# user 变体下启用 adb：
 +# ro.adb.secure 已在 build/make/core/main.mk 对 redroid 产品改为 0（免认证）；
 +# persist.sys.usb.config=adb 让 init 在 boot 时触发 adbd 启动。
@@ -13,6 +13,7 @@ index 36b7d46..9d720c6 100644
 +PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
 +    persist.sys.usb.config=adb
 +endif
- 
- PRODUCT_COPY_FILES += \
-     frameworks/native/data/etc/android.hardware.telephony.calling.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/android.hardware.telephony.calling.xml \
++
+ PRODUCT_PACKAGES += \
+     libEGL_angle \
+     libGLESv1_CM_angle \

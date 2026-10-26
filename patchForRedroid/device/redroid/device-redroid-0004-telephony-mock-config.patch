@@ -1,0 +1,39 @@
+diff --git a/redroid.mk b/redroid.mk
+index 9511886..b9dd77b 100644
+--- a/redroid.mk
++++ b/redroid.mk
+@@ -58,7 +58,32 @@ PRODUCT_PACKAGES += \
+ 
+ # Phone App required
+ PRODUCT_PACKAGES += \
+-    rild
++    rild \
++    libcuttlefish-rild \
++    libcuttlefish-ril-2 \
++    modem_simulator \
++    modem_simulator_config \
++    Dialer
++
++# --- 以下为 telephony mock 集成 (redroid) ---
++PRODUCT_PROPERTY_OVERRIDES += \
++    ro.boot.modem_simulator_ports=1 \
++    persist.gsm.operator.numericcph=46000
++
++PRODUCT_COPY_FILES += \
++    frameworks/native/data/etc/android.hardware.telephony.calling.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/android.hardware.telephony.calling.xml \
++    frameworks/native/data/etc/android.hardware.telephony.carrierlock.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/android.hardware.telephony.carrierlock.xml \
++    frameworks/native/data/etc/android.hardware.telephony.cdma.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/android.hardware.telephony.cdma.xml \
++    frameworks/native/data/etc/android.hardware.telephony.data.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/android.hardware.telephony.data.xml \
++    frameworks/native/data/etc/android.hardware.telephony.euicc.mep.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/android.hardware.telephony.euicc.mep.xml \
++    frameworks/native/data/etc/android.hardware.telephony.euicc.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/android.hardware.telephony.euicc.xml \
++    frameworks/native/data/etc/android.hardware.telephony.gsm.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/android.hardware.telephony.gsm.xml \
++    frameworks/native/data/etc/android.hardware.telephony.ims.singlereg.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/android.hardware.telephony.ims.singlereg.xml \
++    frameworks/native/data/etc/android.hardware.telephony.ims.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/android.hardware.telephony.ims.xml \
++    frameworks/native/data/etc/android.hardware.telephony.mbms.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/android.hardware.telephony.mbms.xml \
++    frameworks/native/data/etc/android.hardware.telephony.radio.access.xml:$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/android.hardware.telephony.radio.access.xml \
++    device/google/cuttlefish/host/commands/modem_simulator/files/iccprofile_for_sim0.xml:$(TARGET_COPY_OUT_VENDOR)/etc/modem_simulator/files/iccprofile_for_sim0.xml
++
+ 
+ # WiFi required by SystemUI
+ PRODUCT_PACKAGES += \
+

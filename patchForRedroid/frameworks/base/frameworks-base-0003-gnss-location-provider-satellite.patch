@@ -1,0 +1,14 @@
+--- a/services/core/java/com/android/server/location/gnss/GnssLocationProvider.java
++++ b/services/core/java/com/android/server/location/gnss/GnssLocationProvider.java
+@@ -1281,6 +1281,11 @@
+                 return;
+             }
+ 
++            // Ensure SV status collection is active while navigating so that the
++            // location extras (satellites/meanCn0/maxCn0) are populated. Some map
++            // apps (e.g. Amap) reject GNSS locations whose satellite count is 0.
++            mGnssNative.startSvStatusCollection();
++
+             // reset SV count to zero
+             mLocationExtras.reset();
+             mFixRequestTime = SystemClock.elapsedRealtime();
