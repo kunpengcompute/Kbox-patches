@@ -2,7 +2,7 @@
 
 <!-- md-trans-meta sourceCommit=068229d3419538dfc2b2dc125942bf14ee9de3c9 translatedAt=2026-10-16T11:02:27.712Z pushedAt=2026-10-22T01:53:03.618Z -->
 
-[简体中文](./README.md) | English
+[简体中文](./README.md)|English
 
 ## What's New
 
