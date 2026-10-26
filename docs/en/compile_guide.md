@@ -1,6 +1,6 @@
 # Compilation Guide<a id="ZH-CN_TOPIC_0000002552663613"></a>
 
-<!-- md-trans-meta sourceCommit=4bfff361ae6ddb9d220f2eb3c086fb11de00d0f9 translatedAt=2026-09-18T10:21:09.773Z pushedAt=2026-09-20T06:55:46.829Z -->
+<!-- md-trans-meta sourceCommit=e4a3a16be0f8ee9188ca01c61003e2bd50d0895d translatedAt=2026-10-16T11:02:21.282Z pushedAt=2026-10-22T07:20:20.541Z -->
 
 ## Environment Setup<a id="ZH-CN_TOPIC_0000002549825291"></a>
 
@@ -42,7 +42,7 @@ Before compiling the Kbox Android image, obtain the following packages from addr
 |7|Kbox-patches-AOSP11.zip|Android code patch demo package and compilation script demo package|[Link](https://raw.gitcode.com/boostkit/Kbox-patches/archive/refs/heads/AOSP11.zip)|
 |8|ExaGear_ARM32-ARM64_V2.5.tar.gz|Binary package for ExaGear transcoding|[Link](https://raw.gitcode.com/boostkit/boostcph/blobs/7ef9a9a3e1f45f1d1d974d45ce191f5f8f9de076/ExaGear_ARM32-ARM64_V2.5.tar.gz)|
 |9|Meson|0.63.2|[Link](https://github.com/mesonbuild/meson/releases/download/0.63.2/meson-0.63.2.tar.gz)|
-|10|vmi-CloudPhone.zip|Open-source cloud phone demo of the Huawei VMI engine<br>Branch: CloudPhone|[Link](https://raw.gitcode.com/boostkit/vmi/archive/refs/heads/CloudPhone.zip)|
+|10|vmi-CloudPhone.zip|Open-source cloud phone demo of the VMI engine<br>Branch: CloudPhone|[Link](https://raw.gitcode.com/boostkit/vmi/archive/refs/heads/CloudPhone.zip)|
 
 >![](./public_sys-resources/icon-note.gif) **NOTE**
 >
@@ -88,7 +88,7 @@ Understanding the overall Kbox Android image compilation process is a great star
 
 ## One-Click Image Compilation Script<a id="ZH-CN_TOPIC_0000002549825281"></a>
 
-Huawei provides an automation script for compiling the Kbox Android image. This script contains the entire compilation process. If you use the automation script to compile an image based on this section, you can skip the following sections in the software compilation chapter and start software deployment.
+This document provides an automation script for compiling the Kbox Android image. This script contains the entire compilation process. If you use the automation script to compile an image based on this section, you can skip the following sections in the software compilation chapter and start software deployment.
 
 The automation script implements the operations described in [Installing Dependencies](#installing-dependencies) and [Compiling AOSP Source Code and Creating an Image](#compiling-aosp-source-code-and-creating-an-image). To use the automation script, you need to prepare the AOSP source code, Kbox binary package provided by Huawei, ExaGear transcoding package, Android code patch package, and compilation script package. Obtain them based on [**Table 1**](#software-requirements). To use the automation script, perform the following steps:
 
@@ -658,6 +658,6 @@ Compile the AOSP source code to generate the Kbox Android image.
 
 ## Change History
 
-|Release|Date|Description|
+|Version|Date|Description|
 |--|--|--|
 |01|2026-09-30|This is the first official release.|

@@ -1,6 +1,6 @@
 # Installation Guide<a id="ZH-CN_TOPIC_0000002521623658"></a>
 
-<!-- md-trans-meta sourceCommit=4bfff361ae6ddb9d220f2eb3c086fb11de00d0f9 translatedAt=2026-09-18T10:37:25.038Z pushedAt=2026-09-21T13:39:28.853Z -->
+<!-- md-trans-meta sourceCommit=12216d65ee27c9654075eae4cb6ed1b1cb72f482 translatedAt=2026-10-16T11:03:54.411Z pushedAt=2026-10-22T07:35:39.134Z -->
 
 ## Deployment Description<a id="ZH-CN_TOPIC_0000002518192330"></a>
 
@@ -866,7 +866,7 @@ Generate a `.config` file and configure kernel compilation options. This file is
     cat /sys/bus/pci/devices/0000\:XX\:00.0/numa_node
     ```
 
-    Replace *XX* in the command with the IP address of a node queried in [1](#li34656503552). Take `renderD128` as an example. The query command is as follows:
+    Replace *XX* in the command with the PCI address of a node queried in [1](#li34656503552). Take `renderD128` as an example. The query command is as follows:
 
     ```bash
     cat /sys/bus/pci/devices/0000\:03\:00.0/numa_node
@@ -1099,6 +1099,6 @@ If ExaGear transcoding fails to be automatically enabled, perform the following 
 
 ## Change History
 
-|Release|Date|Description|
+|Version|Date|Description|
 |--|--|--|
 |01|2026-09-30|This is the first official release.|

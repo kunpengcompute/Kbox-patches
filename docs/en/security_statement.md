@@ -1,6 +1,6 @@
 # Security Statement
 
-<!-- md-trans-meta sourceCommit=d43551c76ea35df62b20feebd7cb9fb9bd9f829b translatedAt=2026-09-18T11:01:52.412Z pushedAt=2026-09-22T06:44:44.706Z -->
+<!-- md-trans-meta sourceCommit=e4a3a16be0f8ee9188ca01c61003e2bd50d0895d translatedAt=2026-10-16T11:25:45.840Z pushedAt=2026-10-22T08:28:42.928Z -->
 
 ## Introduction
 
@@ -23,12 +23,12 @@ The cloud phone management system is not within the delivery scope of the soluti
 
 ### Secure Transmission
 
-1. To prevent information leakage, use a secure communication protocol for communication between the cloud phone management system and the cloud phone server.
+1. To prevent information leaks, use a secure communication protocol for communication between the cloud phone management system and the cloud phone server.
 2. When authorized users connect to cloud phones through the Android Debug Bridge (ADB), it is recommended that customers or ISVs provide the SSH certificate for the connection and record key user operations on the server to prevent repudiation.
 
 ### Privacy Statement
 
-1. The Global Positioning System (GPS), international mobile equipment identity (IMEI), acceleration sensor, and gyroscope sensor provide the data configuration emulation function. This function is generally used only in app hosting test scenarios. It is recommended that customers set non-real emulated data to prevent the leakage of real personal data.
+1. The Global Positioning System (GPS), international mobile equipment identity (IMEI), acceleration sensor, and gyroscope sensor provide the data configuration emulation function. This function is generally used only in app hosting test scenarios. It is recommended that customers set non-real emulated data to prevent leaks of real personal data.
 2. When installing apps and games on the cloud phone system, it is recommended to guide end users to download legitimate apps and games from mainstream app stores. This helps prevent unauthorized user data access, eavesdropping, and other illegal operations, protects the system from malicious damage, and safeguards personal privacy data.
 
 ### OS Security Update
@@ -77,6 +77,6 @@ echo 2 > /proc/sys/kernel/randomize_va_space
 
 ## Change History
 
-|Release|Date|Description|
+|Version|Date|Description|
 |--|--|--|
 |01|2026-09-30|This is the first official release.|

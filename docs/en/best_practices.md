@@ -1,6 +1,6 @@
 # Best Practices<a id="ZH-CN_TOPIC_0000002521463656"></a>
 
-<!-- md-trans-meta sourceCommit=d43551c76ea35df62b20feebd7cb9fb9bd9f829b translatedAt=2026-09-18T10:19:43.580Z pushedAt=2026-09-18T10:53:42.644Z -->
+<!-- md-trans-meta sourceCommit=d43551c76ea35df62b20feebd7cb9fb9bd9f829b translatedAt=2026-10-16T11:02:27.712Z pushedAt=2026-10-22T01:53:03.618Z -->
 
 ## Practice 1: Enabling Adaptive Vsync to Reduce the E2E Operation Latency<a id="ZH-CN_TOPIC_0000002549833663"></a>
 
@@ -10,7 +10,7 @@ The end-to-end (E2E) operation latency of cloud phones and cloud gaming is a cri
 
 #### Recommended Version
 
-BoostKit Kbox 7.2.RC1 or later.
+BoostKit Kbox 7.2.RC1 or later
 
 ### Environment Setup
 
@@ -49,6 +49,6 @@ This practice requires the deployment of both the cloud phone server and client 
 
 ## Change History
 
-|Release|Date|Description|
+|Version|Date|Description|
 |--|--|--|
 |01|2026-09-30|This is the first official release.|
