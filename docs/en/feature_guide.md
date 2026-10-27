@@ -47,9 +47,7 @@ In mobile applications, compressed textures such as ETC and ASTC are widely used
 #### Constraints
 
 - For Vulkan, this feature currently supports only decompressing ETC textures and then compressing them into BC textures. For OpenGL ES, this feature currently supports only decompressing ASTC textures and then compressing them into BC textures.
-
 - Runtime modification is not supported. To modify this feature, you must stop the application, apply the changes, and then restart the application.
-
 - The function does not support texture postprocessing. If postprocessing is applied, rendering exceptions may occur. In this case, you need to disable texture compression and restart the application.
 
 #### Application Scenarios
@@ -65,7 +63,6 @@ This feature is integrated into the Android image by default.
 Perform the following steps to use this feature:
 
 1. Set `sys.vmi.vk.texturecompress` to `1` to enable texture compression for Vulkan applications. This function is enabled by default.
-
 2. Set `sys.vmi.gl.texturecompress` to `1` to enable texture compression for OpenGL ES applications. This function is enabled by default.
 
 ## Adaptive Frame Synchronization<a name="ZH-CN_TOPIC_0000002549865947"></a>
@@ -91,13 +88,11 @@ This feature has no specific application scenario restrictions, though the perfo
 Perform the following steps to integrate this feature:
 
 1. In the Android image, apply the patch `patchForAndroid15/frameworks/native/frameworks-native-0001.patch` (extracted from `Kbox-patches-AOSP15.zip`; for details, see [Table 1](#kbox-core-functions)).
-
 2. Integrate `AdaptiveVsync.kbox.so` (extracted from `BoostKit-boostcph-kbox_*.zip`; for details, see [Software Environment](compile_guide.md#software-requirements)), into the `/system/vendor/lib64/hw/` directory of the Android image.
 
 ### Using the Feature<a name="ZH-CN_TOPIC_0000002549745951"></a>
 
 1. Set the container configuration property `ro.vmi.adaptive.vsync` to `1` to enable the feature.
-
 2. At runtime, check whether the value of the cloud phone property `vmi.enable.adaptive.vsync` is `1`. A value of `1` indicates that the feature is enabled; a value of `0` indicates that the feature is temporarily disabled to work around frame rate spikes.
 
 ### Feature Benefits
@@ -126,19 +121,14 @@ This feature is included in the Kbox cloud phone components version 25.3.0 or la
 The following files in the `patchForAndroid15` directory are involved:
 
 1. `./frameworks/native/frameworks-native-0002-dynamic-fps.patch`
-
 2. `./hardware/interfaces/hardware-interfaces-0001-dynamic-fps.patch`
-
 3. `./hardware/libhardware/hardware-libhardware-0002-dynamic-fps.patch`
-
 (Extracted from `Kbox-patches-AOSP15.zip`); for details, see [**Table 1**](#kbox-core-functions).
 
 ### Using the Feature
 
 1. Set the container configuration property `ro.hardware.dynamicfps` to `1` to enable the feature.
-
 2. Set `ro.hardware.downfps` to `12` or `24` to indicate the target value of the dynamic frame rate.
-
 3. Start the cloud phone, establish a connection, and then disconnect the stream. Observe the stream output frame rate of the cloud phone. If the feature is working properly, the frame rate after disconnection should match the configured value of the `ro.hardware.downfps` property (the rendering frame rate is ultimately reflected in the stream output frame rate).
 
 ## Android Lightweight Trimming
@@ -162,7 +152,6 @@ This feature has no specific application scenario restrictions.
 Perform the following steps to enable this feature:
 
 1. When compiling the Android image, follow the instructions in [Compilation Guide](compile_guide.md) and select the `kbox_arm64_15_optimized-trunk_staging-user` compilation option.
-
 2. Complete the remaining compilation steps to obtain the lightweight trimmed Kbox Android image.
 
 ### Using the Feature
@@ -184,7 +173,6 @@ In the Android graphics subsystem, an application can create multiple layers for
 #### Constraints
 
 - When using hardware configuration scheme 1 (see [Installation Guide](./install_guide.md)), enabling the composition bypass feature may cause screen rotation anomalies during specific actions, such as entering/exiting a game or triggering the soft keyboard. Please evaluate the impact based on your specific application scenarios to determine whether to enable this feature.
-
 - For Kbox cloud phone components version `25.3.0` or later, this feature does not take effect in hardware configuration schemes 2, 3, 4, and 5 (see [Installation Guide](./install_guide.md)).
 
 #### Application Scenarios
@@ -198,9 +186,7 @@ This feature is natively included in the Kbox cloud phone component version 25.3
 ### Using the Feature
 
 1. Set the container configuration property `ro.hardware.compositionBypass` to `1` to enable this feature.
-
 2. The container property `ro.hardware.compositionBypass.offset` controls the composition bypass feature to take effect only after a specified number of consecutive frames meet the triggering conditions. This property can be adjusted based on actual conditions to mitigate the potential screen rotation anomalies that may occur after enabling composition bypass.
-
 3. The feature automatically takes effect upon starting the cloud phone.
 
 ### Feature Benefits
@@ -218,9 +204,7 @@ Generally, large-scale mobile applications pre-build some shaders before startup
 #### Constraints
 
 - This feature is applicable only to applications utilizing OpenGL ES 3.0 or later.
-
 - After shader cache is enabled, if the required binary shader files have not been pre-cached on the cloud, the application will experience severe lagging during its initial run. It is advised to launch a single cloud phone instance beforehand to pre-collect a comprehensive set of shader files.
-
 - This feature does not include a cache eviction mechanism. If the file system storage becomes full, manually clear the entire cache directory and expand the storage capacity. When a game version updates, old cache files must be cleared to prevent unnecessary space consumption.
 
 #### Application Scenarios
@@ -236,15 +220,10 @@ This feature is delivered solely as a binary shared object (`.so`) file. To inst
 To use this feature, perform the following steps:
 
 1. Enable the feature by setting `ENABLE_RENDER_LAYER` to `1` in the configuration file (`kbox_config.cfg` for Kbox images or `cfct_config` for video stream images).
-
 2. Copy the `kbox_render_accelerating_configuration.xml` configuration file from the `Kbox-patches-AOSP15.zip` package to the current startup directory.
-
 3. Open the `kbox_render_accelerating_configuration.xml` file to configure the shader caching behavior for specific applications. For details about the configuration items, see [Configuration Items of the Graphics Acceleration Layer](https://gitcode.com/boostkit/vmi/blob/CloudPhone15/docs/en/user_guide.md#configuration-items-of-the-graphics-acceleration-layer).
-
 4. Launch a cloud phone and run the configured application. Verify that the corresponding application cache files have been generated in the `vendor/shader_cache` directory on the container.
-
    > **Note**: Enabling this feature and setting the `SHADER_CACHE_DIR_SIZE` parameter both require launching a new cloud phone to take effect.
-
 5. To modify the shader cache mode, update the `SHADER_CACHE_MODE` parameter in the `kbox_render_accelerating_configuration.xml` file, copy it to the `/data/local/tmp/` directory within the cloud phone container, and restart the target application.
 
 ## Boot in F2FS Format<a name="ZH-CN_TOPIC_00000025498659491"></a>
@@ -258,7 +237,6 @@ In the mobile hardware domain, F2FS is the standard file system format for moder
 #### Constraints<a name="ZH-CN_TOPIC_0000002549865959"></a>
 
 - Kernel compatibility: The host OS kernel must contain and enable the F2FS kernel module. If the kernel lacks the required driver or compilation options, the system will fail to recognize and mount storage media formatted in F2FS.
-
 - Storage resource prerequisites: A physical disk, partition, or logical volume device formatted in F2FS must be available in the system environment. This device must be functional and meet the physical prerequisites for being mounted to the `data` directory under the data volume.
 
 #### Application Scenarios<a name="ZH-CN_TOPIC_0000002518226179"></a>
@@ -367,9 +345,7 @@ On physical mobile devices (real devices), the capacity of the Android `/system`
 #### Constraints<a name="ZH-CN_TOPIC_0000002549865952"></a>
 
 - Underlying filesystem dependency: The target disk hosting the cloud phone container data must be formatted with the XFS filesystem. If the filesystem does not support this capability, the capacity configuration will fail to take effect.
-
 - Mount option compliance: The operations scripts or `/etc/fstab` configurations responsible for mounting the data disk must include and successfully apply the `pquota` parameter. If the disk is mounted with default parameters, even if the underlying file system is XFS, Docker will throw an exception or fail to apply the quota when attempting to launch the cloud phone using the `--storage-opt size` parameter.
-
 - Parameter configuration limit: The configurable size of the `/system` partition is bounded. If the configured parameter exceeds the total size of the Docker root directory, the assigned capacity of the `/system` partition will automatically cap at the maximum size of the Docker root directory.
 
 #### Application Scenarios<a name="ZH-CN_TOPIC_0000002518226174"></a>
@@ -449,7 +425,6 @@ SYSTEM_PARTITION_SIZE_MB=${Expected /system partition size value (MB)}
 #### Using the Feature<a name="ZH-CN_TOPIC_0000002549745950"></a>
 
 1. The container configuration property `SYSTEM_PARTITION_SIZE_MB` controls whether this feature is active. The default value is `0`, which indicates the feature is disabled. Specifying a non-zero integer enables the feature and sets the target size of the `/system` partition in MB.
-
 2. During runtime, inspect whether the actual size of the cloud phone's `/system` partition matches the configured property value. If they match, the feature is active and taking effect; if they do not match, the configuration has not taken effect.
 
 ## NFS Mount Support<a name="NFS-Mount-Support"></a>
@@ -617,7 +592,7 @@ Inside the container, the `/sys/devices/system/cpu/cpu${target_cpu_id}/cpufreq/`
 | `scaling_setspeed` | The target frequency requested by user space. | |
 | `scaling_available_frequencies` | The list of all available frequency levels supported by the current hardware and driver. (For example: `300000 600000 1000000 ...`) | When adjusting the frequency, never write an arbitrary number. It is recommended to read this file and select a value from the supported frequency list, to prevent being identified by the risk control system through an "illegal frequency band". |
 | `scaling_available_governors` | The list of all scaling policies (governors) currently supported by the system. |   |
-| `scaling_max_freq` | The maximum frequency limit allowed by the software policy. | The frequency upper limit is capped. When implementing "frequency reduction for power saving" or "emulating a low-end device", this file may be modified to ensure that the emulated maximum frequency does not exceed this set value. |
+| `scaling_max_freq` | The maximum frequency limit allowed by the software policy. | This sets the frequency upper limit. When implementing "frequency reduction for power saving" or "emulating a low-end device", this file may be modified to ensure that the emulated maximum frequency does not exceed this set value. |
 | `scaling_min_freq` | The minimum frequency limit allowed by the software policy. | The frequency lower limit serves as the floor. When implementing "performance guarantee" or "emulating a high-performance device in standby", this file may be modified to prevent the frequency from dropping too low and causing disguise distortion. |
 | `scaling_driver` | The name of the CPU frequency driver currently in use.  |  |
 | `cpuinfo_cur_freq` | The actual current operating frequency at the CPU hardware level. | If only `scaling_cur_freq` is modified, it may be identified and intercepted. Therefore, after modifying `scaling_cur_freq`, it is recommended to modify this file synchronously. |
@@ -674,15 +649,10 @@ Inside the container, the `/sys/devices/system/cpu/cpu${target_cpu_id}/cpufreq/`
 #### Constraints
 
 - The `android_base` or `android_base.img` data volume cannot be created.
-
 - Account data cannot be saved using the `tstart` or `tdelete` method. Only `start/delete/restart` are supported for creating/deleting/restarting containers.
-
 - When a game update is required, it is recommended to recreate the image of the shared data volume.
-
 - The F2FS and NFS mount solutions are not supported.
-
 - The Kubernetes solution is not supported.
-
 - After the shared data volume is enabled, container data is stored in the Docker working path. Before starting a container, ensure that the Docker working path has sufficient capacity.
 
 #### Application Scenarios
@@ -715,6 +685,6 @@ Game data is shared between containers through Docker images. This reduces DDR m
 
 ## Change History
 
-|Release|Date|Description|
+|Version|Date|Description|
 |--|--|--|
 |01|2026-09-30|This is the first official release.|

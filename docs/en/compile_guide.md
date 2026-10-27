@@ -16,7 +16,7 @@ The Kbox Android image can be compiled only on an x86_64 server running Ubuntu 2
 |--|--|--|
 |x86_64 server|Used to compile a Kbox Android image|Ubuntu 22.04 LTS recommended: **ubuntu-22.04-live-server-amd64.iso**|
 
->![](public_sys-resources/icon-note.gif) **NOTE:**
+>![](public_sys-resources/icon-note.gif) **NOTE**
 >
 >- In this document, the server model is 2288H V5.
 >- Ensure that the server can access the internet to download the OS image.
@@ -420,6 +420,6 @@ Compile the AOSP source code to generate the Kbox Android image.
 
 ## Change History
 
-|Release|Date|Description|
+|Version|Date|Description|
 |--|--|--|
 |01|2026-09-30|This is the first official release.|

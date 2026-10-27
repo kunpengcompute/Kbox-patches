@@ -74,7 +74,7 @@ If no encoding card is used in the environment, you cannot create and use an ima
     chmod +x Dockerfile make_image.sh
     ```
 
-    >![](public_sys-resources/icon-note.gif) **NOTE:**
+    >![](public_sys-resources/icon-note.gif) **NOTE**
     >
     >The `NETINT.tar.gz` package for Quadra is different from that for T432. Select the correct version.
 
@@ -769,7 +769,9 @@ This section provides Telephony property configuration examples.
     setprop persist.sys.prop.writeimei 861456987456321
     ```
 
-    Restart the container and enter `*#06#` on the dialing screen.
+    Restart the container and enter `*#06#` on the dialing screen. The following result is displayed.
+
+    ![](./figures/zh-cn_image_0000002518225892.png)
 
 2. Call the `setprop` method to set the network operator name and code.
 
@@ -799,6 +801,8 @@ This section provides Telephony property configuration examples.
     ```
 
     Restart the container, enter `*#*#4636#*#*` on the dialing screen, and query the mobile phone information. The IMSI can be queried.
+
+    ![](./figures/zh-cn_image_0000002549865673.png)
 
     Query the SIM card operator name and operator code in the application.
 
@@ -878,6 +882,8 @@ This section provides examples of configuring acceleration and gyroscope propert
 
 2. View the configured acceleration data.
 
+    ![](./figures/zh-cn_image_0000002518385810.png)
+
     >![](public_sys-resources/icon-note.gif) **NOTE**
     >
     >You can use a relevant application for verification.
@@ -891,6 +897,8 @@ This section provides examples of configuring acceleration and gyroscope propert
     ```
 
 4. View the gyroscope data.
+
+    ![](./figures/zh-cn_image_0000002549745655.png)
 
 #### Configuring Properties of Multiple VInput Devices<a name="ZH-CN_TOPIC_0000002549745651"></a>
 
@@ -1129,6 +1137,6 @@ The Kbox_maintainer tool provides the one-click log collection capability. For d
 
 ## Change History
 
-|Release|Date|Description|
+|Version|Date|Description|
 |--|--|--|
 |01|2026-09-30|This is the first official release.|
