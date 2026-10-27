@@ -1,6 +1,6 @@
 # Feature Guide<a id="ZH-CN_TOPIC_0000002521623660"></a>
 
-<!-- md-trans-meta sourceCommit=fe4602aaa53ae3325430d3d6870389fdbf1acc74 translatedAt=2026-09-18T10:23:00.301Z pushedAt=2026-09-20T10:40:01.650Z -->
+<!-- md-trans-meta sourceCommit=fe4602aaa53ae3325430d3d6870389fdbf1acc74 translatedAt=2026-10-16T11:03:09.675Z pushedAt=2026-10-22T03:41:07.180Z -->
 
 ## Feature Description<a id="ZH-CN_TOPIC_0000002549825543"></a>
 
@@ -575,14 +575,14 @@ chmod u+w /sys/devices/system/cpu/cpu${target_cpu_id}/cpufreq/cpuinfo_cur_freq
 
 Inside the container, the `/sys/devices/system/cpu/cpu${target_cpu_id}/cpufreq/` directory typically contains the following files. Check the table below for details.
 
-| File Name| Function and Tracked Info| Suggestion and Description (Function Implementation Guide)|
+| File Name | Function and Tracked Info | Suggestion and Description (Function Implementation Guide) |
 | :--- | :--- | :--- |
 | `scaling_cur_freq` | The current operating frequency determined by the kernel governor. Most apps and risk control systems read this file to determine the real-time operating status of the device. |  When performing dynamic CPU frequency regulation, the core operation is to overwrite the value in this file. |
 | `scaling_governor` | The current CPU frequency scaling policy (governor). |   |
 | `scaling_setspeed` | The target frequency requested by user space. | |
 | `scaling_available_frequencies` | The list of all available frequency levels supported by the current hardware and driver. (For example: `300000 600000 1000000 ...`) | When adjusting the frequency, never write an arbitrary number. It is recommended to read this file and select a value from the supported frequency list, to prevent being identified by the risk control system through an "illegal frequency band". |
 | `scaling_available_governors` | The list of all scaling policies (governors) currently supported by the system. |   |
-| `scaling_max_freq` | The maximum frequency limit allowed by the software policy. | The frequency upper limit is capped. When implementing "frequency reduction for power saving" or "emulating a low-end device", this file may be modified to ensure that the emulated maximum frequency does not exceed this set value. |
+| `scaling_max_freq` | The maximum frequency limit allowed by the software policy. | This sets the frequency upper limit. When implementing "frequency reduction for power saving" or "emulating a low-end device", this file may be modified to ensure that the emulated maximum frequency does not exceed this set value. |
 | `scaling_min_freq` | The minimum frequency limit allowed by the software policy. | The frequency lower limit serves as the floor. When implementing "performance guarantee" or "emulating a high-performance device in standby", this file may be modified to prevent the frequency from dropping too low and causing disguise distortion. |
 | `scaling_driver` | The name of the CPU frequency driver currently in use.  |  |
 | `cpuinfo_cur_freq` | The actual current operating frequency at the CPU hardware level. | If only `scaling_cur_freq` is modified, it may be identified and intercepted. Therefore, after modifying `scaling_cur_freq`, it is recommended to modify this file synchronously. |
@@ -675,6 +675,6 @@ Game data is shared between containers through Docker images. This reduces DDR m
 
 ## Change History
 
-|Release|Date|Description|
+|Version|Date|Description|
 |--|--|--|
 |01|2026-09-30|This is the first official release.|

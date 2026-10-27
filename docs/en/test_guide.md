@@ -1,6 +1,6 @@
 # Acceptance Test Guide<a id="ZH-CN_TOPIC_0000002552663615"></a>
 
-<!-- md-trans-meta sourceCommit=d43551c76ea35df62b20feebd7cb9fb9bd9f829b translatedAt=2026-09-18T11:09:24.257Z pushedAt=2026-09-22T06:09:41.635Z -->
+<!-- md-trans-meta sourceCommit=e4a3a16be0f8ee9188ca01c61003e2bd50d0895d translatedAt=2026-10-16T11:26:04.695Z pushedAt=2026-10-22T08:36:16.764Z -->
 
 ## Overview<a id="ZH-CN_TOPIC_0000002518186314"></a>
 
@@ -212,7 +212,7 @@ The test results are defined as follows:
 | Test Objective| Verify that a vinput device can properly send and receive events.|
 | Test Networking| None|
 | Prerequisites| 1. The basic environment of the Kbox cloud phone has been deployed.<br>2. A Kbox cloud phone container has been created and connected via ADB.|
-| Test Procedure | 1. After setting [vinput devices](#creating-a-vinput-device), open another server remote connection window B and enter the command `getevent` to listen for events.<br>2. In server remote connection window A, run the command `docker exec -it kbox_<x> sh` to enter the container. Run the command `getevent -p` to obtain the `[device][type][code][value]` parameters of the corresponding event.<br>3. In the container, run the command `sendevent [device] [type] [code] [value]` to send the event. <br>Note: `x` indicates the numeric part of the container ID. |
+| Test Procedure | 1. After completing the settings in [Creating a vinput Device](#creating-a-vinput-device), open another server remote connection window B and enter the command `getevent` to listen for events.<br>2. In server remote connection window A, run the command `docker exec -it kbox_<x> sh` to enter the container. Run the command `getevent -p` to obtain the `[device][type][code][value]` parameters of the corresponding event.<br>3. In the container, run the command `sendevent [device] [type] [code] [value]` to send the event. <br>Note: `x` indicates the numeric part of the container ID. |
 | Expected Result| No error is reported when window A sends events, and window B can successfully listen for the events.|
 | Test Result|    |
 | Remarks|    |
@@ -358,6 +358,6 @@ The test results are defined as follows:
 
 ## Change History
 
-|Release|Date|Description|
+|Version|Date|Description|
 |--|--|--|
 |01|2026-09-30|This is the first official release.|

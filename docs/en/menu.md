@@ -1,4 +1,4 @@
-# Kbox Cloud Phone Container（Android 11）
+# Kbox Cloud Phone Container (Android 11)
 
 - [Project Introduction](../../README_EN.md)
 - [Release Notes](./release_notes.md)

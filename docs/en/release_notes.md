@@ -1,6 +1,6 @@
 # Release Notes<a id="ZH-CN_TOPIC_0000002521624118"></a>
 
-<!-- md-trans-meta sourceCommit=02a348ddea444e53ed81ec9766237f52d740d877 translatedAt=2026-09-18T10:38:33.395Z pushedAt=2026-09-22T08:20:26.238Z -->
+<!-- md-trans-meta sourceCommit=e4a3a16be0f8ee9188ca01c61003e2bd50d0895d translatedAt=2026-10-16T11:06:31.937Z pushedAt=2026-10-22T07:43:17.285Z -->
 
 ## Version Mapping<a id="ZH-CN_TOPIC_0000002549825975"></a>
 
@@ -318,7 +318,7 @@ None
 |--|--|--|
 |1|Custom patch modification for the Kbox kernel|Provides custom ashmem and binder patch modification for Kbox kernel 5.15 to reduce kernel customization and reuse kernel capabilities.|
 |2|Network emulation modification for Kbox|Provides the emulation of Kbox network functions. With the IP address, gateway, subnet mask, and DNS information, it can enable the cloud phone to access the network.|
-|3|Telephony emulation modification for Kbox|Implements the emulation of the IMEI, IMSI, network operator information, and SIM card information based on Treble  modification for Kbox telephony emulation.|
+|3|Telephony emulation modification for Kbox|Implements the emulation of the IMEI, IMSI, network operator information, and SIM card information based on table-driven modification for Kbox telephony emulation.|
 |4|Audio emulation for Kbox|Previously, Kbox lacked audio emulation support, which could lead to compatibility issues when running audio-dependent applications. Therefore, the audio emulation function needs to be added to Kbox. Constraints: Only audio output emulation is supported. Input emulation is not supported.|
 
 #### Modified Features<a id="section540mcpsimp"></a>
@@ -429,7 +429,7 @@ None
 |No.|Feature|Purpose|
 |--|--|--|
 |1|GPU adaptation| Enhances hardware compatibility.|
-|2|Bsic cloud phone documentation| Provides guidance for users to use the Kbox cloud phone container.|
+|2|Basic cloud phone documentation| Provides guidance for users to use the Kbox cloud phone container.|
 |3|Kbox Android 11 cloud phone adaptation| Supports new hardware platforms.|
 
 #### Modified Features<a id="zh-cn_topic_0000001468009680_section540mcpsimp"></a>
@@ -482,6 +482,7 @@ None
 
 | Item | Content |
 |---|---|
+| Trouble Ticket No. | issue15 |
 | Symptom | Condition: The video stream cloud phone is used to test Cocos.<br>Symptom: When playing a game in landscape mode, touch and hold the notification bar and click the home button on the server side. As a result, the notification bar is forcibly pulled out.<br>Root cause: The pulled-out notification bar needs to be masked. However, this is not implemented in the complex operation scenario described in the symptom part. The masking solution in this scenario is still under discussion and is not modified before this release.<br>Impact: The trigger condition is highly specific and rare. Generally, a user is unlikely to press and hold the notification bar with the left hand while simultaneously pressing and holding the home button with the right hand. In addition, this problem strictly occurs during landscape-to-portrait orientation switches. Even if the notification bar appears, it does not disrupt normal functionality. Therefore, the practical impact is negligible. |
 | Severity | Minor |
 | Workaround | This issue is rarely triggered in normal use. |
@@ -516,4 +517,4 @@ None
 
 ### Obtaining Documentation<a id="ZH-CN_TOPIC_0000002549705957"></a>
 
-View or download required documents from [menu](https://gitcode.com/boostkit/Kbox/blob/AOSP11/docs/en/menu.md).
+View or download required documents from [menu](https://gitcode.com/boostkit/Kbox-patches/blob/AOSP11/docs/en/menu.md).

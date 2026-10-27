@@ -1,6 +1,6 @@
 # User Guide<a id="ZH-CN_TOPIC_0000002521463654"></a>
 
-<!-- md-trans-meta sourceCommit=a4a31a276c29a54ac1dfd0f71054bbe04485c6b4 translatedAt=2026-09-18T11:33:32.158Z pushedAt=2026-09-21T04:51:37.539Z -->
+<!-- md-trans-meta sourceCommit=65b15c3742a525ba2e7ea50d01a1f94de61a8cde translatedAt=2026-10-16T11:29:04.599Z pushedAt=2026-10-22T09:06:19.688Z -->
 
 ## Starting and Uninstalling a Cloud Phone Instance<a id="ZH-CN_TOPIC_0000002549712545"></a>
 
@@ -778,7 +778,9 @@ This document provides two methods for accessing a container: [Using the CLI on 
     setprop persist.sys.prop.writeimei 861456987456321
     ```
 
-    Restart the container and enter `*#06#` on the dialing screen.
+    Restart the container and enter `*#06#` on the dialing screen. The following result is displayed.
+
+    ![IMEI query result](./figures/zh-cn_image_0000002518352734.png)
 
 2. Call the `setprop` method to set the network operator name and code.
 
@@ -871,6 +873,8 @@ This document provides two methods for accessing a container: [Using the CLI on 
 
 2. View the configured acceleration data.
 
+    ![Acceleration data](./figures/zh-cn_image_0000002518192818.png)
+
     >![](./public_sys-resources/icon-note.gif) **NOTE**
     >
     >You can use a relevant application for verification.
@@ -884,6 +888,8 @@ This document provides two methods for accessing a container: [Using the CLI on 
     ```
 
 4. View the gyroscope data.
+
+    ![Gyroscope data](./figures/zh-cn_image_0000002518352726.png)
 
 #### Configuring Properties of Multiple VInput Devices<a id="ZH-CN_TOPIC_0000002518352684"></a>
 
@@ -1106,18 +1112,18 @@ Collect system logs and view details about user operations and operation time in
 |Category|Details|
 |---|---|
 |Android logs| Run the `logcat` command to collect logs in the log buffer.|
-|| Collect the application stack information (in `/data/anr`) during an ANR.|
-|| Run the `dumpsys activity`, `dumpsys meminfo`, and `dumpsys input` commands to collect necessary dumpsys information.||
-|| Run the `ps -a` command to collect process information.||
-|| Run the `getprop` command to collect system property information.||
+|Android logs| Collect the application stack information (in `/data/anr`) during an ANR.|
+|Android logs| Run the `dumpsys activity`, `dumpsys meminfo`, and `dumpsys input` commands to collect necessary dumpsys information.|
+|Android logs| Run the `ps -a` command to collect process information.|
+|Android logs| Run the `getprop` command to collect system property information.|
 |Server logs| Collect syslog and kernel logs in `/var/log`.|
-|| Run the `dmesg -T` command to collect and view the startup information.||
-|| Run the `docker stats`/`docker inspect` command to collect Docker logs.||
+|Server logs| Run the `dmesg -T` command to collect and view the startup information.|
+|Server logs| Run the `docker stats`/`docker inspect` command to collect Docker logs.|
 
 The Kbox_maintainer tool provides the one-click log collection capability. For details about how to use Kbox_maintainer to collect logs, see section "Collecting Logs" in [Routine Maintenance](routine_maintenance.md).
 
 ## Change History
 
-|Release|Date|Description|
+|Version|Date|Description|
 |--|--|--|
 |01|2026-09-30|This is the first official release.|

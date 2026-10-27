@@ -1,6 +1,6 @@
 # Routine Maintenance<a id="ZH-CN_TOPIC_0000002552623629"></a>
 
-<!-- md-trans-meta sourceCommit=d43551c76ea35df62b20feebd7cb9fb9bd9f829b translatedAt=2026-09-18T10:51:21.205Z pushedAt=2026-09-22T03:19:19.896Z -->
+<!-- md-trans-meta sourceCommit=89f6b2c83fc149b2e3293a687762e4a78ca812dc translatedAt=2026-10-16T11:16:35.090Z pushedAt=2026-10-22T08:05:56.613Z -->
 
 ## O&M Overview<a id="ZH-CN_TOPIC_0000002518346014"></a>
 
@@ -20,13 +20,13 @@ This document describes the routine maintenance of the Kbox cloud phone containe
 
 - O&M types
 
-    Inspection, monitoring, log management, risky operations, and routine maintenance
+    Inspection, supervision/recording, log management, risky operations, and routine maintenance
 
 ## Inspection<a id="ZH-CN_TOPIC_0000002549705881"></a>
 
 ### Overview<a id="ZH-CN_TOPIC_0000002518186100"></a>
 
-This chapter describes inspection operations for Kbox cloud phone containers and their operating environment. It covers checking the container deployment environment, monitoring container running status and resource usage in real time, and detecting and handling issues that affect normal container operation in a timely manner, so as to ensure stable operation of Kbox cloud phone containers.
+This chapter describes inspection operations for Kbox cloud phone containers and their operating environment. It covers checking the container deployment environment, recording container running status and resource usage in real time, and detecting and handling issues that affect normal container operation in a timely manner, so as to ensure stable operation of Kbox cloud phone containers.
 
 ### Inspection Items and Periods<a id="ZH-CN_TOPIC_0000002549705885"></a>
 
@@ -96,11 +96,11 @@ The preceding command can dynamically display the resource consumption of the Kb
 >
 >If the CPU usage and memory usage exceed 80% of the total, the container may respond slowly. In this case, you are advised to clear background apps.
 
-## Monitoring<a id="ZH-CN_TOPIC_0000002549825875"></a>
+## Supervision/Recording<a id="ZH-CN_TOPIC_0000002549825875"></a>
 
 ### Overview<a id="ZH-CN_TOPIC_0000002518346028"></a>
 
-This chapter mainly describes the methods for monitoring the consumption of server system resources by the Kbox cloud phone container during operation, so that users can learn the usage, trends, and alarms of system resources in a timely manner.
+This chapter mainly describes the methods for inspecting and recording the consumption of server system resources by the Kbox cloud phone container during operation, so that users can learn the usage, trends, and alarms of system resources in a timely manner.
 
 ### CPU Usage<a id="ZH-CN_TOPIC_0000002518346032"></a>
 
@@ -122,7 +122,7 @@ htop
 
 As shown in the following figure, in addition to the real-time information about CPU load, memory usage, and swap space, the tasks, threads, average load, and system uptime are also displayed. The process information in the system is displayed at the bottom.
 
-![htop monitoring interface](./figures/zh-cn_image_0000002518346036.png)
+![htop interface](./figures/zh-cn_image_0000002518346036.png)
 
 >![](./public_sys-resources/icon-note.gif) **NOTE**
 >
@@ -190,7 +190,7 @@ Use the RadeonTop tool to view the GPU usage in the Kbox cloud phone container o
 
 ##### GPU Temperature<a id="section115451839147"></a>
 
-During the running of the Kbox cloud phone container, if the GPU temperature is too high, the server may break down. Therefore, when running large-scale games or applications, you need to monitor the GPU temperature in the operating environment.
+During the running of the Kbox cloud phone container, if the GPU temperature is too high, the server may break down. Therefore, when running large-scale games or applications, you need to inspect the GPU temperature in the operating environment.
 
 In the Kbox cloud phone container operating environment, run the following command to query the GPU temperature:
 
@@ -390,7 +390,7 @@ Kbox_maintainer allows you to view the service status of the Kbox cloud phone co
 
 |Category|Details|
 |---|---|
-|Basic cloud phone status|getprop \| grep sys.boot_completed|
+|Basic cloud phone status|**getprop \| grep sys.boot_completed**|
 
 Kbox_maintainer provides the `check` subcommand. You can add a container ID or container name after `check` to check the service status of the specified container. If no container ID is specified, the status of all containers is checked by default. See the following examples:
 
@@ -573,6 +573,6 @@ docker exec -it kbox_${index} getprop ro.product.system_ext.brand
 
 ## Change History
 
-|Release|Date|Description|
+|Version|Date|Description|
 |--|--|--|
 |01|2026-09-30|This is the first official release.|

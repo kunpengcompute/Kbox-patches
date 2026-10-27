@@ -1,6 +1,6 @@
 # Troubleshooting Cases<a id="ZH-CN_TOPIC_0000002552775783"></a>
 
-<!-- md-trans-meta sourceCommit=d43551c76ea35df62b20feebd7cb9fb9bd9f829b translatedAt=2026-09-18T11:18:42.086Z pushedAt=2026-09-22T06:36:40.285Z -->
+<!-- md-trans-meta sourceCommit=d43551c76ea35df62b20feebd7cb9fb9bd9f829b translatedAt=2026-10-16T11:26:04.695Z pushedAt=2026-10-22T08:36:16.764Z -->
 
 ## Troubleshooting 32-bit Application Faults<a id="ZH-CN_TOPIC_0000002518226310"></a>
 
@@ -94,6 +94,6 @@ Check the memory and BIOS configurations by following the instructions in [Confi
 
 ## Change History
 
-|Release|Date|Description|
+|Version|Date|Description|
 |--|--|--|
 |01|2026-09-30|This is the first official release.|
