@@ -52,6 +52,21 @@ replace_flat() {
   fi
 }
 
+# 删除无法从 kernel_common 构建或不适用于沙箱的模块
+rm -f "$VD/goldfish_address_space.ko"
+rm -f "$VD/goldfish_sync.ko"
+rm -f "$VD/mt76.ko"
+rm -f "$VD/mt76-usb.ko"
+rm -f "$VD/mt76x0-common.ko"
+rm -f "$VD/mt76x02-lib.ko"
+rm -f "$VD/mt76x02-usb.ko"
+rm -f "$VD/mt76x0u.ko"
+rm -f "$VD/mt76x2-common.ko"
+rm -f "$VD/mt76x2u.ko"
+rm -f "$VD/v4l2loopback.ko"
+echo "  已删除 goldfish_address_space goldfish_sync (无源码)"
+echo "  已删除 mt76 系列 (物理WiFi驱动, 沙箱用 virt_wifi)"
+
 log "替换 vd 集(vendor ramdisk + vendor_dlkm)"
 replace_flat "$VD" "vd集"
 log "替换 gki 集(system_dlkm)"
@@ -68,6 +83,24 @@ echo "[staging] 替换 $s_ok/$s_total"
 # ---------- 2.5 致命路径全量审计 ----------
 # vendor ramdisk(first_stage insmod)里的每一个模块都必须是自编的,
 # 只要有一个是原厂(CRC不匹配)就拒绝出包, 杜绝致命循环重启。
+
+# Verify deleted modules are not in the fatal path (vendor ramdisk) list
+DELETED_MODULES=$(ls "$VD" 2>/dev/null | wc -l)
+BC="$W/device/google/cuttlefish/shared/BoardConfig.mk"
+if [ -f "$BC" ]; then
+    FATAL_LIST=$(sed -n '/RAMDISK_KERNEL_MODULES/,/libarc4\|virtio-rng/p' "$BC" 2>/dev/null | grep -oE "[A-Za-z0-9_.-]+\.ko" | sort -u)
+    for m in $FATAL_LIST; do
+        if [ ! -f "$VD/$m" ] && [ ! -f "$GKI/$m" ]; then
+            # Check if it was deleted by us
+            case "$m" in
+                goldfish_address_space*|goldfish_sync*|mt76*|v4l2loopback*|snd-aloop*|v4l2-tpg*|vivid*|virtio-media*|rust_binder*)
+                    echo "  [WARNING] $m was deleted but is in ramdisk list - verify this is safe"
+                    ;;
+            esac
+        fi
+    done
+fi
+
 log "致命路径审计: vendor ramdisk 模块必须全部自编"
 DEV="$W/device/google/cuttlefish"
 BC="$DEV/shared/BoardConfig.mk"

@@ -44,12 +44,56 @@ replace_flat() {
   if [ -n "$miss" ]; then echo "  保留:$miss"; fi
 }
 
+# 删除无法从 kernel_common 构建或不适用于沙箱的模块
+rm -f "$VD/goldfish_address_space.ko"
+rm -f "$VD/goldfish_sync.ko"
+rm -f "$VD/mt76.ko"
+rm -f "$VD/mt76-usb.ko"
+rm -f "$VD/mt76x0-common.ko"
+rm -f "$VD/mt76x02-lib.ko"
+rm -f "$VD/mt76x02-usb.ko"
+rm -f "$VD/mt76x0u.ko"
+rm -f "$VD/mt76x2-common.ko"
+rm -f "$VD/mt76x2u.ko"
+echo "  已删除 goldfish_address_space goldfish_sync (无源码)"
+echo "  已删除 mt76 系列 (物理WiFi驱动, 沙箱用 virt_wifi)"
+rm -f "$VD/v4l2loopback.ko" "$VD/virtio-media.ko"
+rm -f "$VD/snd-aloop.ko"
+rm -f "$VD/v4l2-tpg.ko"
+rm -f "$VD/vivid.ko"
+rm -f "$GKI/rust_binder.ko"  # 需要 Rust 工具链, C binder 已内建, 删除防止加载失败
+echo "  已删除 v4l2loopback virtio-media (不在 kernel_common)"
+
 log "替换 vd 6.12"
 replace_flat "$VD" "vd集"
 log "替换 gki 6.12"
 replace_flat "$GKI" "gki集"
 
 # ---------- 2.5 致命路径审计 ----------
+# 移除 binder.impl=rust (C binder 已内建, Rust binder 不可用)
+if grep -q "binder.impl=rust" "$W/device/google/cuttlefish/shared/BoardConfig.mk"; then
+    sed -i "/binder.impl=rust/d" "$W/device/google/cuttlefish/shared/BoardConfig.mk"
+    echo "  已移除 binder.impl=rust (C binder 内建)"
+fi
+
+
+# Verify deleted modules are not in the fatal path (vendor ramdisk) list
+DELETED_MODULES=$(ls "$VD" 2>/dev/null | wc -l)
+BC="$W/device/google/cuttlefish/shared/BoardConfig.mk"
+if [ -f "$BC" ]; then
+    FATAL_LIST=$(sed -n '/RAMDISK_KERNEL_MODULES/,/libarc4\|virtio-rng/p' "$BC" 2>/dev/null | grep -oE "[A-Za-z0-9_.-]+\.ko" | sort -u)
+    for m in $FATAL_LIST; do
+        if [ ! -f "$VD/$m" ] && [ ! -f "$GKI/$m" ]; then
+            # Check if it was deleted by us
+            case "$m" in
+                goldfish_address_space*|goldfish_sync*|mt76*|v4l2loopback*|snd-aloop*|v4l2-tpg*|vivid*|virtio-media*|rust_binder*)
+                    echo "  [WARNING] $m was deleted but is in ramdisk list - verify this is safe"
+                    ;;
+            esac
+        fi
+    done
+fi
+
 log "致命路径审计"
 DEV="$W/device/google/cuttlefish"
 BC="$DEV/shared/BoardConfig.mk"
