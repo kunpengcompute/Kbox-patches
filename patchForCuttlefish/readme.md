@@ -149,3 +149,25 @@ HOME=$PWD ./bin/launch_cvd \
   --enable_host_nfc=false \
   --run_adb_connector=false
 ```
+
+# 3. DAMON 内核构建 (可选)
+
+在编译安卓镜像时加 `--damon` 参数，自动构建带 `CONFIG_DAMON_RECLAIM=y` 的自定义内核并替换预编译内核，实现 guest 内存主动回收。支持安卓 14/15/16。
+
+```bash
+./build_cf.sh $AOSP_PATH a15 --damon
+```
+
+不加 `--damon` 时行为与原版完全一致。
+
+工作原理：从预编译内核提取基准 config → 修改 config（开启 DAMON、补齐模块、关闭签名校验） → 编译 Image + modules → 替换 AOSP 树中的预编译内核和模块（保证 ABI 自洽）→ 走正常 patch + make dist 流程。
+
+各版本使用独立的构建脚本（`kernel/build_aXX.sh` + `kernel/modules_aXX.sh`），经过端到端实测验证。
+
+| Android 版本 | 内核版本 | kernel_common 分支 |
+|---|---|---|
+| 14 | 6.1.23 | android14-6.1-2023-05-exp |
+| 15 | 6.6.30 | deprecated/android15-6.6-2024-08 |
+| 16 | 6.12.38 | android16-6.12-2025-08 |
+
+注意：安卓16 的 trunk_staging 构建实际使用 6.12 内核（`kernel/prebuilts/6.12/`），而非 BoardConfig 默认的 6.6。安卓14 的 6.1 内核没有 `skip_anon` 参数，DAMON 会同时回收匿名页和文件页。
