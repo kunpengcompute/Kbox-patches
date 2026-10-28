@@ -1,0 +1,13 @@
+diff --git a/gpu_config.sh b/gpu_config.sh
+index f43e935..d34b758 100755
+--- a/gpu_config.sh
++++ b/gpu_config.sh
+@@ -90,7 +90,7 @@ gpu_setup_guest() {
+     fi
+ 
+     setprop ro.hardware.egl $egl
+-    setprop ro.hardware.gralloc redroid
++    setprop ro.hardware.gralloc kbox_soft
+     setprop ro.hardware.vulkan pastel
+ }
+ 

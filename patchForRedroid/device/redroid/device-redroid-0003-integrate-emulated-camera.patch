@@ -1,0 +1,495 @@
+diff --git a/camera/camera.mk b/camera/camera.mk
+new file mode 100644
+index 0000000..7f522fb
+--- /dev/null
++++ b/camera/camera.mk
+@@ -0,0 +1,41 @@
++# Cuttlefish EmulatedCamera 纯 HAL mock 相机仿真
++# 来源: hardware/google/camera/devices/EmulatedCamera (AOSP android-14.0.0_r75)
++# 参照: device/google/cuttlefish/shared/camera/{device_vendor.mk,config/standard.mk}
++# 说明: 仅集成进程内软件仿真部分(EmulatedCamera HWL 软件渲染虚拟场景),
++#       不含 vsock guest-host 交互; 绕过 APEX 打包路线(redroid 未启用 VNDK),
++#       直接以 vendor 模块方式安装 cc_binary(自带 init rc 与 VINTF fragment)。
++#
++# media_profiles: CamcorderProfile(Java API) 只从 media_profiles_V1_0.xml 静态查表,
++# 不会从相机 characteristics 推导(frameworks/av/media/libmedia/MediaProfiles.cpp).
++# 缺失该文件时 CamcorderProfile.hasProfile() 对所有档位返回 false, Camera2 App
++# 在 SettingsUtil.getNextSupportedVideoQualityIndex 抛
++# "Could not find supported video qualities" 闪退. redroid 原产品配置不带此文件,
++# 故随相机方案一并引入(搜索路径与两个目标文件名均与 cuttlefish device.mk 一致).
++# 注意: 基于 cuttlefish shared/config/media_profiles.xml 拷贝, 并修复了后置
++# cameraId 0 的 quality="720p " 尾空格 bug —— MediaProfiles 按字符串精确匹配,
++# 尾空格导致该档解析失败, 后置录像仅剩 QVGA 可用.
++
++# libgooglecamerahwl_impl 定义于 EmulatedCamera soong 命名空间, 需声明方可被
++# PRODUCT_PACKAGES 按名解析(与 cuttlefish device_vendor.mk 保持一致)
++PRODUCT_SOONG_NAMESPACES += hardware/google/camera
++PRODUCT_SOONG_NAMESPACES += hardware/google/camera/devices/EmulatedCamera
++
++# AIDL camera provider 服务, 安装到 /vendor/bin/hw/, 由 init 拉起后
++# dlopen libgooglecamerahwl_impl.so(纯 mock HWL)
++PRODUCT_PACKAGES += \
++    android.hardware.camera.provider@2.7-service-google \
++    libgooglecamerahwl_impl \
++
++# 相机能力配置(后置/前置/深度), EmulatedCameraProviderHWLImpl 从
++# /vendor/etc/config/ 读取(缺失 external.json 属预期, 默认不加载外接相机)
++PRODUCT_COPY_FILES += \
++    hardware/google/camera/devices/EmulatedCamera/hwl/configs/emu_camera_back.json:$(TARGET_COPY_OUT_VENDOR)/etc/config/emu_camera_back.json \
++    hardware/google/camera/devices/EmulatedCamera/hwl/configs/emu_camera_front.json:$(TARGET_COPY_OUT_VENDOR)/etc/config/emu_camera_front.json \
++    hardware/google/camera/devices/EmulatedCamera/hwl/configs/emu_camera_depth.json:$(TARGET_COPY_OUT_VENDOR)/etc/config/emu_camera_depth.json \
++    device/redroid/camera/media_profiles.xml:$(TARGET_COPY_OUT_VENDOR)/etc/media_profiles_V1_0.xml \
++    device/redroid/camera/media_profiles.xml:$(TARGET_COPY_OUT_VENDOR)/etc/media_profiles_vendor.xml \
++    frameworks/native/data/etc/android.hardware.camera.concurrent.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.camera.concurrent.xml \
++    frameworks/native/data/etc/android.hardware.camera.flash-autofocus.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.camera.flash-autofocus.xml \
++    frameworks/native/data/etc/android.hardware.camera.front.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.camera.front.xml \
++    frameworks/native/data/etc/android.hardware.camera.full.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.camera.full.xml \
++    frameworks/native/data/etc/android.hardware.camera.raw.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.camera.raw.xml
+diff --git a/camera/media_profiles.xml b/camera/media_profiles.xml
+new file mode 100644
+index 0000000..cbd84ff
+--- /dev/null
++++ b/camera/media_profiles.xml
+@@ -0,0 +1,394 @@
++<?xml version="1.0" encoding="utf-8"?>
++<!--
++/*
++** Copyright 2017, The Android Open Source Project.
++**
++** Licensed under the Apache License, Version 2.0 (the "License");
++** you may not use this file except in compliance with the License.
++** You may obtain a copy of the License at
++**
++**     http://www.apache.org/licenses/LICENSE-2.0
++**
++** Unless required by applicable law or agreed to in writing, software
++** distributed under the License is distributed on an "AS IS" BASIS,
++** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++** See the License for the specific language governing permissions and
++** limitations under the License.
++*/
++-->
++<!DOCTYPE MediaSettings [
++<!ELEMENT MediaSettings (CamcorderProfiles,
++                         EncoderOutputFileFormat+,
++                         VideoEncoderCap+,
++                         AudioEncoderCap+,
++                         VideoDecoderCap,
++                         AudioDecoderCap)>
++<!ELEMENT CamcorderProfiles (EncoderProfile+, ImageEncoding+, ImageDecoding, Camera)>
++<!ELEMENT EncoderProfile (Video, Audio)>
++<!ATTLIST EncoderProfile quality (high|low) #REQUIRED>
++<!ATTLIST EncoderProfile fileFormat (mp4|3gp) #REQUIRED>
++<!ATTLIST EncoderProfile duration (30|60) #REQUIRED>
++<!ATTLIST EncoderProfile cameraId (0|1) #REQUIRED>
++<!ELEMENT Video EMPTY>
++<!ATTLIST Video codec (h264|h263|m4v) #REQUIRED>
++<!ATTLIST Video bitRate CDATA #REQUIRED>
++<!ATTLIST Video width CDATA #REQUIRED>
++<!ATTLIST Video height CDATA #REQUIRED>
++<!ATTLIST Video frameRate CDATA #REQUIRED>
++<!ELEMENT Audio EMPTY>
++<!ATTLIST Audio codec (amrnb|amrwb|aac) #REQUIRED>
++<!ATTLIST Audio bitRate CDATA #REQUIRED>
++<!ATTLIST Audio sampleRate CDATA #REQUIRED>
++<!ATTLIST Audio channels (1|2) #REQUIRED>
++<!ELEMENT ImageEncoding EMPTY>
++<!ATTLIST ImageEncoding quality (90|80|70|60|50|40) #REQUIRED>
++<!ELEMENT ImageDecoding EMPTY>
++<!ATTLIST ImageDecoding memCap CDATA #REQUIRED>
++<!ELEMENT Camera EMPTY>
++<!ELEMENT EncoderOutputFileFormat EMPTY>
++<!ATTLIST EncoderOutputFileFormat name (mp4|3gp) #REQUIRED>
++<!ELEMENT VideoEncoderCap EMPTY>
++<!ATTLIST VideoEncoderCap name (h264|h263|m4v|wmv) #REQUIRED>
++<!ATTLIST VideoEncoderCap enabled (true|false) #REQUIRED>
++<!ATTLIST VideoEncoderCap minBitRate CDATA #REQUIRED>
++<!ATTLIST VideoEncoderCap maxBitRate CDATA #REQUIRED>
++<!ATTLIST VideoEncoderCap minFrameWidth CDATA #REQUIRED>
++<!ATTLIST VideoEncoderCap maxFrameWidth CDATA #REQUIRED>
++<!ATTLIST VideoEncoderCap minFrameHeight CDATA #REQUIRED>
++<!ATTLIST VideoEncoderCap maxFrameHeight CDATA #REQUIRED>
++<!ATTLIST VideoEncoderCap minFrameRate CDATA #REQUIRED>
++<!ATTLIST VideoEncoderCap maxFrameRate CDATA #REQUIRED>
++<!ELEMENT AudioEncoderCap EMPTY>
++<!ATTLIST AudioEncoderCap name (amrnb|amrwb|aac|wma) #REQUIRED>
++<!ATTLIST AudioEncoderCap enabled (true|false) #REQUIRED>
++<!ATTLIST AudioEncoderCap minBitRate CDATA #REQUIRED>
++<!ATTLIST AudioEncoderCap maxBitRate CDATA #REQUIRED>
++<!ATTLIST AudioEncoderCap minSampleRate CDATA #REQUIRED>
++<!ATTLIST AudioEncoderCap maxSampleRate CDATA #REQUIRED>
++<!ATTLIST AudioEncoderCap minChannels (1|2) #REQUIRED>
++<!ATTLIST AudioEncoderCap maxChannels (1|2) #REQUIRED>
++<!ELEMENT VideoDecoderCap EMPTY>
++<!ATTLIST VideoDecoderCap name (wmv) #REQUIRED>
++<!ATTLIST VideoDecoderCap enabled (true|false) #REQUIRED>
++<!ELEMENT AudioDecoderCap EMPTY>
++<!ATTLIST AudioDecoderCap name (wma) #REQUIRED>
++<!ATTLIST AudioDecoderCap enabled (true|false) #REQUIRED>
++]>
++<!--
++     This file is used to declare the multimedia profiles and capabilities
++     on an android-powered device.
++-->
++<MediaSettings>
++    <!-- Each camcorder profile defines a set of predefined configuration parameters -->
++    <CamcorderProfiles cameraId="0">
++        <EncoderProfile quality="qvga" fileFormat="mp4" duration="60">
++            <Video codec="h264"
++                   bitRate="128000"
++                   width="320"
++                   height="240"
++                   frameRate="30" />
++            <Audio codec="amrnb"
++                   bitRate="12200"
++                   sampleRate="8000"
++                   channels="1" />
++        </EncoderProfile>
++
++        <EncoderProfile quality="720p" fileFormat="mp4" duration="60">
++            <Video codec="h264"
++                   bitRate="12000000"
++                   width="1280"
++                   height="720"
++                   frameRate="30" />
++            <Audio codec="amrnb"
++                   bitRate="12200"
++                   sampleRate="8000"
++                   channels="1" />
++        </EncoderProfile>
++
++        <EncoderProfile quality="timelapseqcif" fileFormat="mp4" duration="30">
++            <Video codec="h264"
++                   bitRate="192000"
++                   width="176"
++                   height="144"
++                   frameRate="30" />
++            <!-- audio setting is ignored -->
++            <Audio codec="amrnb"
++                   bitRate="12200"
++                   sampleRate="8000"
++                   channels="1" />
++        </EncoderProfile>
++
++        <ImageEncoding quality="95" />
++        <ImageEncoding quality="80" />
++        <ImageEncoding quality="70" />
++        <ImageDecoding memCap="20000000" />
++
++    </CamcorderProfiles>
++
++    <CamcorderProfiles cameraId="1">
++
++        <EncoderProfile quality="qvga" fileFormat="mp4" duration="60">
++            <Video codec="h264"
++                   bitRate="128000"
++                   width="320"
++                   height="240"
++                   frameRate="30" />
++            <Audio codec="amrnb"
++                   bitRate="12200"
++                   sampleRate="8000"
++                   channels="1" />
++        </EncoderProfile>
++
++        <EncoderProfile quality="720p" fileFormat="mp4" duration="60">
++            <Video codec="h264"
++                   bitRate="12000000"
++                   width="1280"
++                   height="720"
++                   frameRate="30" />
++            <Audio codec="amrnb"
++                   bitRate="12200"
++                   sampleRate="8000"
++                   channels="1" />
++        </EncoderProfile>
++
++        <EncoderProfile quality="timelapseqcif" fileFormat="mp4" duration="30">
++            <Video codec="h264"
++                   bitRate="192000"
++                   width="176"
++                   height="144"
++                   frameRate="30" />
++            <!-- audio setting is ignored -->
++            <Audio codec="amrnb"
++                   bitRate="12200"
++                   sampleRate="8000"
++                   channels="1" />
++        </EncoderProfile>
++
++        <ImageEncoding quality="95" />
++        <ImageEncoding quality="80" />
++        <ImageEncoding quality="70" />
++        <ImageDecoding memCap="20000000" />
++
++    </CamcorderProfiles>
++
++    <CamcorderProfiles cameraId="2">
++
++        <EncoderProfile quality="qvga" fileFormat="mp4" duration="60">
++            <Video codec="m4v"
++                   bitRate="128000"
++                   width="320"
++                   height="240"
++                   frameRate="15" />
++            <Audio codec="amrnb"
++                   bitRate="12200"
++                   sampleRate="8000"
++                   channels="1" />
++        </EncoderProfile>
++
++        <EncoderProfile quality="timelapseqcif" fileFormat="mp4" duration="30">
++            <Video codec="h264"
++                   bitRate="192000"
++                   width="176"
++                   height="144"
++                   frameRate="30" />
++            <!-- audio setting is ignored -->
++            <Audio codec="amrnb"
++                   bitRate="12200"
++                   sampleRate="8000"
++                   channels="1" />
++        </EncoderProfile>
++
++        <ImageEncoding quality="95" />
++        <ImageEncoding quality="80" />
++        <ImageEncoding quality="70" />
++        <ImageDecoding memCap="20000000" />
++
++    </CamcorderProfiles>
++
++    <CamcorderProfiles cameraId="3">
++
++        <EncoderProfile quality="qvga" fileFormat="mp4" duration="60">
++            <Video codec="m4v"
++                   bitRate="128000"
++                   width="320"
++                   height="240"
++                   frameRate="15" />
++            <Audio codec="amrnb"
++                   bitRate="12200"
++                   sampleRate="8000"
++                   channels="1" />
++        </EncoderProfile>
++
++        <EncoderProfile quality="timelapseqcif" fileFormat="mp4" duration="30">
++            <Video codec="h264"
++                   bitRate="192000"
++                   width="176"
++                   height="144"
++                   frameRate="30" />
++            <!-- audio setting is ignored -->
++            <Audio codec="amrnb"
++                   bitRate="12200"
++                   sampleRate="8000"
++                   channels="1" />
++        </EncoderProfile>
++
++        <ImageEncoding quality="95" />
++        <ImageEncoding quality="80" />
++        <ImageEncoding quality="70" />
++        <ImageDecoding memCap="20000000" />
++
++    </CamcorderProfiles>
++
++    <CamcorderProfiles cameraId="4">
++
++        <EncoderProfile quality="qvga" fileFormat="mp4" duration="60">
++            <Video codec="m4v"
++                   bitRate="128000"
++                   width="320"
++                   height="240"
++                   frameRate="15" />
++            <Audio codec="amrnb"
++                   bitRate="12200"
++                   sampleRate="8000"
++                   channels="1" />
++        </EncoderProfile>
++
++        <EncoderProfile quality="timelapseqcif" fileFormat="mp4" duration="30">
++            <Video codec="h264"
++                   bitRate="192000"
++                   width="176"
++                   height="144"
++                   frameRate="30" />
++            <!-- audio setting is ignored -->
++            <Audio codec="amrnb"
++                   bitRate="12200"
++                   sampleRate="8000"
++                   channels="1" />
++        </EncoderProfile>
++
++        <ImageEncoding quality="95" />
++        <ImageEncoding quality="80" />
++        <ImageEncoding quality="70" />
++        <ImageDecoding memCap="20000000" />
++
++    </CamcorderProfiles>
++
++    <CamcorderProfiles cameraId="5">
++
++        <EncoderProfile quality="qvga" fileFormat="mp4" duration="60">
++            <Video codec="m4v"
++                   bitRate="128000"
++                   width="320"
++                   height="240"
++                   frameRate="15" />
++            <Audio codec="amrnb"
++                   bitRate="12200"
++                   sampleRate="8000"
++                   channels="1" />
++        </EncoderProfile>
++
++        <EncoderProfile quality="timelapseqcif" fileFormat="mp4" duration="30">
++            <Video codec="h264"
++                   bitRate="192000"
++                   width="176"
++                   height="144"
++                   frameRate="30" />
++            <!-- audio setting is ignored -->
++            <Audio codec="amrnb"
++                   bitRate="12200"
++                   sampleRate="8000"
++                   channels="1" />
++        </EncoderProfile>
++
++        <ImageEncoding quality="95" />
++        <ImageEncoding quality="80" />
++        <ImageEncoding quality="70" />
++        <ImageDecoding memCap="20000000" />
++
++    </CamcorderProfiles>
++
++    <CamcorderProfiles cameraId="6">
++
++        <EncoderProfile quality="qvga" fileFormat="mp4" duration="60">
++            <Video codec="m4v"
++                   bitRate="128000"
++                   width="320"
++                   height="240"
++                   frameRate="15" />
++            <Audio codec="amrnb"
++                   bitRate="12200"
++                   sampleRate="8000"
++                   channels="1" />
++        </EncoderProfile>
++
++        <EncoderProfile quality="timelapseqcif" fileFormat="mp4" duration="30">
++            <Video codec="h264"
++                   bitRate="192000"
++                   width="176"
++                   height="144"
++                   frameRate="30" />
++            <!-- audio setting is ignored -->
++            <Audio codec="amrnb"
++                   bitRate="12200"
++                   sampleRate="8000"
++                   channels="1" />
++        </EncoderProfile>
++
++        <ImageEncoding quality="95" />
++        <ImageEncoding quality="80" />
++        <ImageEncoding quality="70" />
++        <ImageDecoding memCap="20000000" />
++
++    </CamcorderProfiles>
++
++    <EncoderOutputFileFormat name="3gp" />
++    <EncoderOutputFileFormat name="mp4" />
++
++    <!--
++         If a codec is not enabled, it is invisible to the applications
++         In other words, the applications won't be able to use the codec
++         or query the capabilities of the codec at all if it is disabled
++    -->
++    <VideoEncoderCap name="h264" enabled="true"
++        minBitRate="64000" maxBitRate="12000000"
++        minFrameWidth="176" maxFrameWidth="1280"
++        minFrameHeight="144" maxFrameHeight="720"
++        minFrameRate="15" maxFrameRate="30" />
++
++    <VideoEncoderCap name="h263" enabled="true"
++        minBitRate="64000" maxBitRate="12000000"
++        minFrameWidth="176" maxFrameWidth="1280"
++        minFrameHeight="144" maxFrameHeight="720"
++        minFrameRate="15" maxFrameRate="30" />
++
++    <VideoEncoderCap name="m4v" enabled="true"
++        minBitRate="64000" maxBitRate="12000000"
++        minFrameWidth="176" maxFrameWidth="1280"
++        minFrameHeight="144" maxFrameHeight="720"
++        minFrameRate="15" maxFrameRate="30" />
++
++    <AudioEncoderCap name="aac" enabled="true"
++        minBitRate="8000" maxBitRate="96000"
++        minSampleRate="8000" maxSampleRate="48000"
++        minChannels="1" maxChannels="1" />
++
++    <AudioEncoderCap name="amrwb" enabled="true"
++        minBitRate="6600" maxBitRate="23050"
++        minSampleRate="16000" maxSampleRate="16000"
++        minChannels="1" maxChannels="1" />
++
++    <AudioEncoderCap name="amrnb" enabled="true"
++        minBitRate="5525" maxBitRate="12200"
++        minSampleRate="8000" maxSampleRate="8000"
++        minChannels="1" maxChannels="1" />
++
++    <!--
++        FIXME:
++        We do not check decoder capabilities at present
++        At present, we only check whether windows media is visible
++        for TEST applications. For other applications, we do
++        not perform any checks at all.
++    -->
++    <VideoDecoderCap name="wmv" enabled="false"/>
++    <AudioDecoderCap name="wma" enabled="false"/>
++</MediaSettings>
+diff --git a/redroid_arm64_only/BoardConfig.mk b/redroid_arm64_only/BoardConfig.mk
+index 21257a9..0b8c74a 100644
+--- a/redroid_arm64_only/BoardConfig.mk
++++ b/redroid_arm64_only/BoardConfig.mk
+@@ -14,3 +14,8 @@ BOARD_SYSTEMIMAGE_PARTITION_RESERVED_SIZE := 16777216
+ 
+ DEVICE_MANIFEST_FILE += device/redroid/manifest.xml
+ 
++# Cuttlefish EmulatedCamera 相机仿真 sepolicy
++# (hal_camera_default 域由 stock system/sepolicy 声明, 此目录仅补充
++#  file_contexts 标注与 binder/属性授权, 全部为公共类型, 可独立编译)
++BOARD_VENDOR_SEPOLICY_DIRS += device/google/cuttlefish/shared/camera/sepolicy
++
+diff --git a/redroid_arm64_only/device.mk b/redroid_arm64_only/device.mk
+index aac7ddb..edc3649 100644
+--- a/redroid_arm64_only/device.mk
++++ b/redroid_arm64_only/device.mk
+@@ -2,3 +2,6 @@ PRODUCT_COPY_FILES += \
+     device/redroid/mediacodec.policy.arm:$(TARGET_COPY_OUT_VENDOR)/etc/seccomp_policy/mediacodec.policy \
+ 
+ $(call inherit-product, device/redroid-prebuilts/prebuilts_arm.mk)
++
++# Cuttlefish EmulatedCamera 纯 HAL mock 相机仿真
++$(call inherit-product, device/redroid/camera/camera.mk)
+diff --git a/redroid_x86_64_only/BoardConfig.mk b/redroid_x86_64_only/BoardConfig.mk
+index fa6252d..464378f 100755
+--- a/redroid_x86_64_only/BoardConfig.mk
++++ b/redroid_x86_64_only/BoardConfig.mk
+@@ -17,3 +17,8 @@ BOARD_SYSTEMIMAGE_PARTITION_RESERVED_SIZE := 16777216
+ 
+ DEVICE_MANIFEST_FILE += device/redroid/manifest.xml
+ 
++# Cuttlefish EmulatedCamera 相机仿真 sepolicy
++# (hal_camera_default 域由 stock system/sepolicy 声明, 此目录仅补充
++#  file_contexts 标注与 binder/属性授权, 全部为公共类型, 可独立编译)
++BOARD_VENDOR_SEPOLICY_DIRS += device/google/cuttlefish/shared/camera/sepolicy
++
+diff --git a/redroid_x86_64_only/device.mk b/redroid_x86_64_only/device.mk
+index a9a70f0..8228f0b 100644
+--- a/redroid_x86_64_only/device.mk
++++ b/redroid_x86_64_only/device.mk
+@@ -7,3 +7,6 @@ PRODUCT_PROPERTY_OVERRIDES += \
+     ro.dalvik.vm.native.bridge=libnb.so \
+ 
+ $(call inherit-product, device/redroid-prebuilts/prebuilts_x86.mk)
++
++# Cuttlefish EmulatedCamera 纯 HAL mock 相机仿真
++$(call inherit-product, device/redroid/camera/camera.mk)

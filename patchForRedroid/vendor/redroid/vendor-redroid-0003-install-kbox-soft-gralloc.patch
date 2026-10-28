@@ -1,0 +1,10 @@
+--- a/vendor.mk
++++ b/vendor.mk
+@@ -7,6 +7,7 @@
+ 	ipconfigstore \
+ 	envd \
+ 	disable_offload \
++	gralloc.kbox_soft \
+ 
+ 
+ PRODUCT_COPY_FILES += \
