@@ -1,5 +1,5 @@
 diff --git a/hypervisor/hypervisor/src/kvm/aarch64/gic/dist_regs.rs b/hypervisor/hypervisor/src/kvm/aarch64/gic/dist_regs.rs
-index 0c1a978..95a5742 100644
+index 0c1a9788..95a5742b 100644
 --- a/hypervisor/hypervisor/src/kvm/aarch64/gic/dist_regs.rs
 +++ b/hypervisor/hypervisor/src/kvm/aarch64/gic/dist_regs.rs
 @@ -77,11 +77,11 @@ static VGIC_DIST_REGS: &[DistReg] = &[
@@ -69,7 +69,7 @@ index 0c1a978..95a5742 100644
              base += REG_SIZE as u32;
          }
 diff --git a/hypervisor/hypervisor/src/kvm/aarch64/gic/icc_regs.rs b/hypervisor/hypervisor/src/kvm/aarch64/gic/icc_regs.rs
-index 8124ed6..b5c0487 100644
+index 8124ed68..b5c04873 100644
 --- a/hypervisor/hypervisor/src/kvm/aarch64/gic/icc_regs.rs
 +++ b/hypervisor/hypervisor/src/kvm/aarch64/gic/icc_regs.rs
 @@ -79,11 +79,11 @@ static VGIC_ICC_REGS: &[u64] = &[
@@ -150,7 +150,7 @@ index 8124ed6..b5c0487 100644
          }
      }
 diff --git a/hypervisor/hypervisor/src/kvm/aarch64/gic/mod.rs b/hypervisor/hypervisor/src/kvm/aarch64/gic/mod.rs
-index d90b233..2f4a9df 100644
+index d90b2337..2f4a9df9 100644
 --- a/hypervisor/hypervisor/src/kvm/aarch64/gic/mod.rs
 +++ b/hypervisor/hypervisor/src/kvm/aarch64/gic/mod.rs
 @@ -31,13 +31,13 @@ pub fn gicv3_its_attr_access(
@@ -311,7 +311,7 @@ index d90b233..2f4a9df 100644
          )
      }
 diff --git a/hypervisor/hypervisor/src/kvm/aarch64/gic/redist_regs.rs b/hypervisor/hypervisor/src/kvm/aarch64/gic/redist_regs.rs
-index e92e4d0..03b7a4a 100644
+index e92e4d02..03b7a4ac 100644
 --- a/hypervisor/hypervisor/src/kvm/aarch64/gic/redist_regs.rs
 +++ b/hypervisor/hypervisor/src/kvm/aarch64/gic/redist_regs.rs
 @@ -96,11 +96,11 @@ static VGIC_SGI_REGS: &[RdistReg] = &[

@@ -1,7 +1,8 @@
 diff --git a/CubeMaster/cmd/cubemastercli/commands/cubebox/template.go b/CubeMaster/cmd/cubemastercli/commands/cubebox/template.go
+index 6914838c..e647a33f 100644
 --- a/CubeMaster/cmd/cubemastercli/commands/cubebox/template.go
 +++ b/CubeMaster/cmd/cubemastercli/commands/cubebox/template.go
-@@ -872,6 +872,7 @@
+@@ -896,6 +896,7 @@ var TemplateCreateFromImageCommand = cli.Command{
  		cli.IntFlag{Name: "probe", Usage: "enable HTTP GET probe on the specified port (e.g. --probe 9000); sets timeout_ms=30000, period_ms=500"},
  		cli.StringFlag{Name: "probe-path", Value: "/health", Usage: "HTTP path for the readiness probe (default: /health); only effective when --probe is set"},
  		cli.IntFlag{Name: "probe-timeout-ms", Value: 30000, Usage: "probe timeout in milliseconds (default: 30000). Increase for slow-booting guests (e.g. Android boots in 1-2min before envd listens)"},
@@ -9,7 +10,7 @@ diff --git a/CubeMaster/cmd/cubemastercli/commands/cubebox/template.go b/CubeMas
  		cli.IntFlag{Name: "cpu", Value: 2000, Usage: "CPU millicores for the template container (default: 2000, i.e. 2 cores)"},
  		cli.IntFlag{Name: "memory", Value: 2000, Usage: "Memory for the template container in MB (default: 2000 MB)"},
  		cli.BoolTFlag{Name: "with-cube-ca", Usage: "bake the CubeEgress root CA at /etc/cube/ca/cube-root-ca.crt into the template rootfs so sandboxes trust CubeEgress's MITM. Pass --with-cube-ca=false to skip (default: true)"},
-@@ -1491,11 +1492,12 @@
+@@ -1605,11 +1606,12 @@ func parseContainerOverrides(c *cli.Context) (*types.ContainerOverrides, error)
  	dnsServers := c.StringSlice("dns")
  	probePort := c.Int("probe")
  	probeTimeoutMs := c.Int("probe-timeout-ms")
@@ -23,7 +24,7 @@ diff --git a/CubeMaster/cmd/cubemastercli/commands/cubebox/template.go b/CubeMas
  		return nil, nil
  	}
  
-@@ -1559,3 +1561,21 @@
+@@ -1673,3 +1675,21 @@ func parseContainerOverrides(c *cli.Context) (*types.ContainerOverrides, error)
  			SuccessThreshold: 1,
  		}
  	}
@@ -46,10 +47,10 @@ diff --git a/CubeMaster/cmd/cubemastercli/commands/cubebox/template.go b/CubeMas
 +	return overrides, nil
 +}
 diff --git a/CubeMaster/pkg/templatecenter/template_request.go b/CubeMaster/pkg/templatecenter/template_request.go
-index b920201..5bb70f9 100644
+index e550b2be..60c99c1c 100644
 --- a/CubeMaster/pkg/templatecenter/template_request.go
 +++ b/CubeMaster/pkg/templatecenter/template_request.go
-@@ -33,6 +33,13 @@ func generateTemplateCreateRequest(req *types.CreateTemplateFromImageReq, artifa
+@@ -36,6 +36,13 @@ func generateTemplateCreateRequest(ctx context.Context, req *types.CreateTemplat
  	if ShouldInjectEnvdIntoTemplate(req) {
  		annotations[constants.CubeAnnotationsInjectEnvd] = constants.CubeAnnotationsInjectEnvdOptIn
  	}
@@ -64,7 +65,7 @@ index b920201..5bb70f9 100644
  	if err == nil && sizeGi > 0 {
  		annotations[constants.CubeAnnotationsSystemDiskSize] = strconv.FormatInt(sizeGi, 10)
 diff --git a/CubeShim/shim/src/sandbox/config.rs b/CubeShim/shim/src/sandbox/config.rs
-index ab96f40..4539920 100644
+index 5293ac6d..3eb20c63 100644
 --- a/CubeShim/shim/src/sandbox/config.rs
 +++ b/CubeShim/shim/src/sandbox/config.rs
 @@ -24,6 +24,9 @@ pub const ANNO_SNAPSHOT_NOTIFY: &str = "cube.snapshot.healthcheck";
@@ -77,25 +78,25 @@ index ab96f40..4539920 100644
  /// Override path to cube-agent.ext4 (virtio-pmem1).
  pub const ANNO_VM_AGENT: &str = "cube.vm.agent.path";
  /// Override path to guest OS image (virtio-pmem0).
-@@ -74,6 +77,9 @@ pub struct Config {
-     pub use_passfd_io: bool,
+@@ -87,6 +90,9 @@ pub struct Config {
+     pub memory_dirty_log: bool,
      /// Extra kernel cmdline parameters injected through annotations.
      pub extra_kernel_params: Vec<String>,
 +    /// Whether to inject `agent.unified_cgroup_hierarchy=true` (guest mounts
 +    /// unified cgroup v2). Disabled for Android guests.
 +    pub unified_cgroup_hierarchy: bool,
- }
- 
- impl Default for Config {
-@@ -103,6 +109,7 @@ impl Default for Config {
-             app_snapshot_restore: false,
-             use_passfd_io: true,
+     /// Pool cgroup path from cubelet; None when cubelet did not send it
+     /// (older cubelet) — the shim then skips the early join entirely.
+     pub cgroup_path: Option<String>,
+@@ -120,6 +126,7 @@ impl Default for Config {
+             use_passfd_io: false,
+             memory_dirty_log: false,
              extra_kernel_params: Vec::new(),
 +            unified_cgroup_hierarchy: true,
+             cgroup_path: None,
          }
      }
- }
-@@ -248,6 +255,11 @@ impl Config {
+@@ -275,6 +282,11 @@ impl Config {
              Vec::new()
          };
  
@@ -107,19 +108,19 @@ index ab96f40..4539920 100644
          let c = Config {
              net,
              disk,
-@@ -273,6 +285,7 @@ impl Config {
-             app_snapshot_restore,
+@@ -301,6 +313,7 @@ impl Config {
              use_passfd_io,
+             memory_dirty_log,
              extra_kernel_params,
 +            unified_cgroup_hierarchy,
-         };
-         Ok(c)
-     }
+             cgroup_path: anno
+                 .get(ANNO_SANDBOX_CGROUP_PATH)
+                 .map(|x| x.trim().to_string())
 diff --git a/CubeShim/shim/src/sandbox/sb.rs b/CubeShim/shim/src/sandbox/sb.rs
-index e89f52b..478f5c1 100644
+index 977446d5..2af2ff48 100644
 --- a/CubeShim/shim/src/sandbox/sb.rs
 +++ b/CubeShim/shim/src/sandbox/sb.rs
-@@ -777,7 +777,9 @@ impl SandBox {
+@@ -876,7 +876,9 @@ impl SandBox {
          }
          vc.add_cmdline("highres=off".to_string());
          vc.add_cmdline("clocksource=kvm-clock".to_string());
@@ -131,10 +132,10 @@ index e89f52b..478f5c1 100644
          // Add externally passed pmem
          vc.add_pmems(&self.conf.pmem);
 diff --git a/Cubelet/pkg/constants/const.go b/Cubelet/pkg/constants/const.go
-index d910745..4aa9454 100644
+index 7a11e6e9..cc095923 100644
 --- a/Cubelet/pkg/constants/const.go
 +++ b/Cubelet/pkg/constants/const.go
-@@ -297,6 +297,7 @@ const (
+@@ -306,6 +306,7 @@ const (
  	AnnotationContaineRootfsPropagation = "cube.container.rootfs.propagation"
  
  	AnnotationVMKernelCmdlineAppend = "cube.vm.kernel.cmdline.append"
@@ -143,10 +144,10 @@ index d910745..4aa9454 100644
  
  	AnnotationPropagationMounts          = "cube.propagation.mounts"
 diff --git a/Cubelet/plugins/cbri/cubeboxcbri/cubebox.go b/Cubelet/plugins/cbri/cubeboxcbri/cubebox.go
-index bfa2858..d682bc5 100644
+index 9f0f99b8..0a8c065d 100644
 --- a/Cubelet/plugins/cbri/cubeboxcbri/cubebox.go
 +++ b/Cubelet/plugins/cbri/cubeboxcbri/cubebox.go
-@@ -341,6 +341,11 @@ func (e *cubeboxInstancePlugin) CreateSandbox(ctx context.Context, flowOpts *wor
+@@ -346,6 +346,11 @@ func (e *cubeboxInstancePlugin) CreateSandbox(ctx context.Context, flowOpts *wor
  			"annotations": annotations,
  		}).Debugf("create sandbox annotations")
  	}

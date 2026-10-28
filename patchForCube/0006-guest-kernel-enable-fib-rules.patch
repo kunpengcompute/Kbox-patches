@@ -1,7 +1,8 @@
 diff --git a/configs/kernel-oc9.aarch64.config b/configs/kernel-oc9.aarch64.config
+index e9eefcb7..9d112527 100644
 --- a/configs/kernel-oc9.aarch64.config
 +++ b/configs/kernel-oc9.aarch64.config
-@@ -1285,7 +1285,7 @@
+@@ -1285,7 +1285,7 @@ CONFIG_NET_HANDSHAKE=y
  CONFIG_NET_HANDSHAKE_KUNIT_TEST=m
  CONFIG_INET=y
  CONFIG_IP_MULTICAST=y
@@ -10,7 +11,7 @@ diff --git a/configs/kernel-oc9.aarch64.config b/configs/kernel-oc9.aarch64.conf
  CONFIG_IP_FIB_TRIE_STATS=y
  CONFIG_IP_MULTIPLE_TABLES=y
  CONFIG_IP_ROUTE_MULTIPATH=y
-@@ -1361,7 +1361,7 @@
+@@ -1361,7 +1361,7 @@ CONFIG_IPV6_SIT=m
  CONFIG_IPV6_NDISC_NODETYPE=y
  # CONFIG_IPV6_TUNNEL is not set
  CONFIG_IPV6_GRE=m

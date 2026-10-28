@@ -14,7 +14,12 @@
 #   bash pack_gms.sh tar-args   输出 tar 注入参数（每行一个，供 build_redroid.sh mapfile 读取）
 #   bash pack_gms.sh            同 fetch
 #
-# 环境变量:
+# 环境变量（GMS_LOCAL / GMS_LOCAL_DIR / GMS_ZIP_FILE / GMS_SKIP 默认在
+# pack_gms.conf 中配置，同名环境变量可覆盖）:
+#   GMS_LOCAL=1    本地模式：用本地 GMS 文件打包（GMS_LOCAL_DIR 或 GMS_ZIP_FILE），
+#                  校验不通过即报错、绝不联网下载；缺省/0 走 ZIP_URL 下载
+#   GMS_LOCAL_DIR  本地已还原的 GMS 载荷根目录（3 APK + 2 XML 已就位且校验通过）
+#   GMS_ZIP_FILE   本地已下载好的 GMS zip 文件路径（sha256 校验通过即用）
 #   GMS_ZIP_URL    覆盖 zip 下载地址（自建代理/镜像），内容仍以 ZIP_SHA256 校验兜底
 #   GMS_ZIP_CACHE  覆盖 zip 缓存目录（默认 <工作区>/downloads）
 #   GMS_SKIP=1     跳过 GMS 下载与注入（产出无 GMS 基础镜像）
@@ -24,9 +29,9 @@ set -eo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"                # Kbox-patches-cubesanbox
 WORKSPACE="$(cd "$REPO_ROOT/.." && pwd)"                # 工作区根（aosp-14 同级）
-# GMS根路径（tar -C 目标）：位于仓库外的工作区（与 downloads/ 缓存同级），
-# 项目内不保留任何 prebuilts 目录；fetch 时自动创建并下载填充
-GMS_DIR="$WORKSPACE/gms-payload"
+# GMS 载荷根目录（GMS_DIR，tar -C 目标）与 zip 缓存目录。
+# GMS_DIR 在 source pack_gms.conf 之后依据 GMS_LOCAL 开关决定：
+#   本地模式 = GMS_LOCAL_DIR（现成载荷）；下载模式 = 工作区默认目录 gms-payload
 CACHE_DIR="${GMS_ZIP_CACHE:-$WORKSPACE/downloads}"
 
 # 日志走 stderr：tar-args 的 stdout 必须只含注入参数（供 mapfile 捕获）
@@ -35,19 +40,40 @@ die() { echo -e "\033[1;31m错误: $*\033[0m" >&2; exit 1; }
 
 gms_skip() { [ "${GMS_SKIP:-0}" = "1" ]; }
 
-# ===== 下载源与GMS清单（GMS 唯一事实来源，升级 GMS 只改这里）=====
-# 官方来源: MindTheGapps 14.0.0 arm64 —— GitHub Releases（Android 14 官方 GApps 包）
-#           主页 https://mindthegapps.com/   仓库 https://github.com/MindTheGapps/14.0.0-arm64
-# 只取核心三件套 + 两份 privapp 白名单；完整 GApps 含 SetupWizard/CarrierConfig 等
-# 多余组件会触发 APEX 元数据冲突导致容器无法 boot，禁止整包拷入。
-ZIP_URL="https://github.com/MindTheGapps/14.0.0-arm64/releases/download/MindTheGapps-14.0.0-arm64-20250203_200051/MindTheGapps-14.0.0-arm64-20250203_200051.zip"
-ZIP_SHA256="6e1c3616862ce5b33e2b96074f86ae846eb1351a26a980e1ed140f8a7e7a4fd6"
-# GitHub 直连慢时的公共镜像回退（内容一致性由 ZIP_SHA256 校验兜底，镜像不可信无影响）
-ZIP_MIRRORS=(
-    "https://gh-proxy.com/"
-    "https://hub.gitmirror.com/"
-    "https://ghfast.top/"
-)
+# ===== 下载源与GMS清单 =====
+# 下载源（ZIP_URL / ZIP_SHA256 / ZIP_MIRRORS）含第三方下载链接，随库提交在
+# 同目录 pack_gms.conf（脚本启动时 source，可用环境变量 GMS_CONFIG_FILE 覆盖
+# 路径）；GMS 成员清单（MANIFEST，仅路径与 sha256）随脚本入库。
+# 升级 GMS 时两处需同步修改。
+CONFIG_FILE="${GMS_CONFIG_FILE:-$SCRIPT_DIR/pack_gms.conf}"
+if [ -f "$CONFIG_FILE" ]; then
+    # shellcheck disable=SC1090
+    source "$CONFIG_FILE"
+else
+    die "未找到 GMS 下载源配置文件: $CONFIG_FILE
+请基于 pack_gms.conf 创建并填写 ZIP_URL / ZIP_SHA256 / ZIP_MIRRORS，
+或设置 GMS_CONFIG_FILE 指向已有配置文件。"
+fi
+
+# ===== 本地/下载来源开关（GMS_LOCAL 等默认在 pack_gms.conf 中配置）=====
+# 兜底默认值：pack_gms.conf 缺项时取环境变量或如下缺省，保证变量必定义。
+GMS_LOCAL="${GMS_LOCAL:-0}"
+GMS_LOCAL_DIR="${GMS_LOCAL_DIR:-}"
+GMS_ZIP_FILE="${GMS_ZIP_FILE:-}"
+if [ "$GMS_LOCAL" = "1" ]; then
+    # 本地模式：GMS_LOCAL_DIR 与 GMS_ZIP_FILE 至少填一个
+    [ -n "$GMS_LOCAL_DIR" ] || [ -n "$GMS_ZIP_FILE" ] \
+        || die "GMS_LOCAL=1 但未配置本地来源：pack_gms.conf 中的 GMS_LOCAL_DIR（已还原载荷目录）或 GMS_ZIP_FILE（本地 zip）至少填一个"
+    if [ -n "$GMS_LOCAL_DIR" ]; then
+        GMS_DIR="$GMS_LOCAL_DIR"              # 直接用现成载荷
+    else
+        GMS_DIR="$WORKSPACE/gms-payload"       # 仅指定 zip：解压还原到默认载荷目录
+    fi
+else
+    # 下载模式：载荷落工作区默认目录，GMS_LOCAL_DIR 不参与
+    GMS_DIR="$WORKSPACE/gms-payload"
+fi
+
 # GMS清单: "zip 内相对路径（= GMS目录相对路径）| 成员 sha256"
 # 布局依据: 本 product 无独立 product/system_ext 分区镜像，分区内容实体在 system
 # 分区内（system/product/...、system/system_ext/...），rootfs 根下以
@@ -78,6 +104,20 @@ all_present() {
 
 # 确保 zip 就绪（缓存命中或下载），成功后向 stdout 输出 zip 路径
 ensure_zip() {
+    # 本地直接指定 zip 文件：sha256 校验通过即用（免下载）；不通过则报错终止
+    if [ -n "${GMS_ZIP_FILE:-}" ]; then
+        if [ -f "$GMS_ZIP_FILE" ] \
+           && echo "$ZIP_SHA256  $GMS_ZIP_FILE" | sha256sum -c --status 2>/dev/null; then
+            log "  使用本地指定 zip: $GMS_ZIP_FILE"
+            echo "$GMS_ZIP_FILE"; return 0
+        fi
+        die "本地指定 zip 校验不通过: $GMS_ZIP_FILE（sha256 与 ZIP_SHA256 不符，或文件不存在）"
+    fi
+    # 本地模式（GMS_LOCAL=1）严禁回退下载：走到这里说明 GMS_LOCAL_DIR 载荷不完整
+    # /校验失败、且未配置可用 GMS_ZIP_FILE，直接报错终止而非联网下载。
+    if [ "${GMS_LOCAL:-0}" = "1" ]; then
+        die "GMS_LOCAL=1：本地 GMS 载荷校验未通过且无可用本地 zip（GMS_ZIP_FILE）。请检查 pack_gms.conf 中的 GMS_LOCAL_DIR 内容，或改 GMS_LOCAL=0 走下载。"
+    fi
     local zip_file="$CACHE_DIR/${ZIP_URL##*/}"
     if [ -f "$zip_file" ] && echo "$ZIP_SHA256  $zip_file" | sha256sum -c --status 2>/dev/null; then
         log "  使用已缓存的 zip: $zip_file"

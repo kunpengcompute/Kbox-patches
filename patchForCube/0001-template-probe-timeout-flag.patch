@@ -1,7 +1,8 @@
 diff --git a/CubeMaster/cmd/cubemastercli/commands/cubebox/template.go b/CubeMaster/cmd/cubemastercli/commands/cubebox/template.go
+index a520a705..6914838c 100644
 --- a/CubeMaster/cmd/cubemastercli/commands/cubebox/template.go
 +++ b/CubeMaster/cmd/cubemastercli/commands/cubebox/template.go
-@@ -871,6 +871,7 @@
+@@ -895,6 +895,7 @@ var TemplateCreateFromImageCommand = cli.Command{
  		cli.StringSliceFlag{Name: "dns", Usage: "set container DNS nameserver; repeat for multiple servers"},
  		cli.IntFlag{Name: "probe", Usage: "enable HTTP GET probe on the specified port (e.g. --probe 9000); sets timeout_ms=30000, period_ms=500"},
  		cli.StringFlag{Name: "probe-path", Value: "/health", Usage: "HTTP path for the readiness probe (default: /health); only effective when --probe is set"},
@@ -9,7 +10,7 @@ diff --git a/CubeMaster/cmd/cubemastercli/commands/cubebox/template.go b/CubeMas
  		cli.IntFlag{Name: "cpu", Value: 2000, Usage: "CPU millicores for the template container (default: 2000, i.e. 2 cores)"},
  		cli.IntFlag{Name: "memory", Value: 2000, Usage: "Memory for the template container in MB (default: 2000 MB)"},
  		cli.BoolTFlag{Name: "with-cube-ca", Usage: "bake the CubeEgress root CA at /etc/cube/ca/cube-root-ca.crt into the template rootfs so sandboxes trust CubeEgress's MITM. Pass --with-cube-ca=false to skip (default: true)"},
-@@ -1489,6 +1490,7 @@
+@@ -1603,6 +1604,7 @@ func parseContainerOverrides(c *cli.Context) (*types.ContainerOverrides, error)
  	rawEnvs := c.StringSlice("env")
  	dnsServers := c.StringSlice("dns")
  	probePort := c.Int("probe")
@@ -17,7 +18,7 @@ diff --git a/CubeMaster/cmd/cubemastercli/commands/cubebox/template.go b/CubeMas
  	cpuMillicores := c.Int("cpu")
  	memoryMB := c.Int("memory")
  	enableInjectEnvd := c.Bool("enable-inject-envd")
-@@ -1534,6 +1536,15 @@
+@@ -1648,6 +1650,15 @@ func parseContainerOverrides(c *cli.Context) (*types.ContainerOverrides, error)
  			probePath = "/health"
  		}
  		host := ""
@@ -33,7 +34,7 @@ diff --git a/CubeMaster/cmd/cubemastercli/commands/cubebox/template.go b/CubeMas
  		overrides.Probe = &types.Probe{
  			ProbeHandler: &types.ProbeHandler{
  				HttpGet: &types.HTTPGetAction{
-@@ -1542,17 +1553,9 @@
+@@ -1656,17 +1667,9 @@ func parseContainerOverrides(c *cli.Context) (*types.ContainerOverrides, error)
  					Host: &host,
  				},
  			},

@@ -216,6 +216,3 @@ sudo bash build_redroid.sh pack       # 5) 打包 Docker 镜像
 > - **网络代理**：envd编译会`go mod download`，需可用`GOPROXY`（脚本默认`goproxy.cn`）。
 > - **编译时长**：`make`全量编译约2~3小时（取决于核数），产物占用100GB+磁盘。
 > - **打包验证**：`vendor/bin/envd`缺失时打包失败——确认已执行envd编译且 `vendor-redroid-0002` patch 已应用。
-> - **构建变体与 adb**：`userdebug`变体默认启动adbd，`adb connect <沙箱IP>:5555`开箱可用；`user`变体不会启动adbd（缺少`persist.sys.usb.config=adb`且`ro.adb.secure=1`）。如需在`user`变体上使用adb，见[redroid_user_build_adb_fix.md](redroid_user_build_adb_fix.md)。
-> - **FLAG_SECURE 全局禁用（应用登录黑屏修复）**：`frameworks/base/frameworks-base-0002-wm-secure-flag.patch` 将 `WindowState.setSecureLocked()`改为空实现、`isSecureLocked()`恒返回`false`。修复容器内SECURE surface合成输出黑屏，随`build_redroid.sh patch`自动合入。
-> - **注入GMS框架（应用闪退修复）**：`pack`阶段自动调用`build/pack_gms.sh`下载GMS并叠加进镜像，产物镜像自带GMS三件套，见第4节。

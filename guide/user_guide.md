@@ -1,55 +1,38 @@
-# CubeSandbox 部署与使用指南（Cube + Redroid）
+# 用户指南（CubeSandbox + Redroid 部署与模板/沙箱管理）
 
-本文档说明如何在**干净的 openEuler 24.03 SP3 鲲鹏（aarch64）服务器**上部署 CubeSandbox，把数据集中存放在 `/home` 以规避根分区写满，并给出基于 Cube + Redroid 的常用命令与一个最简 Python 客户端。
+本文档覆盖流程：**部署CubeSandbox → 加载redroid镜像 → 用 `redroid_operation.sh` 制作模板、启动沙箱**。
 
-> **目标**：从零部署 CubeSandbox，基于 redroid 镜像制作 Android 模板、启动沙箱，并掌握模板 / 沙箱 / 快照的日常操作。
+> **配套编译文档**（仅用于获取构建产物）：
 >
-> **部署机要求**：aarch64 裸金属（`/dev/kvm` 可用），openEuler 24.03 SP3，root 权限，`/home` 有独立且容量充足的分区，Docker ≥ 20.10 且 Compose v2（安装与配置见 §1.3）。
->
-> **前置产物**（由另两篇编译文档产出）：
->
-> - `cube-sandbox-one-click-<version>.tar.gz` —— CubeSandbox 一键发布包（见 [cube_compile_guide.md](cube_compile_guide.md)）
-> - `redroid-14.0.0_r75_arm64_only-docker.tar` —— redroid 14 镜像（见 [redroid_compile_guide.md](redroid_compile_guide.md)）
+> - [cube_compile_guide.md](cube_compile_guide.md)：CubeSandbox + guest 内核编译，产出发布包
+> - [redroid_compile_guide.md](redroid_compile_guide.md)：Redroid 14 镜像构建，产出镜像 tar
 
-## 1. 空间规划（部署前必读）
+## 1. 前置编译产物
 
-### 1.1 默认落盘位置与风险
+### 1.1 CubeSandbox 发布包
 
-| 路径                                                  | 内容                                        | 默认所在文件系统      |
-| --------------------------------------------------- | ----------------------------------------- | ------------- |
-| `/data/cubelet`                                     | 沙箱可写层、cubecow 存储、节点状态（须 XFS）               | 需为 XFS        |
-| `/data/log`                                         | Cubelet / CubeShim / CubeVmm / CubeMaster / CubeAPI / CubeOps / cube-proxy 全部日志 | 根分区           |
-| `/data/snapshot_pack/disks`、`/data/cube-shim/disks` | 快照与磁盘文件                                   | 根分区           |
-| `/data/cube-shared`、`/data/shared`                  | 共享目录                                      | 根分区           |
-| `/data/CubeMaster/storage`                          | 模板 / 快照制品（`rfs-*`）                         | 根分区           |
-| `/usr/local/services/cubetoolbox/cubebox_os_image`  | guest 镜像解包目录（实测约 2GB）                      | 根分区           |
-| `/usr/local/services/cubetoolbox/cube-snapshot`     | 快照目录                                      | 根分区           |
-| `/var/lib/docker`                                   | 容器镜像 + MySQL / Redis / MinIO 数据卷           | 根分区           |
+| 产物 | 路径 |
+| ---- | ---- |
+| guest 内核 | `CubeSandbox/_output/kernel/aarch64/vmlinux` |
+| 发布包 | `CubeSandbox/deploy/one-click/dist/cube-sandbox-one-click-<version>.tar.gz` |
 
-> **说明：** `install.sh` 只在 `/data/cubelet` 上做 XFS 校验（[install.sh](file:///home/maoyue/cube-workspace/code/CubeSandbox/deploy/one-click/install.sh#L943-L979)），`/data` 下的其余目录、Docker 数据与 MySQL 数据卷默认全部落在根分区。鲲鹏服务器的根分区通常只有几十 GB，且 **Cube 不自带 logrotate**，`/data/log/CubeVmm/vmm.log` 单个文件可涨到数十 GB。
->
-> **根分区写满的故障链与磁盘无关**：根分区满 → MySQL 无法写 binlog → cubeops 起不来 → cubelet 注册节点超时 → `listinventory` 为空 → 模板创建 / 删除全部报 `invalid connection`。因此第 1 节必须在部署前完成。
+> 注意：aarch64 下 `vmlinux` 实际是内核 `Image` 的副本（非 ELF），属部署脚本约定。编译细节、patch 清单、版本基线见 cube_compile_guide.md 附录。
 
-### 1.2 把 `/data` 挂载到 `/home`
+### 1.2 redroid 镜像
+
+最终产物：`aosp-14/redroid-14.0.0_r75_arm64_only-docker.tar`（约 1.6GB）。
+
+
+## 2. 部署 CubeSandbox
+
+> 本节是完整部署流程，请从 2.1 开始依次执行，不要在跳过任何一节的情况下直接运行安装脚本。核心要求：`/data` 为 XFS、Docker ≥ 20.10 且配置好数据目录与 Compose v2、日志轮转就绪。
+
+### 2.1 把 `/data` 挂载到 `/home` 下的 loop 镜像
 
 先确认 `/home` 与 `/` 不在同一分区，且 `/home` 容量充足；若两者同分区，本节无法达到目的，需先为 `/home` 准备独立存储。
 
 ```bash
 df -h /home /
-```
-
-**方案 A：有独立数据盘**
-
-```bash
-umount /dev/nvme0n1 2>/dev/null || true
-mkfs.xfs -f /dev/nvme0n1
-mkdir -p /data
-mount /dev/nvme0n1 /data
-```
-
-**方案 B：无独立数据盘，用 `/home` 下的 loop 镜像**
-
-```bash
 mkdir -p /home/cube-sandbox
 truncate -s 400G /home/cube-sandbox/data-xfs.img   # 稀疏文件，按实际使用占用空间
 mkfs.xfs -f /home/cube-sandbox/data-xfs.img
@@ -57,10 +40,9 @@ mkdir -p /data
 mount -o loop /home/cube-sandbox/data-xfs.img /data
 ```
 
-持久化挂载（按所用方案二选一写入 `/etc/fstab`）：
+持久化挂载写入 `/etc/fstab`：
 
 ```
-/dev/nvme0n1                    /data  xfs  defaults,noatime       0 0
 /home/cube-sandbox/data-xfs.img /data  xfs  loop,defaults,noatime  0 0
 ```
 
@@ -72,11 +54,24 @@ findmnt -no SOURCE,FSTYPE,TARGET /data
 df -h /data
 ```
 
-> **说明：** 直接挂载 `/data` 而非只挂 `/data/cubelet`——`install.sh` 的校验会从 `/data/cubelet` 向上找到最近的存在祖先，挂载 `/data` 即可满足 XFS 要求，同时把 `/data/log`、`/data/snapshot_pack`、`/data/CubeMaster/storage` 等全部纳入该挂载，一步到位。
->
-> **说明：** 若另行挂载 `/data/cubelet`，该挂载点自身也必须是 XFS（`install.sh` 优先校验它）。
+**（可选）：`/home` 与 `/` 在同一分区时可采用`/data` 挂载独立数据盘，校验方式相同**
 
-### 1.3 安装并配置 Docker（版本 / 数据目录 / 镜像加速 / Compose v2）
+```bash
+umount /dev/nvme0n1 2>/dev/null || true
+mkfs.xfs -f /dev/nvme0n1
+mkdir -p /data
+mount /dev/nvme0n1 /data
+```
+
+持久化挂载写入 `/etc/fstab`：
+
+```
+/dev/nvme0n1                    /data  xfs  defaults,noatime       0 0
+```
+
+> **说明：** 直接挂载 `/data` 而非只挂 `/data/cubelet`——`install.sh` 的校验会从 `/data/cubelet` 向上找到最近的存在祖先，挂载 `/data` 即可满足 XFS 要求，同时把 `/data/log`、`/data/snapshot_pack`、`/data/CubeMaster/storage` 等全部纳入该挂载，一步到位。若另行挂载 `/data/cubelet`，该挂载点自身也必须是 XFS。
+
+### 2.2 安装并配置 Docker（版本 / 数据目录 / 镜像加速 / Compose v2）
 
 本节把 Docker 相关的**安装与全部配置一次性做完**，之后直到部署完成都**不需要再重启 Docker**。
 
@@ -125,7 +120,7 @@ docker-compose version       # 期望: v2.x（/usr/local/bin 优先于 /usr/bin 
 
 > **说明：** 必须在执行 `install.sh` **之前**完成。Cube 的支撑组件以容器运行，数据存于 Docker 命名卷（`cube-sandbox-mysql-data` 等），随模板与沙箱规模持续增长；同时 redroid 镜像（约 1.6GB）也存放在这里。
 >
-> **说明：** `registry-mirrors` 仅在从 Docker Hub 拉镜像时生效。本方案只有 §4.2 的 `registry:2` 来自 Docker Hub，Cube 自身组件镜像来自 `*.tencentcloudcr.com`；目标机若可直连 Docker Hub 可省略该项。
+> **说明：** `registry-mirrors` 仅在从 Docker Hub 拉镜像时生效。本方案只有 §3.2 的 `registry:2` 来自 Docker Hub，Cube 自身组件镜像来自 `*.tencentcloudcr.com`；目标机若可直连 Docker Hub 可省略该项。
 >
 > **说明：** 目标机需要经 HTTP 代理出网时，**在本节一并配好**，与上面的 `daemon.json` 共用同一次重启：在 `/etc/systemd/system/docker.service.d/http-proxy.conf` 中写入 `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY`（用 `systemctl edit docker` 亦可），随后 `systemctl daemon-reload && systemctl restart docker`。部署开始后不要再重启 Docker。
 >
@@ -133,7 +128,7 @@ docker-compose version       # 期望: v2.x（/usr/local/bin 优先于 /usr/bin 
 >
 > **说明：** 该机若已存在 `/var/lib/docker` 且其中有镜像，先 `sudo systemctl stop docker`，用 `cp -a` 迁移到新目录（文件数校验一致）后再删除源目录，然后回到上面第 2 步。
 
-### 1.4 配置日志轮转
+### 2.3 配置日志轮转
 
 Cube 不自带日志轮转配置，需手工添加：
 
@@ -171,11 +166,9 @@ systemctl is-active crond                    # 或 systemctl is-active logrotate
 
 > **说明：** 用 `copytruncate` 是因为 Cube 组件不会因收到信号而重开日志文件句柄；`maxsize 2G` 是硬上限，即使轮转条件未满足，单文件也不会超过该值。
 
-## 2. 部署机准备
+### 2.4 安装系统依赖与部署前自检
 
-### 2.1 安装系统依赖
-
-Docker 及其全部配置已在 §1.3 完成，这里只装其余依赖：
+Docker 及其全部配置已在 §2.2 完成，这里只装其余依赖：
 
 ```bash
 sudo dnf install -y e2fsprogs util-linux iproute procps-ng curl tar gzip logrotate android-tools
@@ -186,15 +179,15 @@ sudo dnf install -y e2fsprogs util-linux iproute procps-ng curl tar gzip logrota
 ```bash
 ls /dev/kvm
 # 必须存在，否则无法创建沙箱
-docker version && docker compose version   # 复核 §1.3 的成果
-adb version                                # §5.8 用；报缺库时见 §5.8 说明
+docker version && docker compose version   # 复核 §2.2 的成果
+adb version                                # 验证沙箱内 Android 时用；
 ```
 
-> **说明：** 后续所有步骤需在**不受路径白名单限制的 root shell** 中执行——部分 IDE / 沙箱环境会拦截 `/home`、`/data`、`/usr/local` 等路径的 `cp` / `rm`，导致 §3.4 的目录迁移失败。
+> **说明：** 后续所有步骤需在**不受路径白名单限制的 root shell** 中执行——部分 IDE / 沙箱环境会拦截 `/home`、`/data`、`/usr/local` 等路径的 `cp` / `rm`，导致 §2.8 的目录迁移失败。
 >
 > **说明：** 如需 S3 卷能力，额外安装 `s3fs-fuse`：`sudo dnf install -y epel-release && sudo dnf install -y s3fs-fuse`；缺失仅影响 S3 卷挂载，不影响模板与沙箱。
 
-### 2.2 部署前自检
+部署前自检（全部通过后再进入 §2.5）：
 
 ```bash
 df -h /data /home /
@@ -204,11 +197,9 @@ docker compose version                        # 期望: Docker Compose version v
 logrotate -d /etc/logrotate.d/cube-sandbox    # 期望无 error
 ```
 
-> **说明：** 全部通过后再进入第 3 节。若两处 `findmnt` 返回的都不是 xfs，`install.sh` 会直接终止并给出 `Cube Sandbox requires the /data/cubelet directory to reside on an XFS filesystem`。
+> **说明：** 若两处 `findmnt` 返回的都不是 xfs，`install.sh` 会直接终止并给出 `Cube Sandbox requires the /data/cubelet directory to reside on an XFS filesystem`。
 
-## 3. 部署 CubeSandbox
-
-### 3.1 解压发布包
+### 2.5 解压发布包
 
 ```bash
 mkdir -p /home/cube-sandbox/bundle && cd /home/cube-sandbox/bundle
@@ -216,7 +207,7 @@ tar -xzf /path/to/cube-sandbox-one-click-<version>.tar.gz
 cd cube-sandbox-one-click-<version>
 ```
 
-### 3.2 配置 .env
+### 2.6 配置 .env
 
 ```bash
 cp env.example .env
@@ -250,7 +241,7 @@ ip tuntap show | awk -F: '/^z[0-9]+\./{print $1}' \
   | xargs -r -n1 -I{} sudo ip tuntap del dev {} mode tap
 ```
 
-### 3.3 执行安装
+### 2.7 执行安装
 
 ```bash
 sudo ./install.sh --mode=install
@@ -260,11 +251,11 @@ sudo ./install.sh --mode=install
 >
 > **说明：** 安装固定落在 `/usr/local/services/cubetoolbox`，由 systemd 统一托管（控制节点 target 为 `cube-sandbox-control.target`）。
 >
-> **说明：** 目标机若已部署过 Cube，安装会**保留既有的版本化组件目录**（`/data/cubelet/root/component_versions/`）。请先完成 §3.5 的校验，再进入第 5 节。
+> **说明：** 目标机若已部署过 Cube，安装会**保留既有的版本化组件目录**（`/data/cubelet/root/component_versions/`）。请先完成 §2.9 的校验，再进入后续章节。
 
-### 3.4 把两个大目录迁到 `/home`
+### 2.8 把两个大目录迁到 `/home`
 
-`cubebox_os_image` 与 `cube-snapshot` 默认落在 Cubelet 插件配置的 `BasePath` 下（默认 `/usr/local/services/cubetoolbox`，见 [cubebox.go](file:///home/maoyue/cube-workspace/code/CubeSandbox/Cubelet/plugins/cbri/cubeboxcbri/cubebox.go#L63-L72)）。本方案不改插件配置，直接用软链迁移：
+`cubebox_os_image` 与 `cube-snapshot` 默认落在 Cubelet 插件配置的 `BasePath` 下（默认 `/usr/local/services/cubetoolbox`）。本方案不改插件配置，直接用软链迁移：
 
 ```bash
 TC=/usr/local/services/cubetoolbox
@@ -288,7 +279,7 @@ sudo systemctl start cube-sandbox-control.target
 
 > **说明：** `cp -a` 之后建议用 `find | wc -l` 对比源与目标的文件数再删除源目录。若 `cubebox_os_image` 尚不存在（首次模板构建时才生成），脚本会自动创建目标目录并建链，无数据损失。
 
-### 3.5 验证安装
+### 2.9 验证安装
 
 ```bash
 sudo ./smoke.sh
@@ -346,10 +337,8 @@ sudo systemctl start cube-sandbox-control.target
 > **说明：** `webui`、`cube-sandbox-dns` 等非关键单元失败不影响沙箱创建；判断部署成功的核心标准是上述 4 个服务均为 `active`。
 >
 > **说明：** `cube-sandbox-cube-egress` 在首次启动瞬间可能报失败——它依赖 `cube-dev` 设备，而该设备由 cubelet 在创建第一个沙箱时建立，随后自行 `active`，属固有行为。
->
-> **说明：** §3.7 的健康校验脚本会把本节与 §3.6 的检查合并为一条命令，推荐直接用脚本。
 
-### 3.6 等待 Cubelet 就绪
+### 2.10 等待 Cubelet 就绪
 
 Cubelet 启动后还需初始化 network plugin，期间发起模板创建会报 `template creation failed on all nodes`：
 
@@ -358,42 +347,22 @@ grep -a "starting cri plugin" /data/log/Cubelet/Cubelet-req.log | tail -1
 cubemastercli listinventory        # 期望返回数值（节点已注册）
 ```
 
-上述时间戳之后（约 120s）再执行第 5 节；节点未注册时模板创建会报 `template has no ready replica`。
+上述时间戳之后（约 120s）再执行脚本操作；节点未注册时模板创建会报 `template has no ready replica`。
 
-### 3.7 一键健康校验
+### 2.11 一键健康校验
 
-把 §3.5、§3.6 的检查合并为一条命令。脚本随本方案提供：`<工作区>/Kbox-patches/deploy/cube_healthcheck.sh`。
+把 §2.9、§2.10 的检查合并为一条命令。脚本：`<工作区>/Kbox-patches/deploy/cube_healthcheck.sh`。
 
 ```bash
 cd <工作区>/Kbox-patches/deploy
 
 sudo bash cube_healthcheck.sh                        # 部署后自检 / 日常巡检
-sudo bash cube_healthcheck.sh --sandbox 10.100.1.40  # 顺带校验某个沙箱（IP 用 §5.2 打印的 Ip）
+sudo bash cube_healthcheck.sh --sandbox 10.100.1.40  # 顺带校验某个沙箱
 ```
 
-覆盖范围：
+## 3. 加载 redroid 镜像
 
-| 分组        | 检查内容                                                                                                    |
-| --------- | ------------------------------------------------------------------------------------------------------- |
-| 1 系统前置    | `/dev/kvm`、`/data` 为 XFS、Docker 可用、Compose v2 可用                                                          |
-| 2 systemd | `cube-sandbox-control.target` 与 4 个核心服务（不 active 即 FAIL）；其余单元（不 active 记 WARN）                            |
-| 3 支撑容器    | `cube-sandbox-mysql` / `cube-sandbox-redis` / `cube-sandbox-minio`（FAIL）；coredns / cube-proxy / LCM / cube-egress / webui（WARN） |
-| 4 关键端口    | `3306`、`6379`、`9000`、`8089`、`3000`、`3010`                                                                |
-| 5 HTTP 健康 | CubeMaster `/notify/health`、CubeAPI `/health`、CubeOps `/health`、Cubelet 内嵌网络运行时                         |
-| 6 组件一致性   | §3.5：cube-shim（shim + runtime）、cube-agent、cube-image、cube-kernel-scf 的 live 与版本化副本是否同源                 |
-| 7 节点注册    | §3.6：`cubemastercli listinventory` 是否有数值                                                                |
-| 8 沙箱（可选）  | 指定 `--sandbox <ip>` 时校验 envd `49983` 与 adb `5555` 是否可达                                                   |
-
-判读：
-
-- 退出码 `0` = 没有 FAIL（可能仍有 WARN）；退出码 `1` = 存在 FAIL。
-- `[FAIL]` 需逐条解决；`[WARN]` 按提示确认即可，例如 `cube-egress` 在首个沙箱创建前未就绪、节点尚未注册（Cubelet 启动后约 120s）、MinIO 端口未监听等。
-
-> **说明：** 沙箱“功能正常”的最终标准仍是 §5.2 打印 `code:200` 且 §5.8 的 adb 校验全部通过；本脚本用于在此之前把基础设施层面的问题全部拦掉。
-
-## 4. 准备 redroid 镜像
-
-### 4.1 加载镜像
+### 3.1 加载镜像
 
 ```bash
 docker load -i /path/to/redroid-14.0.0_r75_arm64_only-docker.tar
@@ -402,12 +371,13 @@ docker load -i /path/to/redroid-14.0.0_r75_arm64_only-docker.tar
 docker images | grep redroid
 ```
 
+取「仓库名:标签」两部分（不要只写标签），下面为示例，请以实际输出为准：
+
 ```bash
-# 取「仓库名:标签」两部分（不要只写标签），下面为示例，请以 §4.1 的实际输出为准
 REDROID_IMAGE=redroid:14.0.0_r75_arm64_only
 ```
 
-### 4.2 启动本地 Registry 并推送
+### 3.2 启动本地 Registry 并推送
 
 创建模板时按 `--image` 全名拉取镜像，裸镜像名会解析到 docker.io 导致超时，因此需要本地 registry：
 
@@ -426,397 +396,300 @@ docker push "${REGISTRY_IMAGE}"
 curl -s "http://127.0.0.1:5000/v2/$(echo "${REDROID_IMAGE}" | cut -d: -f1)/tags/list"
 ```
 
-## 5. Cube 常用命令
+推送完成后，把镜像全名（`127.0.0.1:5000/redroid:14.0.0_r75_arm64_only`）填进 `redroid_config.conf` 的 `TPL_IMAGE`。
 
-以下命令均操作控制面 `cubemaster`（默认 `127.0.0.1:8089`），无需额外配置。
+## 4. 安卓沙箱基本操作
 
-各操作对应的 Cube 命令、Cube API 与 E2B 支持情况总览（按「Cube 命令 → Cube API → E2B SDK」优先级排列）：
-
-| 操作           | Cube 命令                                                          | Cube API（E2B 兼容）                                | E2B SDK                  |
-| ------------ | ---------------------------------------------------------------- | ----------------------------------------------- | ------------------------ |
-| 制作模板         | `cubemastercli template create-from-image`（5.1）                  | 不可（请求模型缺 `annotations` / 探活超时，见 6.2 说明）          | 不支持                      |
-| 启动沙箱         | `cubemastercli multirun`（5.2）                                    | 不可（同上）                                          | `Sandbox.create()`       |
-| 查看沙箱         | `cubemastercli ls` / `info`（5.3）                                 | `GET /sandboxes`、`GET /sandboxes/{id}`          | `Sandbox.list()` / `get_info()` |
-| 查看模板         | `cubemastercli template list` / `info`（5.3）                      | `GET /templates`、`GET /templates/{id}`          | 不支持                      |
-| 制作快照         | `cubemastercli snapshot create`（5.4）                             | `POST /sandboxes/{id}/snapshots`                | 不支持                      |
-| 沙箱恢复         | `cubemastercli cubebox rollback` / 以 `snap-` id 起箱（5.5）          | `POST /sandboxes/{id}/rollback`                 | 不支持                      |
-| 删除沙箱         | `cubemastercli cubebox destroy`（5.6）                             | `DELETE /sandboxes/{id}`                        | `sbx.kill()`             |
-| 删除模板 / 快照     | `cubemastercli template delete` / `snapshot delete`（5.6）         | `DELETE /templates/{id}`                        | 不支持                      |
-
-> **说明：** 模板与快照、回滚属 CubeSandbox 扩展能力，E2B SDK 无对应方法；模板与沙箱的**创建**又受 CubeAPI 请求模型限制（不暴露 `annotations`），因此本方案这两步以 `cubemastercli` 为准，其余操作两条路径等价。详见第 6 章。
-
-### 5.1 制作模板
-
-模板是「镜像 + 内核 + shim」的状态快照，三者任一更新都必须重建模板。
+`redroid_operation.sh` 把模板、沙箱、快照的日常管理封装成一条命令，无需手工拼 JSON 请求文件或记忆 `cubemastercli` 的长参数：
 
 ```bash
-cubemastercli template create-from-image \
-  --image "${REGISTRY_IMAGE}" \
-  --alias android14-4c8g \
-  --writable-layer-size 10Gi \
-  --probe 49983 \
-  --probe-timeout-ms 180000 \
-  --annotation cube.vm.cgroup.unified_hierarchy=false \
-  --cpu 4000 \
-  --memory 8192 \
-  --arg androidboot.redroid_width=720 \
-  --arg androidboot.redroid_height=1280 \
-  --arg androidboot.redroid_dpi=240 \
-  --arg androidboot.redroid_fps=60 \
-  --instance-type cubebox \
-  --network-type tap \
-  --with-cube-ca=false
+bash redroid_operation.sh <命令> [参数]
 ```
 
-命令默认前台等待构建完成，输出 `job_id` / `template_id` / `status`。
+依赖（部署机默认均满足）：
 
-关键参数：
+| 依赖 | 用途 | 缺失时的处理 |
+| ---- | ---- | ---- |
+| bash | 脚本运行环境 | 系统自带 |
+| curl | 调用 CubeAPI | `dnf install -y curl` |
+| cubemastercli | 模板/沙箱的 CLI 操作 | 见 §2.9 |
+| python3 | 生成 multirun 请求 JSON（sandbox-create / sandbox-clone）与 JSON 输出格式化 | `dnf install -y python3` |
 
-| 参数                                                     | 说明                                                                                     |
-| ------------------------------------------------------ | -------------------------------------------------------------------------------------- |
-| `--image`                                              | registry 全名，必须带 `127.0.0.1:5000/` 前缀                                                      |
-| `--writable-layer-size 10Gi`                           | 可写层大小，必填                                                                               |
-| `--probe 49983` / `--probe-timeout-ms 180000`           | envd 探活端口与超时。Android 冷启动到 envd 就绪约 32–49s，默认 30s 必然超时                                     |
-| `--annotation cube.vm.cgroup.unified_hierarchy=false`  | **必须**。置 `false` 时 shim 不向 guest 注入 cgroup v2 预挂载 cmdline，否则 Android `init` 挂载失败并触发重启循环         |
-| `--cpu 4000 --memory 8192`                             | 4 核 / 8GB，模板与沙箱规格需一致                                                                    |
-| `--arg androidboot.redroid_*`                          | redroid 显示参数，作为 init argv 在模板冷启动时固化进快照                                                   |
-| `--with-cube-ca=false`                                 | redroid rootfs 已含 `/etc`，不设置会报 `mkdir .../etc: file exists`                            |
+模板与沙箱的创建参数**不在命令行传入**，统一放在配置文件 `redroid_config.conf`（随脚本同目录）中，见第 4.2 节。
 
-> **说明：** `--probe-timeout-ms` 与 `--annotation` 是本方案 patch 为 CLI 新增的参数。若 CLI 报 `flag provided but not defined`，说明 Cube 修改未编译进发布包，回到 [cube_compile_guide.md](cube_compile_guide.md) 重新构建。
+### 4.1 操作总览（速查表）
 
-记录模板 ID：
+统一前缀：`bash redroid_operation.sh <命令> [参数]`。方括号 `[ ]` 内为可选项；`…` 表示可重复。各命令的详细说明见 4.3–4.5。
+
+**模板操作**
+
+| 脚本命令 | 用途 | 完整用法 | 实际调用路径 |
+| ---- | ---- | -------- | ------------ |
+| `template-create` | 从镜像创建模板（`--alias` 必填，`--image` 缺省用配置） | `template-create --alias <别名> [--image <镜像名>] [--config <文件>]` | `cubemastercli template create-from-image` |
+| `template-list` | 列举模板 | `template-list [--wide]` | `cubemastercli template list` |
+| `template-info` | 查询模板详情 | `template-info <tpl-id>` | `cubemastercli template info` |
+| `template-delete` | 删除模板 | `template-delete <tpl-id>` | `cubemastercli template delete` |
+| `template-commit` | 把运行中沙箱提交为新模板 | `template-commit <sandbox-id>` | `cubemastercli template commit` |
+
+**沙箱操作**
+
+| 脚本命令 | 用途 | 完整用法 | 实际调用路径 |
+| ---- | ---- | -------- | ------------ |
+| `sandbox-create` | 按模板别名创建沙箱（`--alias` 与 `--snapshot` 二选一、必填） | `sandbox-create --alias <模板别名> [--config <文件>]` | `cubemastercli multirun` |
+| `sandbox-create` | 从快照派生新沙箱 | `sandbox-create --snapshot <snap-id> [--config <文件>]` | `cubemastercli multirun`（同创建） |
+| `sandbox-list` | 列举沙箱 | `sandbox-list [--all] [--wide]` | `cubemastercli ls` |
+| `sandbox-info` | 查询沙箱详情 | `sandbox-info <sandbox-id>` | `cubemastercli info -s` |
+| `sandbox-pause` | 暂停沙箱（内存快照落盘，零占用） | `sandbox-pause <sandbox-id>` | `POST /sandboxes/{id}/pause` |
+| `sandbox-connect` | 连接 / 唤醒已暂停沙箱，可设空闲超时 | `sandbox-connect <sandbox-id> [--timeout <秒>\|-1]` | `POST /sandboxes/{id}/connect` |
+| `sandbox-destroy` | 销毁沙箱（可一次多个） | `sandbox-destroy <sandbox-id> [sandbox-id …]` | `cubemastercli cubebox destroy` |
+
+**快照操作**
+
+| 脚本命令 | 用途 | 完整用法 | 实际调用路径 |
+| ---- | ---- | -------- | ------------ |
+| `snapshot-create` | 对运行中沙箱打快照（内存 + 文件系统） | `snapshot-create <sandbox-id> [--name <显示名>]` | `POST /sandboxes/{id}/snapshots` |
+| `snapshot-list` | 列举快照 | `snapshot-list [--sandbox <sandbox-id>] [--limit <N>]` | `GET /snapshots` |
+| `snapshot-delete` | 删除快照（需先解除沙箱运行时引用） | `snapshot-delete <snap-id>` | `DELETE /templates/{snap-id}` |
+| `sandbox-clone` | 克隆：打快照 + 从快照派生 N 个沙箱 | `sandbox-clone <sandbox-id> [--count <N>] [--config <文件>]` | 快照（CubeAPI）+ multirun 派生 N 个 |
+| `sandbox-rollback` | 把沙箱原地回滚到指定快照（ID 不变） | `sandbox-rollback <sandbox-id> <snapshot-id>` | `POST /sandboxes/{id}/rollback` |
+
+**其他**
+
+| 脚本命令 | 用途 | 完整用法 |
+| ---- | ---- | -------- |
+| `health` | 检查 CubeAPI 健康状态 | `health` |
+| `--help` / `help` | 显示完整帮助（含全部用法与示例） | `--help` |
+
+> 所有命令都支持 `--config <文件>` 或环境变量 `REDROID_CONFIG` 指定配置文件（`health` 除外，仅当命令依赖配置文件时生效，如 `template-create` / `sandbox-create` / `sandbox-clone`）。
+
+### 4.2 配置文件 redroid_config.conf
+
+`template-create`、`sandbox-create`、`sandbox-clone` 三个命令的创建参数统一取自配置文件，文件为 bash 键值格式，分 `TPL_*` 与 `SBX_*` 两段。默认文件随脚本同目录（`<工作区>/Kbox-patches-cubesanbox/deploy/redroid_config.conf`），开箱可用。
 
 ```bash
-TEMPLATE_ID=<tpl-xxxxxxxxxxxxxxxxxxxxxxxx>
+# -------------------------------- template 段 --------------------------------
+TPL_IMAGE="127.0.0.1:5000/redroid:14.0.0_r75_arm64_only_zp"
+TPL_CPU=4000
+TPL_MEMORY=8192
+TPL_WRITABLE_LAYER_SIZE="10Gi"
+TPL_PROBE=49983
+TPL_PROBE_TIMEOUT_MS=180000
+TPL_ANNOTATIONS=(
+    "cube.vm.cgroup.unified_hierarchy=false"
+)
+TPL_REDROID_ARGS=(
+    "androidboot.redroid_width=720"
+    "androidboot.redroid_height=1280"
+    "androidboot.redroid_dpi=240"
+    "androidboot.redroid_fps=60"
+)
+
+# -------------------------------- sandbox 段 --------------------------------
+SBX_INSTANCE_TYPE="cubebox"
+SBX_NETWORK_TYPE="tap"
+SBX_NAMESPACE="default"
+SBX_SOURCE_ID=""
+SBX_ANNOTATIONS=(
+    "cube.master.appsnapshot.template.id=tpl-c78f09daaea749aeb814367e"
+    "cube.master.appsnapshot.template.version=v2"
+    "cube.master.appsnapshot.version=v2"
+    "cube.vm.cgroup.unified_hierarchy=false"
+)
+SBX_LABELS=(
+    "X-Caller=mastercli"
+    "cube.master.appsnapshot.template.id=tpl-c78f09daaea749aeb814367e"
+    "cube.master.instance.type=cubebox"
+)
 ```
 
-### 5.2 启动沙箱
+**TPL_* 段**（供 `template-create` 使用）：
 
-请求文件 `redroid14_req.json`（注解必须与模板一致）：
+| 配置项 | 默认值 | 说明 |
+| ------ | ------ | ---- |
+| `TPL_IMAGE` | （缺省镜像） | registry 全名，必须带 `127.0.0.1:5000/` 前缀；命令行 `--image` 可覆盖 |
+| `TPL_CPU` | `4000` | CPU（millicores），模板与沙箱规格须一致 |
+| `TPL_MEMORY` | `8192` | 内存（MB） |
+| `TPL_WRITABLE_LAYER_SIZE` | `10Gi` | 可写层大小 |
+| `TPL_PROBE` / `TPL_PROBE_TIMEOUT_MS` | `49983` / `180000` | envd 探活端口与超时（Android 冷启动约 32–49s，勿用默认 30s） |
+| `TPL_ANNOTATIONS` | 见上 | 创建模板时携带的注解（`--annotation k=v`），数组每行一个 `k=v` |
+| `TPL_REDROID_ARGS` | 见上 | redroid 显示参数（`--arg k=v`），构建时固化进模板 |
+
+未写的键自动取表中默认值。
+
+**SBX_* 段**（供 `sandbox-create` / `sandbox-clone` 使用）：即 `cubemastercli multirun` 的请求体，字段含义与 CLI 一致。其中：
+
+- `SBX_ANNOTATIONS` / `SBX_LABELS` 数组里 `cube.master.appsnapshot.template.id` 键的值由脚本在运行时覆盖注入为实际的模板或快照 ID（`--alias` / `--snapshot` 传入），**无需手工修改**；`SBX_SOURCE_ID` 留空即可，非空时作为未显式传 ID 情况下的后备取值。
+
+**使用规则**：
+
+1. 优先级：`--config <文件>` > 环境变量 `REDROID_CONFIG` > 默认文件。
+2. `cube.vm.cgroup.unified_hierarchy=false` 是 redroid 必需注解：若在配置中被误删，脚本会自动补回并提示；**勿改为其他值**，否则沙箱会进入重启循环（Android `init` 在 cgroup v2 下挂载失败导致）。
+3. 需要维护多套规格时，复制整份文件只改需要的键，用 `--config` 指定即可，例如 `bash redroid_operation.sh template-create --alias android15-8c16g --config /path/to/android15_8c16g.config`。
+
+### 4.3 模板操作
+
+#### template-create —— 从 OCI 镜像创建模板
 
 ```bash
-cat > redroid14_req.json << EOF
-{
-  "instance_type": "cubebox",
-  "network_type": "tap",
-  "namespace": "default",
-  "annotations": {
-    "cube.master.appsnapshot.template.id": "${TEMPLATE_ID}",
-    "cube.master.appsnapshot.template.version": "v2",
-    "cube.master.appsnapshot.version": "v2",
-    "cube.vm.cgroup.unified_hierarchy": "false"
-  },
-  "labels": {
-    "X-Caller": "mastercli",
-    "cube.master.appsnapshot.template.id": "${TEMPLATE_ID}",
-    "cube.master.instance.type": "cubebox"
-  }
-}
-EOF
+bash redroid_operation.sh template-create --alias <别名> [--image <镜像名>] [--config <文件>]
 ```
+
+`--alias` **必填**（若该别名已存在会直接报错「模板已存在」，不会重复创建）；`--image` 缺省使用配置 `template.image`；cpu/memory/注解等其余参数取自配置文件 `template` 段（见 4.2）。成功后前台等待构建完成并打印 `TEMPLATE_ID=`。
+
+> 说明：`--instance-type cubebox`、`--network-type tap`、`--with-cube-ca=false` 由脚本固定携带，不暴露为配置项（改了会导致沙箱起不来或构建失败）。
+
+#### template-list / template-info / template-delete
 
 ```bash
-cubemastercli multirun --norm --runcnt 1 --runcc 1 redroid14_req.json
+bash redroid_operation.sh template-list [--wide]      # --wide 追加 LAST_ERROR 列
+bash redroid_operation.sh template-info  <tpl-id>     # 详情，含各节点副本状态
+bash redroid_operation.sh template-delete <tpl-id>
 ```
 
-期望输出 `code:200`，并打印 `sandBoxId` 与 `Ip`。
+#### template-commit —— 把运行中沙箱提交为新模板
 
-> **说明：** `--norm` 表示创建后不删除沙箱（不加会被当作压测、创建完即销毁）；`--runcnt` 为循环次数，`--runcc` 为并发数。
+```bash
+bash redroid_operation.sh template-commit <sandbox-id>    # 沙箱须为 running
+```
+
+成功后打印 `TEMPLATE_ID=` 与 `BUILD_ID=`，并提示用 `cubemastercli template build-watch --build-id <id>` 跟踪构建进度。适合把调试好的沙箱环境固化为新模板。
+
+> 注意：commit 生成的模板**不带 ALIAS 与 IMAGE_INFO 元数据**（CLI 无 alias 参数、不走镜像路径），属正常行为；需要带别名的模板请用 `template-create`。
+
+### 4.4 沙箱操作
+
+#### sandbox-create —— 创建沙箱 / 从快照派生新沙箱
+
+```bash
+bash redroid_operation.sh sandbox-create --alias <模板别名> [--config <文件>]      # 按模板别名创建
+bash redroid_operation.sh sandbox-create --snapshot <snap-id> [--config <文件>]    # 从快照派生
+```
+
+`--alias` 与 `--snapshot` **二选一、必填**（旧参数 `--template` 已废弃）：`--alias` 按模板别名创建沙箱（脚本查 `template list` 自动换算为 `tpl-…`，别名不存在会报错）；`--snapshot` 传快照 ID（`snap-…`）即 op.md 的「从快照派生新沙箱」。成功后打印 `SANDBOX_ID` 与 `SANDBOX_IP`。
+
+> 说明：由于 redroid 注解限制（见 4.2 使用规则第 2 条），创建统一走 `cubemastercli multirun`。请求体取自配置文件的 `sandbox` 段（见 4.2），脚本把模板/快照 ID 注入后生成临时请求文件并在用后删除。
+
+#### sandbox-list / sandbox-info
+
+```bash
+bash redroid_operation.sh sandbox-list [--all] [--wide]  # --all 含已退出沙箱，--wide 追加模板/命名空间等列
+bash redroid_operation.sh sandbox-info <sandbox-id>      # 详情：状态/沙箱 IP/模板/注解/容器表
+```
+
+#### sandbox-pause —— 暂停沙箱
+
+```bash
+bash redroid_operation.sh sandbox-pause <sandbox-id>
+```
+
+暂停后沙箱内存快照落盘，暂停期间**零 CPU/内存占用**，但状态完整保留。命令完成后回显沙箱详情，`state=paused` 即暂停完成；若为 `pausing` 稍候用 `sandbox-info` 复查。
+
+#### sandbox-connect —— 连接（唤醒）已暂停沙箱
+
+```bash
+bash redroid_operation.sh sandbox-connect <sandbox-id> [--timeout <秒>|-1]
+```
+
+对 `paused` 沙箱调用会**自动唤醒**（百毫秒级恢复内存快照），对 `running` 沙箱等同查询连接信息。`--timeout` 顺带设置空闲超时：正数表示至少保留 N 秒，`-1` 表示永不过期，不传保持现状。
+
+#### sandbox-destroy —— 销毁沙箱
+
+```bash
+bash redroid_operation.sh sandbox-destroy <sandbox-id> [sandbox-id ...]   # 可一次多个
+```
+
+删除 `paused` 状态的沙箱也是允许的（不会先唤醒）。销毁后如怀疑有残留进程占用 CPU，按脚本提示用 `pgrep -f containerd-shim-cube-rs` 检查并按 PID kill（勿用 `pkill -f`）。
+
+### 4.5 快照操作
+
+#### snapshot-create —— 打快照
+
+```bash
+bash redroid_operation.sh snapshot-create <sandbox-id> [--name <显示名>]
+```
+
+对**运行中**沙箱保存完整状态（内存 + 文件系统），制作期间沙箱会被短暂暂停。快照独立于沙箱生命周期——源沙箱销毁后快照依然可用。成功后打印 `SNAPSHOT_ID=snap-…`。
+
+#### snapshot-list / snapshot-delete
+
+```bash
+bash redroid_operation.sh snapshot-list [--sandbox <sandbox-id>] [--limit <N>]
+bash redroid_operation.sh snapshot-delete <snap-id>
+```
+
+`--sandbox` 按源沙箱过滤。删除快照走 `DELETE /templates/{snap-id}`（快照在存储层即模板，CubeAPI 按 `snap-`/`tpl-` 前缀区分）。**克隆沙箱销毁之前不要删除其底座快照**。
+
+> 删除快照报 `still has active runtime ref(s): <sandbox-id>` 时，说明该快照正被沙箱挂载（回滚/克隆后产生的运行时引用），需先销毁该沙箱再删快照。
+
+#### sandbox-clone —— 克隆沙箱
+
+```bash
+bash redroid_operation.sh sandbox-clone <sandbox-id> [--count <N>] [--config <文件>]    # 默认 1 个
+```
+
+语义与官方 SDK `clone()` 一致：给源沙箱打快照 → 从快照派生 N 个新沙箱。三个要点：
+
+1. 每个克隆完整继承调用时刻源沙箱的内存与文件系统状态，之后相互完全隔离；
+2. 源沙箱保持运行，不受影响；
+3. 底座快照**不会自动删除**——等所有克隆沙箱销毁后，用 `snapshot-delete` 清理（脚本结束时会打印该快照 ID）。
+
+> 注意：与 SDK 不同，脚本不提供「部分失败自动回收」——若 `--count` 较大且中途失败，请用 `sandbox-list` 检查已创建的沙箱并手工 `sandbox-destroy`。
+
+#### sandbox-rollback —— 回滚沙箱
+
+```bash
+bash redroid_operation.sh sandbox-rollback <sandbox-id> <snapshot-id>
+```
+
+把沙箱**原地**恢复到快照状态：沙箱 ID 不变，文件系统与内存一并恢复，恢复后可继续写入、可再打新快照。属长耗时操作（服务端 240s 档），命令会打印 `operationID`，可用 `cubemastercli operation status --operation-id <id>` 查询进度。回滚会重启沙箱内进程，此前建立的 TCP 连接失效属正常现象。
+
+### 4.6 Windows adb连接+scrcpy投屏沙箱
+
+沙箱 IP（`10.100.x.x`）属部署机 Cube 内部网络，Windows 本机无法直连。思路：在 Windows 上建一条 **SSH 本地端口转发**隧道，把本机某端口映射到沙箱的 adb 端口 5555，之后 `adb connect` 与 `scrcpy` 都走 `127.0.0.1` 即可。
+
+前置条件：
+
+- 部署机已运行 sshd：`sudo systemctl enable --now sshd`
+- Windows 10/11 自带 OpenSSH 客户端（`ssh` 命令），无需额外安装
+
+1. **拿到沙箱 IP**（部署机上执行）：
+
+   ```bash
+   bash redroid_operation.sh sandbox-list   # 取输出的 IP，形如 10.100.x.x
+   ```
+
+2. **Windows 建隧道**（PowerShell / CMD 均可，该窗口需保持不关闭）：
+
+   ```bash
+   ssh -p 3389 -L 5555:10.100.x.x:5555 <部署机用户>@<部署机IP>
+   ```
+
+   `-N` 只建隧道不执行远端命令；`-L 本机端口:沙箱IP:沙箱端口` 把本机 15555 端口转发到沙箱的 5555；端口号可自选，避开本机已占用端口。需密码时按提示输入，建议改用 SSH 密钥免密。
+
+3. **adb 连接**（另开一个 Windows 窗口）：
+
+   ```bash
+   adb connect 127.0.0.1:5555
+   ```
+
+4. **scrcpy 投屏**：
+
+   用cmd窗口打开scrcpy文件路径，执行以下命令投屏
+
+   ```bash
+   scrcpy.exe -s 127.0.0.1:5555
+   ```
+
+   常用参数：
+
+   - `--no-audio`：沙箱无声卡时禁用音频，避免启动报错
+   - `--max-fps 30`：限制帧率，投屏更流畅
+   - `--turn-screen-off`：投屏时关闭沙箱屏幕（不影响操作）
+   - `--window-title "redroid-<别名>"`：同时投多台沙箱时区分窗口
+
+5. **用完清理**：先关 scrcpy 窗口，再执行 `adb disconnect`，最后关闭第 2 步的隧道窗口。
+
+> **说明：** `adb` / `scrcpy` 需在 PATH 中；scrcpy 压缩包内的 `adb.exe` 与其同目录，可切到该目录执行，或把路径加入 PATH。
 >
-> **说明：** 把 `cube.master.appsnapshot.template.id` 换成 `snap-` 前缀的快照 ID，即可**基于快照启动新沙箱**。
+> **说明：** 如需在 Windows 本机直接查看沙箱 envd 探活指标（`/metrics`，端口 49983），再加一条隧道：`ssh -N -L 149983:10.100.x.x:49983 <部署机用户>@<部署机IP>`，随后访问 `http://127.0.0.1:149983/metrics`。
 
-### 5.3 查看沙箱与模板
-
-```bash
-# 沙箱列表（--wide 追加 template_id / namespace / host_ip / labels）
-cubemastercli ls
-cubemastercli ls --all --wide
-
-# 沙箱详情（-s 指定沙箱 ID）
-cubemastercli info -s <sandbox-id>
-
-# 模板列表（--output/-o wide 追加 LAST_ERROR 列；`template` 可简写为 `tpl`）
-cubemastercli template list
-cubemastercli template list -o wide
-
-# 模板详情（含各节点副本状态）
-cubemastercli template info <tpl-xxxxxxxxxxxxxxxxxxxxxxxx>
-
-# 模板预览：查看该模板实际会下发的沙箱请求
-cubemastercli template render --template-id <tpl-xxxxxxxxxxxxxxxxxxxxxxxx>
-
-# 资源清单
-cubemastercli listinventory
-```
-
-`ls` 表头：`sandbox_id status backend remote pause_snap host_id create_at pause_at`，`status` 取值 `created / running / exited / pausing / paused`。
-
-`info` 关键字段：`SANDBOX_ID / STATUS / HOST_IP / SANDBOX_IP / TEMPLATE_ID / ANNOTATIONS / LABELS`，以及容器表 `NAME / IMAGE / STATUS / CPU / MEM / CONTAINER_TYPE`。
-
-### 5.4 制作快照
-
-快照是对**运行中沙箱**的即时状态保存，可直接当作模板用来创建新沙箱。
-
-```bash
-# 制作快照（沙箱须为 running）
-cubemastercli snapshot create --sandbox-id <sandbox-id> --display-name cocos-scene
-
-# 列表（-o wide 追加 DISPLAY_NAME / RUNTIME_REFS / LAST_ERROR）
-cubemastercli snapshot list
-cubemastercli snapshot list -o wide
-
-# 详情
-cubemastercli snapshot info --snapshot-id <snap-xxxxxxxxxxxxxxxxxxxxxxxx>
-
-# 快照存储状态（各节点磁盘水位）
-cubemastercli storage status --refresh
-```
-
-快照 ID 形如 `snap-` + 24 位十六进制。制作完成后即可直接起新沙箱：
-
-```bash
-cubemastercli multirun --norm --runcnt 1 --runcc 1 redroid14_req.json
-# 其中 cube.master.appsnapshot.template.id 改为 <snap-xxxxxxxxxxxxxxxxxxxxxxxx>
-```
-
-### 5.5 沙箱恢复
-
-**方式一：原地回滚到某个快照**
-
-```bash
-cubemastercli cubebox rollback \
-  --sandbox-id <sandbox-id> \
-  --snapshot-id <snap-xxxxxxxxxxxxxxxxxxxxxxxx>
-```
-
-**方式二：从快照派生新沙箱**（推荐，不影响原沙箱）
-
-见 5.4 节末尾，把快照 ID 填入沙箱请求文件即可。
-
-> **说明：** 回滚与快照制作都是长耗时操作（服务端 240s 档），可通过异步操作查询进度：
->
-> ```bash
-> cubemastercli operation status --operation-id <op-id>
-> cubemastercli operation watch  --operation-id <op-id>
-> ```
-
-### 5.6 删除沙箱、模板与快照
-
-```bash
-# 删除沙箱（别名 rm，可一次多个）
-cubemastercli cubebox destroy <sandbox-id> [sandbox-id ...]
-
-# 删除模板
-cubemastercli template delete --template-id <tpl-xxxxxxxxxxxxxxxxxxxxxxxx>
-
-# 删除快照
-cubemastercli snapshot delete --snapshot-id <snap-xxxxxxxxxxxxxxxxxxxxxxxx>
-```
-
-> **说明：** 删除沙箱后可能残留 `containerd-shim-cube-rs` 进程（内含 redroid + 渲染线程），持续占 CPU。检查与清理：
->
-> ```bash
-> pgrep -f containerd-shim-cube-rs
-> kill <PID>          # 按 PID kill；勿用 pkill -f，会匹配到自身 shell
-> ```
->
-> **说明：** 模板 / 快照删不掉且报 `already in progress` 时，是 `t_cube_template_image_job` 里残留 `PENDING` 的 `SNAPSHOT_DELETE` job 造成自锁（`DeleteTemplate` 只认终态 `READY`/`FAILED`）：
->
-> ```bash
-> docker exec cube-sandbox-mysql mysql -ucube -pcube_pass cube_mvp -e "
-> UPDATE t_cube_template_image_job SET status='FAILED', phase='FAILED'
->  WHERE template_id LIKE 'snap-%' AND operation='SNAPSHOT_DELETE'
->    AND status IN ('PENDING','RUNNING');"
-> ```
-
-### 5.7 模板与运维的其他命令
-
-| 命令                                                                  | 用途                                   |
-| ------------------------------------------------------------------- | ------------------------------------ |
-| `cubemastercli template set-alias <tpl-id> --alias <alias>`          | 设置 / 修改模板别名（`--clear` 清除）             |
-| `cubemastercli template commit --sandbox-id <id>`                    | 把现有沙箱提交成模板（输出 `template_id` / `build_id`） |
-| `cubemastercli template build-watch --build-id <build-id>`            | 跟踪 commit 构建进度                       |
-| `cubemastercli template redo <tpl-id> [--failed-only]`                | 在全部 / 指定 / 失败节点重做模板副本                 |
-| `cubemastercli template watch --job-id <job-id>`                      | 跟踪 create-from-image 构建进度             |
-| `cubemastercli volume list`                                           | 查看卷                                 |
-| `systemctl status cube-sandbox-control.target`                        | 查看控制面整体状态                            |
-| `sudo ./down.sh` / `systemctl start cube-sandbox-control.target`      | 停止 / 启动所有服务（不删数据）                    |
-
-### 5.8 验证沙箱为 Android
-
-先做一次**免 adb** 的就绪判定（推荐）：`envd` 由 guest 的 `sys.boot_completed=1` 触发启动，它能响应即表示沙箱内 Android 已完成启动。
-
-```bash
-curl -s "http://<SANDBOX_IP>:49983/metrics"
-# 期望返回 JSON：{"cpu_count":4,"mem_total_mib":7943,"disk_used":..., ...}
-```
-
-再进行 adb 验证：
-
-```bash
-adb connect <SANDBOX_IP>:5555
-adb -s <SANDBOX_IP>:5555 shell getprop sys.boot_completed        # 期望 1
-adb -s <SANDBOX_IP>:5555 shell "ps -A | grep -E 'zygote64|surfaceflinger|system_server'"
-adb -s <SANDBOX_IP>:5555 shell "cat /proc/pressure/memory"        # PSI 可用（patch 0005）
-adb -s <SANDBOX_IP>:5555 shell "ip rule show | head -5"           # 策略路由可用（patch 0006）
-adb -s <SANDBOX_IP>:5555 shell "ping -c 2 -W 3 223.5.5.5"         # 期望 0% 丢包
-```
-
-> **说明：** 宿主需有可用的 `adb`（§2.1 已安装 `android-tools`）。若报缺库（`libadb.so.0: cannot open shared object file`），说明用的是手工放置的二进制，用 `LD_LIBRARY_PATH=<adb 库目录>` 重跑即可，与沙箱无关。
->
-> **说明：** **adb 是否可用取决于 redroid 镜像的构建变体**：`userdebug` 变体默认启动 adbd，`user` 变体不会（缺少 `persist.sys.usb.config=adb` 且 `ro.adb.secure=1`）。因此 `Connection refused` 时先用上面的 `/metrics` 确认 Android 已就绪——若就绪，则是镜像变体导致的 adbd 未启动，处理办法见 [redroid_user_build_adb_fix.md](redroid_user_build_adb_fix.md)。
->
-> **说明：** guest 控制台（`/data/log/CubeShim/`）不适合作为"Android 是否启动完成"的判据：`vendor.bluetooth-1-1` 会在所有沙箱上持续以 `signal 4` 崩溃刷屏，正常与异常沙箱的控制台形态一致。
-
-## 6. Python 客户端（cube_client.py）
-
-第 5 章的 `cubemastercli` 是这套操作的标准入口，覆盖全部用例。需要脚本化时用配套的
-[cube_client.py](../deploy/cube_client.py)：它同样**优先调用 Cube 自身的命令与 API**
-（模板/沙箱创建走 `cubemastercli`，其余走 CubeAPI），**仅依赖 Python 标准库**，无需 `pip install`。
-
-### 6.1 环境变量
-
-| 变量               | 默认值                     | 说明                                     |
-| ---------------- | ----------------------- | -------------------------------------- |
-| `CUBE_API_URL`   | `http://127.0.0.1:3000` | CubeAPI 地址（Cube 官方 HTTP API，E2B 兼容）      |
-| `CUBE_API_KEY`   | 空                       | 启用鉴权时填写（同时以 `X-API-Key` 与 `Bearer` 发送） |
-| `CUBEMASTERCLI`  | `cubemastercli`         | CLI 路径                                 |
-
-> **说明：** one-click 默认不启用 CubeAPI 鉴权（`env.example` 中 `CUBE_API_KEY` 为空），此时任意请求放行。
-
-### 6.2 命令一览
-
-```bash
-cd <工作区>/Kbox-patches/deploy
-
-python3 cube_client.py health                                     # 健康检查
-
-# —— 走 cubemastercli（Cube 官方 CLI）
-python3 cube_client.py template-create --image <img> --alias <a>   # 从 OCI 镜像制作模板
-python3 cube_client.py template-commit <sandbox-id>                # 把沙箱提交成模板
-python3 cube_client.py sandbox-create --template <tpl-id|snap-id>  # 启动沙箱
-
-# —— 走 CubeAPI（Cube 官方 HTTP API，E2B 兼容）
-python3 cube_client.py template-list                              # 列出模板
-python3 cube_client.py template-info   <tpl-id>                   # 模板详情
-python3 cube_client.py template-delete <tpl-id>                   # 删除模板
-python3 cube_client.py sandbox-list                               # 列出沙箱
-python3 cube_client.py sandbox-info   <sandbox-id>                # 沙箱详情
-python3 cube_client.py sandbox-delete <sandbox-id> [...]          # 删除沙箱
-python3 cube_client.py snapshot-create <sandbox-id> [--name n]    # 制作快照
-python3 cube_client.py snapshot-list                              # 列出快照
-python3 cube_client.py snapshot-delete <snap-id>                  # 删除快照
-python3 cube_client.py sandbox-rollback <sandbox-id> <snap-id>    # 沙箱回滚
-```
-
-> **说明：** 模板创建与沙箱创建由脚本转调 `cubemastercli`。原因：这两步必须携带注解 `cube.vm.cgroup.unified_hierarchy=false`，而 CubeAPI 的 `NewSandbox` / `CreateTemplateRequest` 请求模型不暴露 `annotations` 字段（只会注入 `cube.master.appsnapshot.*`），HTTP 侧无法表达。其余命令均直接调用 CubeAPI。
-
-### 6.3 完整操作示例
-
-```bash
-cd <工作区>/Kbox-patches/deploy
-export CUBE_API_URL=http://127.0.0.1:3000
-CLI="python3 $(pwd)/cube_client.py"
-
-# 1) 制作模板（打印 TEMPLATE_ID）
-$CLI template-create \
-  --image 127.0.0.1:5000/redroid-14.0.0_r75_arm64_only:latest \
-  --alias android14-4c8g
-
-# 2) 启动沙箱
-$CLI sandbox-create --template tpl-0518ac1f993044a09134cc66
-
-# 3) 查看
-$CLI sandbox-list
-$CLI sandbox-info sbx-xxxxxxxxxxxxxxxxxxxxxxxx
-
-# 4) 制作快照，并基于快照再起一个沙箱
-$CLI snapshot-create sbx-xxxxxxxxxxxxxxxxxxxxxxxx --name cocos-scene
-$CLI snapshot-list
-$CLI sandbox-create --template snap-yyyyyyyyyyyyyyyyyyyyyyyy
-
-# 5) 回滚
-$CLI sandbox-rollback sbx-xxxxxxxxxxxxxxxxxxxxxxxx snap-yyyyyyyyyyyyyyyyyyyyyyyy
-
-# 6) 清理
-$CLI sandbox-delete sbx-xxxxxxxxxxxxxxxxxxxxxxxx sbx-zzzzzzzzzzzzzzzzzzzzzzzz
-$CLI snapshot-delete snap-yyyyyyyyyyyyyyyyyyyyyyyy
-$CLI template-delete tpl-0518ac1f993044a09134cc66
-```
-
-### 6.4 可选：直接用 E2B SDK
-
-第 5 章的操作全部可用 Cube 自身的命令与 API 完成，E2B SDK 只是**可选的编程接口**。把 `E2B_API_URL` 指向 CubeAPI 即可直连，但 E2B SDK 只覆盖**沙箱运行期能力**，控制面能力（模板构建、快照、回滚）在 E2B 侧没有对应方法：
-
-| 能力                        | E2B SDK（`e2b` / `e2b_code_interpreter`） | CubeSandbox                 |
-| ------------------------- | ------------------------------------- | --------------------------- |
-| 启动沙箱 / 详情 / 列表 / 删除        | 支持                                    | 支持（`cubemastercli` / CubeAPI） |
-| 命令执行 / 文件读写 / 代码执行        | 支持                                    | 支持                          |
-| pause / resume / connect  | 支持                                    | 支持                          |
-| set_timeout / 网络出入策略      | 支持                                    | 支持                          |
-| **制作模板 / 删除模板**           | **不支持**                               | 支持（`cubemastercli` / CubeAPI） |
-| **制作快照 / 列出快照 / 删除快照**     | **不支持**                               | 支持（同上）                      |
-| **沙箱回滚 / 从快照克隆**           | **不支持**                               | 支持（同上）                      |
-
-若已有基于 E2B SDK 的代码且只需沙箱生命周期，可直接复用（依赖 `pip install e2b-code-interpreter`）：
-
-```python
-import os
-from e2b_code_interpreter import Sandbox
-
-os.environ["E2B_API_URL"] = "http://127.0.0.1:3000"
-os.environ.setdefault("E2B_API_KEY", "e2b_000000")   # 未启用鉴权时占位即可
-
-with Sandbox.create(template="tpl-0518ac1f993044a09134cc66") as sbx:
-    print(sbx.get_info())
-    print(sbx.commands.run("getprop sys.boot_completed").stdout)
-```
-
-> **说明：** E2B SDK 通过 `Authorization: Bearer <E2B_API_KEY>` 认证；已知 `e2b>=2.38.0` 与 `e2b-code-interpreter==2.9.0` 组合存在 `TypeError: get_transport() got an unexpected keyword argument 'http2'`，锁定到仓库已验证的版本区间（如 `e2b==2.26.0`）可规避。
->
-> **说明：** 模板构建等控制面操作仍需回到 `cubemastercli` 或 CubeAPI（见第 5 章），这是 Cube 的既定分工，不是 E2B SDK 的缺失配置问题。
-
-<br />
-
-## 附录 A：路径与服务速查
-
-| 类别   | 路径 / 单元                                                                                       |
-| ---- | ------------------------------------------------------------------------------------------- |
-| 安装目录 | `/usr/local/services/cubetoolbox`                                                           |
-| 运行时配置 | `/usr/local/services/cubetoolbox/.one-click.env`                                            |
-| 健康校验脚本 | `<工作区>/Kbox-patches/deploy/cube_healthcheck.sh`（§3.7）                                        |
-| 数据 / 日志 | `/data/cubelet`、`/data/log`、`/data/CubeMaster/storage`（第 1.2 节后均在 `/home` 后端）                |
-| Docker 数据 | `/home/cube-sandbox/docker`                                                                 |
-| 控制面 target | `cube-sandbox-control.target`                                                               |
-| 核心单元 | `cube-sandbox-cubelet` / `cube-sandbox-cubemaster` / `cube-sandbox-cube-api` / `cube-sandbox-cubeops` |
-| 常用端口 | CubeAPI `3000`、CubeMaster `8089`、WebUI `12088`、MySQL `3306`、Redis `6379`                      |
-
-## 附录 B：故障速查
-
-| 现象                                                                 | 处理                                                                                              |
-| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| `install.sh` 报 `requires the /data/cubelet directory to reside on an XFS filesystem` | `/data` 未挂 XFS，按 1.2 节处理                                                                         |
-| `install.sh` 报 `overlaps an existing cube-dev network`               | 目标机存在历史 cube 网络，按 3.2 节重置后重跑                                                                    |
-| 模板创建报 `template creation failed on all nodes`                       | Cubelet 未就绪，按 3.6 节等待后重试                                                                         |
-| 模板创建报 `template has no ready replica`                               | 节点未注册完成，按 3.6 节确认 `listinventory` 有数值后重试                                                          |
-| `cubemastercli` 缺 `--annotation` / `--probe-timeout-ms`              | 发布包未包含本方案 patch，回到编译文档重新构建                                                                       |
-| 模板能建、沙箱报 GICv3ITS 恢复失败                                              | 两处 cube-shim 非同一构建，按 3.5 节校验并同步后再重建模板                                                            |
-| 支撑组件起不来，日志报 `kwargs_from_env() got an unexpected keyword argument 'ssl_version'` | 未安装 Compose v2，按 §1.3 第 4 步安装                                                                     |
-| 重启过 `docker.service` 后核心服务一直起不来                                     | 依赖 `docker.service` 的单元会判依赖失败：`systemctl reset-failed && systemctl restart cube-sandbox-control.target` |
-| 模板能建、沙箱起箱异常或 `adb 5555` 连不上                                        | 组件版本化目录与 `/usr/local` 不同源，按 §3.5 校验并同步后重建模板                                                       |
-| `adb connect <沙箱IP>:5555` 报 `Connection refused`，而 `curl http://<沙箱IP>:49983/metrics` 正常 | 镜像为 `user` 变体，adbd 未被启动（Android 本身已就绪），见 5.8 节与 [redroid_user_build_adb_fix.md](redroid_user_build_adb_fix.md) |
-| 定位不了当前是哪个环节异常                                                     | 跑 §3.7 的 `cube_healthcheck.sh`，按 `[FAIL]` 项逐条处理                                              |
-| 沙箱创建即 reboot 循环                                                    | 模板与沙箱请求都缺 `cube.vm.cgroup.unified_hierarchy=false`                                              |
-| 应用无法上公网、`ping` 报 `Network is unreachable`                           | guest 内核缺策略路由（patch `0006`），重编内核并重建模板                                                            |
-| `listinventory` 为空 / 模板删除报 `invalid connection`                     | 根分区（或 `/data` 所在分区）写满导致 MySQL 异常，按第 1 节排查                                                           |
-| 沙箱一直 `created` 不变 `running`                                        | 查 `/data/log/CubeVmm/vmm.log` 与 `/data/log/CubeShim/`                                             |
-| 删沙箱后 `containerd-shim-cube-rs` 残留吃 CPU                              | 按 PID kill（勿用 `pkill -f`）                                                                        |
-| 宿主**重启后**模板建箱报 `failed to create shim task: ttrpc: closed`         | 模板快照不跨宿主重启有效：用同一镜像**重建模板**即可恢复                                                                   |
-
-## 附录 C：已知限制
-
-1. **模板与内核 / cube-shim 强绑定**：更换 guest 内核或 Cube 组件后必须重建模板。
-2. **模板快照不跨宿主重启**：宿主重启后需重建模板（同一 redroid 镜像与内核即可）。
-3. **Android 沙箱必须关闭 cgroup 预挂载**：模板创建与沙箱创建两处都要带 `cube.vm.cgroup.unified_hierarchy=false`。
-4. **`/data/cubelet` 必须位于 XFS**：`install.sh` 强制校验，非 XFS 直接终止。
-5. **`cubebox_os_image` / `cube-snapshot` 默认不在 `/data` 下**：其位置由 Cubelet 插件 `BasePath`（默认 `/usr/local/services/cubetoolbox`）决定，本方案用软链迁移到 `/home`。
