@@ -133,6 +133,18 @@ echo "  All patches applied."
 
 # ── Step 2: copy envd binary ───────────────────────────────
 echo ""
+
+# DAMON mode: remove binder.impl=rust (C binder is built into our kernel)
+if $DAMON_MODE; then
+    BC="$AOSP_ROOT/device/google/cuttlefish/shared/BoardConfig.mk"
+    if grep -q "binder.impl=rust" "$BC"; then
+        # Remove only the binder.impl=rust token, keep other flags on the same line
+        sed -i "s/ binder.impl=rust//; s/^binder.impl=rust //; s/^BOARD_KERNEL_CMDLINE += binder.impl=rust$//" "$BC"
+        sed -i "/^BOARD_KERNEL_CMDLINE += *$/d" "$BC"
+        echo "  Removed binder.impl=rust (C binder is built-in)"
+    fi
+fi
+
 echo "[2/4] Copying envd binary..."
 mkdir -p "$(dirname "$ENVD_DEST")"
 cp "$ENVD_BINARY" "$ENVD_DEST"

@@ -34,12 +34,23 @@ if [ ! -d "$SRC/.git" ]; then
 fi
 cd "$SRC"
 
-# Patch SUBLEVEL 25 → 23
+# Patch SUBLEVEL 25 -> 23
 if grep -q "^SUBLEVEL = 25$" Makefile; then
-  sed -i 's/^SUBLEVEL = 25$/SUBLEVEL = 23/' Makefile
-  log "SUBLEVEL: 25 → 23"
+  sed -i "s/^SUBLEVEL = 25$/SUBLEVEL = 23/" Makefile
+  log "SUBLEVEL: 25 -> 23"
 fi
-grep "^SUBLEVEL" Makefile
+
+# Patch page_reporting: 6.1 unconditionally overwrites cmdline value.
+# Use identical pattern for grep and sed to avoid silent mismatch.
+PR_PATTERN="page_reporting_order = prdev->order ? : pageblock_order;"
+if grep -q "respect cmdline" "$SRC/mm/page_reporting.c"; then
+  log "page_reporting: already patched"
+elif grep -Fq "$PR_PATTERN" "$SRC/mm/page_reporting.c"; then
+  sed -i "s|$PR_PATTERN|if (page_reporting_order == MAX_ORDER) /* respect cmdline */\n\tpage_reporting_order = prdev->order ? : pageblock_order;|" "$SRC/mm/page_reporting.c"
+  log "page_reporting: cmdline guard added"
+else
+  echo "!! WARNING: page_reporting pattern not found in kernel source"
+fi
 
 # VIRTIO_PCI_LEGACY 在 6.1 里可能是 bool, 检查并处理
 if grep -A2 "^config VIRTIO_PCI_LEGACY" drivers/virtio/Kconfig 2>/dev/null | grep -q "bool"; then
@@ -67,6 +78,20 @@ sc -m CFG80211 -m MAC80211 -m MAC80211_HWSIM 2>/dev/null || true
 sc -m VIRT_WIFI 2>/dev/null || true
 
 # 兼容性
+
+# vd 全量模块补齐 (修复 vendor_dlkm CRC + dlkm_loader 崩溃)
+sc -e GOLDFISH
+sc -m SERIO_AMBAKMI -m MMC_ARMMMCI
+sc -m BT_INTEL -m BT_RTL -m BT_HCIBTUSB -m BT_HCIVHCI
+sc -m CLK_VEXPRESS_OSC -m DRM_GEM_DMA_HELPER
+sc -m CPUFREQ_DUMMY -m USB_DUMMY_HCD
+sc -m BATTERY_GOLDFISH -m GOLDFISH_PIPE
+sc -m CAN_GS_USB -m MOUSE_PS2 -m USB_PULSE8_CEC
+sc -m DRM_PL111 -m RTC_DRV_TEST
+sc -m USBIP_CORE -m USBIP_VHCI_HCD
+sc -m VEXPRESS_CONFIG -m MFD_VEXPRESS_SYSREG
+sc -m SND_VIRTIO -m DRM_VKMS
+
 sc -d MODULE_SIG_PROTECT -d MODULE_SIG_ALL
 sc -d LOCALVERSION_AUTO
 # 注意: a14 的 LOCALVERSION 为空, 整个后缀靠 LOCALVERSION_AUTO 生成
