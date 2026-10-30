@@ -2,7 +2,7 @@
 
 本文档说明如何从零准备 CubeSandbox 工作区，并通过 `build-cube.sh` 一键完成 **patch 合入 → guest 内核编译 → CubeSandbox 一键发布包编译**，以及在已部署环境上重新部署新编译的包（第 4 章）。
 
-> **目标**：在 aarch64 编译机上，从 CubeSandbox v0.7.0 源码与 OpenCloudOS 6.6 内核源码出发，产出可直接部署的发布包。
+> **目标**：在 aarch64 编译机上，从 CubeSandbox v0.7.1 源码与 OpenCloudOS 6.6 内核源码出发，产出可直接部署的发布包。
 >
 > **编译机要求**：aarch64 Linux（与目标机同架构），已安装并启动 Docker，≥ 16 核 CPU、≥ 32GB 内存、≥ 200GB 磁盘。
 >
@@ -66,16 +66,44 @@ index = "https://rsproxy.cn/crates.io-index"
 git-fetch-with-cli = true
 EOF
 
-# 3) builder 镜像构建阶段的 Go module 代理：生成一份带 GOPROXY 的 Dockerfile 副本
-awk '{ if ($0 ~ /^RUN go install google\.golang\.org\/protobuf/) {
-         print "ARG GOPROXY=https://goproxy.cn,direct"; print "ENV GOPROXY=${GOPROXY}" } print }' \
-  <工作区>/CubeSandbox/docker/Dockerfile.builder > /tmp/Dockerfile.builder.goproxy
+# 3) builder 镜像构建阶段：生成一份带 GOPROXY + GitHub / Go 下载加速的 Dockerfile 副本
+awk '
+/^ARG DEBIAN_FRONTEND/ {
+  print "ARG GITHUB_MIRROR="
+  print "ENV GITHUB_MIRROR=${GITHUB_MIRROR:-https://gh-proxy.com/}"
+}
+/^RUN go install google\.golang\.org\/protobuf/ {
+  print "ARG GOPROXY=https://goproxy.cn,direct"
+  print "ENV GOPROXY=${GOPROXY}"
+}
+/^COPY CubeS3lvol\/setup_dep\.sh/ {
+  print "# 受限网络加速：SPDK 走 gitee 镜像，其余 github.com 拉取走 gh-proxy。"
+  print "ARG SPDK_REPO="
+  print "ENV SPDK_REPO=${SPDK_REPO:-https://gitee.com/mirrors/spdk.git}"
+}
+/^RUN chmod \+x \/tmp\/s3lvol-dep\/setup_dep\.sh/ {
+  print "RUN git config --global url.\"${GITHUB_MIRROR}https://github.com/\".insteadOf \"https://github.com/\" \\"
+  sub(/^RUN /, "    \\&\\& ")
+}
+$0 ~ /https:\/\/github\.com\// && $0 ~ /wget|curl/ {
+  gsub(/https:\/\/github\.com\//, "${GITHUB_MIRROR}https://github.com/")
+}
+# Go 官方下载站 go.dev 在国内多数环境不可达（curl 报 SSL connect error，退出码 35），
+# 改用阿里云镜像；路径规则与 go.dev 完全一致（/golang/go<版本>.linux-<arch>.tar.gz）。
+$0 ~ /https:\/\/go\.dev\/dl\// {
+  gsub(/https:\/\/go\.dev\/dl\//, "https://mirrors.aliyun.com/golang/")
+}
+{ print }
+' <工作区>/CubeSandbox/docker/Dockerfile.builder > /tmp/Dockerfile.builder.goproxy
 
 # 4) npm registry（WebUI 构建）
 npm config set registry https://registry.npmmirror.com
 ```
 
-> **说明：** 第 3 步产出的 `/tmp/Dockerfile.builder.goproxy` 需要在第 3 章构建时通过 `BUILDER_DOCKERFILE` 指定（见 §3.1）；若构建机可直连 `proxy.golang.org`，第 3 步可跳过。
+> **说明：**
+>
+> - 第 3 步产出的 `/tmp/Dockerfile.builder.goproxy` 需要在第 3 章构建时通过 `BUILDER_DOCKERFILE` 指定（见 §3.1）；若构建机可直连 `proxy.golang.org`，第 3 步可跳过。
+> - 第 3 步同时解决 GitHub 拉取问题（builder 镜像内 github.com 全部不可直连）：`GITHUB_MIRROR` 默认 `https://gh-proxy.com/`，副本对两类场景生效——**wget/curl 下载 release 压缩包**（protoc、libseccomp 等，URL 自动加 `${GITHUB_MIRROR}` 前缀）、**git 克隆**（S3lvol 的 SPDK/aws 系，通过 `git config url.<mirror>.insteadOf` 重定向）；SPDK 单独走 `SPDK_REPO` 默认 `https://gitee.com/mirrors/spdk.git`。如需换源可在构建 shell 里 `export SPDK_REPO=...` / `export GITHUB_MIRROR=...` 覆盖（副本已做 ARG/ENV 透传）。
 
 ## 2. 拉取源码
 
@@ -87,17 +115,17 @@ mkdir -p cube-workspace && cd cube-workspace
 
 下文以 `cube-workspace/` 为工作区根目录。
 
-### 2.2 拉取 CubeSandbox v0.7.0 源码
+### 2.2 拉取 CubeSandbox v0.7.1 源码
 
 ```bash
 cd cube-workspace
-git clone https://cnb.cool/CubeSandbox/CubeSandbox.git
+git clone https://gitcode.com/boostkit/CubeSandbox.git
 cd CubeSandbox
-git checkout v0.7.0
+git checkout v0.7.1
 
 # 校验
 git log -1 --format='%H'
-# 期望: d0081641c59822e4e5653b7462e914410b81910a
+# 期望: 2babb6f7405677c04b7fed1563c6a5d53a8e771b
 ```
 
 > **说明：** CubeSandbox 是**单一 git 仓库**（`CubeMaster` / `Cubelet` / `CubeShim` / `hypervisor` 等均为其子目录），与 AOSP 那种多仓结构不同，因此本方案所有 patch 都在同一个仓库内应用，无需按相对路径分仓管理。
@@ -163,6 +191,8 @@ bash build-cube.sh bundle    # 仅编译 CubeSandbox 一键发布包
 | `GOPROXY`                   | 空                               | 受限网络下指定 Go module 代理（作用于 builder 镜像与 `bundle` 步骤） |
 | `BUILDER_IMAGE`             | `cube-sandbox-builder:ubuntu2004` | builder 镜像名                                    |
 | `BUILDER_DOCKERFILE`        | `docker/Dockerfile.builder`     | builder 镜像使用的 Dockerfile（受限网络下指向 §1.3 生成的副本）   |
+| `MIRROR`                    | 空                               | 设为 `cn` 时 builder 镜像的 apt/LLVM 源走国内镜像（腾讯 ubuntu + 浙大 llvm），避免上游源下载过慢 |
+| `LLVM_MIRROR_BASE`          | `https://mirrors.zju.edu.cn/llvm-apt` | LLVM apt 镜像源；默认浙大镜像较慢，受限网络可覆盖为清华 `https://mirrors.tuna.tsinghua.edu.cn/llvm-apt` |
 | `ONE_CLICK_GUEST_IMAGE_TAR` | 空                               | 指定时用该 guest image 归档（含 `cube-guest-image-cpu.img` 与 `version`）替代本地构建 |
 | `ENVD_LOCAL_PATH`           | 空                               | 指定时把该 envd 二进制内嵌进发布包的 `cubemastercli`          |
 
@@ -173,7 +203,65 @@ cd cube-workspace/Kbox-patches/build
 
 export GOPROXY=https://goproxy.cn,direct                  # 受限网络下指定 Go module 代理
 export BUILDER_DOCKERFILE=/tmp/Dockerfile.builder.goproxy  # §1.3 生成
+export MIRROR=cn                                          # builder 镜像的 apt/LLVM 源走国内镜像，避免上游源下载过慢
+export LLVM_MIRROR_BASE=https://mirrors.tuna.tsinghua.edu.cn/llvm-apt  # 覆盖默认浙大 LLVM 镜像（浙大下载慢），改用清华镜像加速
 ```
+
+**受限网络：离线复用旧发布包中的 guest image（替代 Docker Hub 拉取）**
+
+`bundle` 步骤默认在宿主机构建 guest image，基础镜像来自 Docker Hub 的 `tencentos/tencentos4-minimal:latest`。网络无法访问 Docker Hub 时，构建会在 `FROM` 处超时失败。若已有任一版本的发布包（如旧的 `cube-sandbox-one-click-<version>.tar.gz`），可从中提取 guest image 离线复用：
+
+**第 1 步：解出外层包里的内层 `sandbox-package.tar.gz`**
+
+```bash
+mkdir -p /tmp/guestimg
+tar -xzf deploy/one-click/dist/cube-sandbox-one-click-<version>.tar.gz \
+    -C /tmp/guestimg \
+    cube-sandbox-one-click-<version>/assets/package/sandbox-package.tar.gz
+```
+
+**第 2 步：解出内层包里的 guest image 两个文件**
+
+```bash
+tar -xzf /tmp/guestimg/cube-sandbox-one-click-<version>/assets/package/sandbox-package.tar.gz \
+    -C /tmp/guestimg \
+    sandbox-package/cube-image/cube-guest-image-cpu.img \
+    sandbox-package/cube-image/version
+```
+
+**第 3 步：重新打包（两个文件必须位于归档根，无目录前缀）**
+
+```bash
+tar -czf <工作路径>/guest-image.tar.gz \
+    -C /tmp/guestimg/sandbox-package/cube-image \
+    cube-guest-image-cpu.img version
+```
+
+> 校验（可选）：打包后确认归档结构正确——
+>
+> ```bash
+> tar -tzf <工作路径>/guest-image.tar.gz
+> # 期望输出（根下直接两个文件）：
+> # cube-guest-image-cpu.img
+> # version
+> ```
+
+**第 4 步：指定归档**
+
+```bash
+export ONE_CLICK_GUEST_IMAGE_TAR=<工作路径>/guest-image.tar.gz
+```
+
+> **说明：** `ONE_CLICK_GUEST_IMAGE_TAR` 指向的归档必须为 gzip 格式（`.tar.gz`），脚本以 `tar -xzf` 解压并校验解压后 `cube-guest-image-cpu.img` 与 `version` 位于归档根（即 `build-guest-image.sh` 的 `ensure_file` 检查）；第 3 步的 `-C` 切换目录就是为此。跑完后 `dist/` 下会生成新的 `cube-sandbox-one-click-<version>.tar.gz`。
+
+> **说明：**
+>
+> - **patch 不幂等**：脚本用 `git apply` 在「干净」源码树上应用 patch，重复执行 `build-cube.sh patch` 会因已应用而失败。还原方式：`git -C CubeSandbox checkout .`。
+> - **源码树需干净**：若 `opencloudos-kernel` 中存在 in-tree 编译残留，`kernel` 步骤会报 `The source tree is not clean, please run 'make mrproper'`，执行 `make -C opencloudos-kernel ARCH=arm64 mrproper` 后重试。
+> - **`vmlinux`** **是** **`Image`** **的副本**：aarch64 下最终的 `vmlinux` 文件实际是内核 `Image`（原始镜像），并非 ELF 格式——这是部署脚本的约定，属正常现象。
+> - **构建缓存**：`CUBE_BUILD_TIME` 默认取 HEAD 提交时间而非当前时间，同一提交重复构建可复用 Go / Rust 增量缓存，第二次构建显著加快。
+> - **压缩工具回退**：`pigz` 缺失时脚本自动回退单线程 gzip，产物内容一致，仅打包耗时增加。
+> - **guest image 复用**：guest image 默认在宿主机构建，基础镜像为 Docker Hub 的 `tencentos/tencentos4-minimal:latest`。网络无法拉取该基础镜像时，可离线复用旧发布包中的 guest image（提取 → 重新打包 → `ONE_CLICK_GUEST_IMAGE_TAR` 指定），完整命令见上文「受限网络：离线复用旧发布包中的 guest image（替代 Docker Hub 拉取）」；`ONE_CLICK_GUEST_IMAGE_TAR` 的环境变量说明见本节的表格。
 
 ### 3.2 一键构建
 
@@ -217,15 +305,6 @@ tar -xzf deploy/one-click/dist/cube-sandbox-one-click-<version>.tar.gz -O \
   | tar -tzf - | grep cube-guest-image
 ```
 
-> **说明：**
->
-> - **patch 不幂等**：脚本用 `git apply` 在「干净」源码树上应用 patch，重复执行 `build-cube.sh patch` 会因已应用而失败。还原方式：`git -C CubeSandbox checkout .`。
-> - **源码树需干净**：若 `opencloudos-kernel` 中存在 in-tree 编译残留，`kernel` 步骤会报 `The source tree is not clean, please run 'make mrproper'`，执行 `make -C opencloudos-kernel ARCH=arm64 mrproper` 后重试。
-> - **`vmlinux`** **是** **`Image`** **的副本**：aarch64 下最终的 `vmlinux` 文件实际是内核 `Image`（原始镜像），并非 ELF 格式——这是部署脚本的约定，属正常现象。
-> - **构建缓存**：`CUBE_BUILD_TIME` 默认取 HEAD 提交时间而非当前时间，同一提交重复构建可复用 Go / Rust 增量缓存，第二次构建显著加快。
-> - **压缩工具回退**：`pigz` 缺失时脚本自动回退单线程 gzip，产物内容一致，仅打包耗时增加。
-> - **guest image 复用**：guest image 默认在宿主机构建，基础镜像为 Docker Hub 的 `tencentos/tencentos4-minimal:latest`。无法拉取该基础镜像时，可从官方发布包的 `assets/package/sandbox-package.tar.gz` 中取出 `sandbox-package/cube-image/cube-guest-image-cpu.img` 与 `sandbox-package/cube-image/version`，重新打成 tar.gz（两者位于归档根），再以 `ONE_CLICK_GUEST_IMAGE_TAR=<归档路径>` 指定复用（见 §3.1）。
-
 ## 4. 重新部署到已部署环境
 
 本方案的 patch 同时改动 Cube 组件与 guest 内核，因此「改代码 → 重新编译 → 重新部署 → 重建模板」是一个闭环。本节说明在**已经部署过 CubeSandbox 的目标机**上用新编译的发布包覆盖安装，并保证所有组件（含 guest 内核）与本次编译产物一致。
@@ -236,7 +315,7 @@ tar -xzf deploy/one-click/dist/cube-sandbox-one-click-<version>.tar.gz -O \
 
 | 组件                                        | 版本化目录归档方式                              | 覆盖安装时的行为                                |
 | ----------------------------------------- | -------------------------------------- | --------------------------------------- |
-| `cube-shim` / `cube-image` / `cube-agent` | 按**版本号字符串**（如 `v0.7.0`、`guest-image-260820-1`） | 同名目录已存在即**跳过**，保留旧内容 → 与 `/usr/local` 下的新组件**不同源** |
+| `cube-shim` / `cube-image` / `cube-agent` | 按**版本号字符串**（如 `v0.7.1`、`guest-image-260820-1`） | 同名目录已存在即**跳过**，保留旧内容 → 与 `/usr/local` 下的新组件**不同源** |
 | `cube-kernel-scf`                         | 按**内容哈希**（`sha256-<12位>`）              | 新内核必然生成新目录，天然一致                         |
 
 模板构建读取 `/usr/local/services/cubetoolbox` 下的组件，而沙箱恢复读取 `/data/cubelet/root/component_versions/<版本>/` 下的副本；两者不同源时表现为「模板能建、沙箱起不来」。所以重新部署的关键是让版本化目录**全量刷新**。
@@ -370,9 +449,9 @@ adb connect <沙箱IP>:5555 && adb -s <沙箱IP>:5555 shell getprop sys.boot_com
 
 | 项           | 值                                                                                                                           |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------- |
-| CubeSandbox | `https://cnb.cool/CubeSandbox/CubeSandbox.git`，tag `v0.7.0`，commit `d0081641c59822e4e5653b7462e914410b81910a`               |
+| CubeSandbox | `https://gitcode.com/boostkit/CubeSandbox.git`，tag `v0.7.1`，commit `2babb6f7405677c04b7fed1563c6a5d53a8e771b`               |
 | guest 内核源码  | `https://gitee.com/OpenCloudOS/OpenCloudOS-Kernel.git`，tag `6.6.119-49.6`，commit `a75d76aa7675ef86b782d19716916d9789c6f450` |
-| guest 内核配置  | `configs/kernel-oc9.aarch64.config`                                                                                         |
+| guest 内核配置  | `configs/kernel-oc9.aarch64.config`（位于 **CubeSandbox** 仓库，不在内核仓库）                                                  |
 
 ## 附录 D：常见问题
 
@@ -399,6 +478,19 @@ A: Docker Hub 不可达。按 §1.3 第 1 步配置 `registry-mirrors` 后重跑
 **Q:** **builder 镜像构建报** **`Get "https://proxy.golang.org/...": i/o timeout`？**
 
 A: 该层 `go install` 使用的 Go module 代理不可达。按 §1.3 第 3 步生成带 `GOPROXY` 的 Dockerfile 副本，`export BUILDER_DOCKERFILE=/tmp/Dockerfile.builder.goproxy` 后重跑（已完成的层会命中缓存，从失败处继续）。
+
+**Q:** **builder 镜像构建报** **`curl: (35) ... SSL connect error`** **，失败层是** **`curl -fsSL "https://go.dev/dl/go${GO_VERSION}..."`？**
+
+A: `go.dev` 不可达（国内多数环境如此，curl 退出码 35）。按 §1.3 第 3 步生成的 Dockerfile 副本已把该地址替换为 `https://mirrors.aliyun.com/golang/`（路径规则一致，实测可用），`export BUILDER_DOCKERFILE=/tmp/Dockerfile.builder.goproxy` 后重跑即可，已完成层会命中缓存。
+
+> **说明：** 该层本应命中已有镜像的缓存，之所以被重新执行，是因为 `make guest-kernel` 前置的 `builder-image` 目标发现 s3lvol 依赖 stamp 与镜像标签不一致——**切换 CubeSandbox 版本后 `CubeS3lvol/setup_dep.sh` 的内容变化会改变 stamp，从而触发镜像重建**。可用下面两条命令确认：
+>
+> ```bash
+> docker image inspect -f 'spdk={{index .Config.Labels "org.cubesandbox.s3lvol.spdk-stamp"}}' cube-sandbox-builder:ubuntu2004
+> bash CubeSandbox/CubeS3lvol/setup_dep.sh --print-stamp spdk
+> ```
+>
+> 两者不一致即会重建。若非必要，不要用改标签的方式绕过重建，否则 s3lvol 组件可能与源码要求的 spdk 版本不符。
 
 **Q:** **`bundle`** **步骤报** **`failed to get` ... `as a dependency`（crates.io 超时）？**
 
