@@ -1,0 +1,114 @@
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/tiles/InternetTile.java b/packages/SystemUI/src/com/android/systemui/qs/tiles/InternetTile.java
+index 24b2d8a1..2576f839 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/tiles/InternetTile.java
++++ b/packages/SystemUI/src/com/android/systemui/qs/tiles/InternetTile.java
+@@ -19,8 +19,10 @@ package com.android.systemui.qs.tiles;
+ import android.annotation.NonNull;
+ import android.content.Context;
+ import android.content.Intent;
++import android.content.ContentResolver;
+ import android.content.pm.PackageManager;
+ import android.content.res.Resources;
++import android.database.ContentObserver;
+ import android.graphics.drawable.Drawable;
+ import android.os.Handler;
+ import android.os.Looper;
+@@ -109,6 +111,26 @@ public class InternetTile extends QSTileImpl<QSTile.BooleanState> {
+         mAccessPointController = accessPointController;
+         mDataController = mController.getMobileDataController();
+         mController.observe(getLifecycle(), mSignalCallback);
++
++        // Internet 磁贴的高亮跟随持久化开关（WIFI_ON / MOBILE_DATA），而非以太网等默认网络
++        final ContentObserver fakeSettingsObserver = new ContentObserver(mainHandler) {
++            @Override
++            public void onChange(boolean selfChange) {
++                refreshState();
++            }
++        };
++        final ContentResolver cr = mContext.getContentResolver();
++        cr.registerContentObserver(Settings.Global.getUriFor(Settings.Global.WIFI_ON),
++                false, fakeSettingsObserver);
++        cr.registerContentObserver(Settings.Global.getUriFor(Settings.Global.MOBILE_DATA),
++                false, fakeSettingsObserver);
++    }
++
++    // WIFI_ON 或 MOBILE_DATA 任一为开启，磁贴才算可用
++    private boolean isFakeInternetEnabled() {
++        final ContentResolver cr = mContext.getContentResolver();
++        return Settings.Global.getInt(cr, Settings.Global.WIFI_ON, 0) == 1
++                || Settings.Global.getInt(cr, Settings.Global.MOBILE_DATA, 0) == 1;
+     }
+ 
+     @Override
+@@ -497,6 +519,14 @@ public class InternetTile extends QSTileImpl<QSTile.BooleanState> {
+                 handleUpdateEthernetState(state, ethernetInfo);
+             }
+         }
++        // 无可用网络时，磁贴置灰
++        if (!isFakeInternetEnabled()) {
++            state.state = Tile.STATE_INACTIVE;
++            state.value = false;
++            state.icon = ResourceIcon.get(R.drawable.ic_qs_no_internet_unavailable);
++            state.secondaryLabel = mContext.getString(R.string.quick_settings_networks_unavailable);
++            state.stateDescription = "";
++        }
+     }
+ 
+     private void handleUpdateWifiState(BooleanState state, Object arg) {
+diff --git a/packages/SystemUI/src/com/android/systemui/qs/tiles/InternetTileNewImpl.kt b/packages/SystemUI/src/com/android/systemui/qs/tiles/InternetTileNewImpl.kt
+index 357743bc..30fa5932 100644
+--- a/packages/SystemUI/src/com/android/systemui/qs/tiles/InternetTileNewImpl.kt
++++ b/packages/SystemUI/src/com/android/systemui/qs/tiles/InternetTileNewImpl.kt
+@@ -17,9 +17,11 @@
+ package com.android.systemui.qs.tiles
+ 
+ import android.content.Intent
++import android.database.ContentObserver
+ import android.os.Handler
+ import android.os.Looper
+ import android.provider.Settings
++import android.service.quicksettings.Tile
+ import android.view.View
+ import android.widget.Switch
+ import com.android.internal.logging.MetricsLogger
+@@ -75,6 +77,18 @@ constructor(
+             model = newModel
+             refreshState()
+         }
++        // the sandbox always has an ethernet/tap interface up, which keeps the tile
++        // active. Re-evaluate the tile whenever WIFI_ON / MOBILE_DATA changes.
++        val settingsObserver = object : ContentObserver(mainHandler) {
++            override fun onChange(selfChange: Boolean) {
++                refreshState()
++            }
++        }
++        val resolver = mContext.contentResolver
++        resolver.registerContentObserver(
++            Settings.Global.getUriFor(Settings.Global.WIFI_ON), false, settingsObserver)
++        resolver.registerContentObserver(
++            Settings.Global.getUriFor(Settings.Global.MOBILE_DATA), false, settingsObserver)
+     }
+ 
+     override fun getTileLabel(): CharSequence =
+@@ -100,6 +114,21 @@ constructor(
+         state.expandedAccessibilityClassName = Switch::class.java.name
+ 
+         model.applyTo(state, mContext)
++
++        //  the tile must only follow WIFI_ON / MOBILE_DATA, never the underlying network
++        if (!isFakeInternetEnabled()) {
++            state.state = Tile.STATE_INACTIVE
++            state.value = false
++            state.icon = QSTileImpl.ResourceIcon.get(R.drawable.ic_qs_no_internet_unavailable)
++            state.secondaryLabel = mContext.getString(R.string.quick_settings_networks_unavailable)
++            state.stateDescription = ""
++        }
++    }
++
++    private fun isFakeInternetEnabled(): Boolean {
++        val resolver = mContext.contentResolver
++        return Settings.Global.getInt(resolver, Settings.Global.WIFI_ON, 0) == 1 ||
++            Settings.Global.getInt(resolver, Settings.Global.MOBILE_DATA, 0) == 1
+     }
+ 
+     override fun getLongClickIntent(): Intent = WIFI_SETTINGS

@@ -19,10 +19,40 @@ index e0cdc2c..b3401b0 100644
      }
  
 diff --git a/service/src/com/android/server/bluetooth/BluetoothManagerService.java b/service/src/com/android/server/bluetooth/BluetoothManagerService.java
-index 13172e8..a8d5a3c 100644
+index 13172e8..22c88c6 100644
 --- a/service/src/com/android/server/bluetooth/BluetoothManagerService.java
 +++ b/service/src/com/android/server/bluetooth/BluetoothManagerService.java
-@@ -823,6 +823,18 @@ class BluetoothManagerService {
+@@ -198,6 +198,8 @@ class BluetoothManagerService {
+     // They are accessed in handler or broadcast receiver, same thread context.
+     private String mAddress = null;
+     private String mName = null;
++    // redroid: cached fake Bluetooth on/off state (persisted settings is the source of truth)
++    private volatile boolean mFakeBtOn;
+     private final ContentResolver mContentResolver;
+     private final RemoteCallbackList<IBluetoothManagerCallback> mCallbacks =
+             new RemoteCallbackList<IBluetoothManagerCallback>();
+@@ -670,6 +672,20 @@ class BluetoothManagerService {
+         // Observe BLE scan only mode settings change.
+         registerForBleScanModeChange();
+ 
++        // redroid: 无原生蓝牙栈,以持久化设置为唯一状态源;外部直接改 settings
++        // (如 adb shell settings put global bluetooth_on) 不经过服务开关流程,
++        // 故监听其变化并补发状态变化广播,使 SystemUI 磁贴等广播驱动方同步。
++        mFakeBtOn = isBluetoothPersistedStateOnBluetooth();
++        mContentResolver.registerContentObserver(
++                Settings.Global.getUriFor(Settings.Global.BLUETOOTH_ON),
++                false,
++                new ContentObserver(mHandler) {
++                    @Override
++                    public void onChange(boolean selfChange) {
++                        updateFakeBtState(isBluetoothPersistedStateOnBluetooth());
++                    }
++                });
++
+         if (!mFeatureFlags.airplaneRessourcesInApp() && !mFeatureFlags.useNewAirplaneMode()) {
+             mBluetoothNotificationManager = new BluetoothNotificationManager(mContext);
+         }
+@@ -823,6 +839,31 @@ class BluetoothManagerService {
          }
      }
  
@@ -33,6 +63,19 @@ index 13172e8..a8d5a3c 100644
 +     */
 +    private void applyFakeBtState(boolean on) {
 +        persistBluetoothSetting(on ? BLUETOOTH_ON_BLUETOOTH : BLUETOOTH_OFF);
++        updateFakeBtState(on);
++    }
++
++    /**
++     * redroid: 假状态的统一广播出口。UI 开关路径经 applyFakeBtState 调用;
++     * 外部直接改 Settings.Global.BLUETOOTH_ON 时由 ContentObserver 调用。
++     * 用成员布尔去重,避免写设置触发的 observer 与开关路径重复广播。
++     */
++    private void updateFakeBtState(boolean on) {
++        if (mFakeBtOn == on) {
++            return;
++        }
++        mFakeBtOn = on;
 +        final int prevState = on ? STATE_OFF : STATE_ON;
 +        final int newState = on ? STATE_ON : STATE_OFF;
 +        broadcastIntentStateChange(BluetoothAdapter.ACTION_STATE_CHANGED, prevState, newState);
@@ -41,7 +84,7 @@ index 13172e8..a8d5a3c 100644
      /**
       * Returns true if the Bluetooth Adapter's name and address is locally cached
       *
-@@ -920,7 +932,8 @@ class BluetoothManagerService {
+@@ -920,7 +961,8 @@ class BluetoothManagerService {
      }
  
      int getState() {
@@ -51,7 +94,7 @@ index 13172e8..a8d5a3c 100644
      }
  
      class ClientDeathRecipient implements IBinder.DeathRecipient {
-@@ -1069,24 +1082,8 @@ class BluetoothManagerService {
+@@ -1069,24 +1111,8 @@ class BluetoothManagerService {
  
          // TODO(b/262605980): enableBle/disableBle should be on handler thread
          updateBleAppCount(token, true, packageName);
@@ -78,7 +121,7 @@ index 13172e8..a8d5a3c 100644
          return true;
      }
  
-@@ -1103,25 +1100,10 @@ class BluetoothManagerService {
+@@ -1103,25 +1129,10 @@ class BluetoothManagerService {
              return false;
          }
  
@@ -106,7 +149,7 @@ index 13172e8..a8d5a3c 100644
          return true;
      }
  
-@@ -2220,7 +2202,9 @@ class BluetoothManagerService {
+@@ -2220,7 +2231,9 @@ class BluetoothManagerService {
      }
  
      private void sendDisableMsg(int reason, String packageName) {
@@ -117,7 +160,7 @@ index 13172e8..a8d5a3c 100644
          addActiveLog(reason, packageName, false);
      }
  
-@@ -2229,7 +2213,8 @@ class BluetoothManagerService {
+@@ -2229,7 +2242,8 @@ class BluetoothManagerService {
      }
  
      private void sendEnableMsg(boolean quietMode, int reason, String packageName, boolean isBle) {
@@ -127,7 +170,7 @@ index 13172e8..a8d5a3c 100644
          addActiveLog(reason, packageName, true);
          mLastEnabledTime = SystemClock.elapsedRealtime();
      }
-@@ -2453,7 +2438,7 @@ class BluetoothManagerService {
+@@ -2453,7 +2467,7 @@ class BluetoothManagerService {
  
          writer.println("Bluetooth Status");
          writer.println("  enabled: " + isEnabled());
