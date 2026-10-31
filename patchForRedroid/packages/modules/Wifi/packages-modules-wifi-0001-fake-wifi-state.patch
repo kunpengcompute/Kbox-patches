@@ -1,8 +1,52 @@
 diff --git a/service/java/com/android/server/wifi/WifiServiceImpl.java b/service/java/com/android/server/wifi/WifiServiceImpl.java
-index 785a06b..58aefc6 100644
+index 785a06b..91099d7 100644
 --- a/service/java/com/android/server/wifi/WifiServiceImpl.java
 +++ b/service/java/com/android/server/wifi/WifiServiceImpl.java
-@@ -1518,13 +1518,14 @@ public class WifiServiceImpl extends BaseWifiService {
+@@ -85,6 +85,7 @@ import android.content.pm.PackageInfo;
+ import android.content.pm.PackageManager;
+ import android.content.pm.ResolveInfo;
+ import android.content.res.Resources;
++import android.database.ContentObserver;
+ import android.hardware.wifi.WifiStatusCode;
+ import android.location.LocationManager;
+ import android.net.DhcpInfo;
+@@ -392,6 +393,8 @@ public class WifiServiceImpl extends BaseWifiService {
+     private boolean mWifiTetheringDisallowed;
+     private boolean mIsBootComplete;
+     private boolean mIsLocationModeEnabled;
++    // redroid: cached fake WiFi on/off state (Settings.Global.WIFI_ON is the source of truth)
++    private volatile boolean mFakeWifiOn;
+ 
+     private WifiNetworkSelectionConfig mNetworkSelectionConfig;
+     private ApplicationQosPolicyRequestHandler mApplicationQosPolicyRequestHandler;
+@@ -722,6 +725,26 @@ public class WifiServiceImpl extends BaseWifiService {
+             mActiveModeWarden.start();
+             registerForCarrierConfigChange();
+             mWifiInjector.getAdaptiveConnectivityEnabledSettingObserver().initialize();
++
++            // redroid: image has no native wifi stack; the toggle state is backed solely by
++            // Settings.Global.WIFI_ON. External writes (e.g. adb shell settings put global
++            // wifi_on) bypass the service toggle flow, so observe the setting and emit the
++            // sticky WIFI_STATE_CHANGED_ACTION broadcast that SystemUI QS tiles rely on.
++            mFakeWifiOn = Settings.Global.getInt(
++                    mContext.getContentResolver(), Settings.Global.WIFI_ON, 0) == 1;
++            mContext.getContentResolver().registerContentObserver(
++                    Settings.Global.getUriFor(Settings.Global.WIFI_ON),
++                    false,
++                    new ContentObserver(new Handler(mWifiHandlerThread.getLooper())) {
++                        @Override
++                        public void onChange(boolean selfChange) {
++                            final boolean on = Settings.Global.getInt(
++                                    mContext.getContentResolver(),
++                                    Settings.Global.WIFI_ON, 0) == 1;
++                            updateFakeWifiState(on);
++                        }
++                    });
++
+             mIsWifiServiceStarted = true;
+         });
+     }
+@@ -1518,13 +1541,14 @@ public class WifiServiceImpl extends BaseWifiService {
      @Override
      public int getWifiEnabledState() {
          enforceAccessPermission();
@@ -24,3 +68,31 @@ index 785a06b..58aefc6 100644
          if (mVerboseLoggingEnabled) {
              mLog.info("getWifiEnabledState uid=% state=%").c(Binder.getCallingUid()).c(
                      state).flush();
+@@ -1532,6 +1556,27 @@ public class WifiServiceImpl extends BaseWifiService {
+         return state;
+     }
+ 
++    /**
++     * redroid: 假 WiFi 状态的统一广播出口。以 Settings.Global.WIFI_ON 为唯一状态源,
++     * 设置值变化时补发 sticky WIFI_STATE_CHANGED_ACTION(与原生 ClientModeManager 行为一致),
++     * 供 SystemUI 状态栏磁贴等广播驱动方刷新。用成员布尔去重避免重复广播。
++     */
++    private void updateFakeWifiState(boolean on) {
++        if (mFakeWifiOn == on) {
++            return;
++        }
++        mFakeWifiOn = on;
++        final int newState = on ? WifiManager.WIFI_STATE_ENABLED
++                : WifiManager.WIFI_STATE_DISABLED;
++        final int prevState = on ? WifiManager.WIFI_STATE_DISABLED
++                : WifiManager.WIFI_STATE_ENABLED;
++        Intent intent = new Intent(WifiManager.WIFI_STATE_CHANGED_ACTION);
++        intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
++        intent.putExtra(WifiManager.EXTRA_WIFI_STATE, newState);
++        intent.putExtra(WifiManager.EXTRA_PREVIOUS_WIFI_STATE, prevState);
++        mContext.sendStickyBroadcastAsUser(intent, UserHandle.ALL);
++    }
++
+     /**
+      * see {@link WifiManager#getWifiApState()}
+      * @return One of {@link WifiManager#WIFI_AP_STATE_DISABLED},

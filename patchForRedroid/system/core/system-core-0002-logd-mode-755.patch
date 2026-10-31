@@ -1,0 +1,13 @@
+diff --git a/libcutils/fs_config.cpp b/libcutils/fs_config.cpp
+index 919be2f..ec51b2d 100644
+--- a/libcutils/fs_config.cpp
++++ b/libcutils/fs_config.cpp
+@@ -167,7 +167,7 @@ static const struct fs_path_config android_files[] = {
+     { 00755, AID_ROOT,      AID_SHELL,     0, "system/bin/crash_dump32" },
+     { 00755, AID_ROOT,      AID_SHELL,     0, "system/bin/crash_dump64" },
+     { 00755, AID_ROOT,      AID_SHELL,     0, "system/bin/debuggerd" },
+-    { 00550, AID_LOGD,      AID_LOGD,      0, "system/bin/logd" },
++    { 00755, AID_LOGD,      AID_LOGD,      0, "system/bin/logd" },
+     { 00700, AID_ROOT,      AID_ROOT,      0, "system/bin/secilc" },
+     { 00750, AID_ROOT,      AID_ROOT,      0, "system/bin/uncrypt" },
+     { 00600, AID_ROOT,      AID_ROOT,      0, "system/build.prop" },
