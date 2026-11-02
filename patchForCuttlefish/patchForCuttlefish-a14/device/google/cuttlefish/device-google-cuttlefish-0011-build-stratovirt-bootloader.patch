@@ -1,0 +1,30 @@
+diff --git a/build/Android.bp b/build/Android.bp
+index 800fb37eee6a834e79af3597c44fd39027419762..c4a1b91e508a79f55b5a01c51d9d3dc8526029f4 100644
+--- a/build/Android.bp
++++ b/build/Android.bp
+@@ -245,7 +245,24 @@
+     "bootloader_qemu_arm",
+     "bootloader_qemu_riscv64",
+     "bootloader_qemu_x86_64",
+-]
++    "bootloader_stratovirt_aarch64",
++]
++
++// Firmware and license are generated from U-Boot source by build_cf.sh.
++license {
++    name: "cuttlefish_stratovirt_bootloader_license",
++    visibility: [":__subpackages__"],
++    license_kinds: ["SPDX-license-identifier-GPL-2.0-only"],
++    license_text: ["bootloader/LICENSE"],
++}
++
++prebuilt_etc_host {
++    name: "bootloader_stratovirt_aarch64",
++    licenses: ["cuttlefish_stratovirt_bootloader_license"],
++    filename: "bootloader.stratovirt",
++    sub_dir: "bootloader_aarch64",
++    src: "bootloader/bootloader.stratovirt",
++}
+ 
+ prebuilt_etc_host {
+     name: "cvd_avb_testkey",
