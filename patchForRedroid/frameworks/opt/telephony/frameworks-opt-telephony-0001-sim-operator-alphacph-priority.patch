@@ -1,0 +1,19 @@
+diff --git a/src/java/com/android/internal/telephony/uicc/UiccProfile.java b/src/java/com/android/internal/telephony/uicc/UiccProfile.java
+index 0457971..c1f2d31 100644
+--- a/src/java/com/android/internal/telephony/uicc/UiccProfile.java
++++ b/src/java/com/android/internal/telephony/uicc/UiccProfile.java
+@@ -451,6 +451,14 @@ public class UiccProfile extends IccCard {
+      * if an override is provided.
+      */
+     private void handleCarrierNameOverride() {
++        // Kbox: when modem_simulator SIM operator name is configured via
++        // persist.gsm.sim.operator.alphacph, keep the name it already set on
++        // gsm.sim.operator.alpha instead of overriding with the carrier name
++        // resolved from MCC/MNC.
++        if (!TextUtils.isEmpty(android.os.SystemProperties.get(
++                "persist.gsm.sim.operator.alphacph"))) {
++            return;
++        }
+         final int subId = SubscriptionManager.getSubscriptionId(mPhoneId);
+         if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+             loge("subId not valid for Phone " + mPhoneId);
