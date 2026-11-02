@@ -898,7 +898,7 @@ index 2b7f3c2..780ce2b 100644
    responses.push_back("OK");
    client.SendCommandResponse(responses);
  }
-@@ -1250,6 +1341,19 @@ void SimService::HandleGetIMSI(const Client& client) {
+@@ -1250,6 +1341,18 @@ void SimService::HandleGetIMSI(const Client& client) {
   *
   * see RIL_REQUEST_GET_SIM_STATUS in RIL
   */
@@ -907,8 +907,7 @@ index 2b7f3c2..780ce2b 100644
 +  property_get("persist.sys.prop.writesimserial", propBuf, NULL);
 +  std::string propStr(propBuf);
 +  int number1Len = strlen(propBuf);
-+  if (number1Len != LENGTH_OF_ICCID || !isDigits(propBuf) ||
-+      propStr.substr(0, 4) != "8986") {
++  if (number1Len != LENGTH_OF_ICCID || !isDigits(propBuf)) {
 +    property_set("persist.sys.prop.writesimserial", "");
 +    return "";
 +  }
