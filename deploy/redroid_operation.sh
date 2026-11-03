@@ -58,10 +58,11 @@ redroid_operation.sh —— CubeSandbox（Cube + Redroid）模板与沙箱管理
   template-commit <sandbox-id>       把运行中的沙箱提交为新模板
 
 沙箱操作（沙箱生命周期管理）：
-  sandbox-create --alias <模板别名> [--config <文件>]
+  sandbox-create --alias <模板别名> [--count <N>] [--runcc <M>] [--config <文件>]
                                     按模板别名创建沙箱（脚本查 template list 换算为
-                                    tpl-…）
-  sandbox-create --snapshot <snap-id> [--config <文件>]
+                                    tpl-…）；--count 批量创建 N 个（默认 1）；
+                                    --runcc 并行启动数（默认 1，即串行）
+  sandbox-create --snapshot <snap-id> [--count <N>] [--runcc <M>] [--config <文件>]
                                     从快照派生新沙箱（--alias 与 --snapshot 二选一，必填）
                                     multirun 请求体取自配置文件的 sandbox 段
   sandbox-list [--all] [--wide]     列举沙箱
@@ -79,9 +80,9 @@ redroid_operation.sh —— CubeSandbox（Cube + Redroid）模板与沙箱管理
   snapshot-list [--sandbox <sandbox-id>] [--limit <N>]
                                     列举快照（--sandbox 按源沙箱过滤）
   snapshot-delete <snap-id>         删除快照（快照独立于沙箱生命周期，需显式删除）
-  sandbox-clone <sandbox-id> [--count <N>] [--config <文件>]
+  sandbox-clone <sandbox-id> [--count <N>] [--runcc <M>] [--config <文件>]
                                     克隆：给源沙箱打快照，再从快照派生 N 个新沙箱；
-                                    源沙箱保持运行不受影响
+                                    --runcc 并行启动数（默认 1，即串行）；源沙箱保持运行不受影响
   sandbox-rollback <sandbox-id> <snap-id>
                                     把沙箱原地回滚到指定快照（沙箱 ID 不变）
 
@@ -112,7 +113,10 @@ redroid_operation.sh —— CubeSandbox（Cube + Redroid）模板与沙箱管理
   bash redroid_operation.sh template-create --alias android14-4c8g
   bash redroid_operation.sh template-create --alias android14-4c8g --image 127.0.0.1:5000/redroid:14.0.0_r75_arm64_only_zp
   bash redroid_operation.sh sandbox-create --alias android14-4c8g
-  bash redroid_operation.sh sandbox-create --snapshot snap-xxxxxxxxxxxxxxxxxxxxxxxx
+  bash redroid_operation.sh sandbox-create --alias android14-4c8g --count 5
+  bash redroid_operation.sh sandbox-create --alias android14-4c8g --count 5 --runcc 2
+  bash redroid_operation.sh sandbox-create --snapshot snap-xxxxxxxxxxxxxxxxxxxxxxxx --count 3
+  bash redroid_operation.sh sandbox-create --snapshot snap-xxxxxxxxxxxxxxxxxxxxxxxx --count 3 --runcc 3
   bash redroid_operation.sh snapshot-create sbx-xxxxxxxxxxxxxxxxxxxxxxxx --name cocos-scene
   bash redroid_operation.sh sandbox-clone sbx-xxxxxxxxxxxxxxxxxxxxxxxx --count 3
   bash redroid_operation.sh sandbox-rollback sbx-xxxxxxxxxxxxxxxxxxxxxxxx snap-xxxxxxxxxxxxxxxxxxxxxxxx
@@ -343,12 +347,13 @@ first_match() {
 # 用 multirun 从模板/快照启动沙箱。
 # $1: 模板 ID（tpl-…）或快照 ID（snap-…）；可省略，省略时从配置 sandbox.source_id 读取
 # $2: 启动个数（默认 1）
+# $3: 并行启动数 runcc（默认 1，即串行；>1 时每批并行启动该个数的沙箱）
 # 说明：请求体取自配置文件的 sandbox 段（写法沿用 user_guide.md §5.2 验证过的内容），
 #       脚本运行时把模板/快照 ID 注入 annotations 与 labels 两个
 #       cube.master.appsnapshot.template.id 键；redroid 必需注解
 #       cube.vm.cgroup.unified_hierarchy=false 若被误删会自动补回。
 sandbox_run() {
-    local tpl="${1-}" count="${2:-1}"
+    local tpl="${1-}" count="${2:-1}" runcc="${3:-1}"
     local cfg req out ids id ip
     need_python3
     cfg="$(resolve_config)"
@@ -364,11 +369,27 @@ with open(sys.argv[1]) as fh:
 TID = "cube.master.appsnapshot.template.id"
 print(req.get("annotations", {}).get(TID, ""))' "$req")"
     fi
+    # multirun 的语义是"总数 = runcc × runcnt"（每个并发协程各建 runcnt 个），
+    # 故要让 --count 表示总数、--runcc 表示每批并行数，需把 count 拆分：
+    #   整数批 → (runcnt=count/runcc, runcc)；余数 → (runcnt=1, runcc=余数)。
+    # 保证总创建数恰为 count，且每批并行数不超过 runcc；runcc=1 时退化为原串行单批。
     # multirun 的日志（含 sandBoxId/Ip）输出到 stderr，需 2>&1 一并捕获供解析
-    out="$(run_cli multirun --norm --runcnt "$count" --runcc 1 "$req" 2>&1)" || {
-        rm -f "$req"
-        die "沙箱启动失败（模板/快照：$tpl）。常见原因见 ../guide/user_guide.md 附录 B"
-    }
+    local line runcnt_full=$(( count / runcc )) runcnt_rem=$(( count % runcc ))
+    out=""
+    if [ "$runcnt_full" -gt 0 ]; then
+        line="$(run_cli multirun --norm --runcnt "$runcnt_full" --runcc "$runcc" "$req" 2>&1)" || {
+            rm -f "$req"
+            die "沙箱启动失败（模板/快照：$tpl）。常见原因见 ../guide/user_guide.md 附录 B"
+        }
+        out+="$line"$'\n'
+    fi
+    if [ "$runcnt_rem" -gt 0 ]; then
+        line="$(run_cli multirun --norm --runcnt 1 --runcc "$runcnt_rem" "$req" 2>&1)" || {
+            rm -f "$req"
+            die "沙箱启动失败（模板/快照：$tpl）。常见原因见 ../guide/user_guide.md 附录 B"
+        }
+        out+="$line"$'\n'
+    fi
     rm -f "$req"
     printf '%s\n' "$out"
     ids="$(printf '%s\n' "$out" | grep -oE 'sandBoxId:[0-9a-fA-F]{32}|sbx-[0-9A-Za-z]+' | sed -E 's/^sandBoxId://' || true)"
@@ -510,14 +531,18 @@ cmd_template_commit() {
 # ：沙箱生命周期管理-创建 / 沙箱状态管理-从快照派生新沙箱
 # --alias <模板别名>：按模板别名确定模板（脚本查 template list 换算为 tpl-…）
 # --snapshot <snap-id>：从快照派生新沙箱（--alias 与 --snapshot 二选一，必填）
+# --count <N>：批量创建个数（默认 1）；N 个沙箱使用同一份请求体（配置 sandbox 段），配置完全一致
+# --runcc <M>：并行启动数（默认 1，即串行）；与 --count 配合，每批并行启动 M 个，直至 N 个全部创建
 # 因 redroid 必需注解 CubeAPI 无法表达（见文件头说明第 1 条），统一走 cubemastercli multirun。
 cmd_sandbox_create() {
-    local alias_name="" snap=""
+    local alias_name="" snap="" count=1 runcc=1
     while [ $# -gt 0 ]; do
         case "$1" in
             -h|--help) usage ;;
             --alias)    [ $# -ge 2 ] || die "--alias 需要一个值";    alias_name="$2"; shift 2 ;;
             --snapshot) [ $# -ge 2 ] || die "--snapshot 需要一个值"; snap="$2";      shift 2 ;;
+            --count)    [ $# -ge 2 ] || die "--count 需要一个值";    count="$2";      shift 2 ;;
+            --runcc)    [ $# -ge 2 ] || die "--runcc 需要一个值";   runcc="$2";      shift 2 ;;
             --config)   [ $# -ge 2 ] || die "--config 需要一个值";   OPT_CONFIG="$2"; shift 2 ;;
             --template) die "sandbox-create：--template 已废弃，改用 --alias <模板别名> 或 --snapshot <快照ID>" ;;
             *) die "sandbox-create：未知参数 '$1'" ;;
@@ -525,6 +550,8 @@ cmd_sandbox_create() {
     done
     [ -n "$alias_name" ] && [ -n "$snap" ] && die "sandbox-create：--alias 与 --snapshot 只能二选一"
     [ -z "$alias_name" ] && [ -z "$snap" ] && die "sandbox-create：必须指定 --alias <模板别名> 或 --snapshot <快照ID>"
+    [[ "$count" =~ ^[1-9][0-9]*$ ]] || die "--count 须为正整数"
+    [[ "$runcc" =~ ^[1-9][0-9]*$ ]] || die "--runcc 须为正整数"
     local tpl
     if [ -n "$alias_name" ]; then
         tpl="$(template_alias_to_id "$alias_name")"
@@ -536,7 +563,7 @@ cmd_sandbox_create() {
         esac
     fi
     need_cli
-    sandbox_run "$tpl" 1
+    sandbox_run "$tpl" "$count" "$runcc"
 }
 
 # ：沙箱生命周期管理-列举（cubemastercli）
@@ -684,18 +711,20 @@ cmd_snapshot_delete() {
 # CubeAPI 无独立 clone 端点，按官方 SDK 语义组合实现：
 #   打快照（CubeAPI）→ multirun 从快照派生 N 个新沙箱；源沙箱不受影响。
 cmd_sandbox_clone() {
-    local id="" count=1
+    local id="" count=1 runcc=1
     while [ $# -gt 0 ]; do
         case "$1" in
             -h|--help) usage ;;
             --count|-n) [ $# -ge 2 ] || die "--count 需要一个值"; count="$2"; shift 2 ;;
+            --runcc)    [ $# -ge 2 ] || die "--runcc 需要一个值"; runcc="$2"; shift 2 ;;
             --config)   [ $# -ge 2 ] || die "--config 需要一个值"; OPT_CONFIG="$2"; shift 2 ;;
             -*) die "sandbox-clone：未知参数 '$1'" ;;
             *) [ -z "$id" ] || die "sandbox-clone：只能指定一个沙箱 ID"; id="$1"; shift ;;
         esac
     done
-    [ -n "$id" ] || die "用法：bash $0 sandbox-clone <sandbox-id> [--count <N>]"
+    [ -n "$id" ] || die "用法：bash $0 sandbox-clone <sandbox-id> [--count <N>] [--runcc <M>]"
     [[ "$count" =~ ^[1-9][0-9]*$ ]] || die "--count 须为正整数"
+    [[ "$runcc" =~ ^[1-9][0-9]*$ ]] || die "--runcc 须为正整数"
 
     echo "==> [1/2] 为源沙箱打快照：$id"
     local resp snap
@@ -707,8 +736,8 @@ cmd_sandbox_clone() {
     echo "SNAPSHOT_ID=$snap"
 
     echo
-    echo "==> [2/2] 从快照派生 $count 个新沙箱（源沙箱 $id 保持运行不受影响）"
-    sandbox_run "$snap" "$count"
+    echo "==> [2/2] 从快照派生 $count 个新沙箱（并行启动 $runcc 个/批，源沙箱 $id 保持运行不受影响）"
+    sandbox_run "$snap" "$count" "$runcc"
 
     echo
     echo "克隆完成。注意："
