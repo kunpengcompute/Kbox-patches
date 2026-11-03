@@ -1,0 +1,14 @@
+diff --git a/build/Android.bp b/build/Android.bp
+index 639ffea..2642d13 100644
+--- a/build/Android.bp
++++ b/build/Android.bp
+@@ -99,7 +99,8 @@ qemu_x86_64_linux_gnu_resource = [
+ 
+ cvd_host_tools = [
+     "acloud_translator",
+-    "adb",
++    // [PROCESS_TRIM] adb 移除：15/16 统一使用 android-14 包中的 bin/adb
++    // "adb",
+     "adb_connector",
+     "allocd_client",
+     "assemble_cvd",
