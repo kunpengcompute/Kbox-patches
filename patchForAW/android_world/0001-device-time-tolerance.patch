@@ -1,0 +1,31 @@
+diff --git a/android_world/task_evals/task_eval.py b/android_world/task_evals/task_eval.py
+index bce5a4e..ed369ba 100644
+--- a/android_world/task_evals/task_eval.py
++++ b/android_world/task_evals/task_eval.py
+@@ -135,9 +135,20 @@ class TaskEval(abc.ABC):
+     cls.device_time = device_constants.DT
+ 
+   def initialize_device_time(self, env: interface.AsyncEnv) -> None:
+-    """Initializes the device time."""
+-    datetime_utils.setup_datetime(env.controller)
+-    datetime_utils.set_datetime(env.controller, self.device_time)
++    """Initializes the device time.
++
++    Devices whose guest clock follows the host (e.g. redroid containers)
++    reject `date -s` with EPERM; this is tolerated instead of aborting the
++    whole task initialization. Task scoring relies on current device state
++    rather than on the absolute clock.
++    """
++    try:
++      datetime_utils.setup_datetime(env.controller)
++      datetime_utils.set_datetime(env.controller, self.device_time)
++    except Exception as exc:  # pylint: disable=broad-except
++      logging.warning(
++          'Failed to initialize device time, continuing: %s', exc
++      )
+ 
+   def initialize_task(self, env: interface.AsyncEnv) -> None:  # pylint: disable=unused-argument
+     """Initializes the task."""
+-- 
+2.43.0
+

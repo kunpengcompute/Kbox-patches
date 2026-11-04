@@ -1,0 +1,23 @@
+diff --git a/android_world/env/adb_utils.py b/android_world/env/adb_utils.py
+index 9b216cb..66fe2b9 100644
+--- a/android_world/env/adb_utils.py
++++ b/android_world/env/adb_utils.py
+@@ -591,6 +591,15 @@ def issue_generic_request(
+   else:
+     args_str = ' '.join(args)
+ 
++
++  # Devices without physical keys (e.g. redroid) fail `monkey` launches with
++  # "SYS_KEYS has no physical keys but with factor...": disable synthetic key
++  # injection so the app under test can still be launched.
++  if len(args) >= 2 and args[0] == 'shell' and args[1] == 'monkey':
++    args = list(args)
++    args[2:2] = ['--pct-syskeys', '0']
++    args_str = ' '.join(args)
++
+   response = env.execute_adb_call(
+       adb_pb2.AdbRequest(
+           generic=adb_pb2.AdbRequest.GenericRequest(args=args),
+-- 
+2.43.0
+

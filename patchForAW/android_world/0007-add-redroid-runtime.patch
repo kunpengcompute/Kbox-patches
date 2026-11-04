@@ -1,0 +1,1059 @@
+diff --git a/redroid/__init__.py b/redroid/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/redroid/aosp_compat.py b/redroid/aosp_compat.py
+new file mode 100644
+index 0000000..70253f5
+--- /dev/null
++++ b/redroid/aosp_compat.py
+@@ -0,0 +1,117 @@
++"""redroid/AOSP 兼容补丁：修正官方 App/Activity 映射与底座实际版本不一致的问题。
++
++官方 android_world 面向 Google 版模拟器镜像：
++
++* clock / contacts / dialer / files 等一方 App 映射到 `com.google.android.*`，
++  而本底座是 AOSP redroid，只有 `com.android.*` 版本；
++* VLC 的启动 Activity 在新版本中从 `.gui.MainActivity` 换成了 `.StartActivity`
++  （旧入口不可导出，`am start` 会抛 SecurityException）；
++* Audio Recorder 的 `.app.welcome.WelcomeActivity` 同样不再导出，入口为
++  `.app.main.MainActivity`。
++
++本模块在运行时替换（只改内存中的映射表，官方源码不动）：
++
++1. `android_world.env.adb_utils._PATTERN_TO_ACTIVITY`：所有 `launch_app()` /
++   `close_app()` / 快照路径都走这张表；
++2. `android_world.task_evals.single.system._APP_NAME_TO_PACKAGE_NAME`：
++   `OpenAppTaskEval` 单独用这张表判定前台包名。
++
++AOSP 映射仅在“设备上确实存在 AOSP 版、且官方预期的 Google 版不存在”时启用，
++不影响真正带 Google 应用的底座。由 `redroid/env_factory.create_env()` 自动调用。
++"""
++
++from __future__ import annotations
++
++import re
++import subprocess
++
++from immutabledict import immutabledict
++
++from android_world.env import adb_utils
++
++# 官方映射（pattern -> Google 包）；仅当 Google 包缺失、AOSP 包存在时替换。
++_AOSP_OVERRIDES = {
++    'clock': (
++        'com.google.android.deskclock',
++        'com.android.deskclock/.DeskClock',
++    ),
++    'contacts': (
++        'com.google.android.contacts',
++        'com.android.contacts/.activities.PeopleActivity',
++    ),
++    'dialer|phone': (
++        'com.google.android.dialer',
++        'com.android.dialer/.main.impl.MainActivity',
++    ),
++    'files': (
++        'com.google.android.documentsui',
++        'com.android.documentsui/com.android.documentsui.files.FilesActivity',
++    ),
++}
++
++# App 自身版本差异导致的入口变更（与 Google/AOSP 无关）。
++_VERSION_OVERRIDES = {
++    'vlc|vlc app|vlc player': (
++        'org.videolan.vlc',
++        'org.videolan.vlc/.StartActivity',
++    ),
++    'audio recorder': (
++        'com.dimowner.audiorecorder',
++        'com.dimowner.audiorecorder/.app.main.MainActivity',
++    ),
++}
++
++
++def _installed_packages(serial: str, adb_path: str) -> frozenset[str]:
++  output = subprocess.run(
++      [adb_path, '-s', serial, 'shell', 'pm', 'list', 'packages'],
++      stdin=subprocess.DEVNULL,
++      capture_output=True,
++      text=True,
++      timeout=30,
++      check=False,
++  ).stdout
++  return frozenset(
++      line.removeprefix('package:').strip()
++      for line in output.splitlines()
++      if line.startswith('package:')
++  )
++
++
++def apply(installed: frozenset[str]) -> list[str]:
++  """按设备实际安装的包，替换官方映射表；返回生效的覆盖项说明。"""
++  overrides: dict[str, str] = {}
++
++  for pattern, (google_pkg, activity) in _AOSP_OVERRIDES.items():
++    aosp_pkg = activity.split('/')[0]
++    if google_pkg not in installed and aosp_pkg in installed:
++      overrides[pattern] = activity
++
++  for pattern, (pkg, activity) in _VERSION_OVERRIDES.items():
++    if pkg in installed:
++      overrides[pattern] = activity
++
++  if not overrides:
++    return []
++
++  adb_utils.register_activity_mapping(overrides)
++
++  # OpenAppTaskEval 用另一张「app_name -> 包名」表，需同步一方 App 的替换。
++  # 注意 pattern 可能是 `dialer|phone` 这样的正则，需按 app_name 逐一匹配。
++  from android_world.task_evals.single import system  # pylint: disable=import-outside-toplevel
++
++  package_overrides = {}
++  for app_name in system._APP_NAME_TO_PACKAGE_NAME:  # pylint: disable=protected-access
++    for pattern, activity in overrides.items():
++      if re.match(pattern.lower(), app_name.lower()):
++        package_overrides[app_name] = activity.split('/')[0]
++        break
++  if package_overrides:
++    system.register_package_mapping(package_overrides)
++
++  return [f'{name} -> {activity}' for name, activity in overrides.items()]
++
++
++def apply_for_device(serial: str, adb_path: str) -> list[str]:
++  """查询设备已安装包并应用兼容映射。"""
++  return apply(_installed_packages(serial, adb_path))
+diff --git a/redroid/env_factory.py b/redroid/env_factory.py
+new file mode 100644
+index 0000000..0cbec36
+--- /dev/null
++++ b/redroid/env_factory.py
+@@ -0,0 +1,78 @@
++"""构建连接 cube/redroid 沙箱的 android_world 环境栈。
++
++环境栈（与官方 run.py 的区别：底层的 android_env 换成纯 adb 实现，
++无障碍树改用 UIAUTOMATOR 模式，不依赖 a11y forwarder APK 与模拟器 gRPC）：
++
++    AdbEnv (android_env.envs.adb_env)
++      └─ AndroidWorldController(a11y_method=UIAUTOMATOR)
++           └─ interface.AsyncAndroidEnv
++"""
++
++from __future__ import annotations
++
++import os
++import shutil
++import subprocess
++
++from android_world.env import android_world_controller
++from android_world.env import interface
++from android_world.env.android_world_controller import A11yMethod
++from android_env.envs import adb_env
++from redroid import aosp_compat
++
++
++def resolve_adb_path(adb_path: str | None = None) -> str:
++  """返回可用的 adb 绝对路径（参数 > 环境变量 AW_ADB_PATH > PATH 查找）。"""
++  if adb_path:
++    return adb_path
++  env_path = os.environ.get('AW_ADB_PATH')
++  if env_path:
++    return env_path
++  found = shutil.which('adb')
++  if not found:
++    raise RuntimeError(
++        'adb 不在 PATH 中，请通过 --adb_path 或 AW_ADB_PATH 指定。'
++    )
++  return found
++
++
++def resolve_serial(serial: str | None = None) -> str:
++  """返回目标设备 serial（参数 > 环境变量 AW_ADB_SERIAL）。"""
++  serial = serial or os.environ.get('AW_ADB_SERIAL')
++  if not serial:
++    raise RuntimeError(
++        '未指定设备 serial，请通过 --serial 或 AW_ADB_SERIAL 指定（如 10.100.0.2:5555）。'
++    )
++  return serial
++
++
++def ensure_adb_connected(serial: str, adb_path: str) -> None:
++  """确保 adb 已连接目标设备（TCP 设备自动重连；幂等，失败静默）。"""
++  if ':' not in serial:  # USB / emulator-xxxx 之类，无需 connect。
++    return
++  subprocess.run(
++      [adb_path, 'connect', serial],
++      capture_output=True,
++      timeout=20,
++  )
++
++
++def create_env(
++    serial: str | None = None,
++    adb_path: str | None = None,
++    a11y_method: A11yMethod = A11yMethod.UIAUTOMATOR,
++) -> interface.AsyncEnv:
++  """创建连接指定 redroid 沙箱的 AsyncEnv。"""
++  serial = resolve_serial(serial)
++  adb_path = resolve_adb_path(adb_path)
++
++  ensure_adb_connected(serial, adb_path)
++  # 按设备实际安装的包，替换官方 Google App 映射（AOSP 版 / 新版本入口）。
++  # P6 清存储安全版已随 patch 进入官方源码，无需再打补丁。
++  aosp_compat.apply_for_device(serial, adb_path)
++
++  base = adb_env.AdbEnv(serial=serial, adb_path=adb_path)
++  controller = android_world_controller.AndroidWorldController(
++      base, a11y_method=a11y_method
++  )
++  return interface.AsyncAndroidEnv(controller)
+diff --git a/redroid/req/androidworld-ready.json b/redroid/req/androidworld-ready.json
+new file mode 100644
+index 0000000..85d3ab3
+--- /dev/null
++++ b/redroid/req/androidworld-ready.json
+@@ -0,0 +1,15 @@
++{
++  "instance_type": "cubebox",
++  "network_type": "tap",
++  "namespace": "default",
++  "annotations": {
++    "cube.master.appsnapshot.template.id": "tpl-727b22b6e2154c59bfd8c64a",
++    "cube.master.appsnapshot.template.version": "v2",
++    "cube.master.appsnapshot.version": "v2"
++  },
++  "labels": {
++    "X-Caller": "mastercli",
++    "cube.master.appsnapshot.template.id": "tpl-727b22b6e2154c59bfd8c64a",
++    "cube.master.instance.type": "cubebox"
++  }
++}
+diff --git a/redroid/req/mock-v2.json b/redroid/req/mock-v2.json
+new file mode 100644
+index 0000000..6e88f61
+--- /dev/null
++++ b/redroid/req/mock-v2.json
+@@ -0,0 +1,15 @@
++{
++  "instance_type": "cubebox",
++  "network_type": "tap",
++  "namespace": "default",
++  "annotations": {
++    "cube.master.appsnapshot.template.id": "tpl-49ebcd981a2b4fe68a1949cf",
++    "cube.master.appsnapshot.template.version": "v2",
++    "cube.master.appsnapshot.version": "v2"
++  },
++  "labels": {
++    "X-Caller": "mastercli",
++    "cube.master.appsnapshot.template.id": "tpl-49ebcd981a2b4fe68a1949cf",
++    "cube.master.instance.type": "cubebox"
++  }
++}
+diff --git a/redroid/run_suite.py b/redroid/run_suite.py
+new file mode 100644
+index 0000000..47cf6f9
+--- /dev/null
++++ b/redroid/run_suite.py
+@@ -0,0 +1,168 @@
++"""套件 runner：按官方 suite 语义在 cube + redroid 沙箱上批量跑用例。
++
++与 redroid/run_task.py 的分工：
++  run_task.py   一次跑一个（或逗号分隔的若干）用例，逐条落盘截图与 result.json，
++                适合冒烟、单点复现与人工验收；
++  run_suite.py  直接复用官方 android_world.suite_utils，支持「整族 / 指定多任务 /
++                每个用例多组随机参数 / 增量 checkpoint 断点续跑」，结果汇总表由官方
++                process_episodes 打印，适合批量评测。
++
++环境层与 agent 构造都复用 redroid.run_task，保证与单用例路径完全一致；官方源码零修改。
++
++用法：
++  export AW_ADB_SERIAL=10.100.0.2:5555
++  .venv/bin/python -m redroid.run_suite --suite_family=android_world --tasks=A,B --agent=random
++  .venv/bin/python -m redroid.run_suite --suite_family=android_world --n_task_combinations=2 --agent=t3a
++  .venv/bin/python -m redroid.run_suite --suite_family=miniwob --agent=m3a --demo_mode
++"""
++
++from __future__ import annotations
++
++import argparse
++import sys
++
++from android_world import checkpointer as checkpointer_lib
++from android_world import registry
++from android_world import suite_utils
++from redroid import env_factory
++from redroid.run_task import build_agent
++
++_FAMILIES = (
++    registry.TaskRegistry.ANDROID_WORLD_FAMILY,
++    registry.TaskRegistry.ANDROID_FAMILY,
++    registry.TaskRegistry.MINIWOB_FAMILY,
++    registry.TaskRegistry.MINIWOB_FAMILY_SUBSET,
++    registry.TaskRegistry.INFORMATION_RETRIEVAL_FAMILY,
++)
++
++# 与官方 run.py 一致：MiniWoB 页面加载很快，不必等界面稳定。
++MINIWOB_TRANSITION_PAUSE = 0.2
++
++# MiniWoB 跑在 mock app 里，需额外约束 agent 不要退回桌面（官方同名常量）。
++MINIWOB_ADDITIONAL_GUIDELINES = [
++    (
++        'This task is running in a mock app, you must stay in this app and'
++        ' DO NOT use the `navigate_home` action.'
++    ),
++]
++
++
++def tune_agent(agent, family: str) -> None:
++  """对齐官方 run.py 的 agent 调优：miniwob 族用 0.2s 过渡 + 追加 guidelines，
++  其余族等界面稳定（None = 自动等待）。human/random 也照此设置，与官方一致。
++  """
++  if family.startswith('miniwob'):
++    agent.transition_pause = MINIWOB_TRANSITION_PAUSE
++    if hasattr(agent, 'set_task_guidelines'):
++      agent.set_task_guidelines(MINIWOB_ADDITIONAL_GUIDELINES)
++  else:
++    agent.transition_pause = None
++
++
++def _build_parser() -> argparse.ArgumentParser:
++  parser = argparse.ArgumentParser(
++      prog='python -m redroid.run_suite',
++      description=(
++          '套件 runner：在 cube + redroid 沙箱上按官方 suite 语义批量跑用例。'
++      ),
++  )
++  parser.add_argument(
++      '--suite_family',
++      default=registry.TaskRegistry.ANDROID_WORLD_FAMILY,
++      choices=_FAMILIES,
++      help='任务族，缺省 android_world（整族）；其余为 android / miniwob / miniwob_subset / information_retrieval',
++  )
++  parser.add_argument('--tasks', help='可选：只跑这些用例，逗号分隔，如 A,B；缺省跑整族')
++  parser.add_argument(
++      '--n_task_combinations',
++      type=int,
++      default=1,
++      help='每个用例生成几组不同随机参数（缺省 1）',
++  )
++  parser.add_argument(
++      '--task_random_seed', type=int, default=30, help='任务参数随机种子（缺省 30）'
++  )
++  parser.add_argument(
++      '--fixed_task_seed',
++      action='store_true',
++      help='每个用例的多组参数使用同一组（与官方同名 flag 语义一致）',
++  )
++  parser.add_argument(
++      '--agent',
++      default='random',
++      choices=('human', 'random', 'seeact', 't3a', 'm3a'),
++      help=(
++          'human=人工投屏操作；random=随机点击（默认，验证链路用）；'
++          'seeact=官方 SeeAct + AW_LLM_*；t3a=官方纯文本 agent + LLM；'
++          'm3a=官方多模态 agent + LLM'
++      ),
++  )
++  parser.add_argument('--output_path', default='runs', help='输出根目录（缺省 runs）')
++  parser.add_argument(
++      '--checkpoint_dir', help='检查点目录；缺省在 --output_path 下按时间戳新建'
++  )
++  parser.add_argument(
++      '--demo_mode',
++      action='store_true',
++      help='演示模式：每个用例开始时把目标以通知方式显示在设备上（与官方同名 flag 一致）',
++  )
++  parser.add_argument('--serial', help='adb serial，默认取环境变量 AW_ADB_SERIAL')
++  parser.add_argument('--adb_path', help='adb 路径，默认取环境变量 AW_ADB_PATH 或 PATH')
++  return parser
++
++
++def main() -> int:
++  args = _build_parser().parse_args()
++
++  tasks = None
++  if args.tasks:
++    tasks = [t.strip() for t in args.tasks.split(',') if t.strip()]
++    if not tasks:
++      print('--tasks 为空，请形如 --tasks=A,B')
++      return 2
++
++  env = env_factory.create_env(args.serial, args.adb_path)
++  try:
++    task_registry = registry.TaskRegistry()
++    try:
++      suite = suite_utils.create_suite(
++          task_registry.get_registry(family=args.suite_family),
++          n_task_combinations=args.n_task_combinations,
++          seed=args.task_random_seed,
++          tasks=tasks,
++          use_identical_params=args.fixed_task_seed,
++      )
++    except ValueError as exc:  # 任务名拼错 / 族名不支持
++      print(f'[错误] 套件构建失败: {exc}')
++      return 2
++    suite.suite_family = args.suite_family
++
++    instances = sum(len(v) for v in suite.values())
++    print(
++        f'套件: {args.suite_family}；用例数 {len(suite)}；实例总数 {instances}；'
++        f'每用例参数组数 {args.n_task_combinations}；agent {args.agent}'
++    )
++
++    agent = build_agent(args.agent, env)
++    agent.name = args.agent
++    tune_agent(agent, args.suite_family)
++
++    checkpoint_dir = args.checkpoint_dir or checkpointer_lib.create_run_directory(
++        args.output_path
++    )
++    print(f'检查点目录（中断后重跑同一目录即续跑）: {checkpoint_dir}')
++
++    suite_utils.run(
++        suite,
++        agent,
++        checkpointer=checkpointer_lib.IncrementalCheckpointer(checkpoint_dir),
++        demo_mode=args.demo_mode,
++    )
++    print(f'完成；逐用例结果与汇总表见上面的输出，检查点与结果文件在 {checkpoint_dir}')
++    return 0
++  finally:
++    env.close()
++
++
++if __name__ == '__main__':
++  sys.exit(main())
+diff --git a/redroid/run_task.py b/redroid/run_task.py
+new file mode 100644
+index 0000000..3e6b3f3
+--- /dev/null
++++ b/redroid/run_task.py
+@@ -0,0 +1,358 @@
++"""最小任务 runner：在 cube + redroid 沙箱上运行 Android World 测试用例。
++
++与官方 run.py 只差环境层：redroid 没有模拟器 console(5554)/gRPC(8554)，
++底层换成纯 adb 的 AdbEnv（android_env/envs/adb_env.py），无障碍树走 UIAUTOMATOR 模式。
++任务注册表、随机参数、初始化与判定（is_successful）全部复用官方 android_world 实现。
++SMS/Phone 用例另在 init 前注入底座适配补丁（清库 / 收信注入，与 manual_task.py
++共用实现），官方源码零修改。
++
++支持一次跑多个用例：--task=A,B,C（或 --tasks=A,B,C）。多个用例复用同一个环境与
++agent，每个用例开始前先复位桌面并清空 agent 历史，全部结束后打印逐条结果与汇总，
++并写 summary.json；只要有用例没通过，退出码就是 1，便于在 CI 里串联。
++加 --checkpoint_dir 可断点续跑：每跑完一个用例就落一份检查点，用同一目录重跑时
++跳过已完成的、只补未完成的；需要「整族 / 每模板多组参数」时用 redroid/run_suite.py。
++
++用法：
++  export AW_ADB_SERIAL=10.100.0.2:5555
++  .venv/bin/python -m redroid.run_task --list                    # 列出全部任务名
++  .venv/bin/python -m redroid.run_task --task=CameraTakePhoto --agent=human
++  .venv/bin/python -m redroid.run_task --task=SystemWifiTurnOn,SystemWifiTurnOff --agent=random
++  .venv/bin/python -m redroid.run_task --task=A,B --agent=m3a --checkpoint_dir=runs/ckpt_AB
++
++--agent 取值：human=人工投屏；random=随机点击（验证链路）；t3a/m3a=官方 agent +
++OpenAI 兼容 LLM；seeact=官方 SeeAct（端点、鉴权、模型名由 AW_LLM_* 决定）。
++"""
++
++from __future__ import annotations
++
++import argparse
++import json
++import os
++import random
++import sys
++import traceback
++from datetime import datetime
++
++import cv2
++
++from android_world import checkpointer as checkpointer_lib
++from android_world import registry
++from android_world.agents import human_agent
++from android_world.agents import m3a
++from android_world.agents import random_agent
++from android_world.agents import seeact
++from android_world.agents import t3a
++from android_world.task_evals import task_eval
++from redroid import env_factory
++from redroid import openai_compat_llm
++from redroid import seeact_compat
++
++_RESULT_JSON = 'result.json'
++_SUMMARY_JSON = 'summary.json'
++
++
++def _get_task_class(task_name: str) -> type[task_eval.TaskEval]:
++  task_registry = registry.TaskRegistry().ANDROID_TASK_REGISTRY
++  if task_name not in task_registry:
++    close = [n for n in sorted(task_registry) if task_name.lower() in n.lower()]
++    msg = f'未知任务: {task_name}'
++    if close:
++      msg += f'\n你是不是想找: {", ".join(close[:10])}'
++    msg += '\n用 --list 查看全部可用任务。'
++    raise SystemExit(msg)
++  return task_registry[task_name]
++
++
++def build_agent(agent_name: str, env):
++  """构造 agent；t3a/m3a 接 OpenAI 兼容 LLM，seeact 走端点重定向（均需 AW_LLM_*）。"""
++  if agent_name == 'human':
++    return human_agent.HumanAgent(env)
++  if agent_name == 'random':
++    return random_agent.RandomAgent(env)
++  if agent_name == 'seeact':
++    # 官方 SeeAct 自己发起 OpenAI 请求（seeact_utils 里端点写死），
++    # 这里先做一次进程内重定向，使其端点/密钥/模型改由 AW_LLM_* 决定。
++    seeact_compat.install()
++    return seeact.SeeAct(env)
++  # 以下两个 = 官方 agent + OpenAI 兼容 LLM（需要 AW_LLM_* 环境变量）。
++  llm = openai_compat_llm.OpenAiCompatLlm()
++  if agent_name == 't3a':  # 纯文本 agent：只看无障碍树文本，不看截图。
++    return t3a.T3A(env, llm)
++  if agent_name == 'm3a':  # 多模态 agent：无障碍树 + 截图。
++    return m3a.M3A(env, llm)
++  raise SystemExit(
++      f'未知 agent: {agent_name}（可选: human / random / seeact / t3a / m3a）'
++  )
++
++
++def cmd_list() -> int:
++  task_registry = registry.TaskRegistry().ANDROID_TASK_REGISTRY
++  for name in sorted(task_registry):
++    print(name)
++  return 0
++
++
++def _parse_tasks(args: argparse.Namespace) -> list[str]:
++  """--task / --tasks 二选一，值可以是逗号分隔的多个任务名（去重且保持顺序）。"""
++  raw = args.tasks or args.task or ''
++  return list(dict.fromkeys(t.strip() for t in raw.split(',') if t.strip()))
++
++
++def _output_dir(
++    args: argparse.Namespace, task_name: str, stamp: str, n_tasks: int
++) -> str:
++  """单用例沿用 runs/<任务名>_<时间戳>/；多用例时在指定目录下按任务名分子目录。"""
++  if args.output_dir:
++    if n_tasks > 1:
++      return os.path.join(args.output_dir, task_name)
++    return args.output_dir
++  return os.path.join('runs', f'{task_name}_{stamp}')
++
++
++def _load_done(
++    checkpointer: checkpointer_lib.Checkpointer, task_name: str
++) -> dict | None:
++  """取该用例上次跑完的记录；上次是异常中断的返回 None，让它重跑。
++
++  与官方 suite 一致：异常中断（带 error 字段）的用例不算完成，续跑时会重试。
++  """
++  for row in checkpointer.load():
++    if row.get('task_name') == task_name and not row.get('error'):
++      return row
++  return None
++
++
++def _run_one(
++    args: argparse.Namespace, task_name: str, env, agent, output_dir: str
++) -> dict:
++  """复位 -> 初始化 -> 执行 -> 验收 -> 落盘证据，返回该用例的结果字典。"""
++  # 复位桌面并清空上一用例留给 agent 的历史（T3A/M3A 累积 self.history，
++  # 不清会串到下一用例）。必须用位置参数，与官方 episode_runner 一致：
++  # 各 agent 的 reset() 关键字不统一（base/SeeAct 是 go_home，T3A/M3A 是 go_home_on_reset）。
++  print(f'[1/4] 复位到桌面（任务: {task_name}，agent: {args.agent}）...')
++  agent.reset(True)
++  env.hide_automation_ui()
++
++  task_class = _get_task_class(task_name)
++  if args.seed is not None:
++    random.seed(args.seed)
++  params = task_class.generate_random_params()
++  task = task_class(params)
++
++  print('[2/4] 调用官方 initialize_task() 初始化任务 ...')
++  try:
++    task.initialize_task(env)
++  except Exception as exc:
++    print(
++        f'[错误] 任务初始化失败: {exc}\n'
++        ' 常见原因: ① 用例需要的 App 没装；'
++        '② 命中本底座的已知限制（见 redroid/START.md 第六部分）。'
++    )
++    raise
++  print(f'      目标 goal: {task.goal}')
++
++  print('[3/4] Agent 开始执行 ...')
++  if args.agent == 'human':
++    print(
++        '      请用投屏工具（scrcpy）操作沙箱完成上述目标；\n'
++        '      完成后回到本终端按回车，脚本会自动验收。'
++    )
++  max_steps = args.max_steps or max(1, int(task.complexity * 10))
++  for _ in range(max_steps):
++    if agent.step(task.goal).done:
++      break
++
++  print('[4/4] 调用官方 is_successful() 验收 ...')
++  score = float(task.is_successful(env))
++
++  # 落盘证据：末屏截图 + 结果 JSON。
++  os.makedirs(output_dir, exist_ok=True)
++  state = env.get_state()
++  cv2.imwrite(
++      os.path.join(output_dir, 'final_screen.png'),
++      cv2.cvtColor(state.pixels, cv2.COLOR_RGB2BGR),
++  )
++  passed = score > 0.5
++  result = {
++      'task_name': task_name,
++      'goal': task.goal,
++      'params': params,
++      'agent': args.agent,
++      'score': score,
++      'passed': passed,
++      'serial': env_factory.resolve_serial(args.serial),
++      'finished_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
++  }
++  with open(os.path.join(output_dir, _RESULT_JSON), 'w') as f:
++    json.dump(result, f, ensure_ascii=False, indent=2, default=str)
++
++  print('=' * 64)
++  print(
++      f'结果: {"PASS ✅" if passed else "FAIL ❌"}'
++      f'（官方 is_successful() = {score}）'
++  )
++  print(f'证据: {os.path.abspath(output_dir)}/final_screen.png')
++  print(f'结果: {os.path.abspath(output_dir)}/{_RESULT_JSON}')
++  print('=' * 64)
++  return result
++
++
++def _write_summary(
++    args: argparse.Namespace, rows: list[dict], stamp: str, n_passed: int
++) -> None:
++  """多用例运行额外落一份汇总，并在终端打印逐条结果。"""
++  summary_dir = args.output_dir or os.path.join('runs', f'multi_{stamp}')
++  os.makedirs(summary_dir, exist_ok=True)
++  path = os.path.join(summary_dir, _SUMMARY_JSON)
++  summary = {
++      'agent': args.agent,
++      'serial': env_factory.resolve_serial(args.serial),
++      'finished_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
++      'total': len(rows),
++      'passed': n_passed,
++      'failed': len(rows) - n_passed,
++      'results': rows,
++  }
++  with open(path, 'w') as f:
++    json.dump(summary, f, ensure_ascii=False, indent=2, default=str)
++
++  print()
++  print('用例汇总:')
++  for row in rows:
++    mark = 'PASS' if row['passed'] else 'FAIL'
++    score = '-' if row['score'] is None else row['score']
++    print(f'  {mark}  {row["task_name"]:<40} score={score}')
++  print(f'汇总文件: {os.path.abspath(path)}')
++
++
++def run(args: argparse.Namespace) -> int:
++  # 设备对时（P3）/SMS 清库（P4）/收信注入（P5）适配已随 patch 进入官方源码。
++  tasks = _parse_tasks(args)
++  # 先校验全部任务名，避免跑到一半才发现拼错。
++  for task_name in tasks:
++    _get_task_class(task_name)
++
++  env = env_factory.create_env(args.serial, args.adb_path)
++  try:
++    agent = build_agent(args.agent, env)
++    if args.agent in ('t3a', 'm3a', 'seeact'):
++      # 与官方 run.py 一致：等界面稳定后再取状态（None = 自动等待）。
++      agent.transition_pause = None
++
++    checkpointer = (
++        checkpointer_lib.IncrementalCheckpointer(args.checkpoint_dir)
++        if args.checkpoint_dir
++        else None
++    )
++    if checkpointer is not None:
++      print(f'断点续跑已开启，检查点目录: {os.path.abspath(args.checkpoint_dir)}')
++
++    stamp = datetime.now().strftime('%Y%m%d-%H%M%S')
++    rows = []
++    for i, task_name in enumerate(tasks, start=1):
++      print()
++      print(f'[用例 {i}/{len(tasks)}] {task_name}')
++      print('-' * 64)
++      if checkpointer is not None:
++        done = _load_done(checkpointer, task_name)
++        if done is not None:
++          print('      检查点里已有该用例，跳过（断点续跑）。')
++          rows.append(done)
++          continue
++      try:
++        row = _run_one(
++            args,
++            task_name,
++            env,
++            agent,
++            _output_dir(args, task_name, stamp, len(tasks)),
++        )
++        rows.append(row)
++      except SystemExit:
++        raise
++      except Exception as exc:  # 单个用例失败不中断后续用例，与官方 suite 行为一致。
++        traceback.print_exc()
++        row = {
++            'task_name': task_name,
++            'goal': None,
++            'params': None,
++            'agent': args.agent,
++            'score': None,
++            'passed': False,
++            'serial': env_factory.resolve_serial(args.serial),
++            'finished_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
++            'error': f'{type(exc).__name__}: {exc}',
++        }
++        rows.append(row)
++      if checkpointer is not None:
++        checkpointer.save_episodes([row], task_name)
++
++    n_passed = sum(1 for row in rows if row['passed'])
++    if len(tasks) > 1:
++      _write_summary(args, rows, stamp, n_passed)
++    print()
++    print('=' * 64)
++    print(f'总计: {n_passed}/{len(rows)} PASS，{len(rows) - n_passed} FAIL')
++    print('=' * 64)
++    return 0 if n_passed == len(rows) else 1
++  finally:
++    env.close()
++
++
++def _build_parser() -> argparse.ArgumentParser:
++  parser = argparse.ArgumentParser(
++      prog='python -m redroid.run_task',
++      description=(
++          '最小任务 runner：在 cube + redroid 沙箱上运行 Android World 用例'
++          '（支持一次跑多个，逗号分隔）。'
++      ),
++  )
++  parser.add_argument('--task', help='任务名，如 CameraTakePhoto；多个用逗号分隔，如 A,B,C')
++  parser.add_argument('--tasks', help='同 --task（与 --task 二选一，便于对齐官方 run.py 的写法）')
++  parser.add_argument(
++      '--agent',
++      default='human',
++      choices=('human', 'random', 'seeact', 't3a', 'm3a'),
++      help=(
++          'human=人工投屏操作（默认）；random=随机点击（验证链路用）；'
++          'seeact=官方 SeeAct + AW_LLM_*；t3a=官方纯文本 agent + LLM；'
++          'm3a=官方多模态 agent + LLM'
++      ),
++  )
++  parser.add_argument('--list', action='store_true', help='列出全部可用任务名后退出')
++  parser.add_argument('--seed', type=int, help='可选：随机种子（复现同一组任务参数）')
++  parser.add_argument(
++      '--max_steps', type=int, help='可选：agent 最大步数（默认 复杂度x10，逐用例生效）'
++  )
++  parser.add_argument(
++      '--output_dir',
++      help=(
++          '可选：证据与结果输出目录。单用例默认 runs/<任务名>_<时间戳>/；'
++          '多用例默认 runs/<任务名>_<时间戳>/，指定本参数时在其下按任务名分子目录'
++      ),
++  )
++  parser.add_argument(
++      '--checkpoint_dir',
++      help=(
++          '可选：断点续跑目录。跑完一个用例即落一份检查点，用同一目录重跑会跳过'
++          '已完成的用例、只补未完成的；异常中断的用例不算完成，会被重试。'
++          '不指定则每次全跑'
++      ),
++  )
++  parser.add_argument('--serial', help='adb serial，默认取环境变量 AW_ADB_SERIAL')
++  parser.add_argument('--adb_path', help='adb 路径，默认取环境变量 AW_ADB_PATH 或 PATH')
++  return parser
++
++
++def main() -> int:
++  args = _build_parser().parse_args()
++  if args.list:
++    return cmd_list()
++  if not (args.task or args.tasks):
++    print('请指定 --task=<任务名>（多个用逗号分隔；--list 可查看全部任务名）')
++    return 2
++  return run(args)
++
++
++if __name__ == '__main__':
++  sys.exit(main())
+diff --git a/redroid/setup_apps.py b/redroid/setup_apps.py
+new file mode 100644
+index 0000000..df30937
+--- /dev/null
++++ b/redroid/setup_apps.py
+@@ -0,0 +1,263 @@
++"""安装 Android World 官方设备端 App（在官方 setup 基础上适配 redroid）。
++
++官方 run.py 在 `--perform_emulator_setup=True` 时做这件事：从 GCS 下载各用例需要的
++第三方 App、装进设备、做首次启动配置、保存 App 快照。本脚本把这一步原样搬到
++redroid 沙箱上，App 清单与安装/配置逻辑全部复用官方实现，仅做两处健壮性适配：
++
++1. 安装超时放宽到 5 分钟（VLC/OsmAnd 等大 APK 在 30s 内装不完）。
++2. 无 root 时（redroid production build）保存快照必然失败：官方实现会直接抛出
++   异常中止后续 App 的安装，这里改为**告警后继续**。任务初始化对缺失快照本身
++   是容错的（`TaskEval._initialize_apps` 只打印 warning），不影响跑用例，只是
++   多次跑同一个 App 的用例时不会自动清场。
++
++用法：
++  export AW_ADB_SERIAL=10.100.0.249:5555
++  .venv/bin/python -m redroid.setup_apps --list                       # 看可装哪些 App
++  .venv/bin/python -m redroid.setup_apps                              # 安装官方全量
++  .venv/bin/python -m redroid.setup_apps --apps markor vlc            # 只装指定 App
++  .venv/bin/python -m redroid.setup_apps --only-install               # 只装 APK，不做首次配置
++"""
++
++from __future__ import annotations
++
++import argparse
++import sys
++
++from android_world.env import adb_utils
++from android_world.env.setup_device import apps as app_defs
++from android_world.env.setup_device import setup as setup_device
++from android_world.utils import app_snapshot
++from redroid import env_factory
++
++
++def _all_apps() -> tuple:
++  # 官方没有导出 App 清单常量，这里直接取模块内的 _APPS（仅用于 --list 与默认全量）。
++  return setup_device._APPS  # pylint: disable=protected-access
++
++
++def _patch_monkey_for_redroid() -> None:
++  """redroid 无物理按键，monkey 默认注入 syskeys 会以 251 退出。
++
++  官方有几个 App 的首次配置用 `adb shell monkey -p <pkg> ... 1` 启动应用
++  （audio recorder / joplin / vlc）。redroid 上该命令报
++  "SYS_KEYS has no physical keys but with factor 2.0%" 并返回 251，
++  被 AdbController 视为失败。加上 `--pct-syskeys 0` 即可正常启动。
++  """
++  original = adb_utils.issue_generic_request
++
++  def patched(args, env, timeout_sec=None):
++    if (
++        isinstance(args, (list, tuple))
++        and len(args) >= 2
++        and args[0] == 'shell'
++        and args[1] == 'monkey'
++        and '--pct-syskeys' not in args
++    ):
++      args = list(args)
++      args[2:2] = ['--pct-syskeys', '0']
++    return original(args, env, timeout_sec=timeout_sec)
++
++  adb_utils.issue_generic_request = patched
++
++
++def cmd_list() -> int:
++  for app_class in _all_apps():
++    kind = 'APK' if app_class.apk_names else '系统预装'
++    print(f'{app_class.app_name:24s} {app_class.__name__:24s} {kind}')
++  return 0
++
++
++# AOSP 一方 App 在 redroid 上首次启动会弹权限框；官方模拟器上用 Google 版
++# 时这些权限通常已预置。这里预授予，避免 Agent 把权限弹窗误当成目标界面。
++_AOSP_PERMISSIONS = {
++    'com.android.contacts': (
++        'android.permission.READ_CONTACTS',
++        'android.permission.WRITE_CONTACTS',
++        'android.permission.GET_ACCOUNTS',
++        'android.permission.POST_NOTIFICATIONS',
++    ),
++    'com.android.dialer': (
++        'android.permission.CALL_PHONE',
++        'android.permission.READ_PHONE_STATE',
++        'android.permission.READ_CALL_LOG',
++        'android.permission.WRITE_CALL_LOG',
++        'android.permission.POST_NOTIFICATIONS',
++    ),
++    'com.android.deskclock': ('android.permission.POST_NOTIFICATIONS',),
++}
++
++
++def _grant_aosp_permissions(env) -> None:
++  installed = set(adb_utils.get_all_package_names(env.controller.env))
++  for package, permissions in _AOSP_PERMISSIONS.items():
++    if package not in installed:
++      continue
++    for permission in permissions:
++      try:
++        adb_utils.grant_permissions(package, permission, env.controller)
++      except Exception:
++        pass  # 应用未声明该权限时 pm grant 会失败，忽略即可。
++
++
++def _install_apk(apk_name: str, env, timeout_sec: float) -> str:
++  """下载（有缓存则复用）并安装一个 APK，返回本地路径。
++
++  Android 14 默认拒绝安装 targetSdk < 23 的老 APK（如 clipper），
++  失败时用 `--bypass-low-target-sdk-block` 重试。
++  """
++  path = app_defs.download_app_data(apk_name)
++  try:
++    adb_utils.issue_generic_request(
++        ['install', '-r', path],
++        env.controller.env,
++        timeout_sec=timeout_sec,
++    )
++  except Exception:
++    adb_utils.issue_generic_request(
++        ['install', '-r', '--bypass-low-target-sdk-block', path],
++        env.controller.env,
++        timeout_sec=timeout_sec,
++    )
++  return path
++
++
++def _install_app(app, env, timeout_sec: float) -> str:
++  """安装单个 App；无 APK 的一方 App 直接跳过。"""
++  if not app.apk_names:
++    return '系统预装，跳过'
++
++  last_error = None
++  for apk_name in app.apk_names:
++    try:
++      _install_apk(apk_name, env, timeout_sec)
++      return f'已安装 {apk_name}'
++    except Exception as exc:  # 官方可能含多架构 APK，逐个尝试。
++      last_error = exc
++  raise RuntimeError(f'安装失败: {last_error}')
++
++
++def _setup_app(app, env) -> list[str]:
++  """执行首次启动配置并尽力保存快照，返回过程说明（不抛异常）。"""
++  notes = []
++  try:
++    app.setup(env)
++    notes.append('首次配置完成')
++  except Exception as exc:  # 官方实现只捕 ValueError，这里放宽以免中断全量安装。
++    notes.append(f'首次配置告警: {type(exc).__name__}: {exc}')
++  finally:
++    try:
++      adb_utils.press_home_button(env.controller)
++    except Exception:
++      pass
++
++  try:
++    app_snapshot.save_snapshot(app.app_name, env.controller)
++    notes.append('快照已保存')
++  except Exception as exc:
++    # redroid 无 root，无法读写 /data/data；任务初始化容忍快照缺失。
++    notes.append(f'快照跳过（需 root）: {type(exc).__name__}')
++  return notes
++
++
++def run(args: argparse.Namespace) -> int:
++  if args.apps:
++    app_list = []
++    for name in args.apps:
++      app_class = setup_device.get_app_mapping(name)
++      if app_class is None:
++        raise SystemExit(f'未知 App: {name}（--list 查看全部）')
++      app_list.append(app_class)
++  else:
++    app_list = list(_all_apps())
++
++  _patch_monkey_for_redroid()
++  env = env_factory.create_env(args.serial, args.adb_path)
++  failures = 0
++  try:
++    # 屏幕常亮，避免首次配置/后续用例执行中灭屏。
++    adb_utils.issue_generic_request(
++        ['shell', 'settings', 'put', 'system', 'screen_off_timeout', '2147483647'],
++        env.controller.env,
++    )
++    adb_utils.press_home_button(env.controller)
++    adb_utils.set_root_if_needed(env.controller.env)  # redroid 会提示不能 root，无妨。
++
++    print(f'[安装] 共 {len(app_list)} 个 App（APK 缓存: /tmp/android_world/app_data）')
++    for index, app in enumerate(app_list, 1):
++      print(f'\n[{index}/{len(app_list)}] {app.app_name} ({app.__class__.__name__})')
++      try:
++        install_note = _install_app(app, env, args.install_timeout)
++        print(f'  - {install_note}')
++      except Exception as exc:
++        failures += 1
++        print(f'  - 安装失败: {exc}')
++        continue
++
++      if args.only_install:
++        continue
++      for note in _setup_app(app, env):
++        print(f'  - {note}')
++
++    if not args.only_install:
++      _grant_aosp_permissions(env)
++
++    # 汇总：确认每个包确实在设备上。
++    installed = set(adb_utils.get_all_package_names(env.controller.env))
++    print('\n[汇总] App 安装状态:')
++    for app in app_list:
++      try:
++        if app.apk_names:
++          package = adb_utils.extract_package_name(
++              adb_utils.get_adb_activity(app.app_name)  # pyrefly: ignore[bad-argument-type]
++          )
++          status = 'OK' if package in installed else 'MISSING'
++        else:
++          status = '系统预装'
++      except Exception:
++        status = '未知'
++      print(f'  {app.app_name:24s} {status}')
++    if failures:
++      print(f'\n[完成] {failures} 个 App 安装失败，见上方日志。')
++      return 1
++    print('\n[完成] 全部成功。')
++    return 0
++  finally:
++    env.close()
++
++
++def _build_parser() -> argparse.ArgumentParser:
++  parser = argparse.ArgumentParser(
++      prog='python -m redroid.setup_apps',
++      description='安装 Android World 官方设备端 App 到 redroid 沙箱（复用官方实现）。',
++  )
++  parser.add_argument(
++      '--apps',
++      nargs='+',
++      help='只安装指定 App（按官方 app_name，如 markor / "simple sms messenger"）',
++  )
++  parser.add_argument(
++      '--list', action='store_true', help='列出官方可安装的 App 名称后退出'
++  )
++  parser.add_argument(
++      '--only-install', action='store_true', help='只安装 APK，跳过首次启动配置'
++  )
++  parser.add_argument(
++      '--install-timeout',
++      type=float,
++      default=300.0,
++      help='单个 APK 安装超时秒数（默认 300）',
++  )
++  parser.add_argument('--serial', help='adb serial，默认取环境变量 AW_ADB_SERIAL')
++  parser.add_argument('--adb_path', help='adb 路径，默认取环境变量 AW_ADB_PATH 或 PATH')
++  return parser
++
++
++def main() -> int:
++  args = _build_parser().parse_args()
++  if args.list:
++    return cmd_list()
++  return run(args)
++
++
++if __name__ == '__main__':
++  sys.exit(main())

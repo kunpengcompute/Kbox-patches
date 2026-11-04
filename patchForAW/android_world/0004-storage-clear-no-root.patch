@@ -1,0 +1,99 @@
+diff --git a/android_world/task_evals/utils/user_data_generation.py b/android_world/task_evals/utils/user_data_generation.py
+index 102a085..372e6cd 100644
+--- a/android_world/task_evals/utils/user_data_generation.py
++++ b/android_world/task_evals/utils/user_data_generation.py
+@@ -455,19 +455,79 @@ def _draw_text(text: str, font_size: int = 24) -> Image.Image:
+   return img
+ 
+ 
++_PUBLIC_STORAGE_DIRS = (
++    "Alarms",
++    "Audiobooks",
++    "DCIM",
++    "Documents",
++    "Download",
++    "Movies",
++    "Music",
++    "Notifications",
++    "Pictures",
++    "Podcasts",
++    "Recordings",
++    "Ringtones",
++    "VLCVideos",
++)
++
++
+ def clear_internal_storage(env: interface.AsyncEnv) -> None:
+-  """Deletes all files from internal storage, leaving directory structure intact."""
+-  adb_command = [
+-      "shell",
+-      "find",
+-      device_constants.EMULATOR_DATA,
+-      "-mindepth",
+-      "1",
+-      "-type",
+-      "f",  # Regular file.
+-      "-delete",
+-  ]
+-  adb_utils.issue_generic_request(adb_command, env.controller)
++  """Deletes all files from internal storage, leaving directory structure intact.
++
++  Devices without root (e.g. redroid production builds) cannot read
++  /sdcard/Android/data/<pkg> app-private directories; the full `find -delete`
++  sweep would fail the task and would also wipe OsmAnd offline maps. In that
++  case only public storage directories are cleared and Android/ data is kept.
++  """
++  try:
++    adb_utils.set_root_if_needed(env.controller)
++    response = adb_utils.issue_generic_request(["shell", "id"], env.controller)
++    has_root = b"uid=0" in response.generic.output
++  except Exception:  # pylint: disable=broad-except
++    has_root = False
++
++  if has_root:
++    adb_command = [
++        "shell",
++        "find",
++        device_constants.EMULATOR_DATA,
++        "-mindepth",
++        "1",
++        "-type",
++        "f",  # Regular file.
++        "-delete",
++    ]
++    adb_utils.issue_generic_request(adb_command, env.controller)
++    return
++
++  for directory in _PUBLIC_STORAGE_DIRS:
++    try:
++      adb_utils.issue_generic_request(
++          [
++              "shell",
++              f"rm -rf {device_constants.EMULATOR_DATA}/{directory}/*",
++          ],
++          env.controller,
++      )
++    except Exception:  # pylint: disable=broad-except
++      pass
++  try:
++    adb_utils.issue_generic_request(
++        [
++            "shell",
++            "find",
++            device_constants.EMULATOR_DATA,
++            "-maxdepth",
++            "1",
++            "-type",
++            "f",
++            "-delete",
++        ],
++        env.controller,
++    )
++  except Exception:  # pylint: disable=broad-except
++    pass
+ 
+ 
+ def _clear_external_downloads(env: interface.AsyncEnv) -> None:
+-- 
+2.43.0
+

@@ -1,0 +1,76 @@
+diff --git a/android_env/components/adb_controller.py b/android_env/components/adb_controller.py
+index a8a1b9d..30d56cf 100644
+--- a/android_env/components/adb_controller.py
++++ b/android_env/components/adb_controller.py
+@@ -24,6 +24,23 @@ from android_env.components import config_classes
+ from android_env.components import errors
+ 
+ 
++def _is_disconnection(message: str) -> bool:
++  """Returns True if the message indicates an adb connection loss.
++
++  TCP devices (reached via `adb connect`) can drop transiently, e.g. when a
++  sandbox network is being re-configured; these errors are recoverable by
++  reconnecting, unlike genuine command failures.
++  """
++  lowered = message.lower()
++  return (
++      'device not found' in lowered
++      or 'device offline' in lowered
++      or 'connection refused' in lowered
++      or 'connection reset' in lowered
++      or 'connection closed' in lowered
++  )
++
++
+ class AdbController:
+   """Manages communication with adb."""
+ 
+@@ -99,6 +116,12 @@ class AdbController:
+   ) -> bytes:
+     """Executes an adb command.
+ 
++    On failure the adb server is left untouched: killing the server would
++    sever every TCP device connection (e.g. redroid sandboxes reached via
++    `adb connect`), turning a legitimate command failure into a total
++    connectivity loss. If the failure indicates a disconnection, the device
++    is reconnected and the command retried; other failures raise immediately.
++
+     Args:
+       args: A list of strings representing each adb argument.
+           For example: ['install', '/my/app.apk']
+@@ -122,6 +145,7 @@ class AdbController:
+         cmd_output = subprocess.check_output(
+             command,
+             stderr=subprocess.STDOUT,
++            stdin=subprocess.DEVNULL,
+             timeout=timeout,
+             env=self._os_env_vars,
+         )
+@@ -141,8 +165,21 @@ class AdbController:
+             logging.error('    %s', line)
+         n_tries += 1
+         latest_error = e
+-        if device_specific and n_tries <= n_retries:
+-          self._restart_server(timeout=timeout)
++        if (
++            device_specific
++            and n_tries <= n_retries
++            and _is_disconnection(
++                (e.stdout or b'').decode('utf-8', 'replace')
++            )
++        ):
++          logging.info('Reconnecting adb device %r', self._config.device_name)
++          subprocess.run(
++              [self._config.adb_path, 'connect', self._config.device_name],
++              stdin=subprocess.DEVNULL,
++              capture_output=True,
++              timeout=30,
++          )
++          time.sleep(1.0)
+ 
+     raise errors.AdbControllerError(
+         f'Error executing adb command: [{command_str}]\n'
+-- 
+2.43.0
+

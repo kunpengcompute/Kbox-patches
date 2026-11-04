@@ -1,0 +1,215 @@
+diff --git a/redroid/openai_compat_llm.py b/redroid/openai_compat_llm.py
+new file mode 100644
+index 0000000..2e17c78
+--- /dev/null
++++ b/redroid/openai_compat_llm.py
+@@ -0,0 +1,132 @@
++"""通用 LLM 封装：把任意 OpenAI 兼容端点接到官方 infer 抽象接口上。
++
++官方 agent（t3a / m3a 等）只认 `android_world.agents.infer` 里的两个抽象接口：
++    - LlmWrapper.predict(text_prompt)              （T3A 用，纯文本）
++    - MultimodalLlmWrapper.predict_mm(text, imgs)  （M3A 用，带截图）
++本模块按 OpenAI 兼容的 chat/completions 协议实现这两个接口，其余与官方
++Gpt4Wrapper 同构：一样的返回值形状（text, is_safe, raw_response）、一样的重试策略。
++这样 t3a.T3A(env, OpenAiCompatLlm()) / m3a.M3A(env, OpenAiCompatLlm()) 即可直接用。
++
++端点与模型全部由调用方指定，本模块不内置任何厂商默认值；任何提供 OpenAI 兼容
++chat/completions 的服务都可接入：
++    AW_LLM_API_KEY   必填，API key
++    AW_LLM_BASE_URL  必填，端点根地址（不要带 /chat/completions 后缀）
++    AW_LLM_MODEL     必填，模型名
++    AW_LLM_EFFORT    可选，推理档位；不设置则不发送该字段，由服务端自定
++"""
++
++from __future__ import annotations
++
++import base64
++import os
++import time
++from typing import Any, Optional
++
++import numpy as np
++import requests
++
++from android_world.agents import infer
++
++
++class OpenAiCompatLlm(infer.LlmWrapper, infer.MultimodalLlmWrapper):
++  """OpenAI 兼容 chat/completions 的官方 LlmWrapper 实现。"""
++
++  RETRY_WAITING_SECONDS = 20
++
++  def __init__(
++      self,
++      model_name: str | None = None,
++      api_key: str | None = None,
++      base_url: str | None = None,
++      max_retry: int = 3,
++      temperature: float = 0.0,
++      max_tokens: int = 2000,
++      reasoning_effort: str | None = None,
++  ):
++    self.api_key = api_key or os.environ.get('AW_LLM_API_KEY')
++    self.base_url = (base_url or os.environ.get('AW_LLM_BASE_URL') or '').rstrip('/')
++    self.model = model_name or os.environ.get('AW_LLM_MODEL')
++    missing = [
++        name
++        for name, value in (
++            ('AW_LLM_API_KEY', self.api_key),
++            ('AW_LLM_BASE_URL', self.base_url),
++            ('AW_LLM_MODEL', self.model),
++        )
++        if not value
++    ]
++    if missing:
++      raise RuntimeError(
++          '未设置 ' + '、'.join(missing) + '（这三个变量均为必填）。示例：\n'
++          '  export AW_LLM_API_KEY=<你的 API key>\n'
++          '  export AW_LLM_BASE_URL=<OpenAI 兼容端点的根地址>\n'
++          '  export AW_LLM_MODEL=<模型名>'
++      )
++    # 可选：不设置则不发送该字段，交由服务端决定默认档位。
++    self.reasoning_effort = reasoning_effort or os.environ.get('AW_LLM_EFFORT')
++    self.max_retry = min(max(max_retry, 1), 5)
++    self.temperature = temperature
++    self.max_tokens = max_tokens
++
++  @classmethod
++  def encode_image(cls, image: np.ndarray) -> str:
++    """与官方 Gpt4Wrapper 相同的 JPEG base64 编码（官方实现已返回 str）。"""
++    return infer.Gpt4Wrapper.encode_image(image)
++
++  def predict(
++      self, text_prompt: str
++  ) -> tuple[str, Optional[bool], Any]:
++    """纯文本调用（T3A 走这里）。"""
++    return self.predict_mm(text_prompt, [])
++
++  def predict_mm(
++      self, text_prompt: str, images: list[np.ndarray]
++  ) -> tuple[str, Optional[bool], Any]:
++    """带截图调用（M3A 走这里；需选择支持图像输入的模型）。"""
++    content: list[dict[str, Any]] = [{'type': 'text', 'text': text_prompt}]
++    for image in images:
++      content.append({
++          'type': 'image_url',
++          'image_url': {'url': f'data:image/jpeg;base64,{self.encode_image(image)}'},
++      })
++    payload = {
++        'model': self.model,
++        'temperature': self.temperature,
++        'max_tokens': self.max_tokens,
++    }
++    if self.reasoning_effort:
++      payload['reasoning_effort'] = self.reasoning_effort
++    payload['messages'] = [{'role': 'user', 'content': content}]
++    if len(content) == 1:  # 纯文本时退回字符串形式，兼容只认字符串的网关。
++      payload['messages'][0]['content'] = text_prompt
++
++    headers = {
++        'Content-Type': 'application/json',
++        'Authorization': f'Bearer {self.api_key}',
++    }
++
++    counter = self.max_retry
++    wait_seconds = self.RETRY_WAITING_SECONDS
++    while counter > 0:
++      try:
++        response = requests.post(
++            f'{self.base_url}/chat/completions',
++            headers=headers,
++            json=payload,
++            timeout=300,
++        )
++        if response.ok and 'choices' in response.json():
++          text = response.json()['choices'][0]['message'].get('content') or ''
++          if text:  # 推理模型可能把预算花在思维链上导致 content 为空，视为失败重试。
++            return text, None, response
++          print('LLM 返回空 content（可能被 max_tokens 截断），重试...')
++        else:
++          print(f'LLM API 报错: {response.text[:300]}')
++        time.sleep(wait_seconds)
++        wait_seconds *= 2
++      except Exception as e:  # pylint: disable=broad-exception-caught
++        time.sleep(wait_seconds)
++        wait_seconds *= 2
++        print(e)
++      counter -= 1
++    return infer.ERROR_CALLING_LLM, None, None
+diff --git a/redroid/seeact_compat.py b/redroid/seeact_compat.py
+new file mode 100644
+index 0000000..c825b69
+--- /dev/null
++++ b/redroid/seeact_compat.py
+@@ -0,0 +1,71 @@
++"""SeeAct 端点 shim：把官方 SeeAct 的 OpenAI 请求重定向到 AW_LLM_*。
++
++官方 SeeAct 不走 infer.LlmWrapper 抽象，而是自己调 seeact_utils.execute_openai_request()，
++那里把端点写死成 https://api.openai.com/v1/chat/completions 且只读 OPENAI_API_KEY，
++无法接入本底座的 AW_LLM_* 配置。这里做一次进程内替换：请求仍由官方 SeeAct 发起，
++只是端点、鉴权与模型名改由 AW_LLM_* 环境变量决定。
++
++只替换一个函数，不动官方源码；仅在 --agent=seeact 时由 redroid.run_task 调用 install()，
++其余 agent 路径完全不受影响。
++"""
++
++from __future__ import annotations
++
++import os
++from typing import Any
++
++import requests
++
++from android_world.agents import seeact_utils
++
++_TIMEOUT_SECONDS = 300
++
++
++def _execute_openai_request(
++    messages_payload: list[dict[str, Any]],
++    model: str | None = None,
++    temperature: float = 0.0,
++    max_tokens: int = 4096,
++) -> dict[str, Any]:
++  """与官方见签名一致的返回（response.json()），端点/密钥/模型取自 AW_LLM_*。
++
++  官方签名里的 model 参数被忽略：模型一律由 AW_LLM_MODEL 决定，避免 SeeAct
++  内部写死的 GPT 模型名被带到非 OpenAI 端点上。
++  """
++  del model  # 模型改由 AW_LLM_MODEL 决定
++  api_key = os.environ.get('AW_LLM_API_KEY')
++  base_url = (os.environ.get('AW_LLM_BASE_URL') or '').rstrip('/')
++  model_name = os.environ.get('AW_LLM_MODEL')
++  missing = [
++      name
++      for name, value in (
++          ('AW_LLM_API_KEY', api_key),
++          ('AW_LLM_BASE_URL', base_url),
++          ('AW_LLM_MODEL', model_name),
++      )
++      if not value
++  ]
++  if missing:
++    raise RuntimeError(
++        'SeeAct 需要设置 ' + '、'.join(missing) + '（与 redroid/openai_compat_llm 同一套变量）。'
++    )
++  response = requests.post(
++      f'{base_url}/chat/completions',
++      headers={
++          'Content-Type': 'application/json',
++          'Authorization': f'Bearer {api_key}',
++      },
++      json={
++          'model': model_name,
++          'messages': messages_payload,
++          'temperature': temperature,
++          'max_tokens': max_tokens,
++      },
++      timeout=_TIMEOUT_SECONDS,
++  )
++  return response.json()
++
++
++def install() -> None:
++  """进程内替换 seeact_utils.execute_openai_request（幂等，可重复调用）。"""
++  seeact_utils.execute_openai_request = _execute_openai_request
