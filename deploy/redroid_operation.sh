@@ -23,6 +23,10 @@
 #   CUBE_API_TIMEOUT  CubeAPI 单次请求超时秒数（默认 300；快照/删除模板为服务端
 #                     240s 档长操作，不要低于 300）
 #   REDROID_CONFIG    配置文件路径（默认 <脚本目录>/redroid_config.conf）
+#   CUBE_MASTER_API   CubeMaster 原生 HTTP API 地址（sandbox-destroy 交互模式 /
+#                     sandbox-list --with-ip 并发取 sandbox_ip 用，由同目录
+#                     cube_client.py sandbox-ips 读取；默认 cube_client.py 解析
+#                     CubeMaster/conf.yaml 的 http_port，解析失败回退 8089）
 
 set -euo pipefail
 
@@ -64,14 +68,18 @@ redroid_operation.sh —— CubeSandbox（Cube + Redroid）模板与沙箱管理
   sandbox-create --snapshot <snap-id> [--config <文件>]
                                     从快照派生新沙箱（--alias 与 --snapshot 二选一，必填）
                                     multirun 请求体取自配置文件的 sandbox 段
-  sandbox-list [--all] [--wide]     列举沙箱
+  sandbox-list [--all] [--wide] [--with-ip]
+                                    列举沙箱（--with-ip 额外显示 sandbox_ip，
+                                    并附编号与创建时间，按创建时间从旧到新排列）
   sandbox-info <sandbox-id>         查询沙箱详情
   sandbox-pause <sandbox-id>        暂停沙箱（保留内存快照，暂停期间零资源占用）
   sandbox-connect <sandbox-id> [--timeout <秒>]
                                     连接（唤醒）已暂停沙箱；--timeout 顺带设置空闲超时
                                     （-1 表示永不过期）
-  sandbox-destroy <sandbox-id> [sandbox-id ...]
-                                    销毁沙箱（可一次多个）
+  sandbox-destroy [sandbox-id ...]  销毁沙箱（可一次多个）。
+                                    不带 ID 时进入交互模式：列出全部沙箱（编号/sandbox_id/
+                                    status/创建时间/sandbox_ip，按创建时间从旧到新排列），
+                                    输入编号选择删除（支持 1,3,4-7 区间形式，确认后执行）
 
 快照操作（沙箱状态管理）：
   snapshot-create <sandbox-id> [--name <显示名>]
@@ -106,6 +114,7 @@ redroid_operation.sh —— CubeSandbox（Cube + Redroid）模板与沙箱管理
   CUBEMASTERCLI     cubemastercli 路径（默认 PATH 中的 cubemastercli）
   CUBE_API_TIMEOUT  CubeAPI 请求超时秒数（默认 300）
   REDROID_CONFIG    配置文件路径
+  CUBE_MASTER_API   CubeMaster 原生 HTTP API（并发取 sandbox_ip 用，透传给 cube_client.py）
 
 示例：
   bash redroid_operation.sh health
@@ -117,6 +126,7 @@ redroid_operation.sh —— CubeSandbox（Cube + Redroid）模板与沙箱管理
   bash redroid_operation.sh sandbox-clone sbx-xxxxxxxxxxxxxxxxxxxxxxxx --count 3
   bash redroid_operation.sh sandbox-rollback sbx-xxxxxxxxxxxxxxxxxxxxxxxx snap-xxxxxxxxxxxxxxxxxxxxxxxx
   bash redroid_operation.sh sandbox-destroy sbx-xxxxxxxxxxxxxxxxxxxxxxxx
+  bash redroid_operation.sh sandbox-destroy       # 交互模式：列出全部沙箱后按编号选择删除
 
 详细文档：../guide/redroid_user_guide.md
 EOF
@@ -293,6 +303,61 @@ except Exception:
     fi
 }
 
+# ---------------------------------------------------------------- 沙箱列表/IP 辅助
+# 由 cubemastercli ls --all 解析沙箱清单，填充全局数组 LINES/IDS/STATS/CTIMES 与总数 N。
+# create_at 含日期+时间两个空白分隔字段（第 7、8 列），提取后按创建时间从旧到新稳定排序。
+sandbox_collect() {
+    local list i
+    list="$(cubemastercli ls --all || true)"
+    mapfile -t LINES < <(printf '%s\n' "$list" \
+        | awk '$1 ~ /^[0-9a-f]{32}$/ || $1 ~ /^sbx-[A-Za-z0-9]+$/ {print $1, $2, $7, $8}' \
+        | sort -s -k3,4)
+    N="${#LINES[@]}"
+    IDS=(); STATS=(); CTIMES=()
+    for ((i=0; i<N; i++)); do
+        local -a f
+        f=(${LINES[$i]})
+        IDS[$i]="${f[0]}"; STATS[$i]="${f[1]}"; CTIMES[$i]="${f[2]} ${f[3]}"
+    done
+}
+
+# 并发批量获取各沙箱 IP → 全局数组 IPS。优先同目录 cube_client.py sandbox-ips
+#（16 线程直连 CubeMaster 原生 API /cube/sandbox/info，实测 42 个沙箱约 0.04s）；
+# cube_client.py 缺失、结果缺失或数量不符时回退逐沙箱 cubemastercli info -s 顺序方式。
+sandbox_fetch_ips() {
+    local i pyout api_failed=0
+    IPS=()
+    if command -v python3 >/dev/null 2>&1 && [ -f "$SCRIPT_DIR/cube_client.py" ]; then
+        pyout="$(python3 "$SCRIPT_DIR/cube_client.py" sandbox-ips "${IDS[@]}" 2>/dev/null)" || true
+        mapfile -t IPS <<<"$pyout"
+        if [ "${#IPS[@]}" -ne "$N" ] || printf '%s\n' "${IPS[@]}" | grep -q '^$'; then
+            api_failed=1
+        fi
+    else
+        api_failed=1
+    fi
+    if [ "$api_failed" = 1 ]; then
+        echo "  API 批量查询不可用，回退逐沙箱 cubemastercli info -s ..." >&2
+        for ((i=0; i<N; i++)); do
+            IPS[$i]="$(cubemastercli info -s "${IDS[$i]}" 2>/dev/null \
+                | awk -F'[[:space:]]+' '/^SANDBOX_IP/ {print $2; exit}')"
+            printf '\r    已获取 %d/%d' "$((i+1))" "$N" >&2
+        done
+        echo >&2
+    fi
+}
+
+# 打印沙箱表格（编号/sandbox_id/status/create_at/sandbox_ip）。
+# 表头显式白色（\e[37m…\e[0m）且首列用 No. 而非 #：部分终端会把以 # 开头的行
+# 当作注释高亮成绿色，换用 No. 并从脚本侧指定前景色，可保证稳定显示为白色。
+sandbox_print_table() {
+    printf '\e[37m%-4s %-34s %-9s %-20s %s\e[0m\n' 'No.' 'sandbox_id' 'status' 'create_at' 'sandbox_ip'
+    local i
+    for ((i=0; i<N; i++)); do
+        printf '%-4d %-34s %-9s %-20s %s\n' "$((i+1))" "${IDS[$i]}" "${STATS[$i]}" "${CTIMES[$i]}" "${IPS[$i]:--}"
+    done
+}
+
 # api <METHOD> <PATH> [JSON_BODY]
 # 调用 CubeAPI（E2B 兼容接口）。成功（2xx）时把响应体打到 stdout；
 # 失败时把状态码与响应体打到 stderr 并以非零码退出。
@@ -383,7 +448,7 @@ print(req.get("annotations", {}).get(TID, ""))' "$req")"
         echo "SANDBOX_ID=$id"
         if [ -n "$ip" ]; then
             echo "SANDBOX_IP=$ip"
-            echo "验证 Android 就绪：curl -s http://$ip:49983/metrics （返回 JSON 即就绪，见 user_guide.md §5.8）"
+            echo "验证 Android 就绪"
         fi
     else
         echo "SANDBOX_IDS："
@@ -541,16 +606,31 @@ cmd_sandbox_create() {
 
 # ：沙箱生命周期管理-列举（cubemastercli）
 cmd_sandbox_list() {
-    local all="" wide=""
+    local all="" wide="" with_ip=""
     while [ $# -gt 0 ]; do
         case "$1" in
             -h|--help) usage ;;
-            --all|-a)  all=1;  shift ;;
-            --wide|-w) wide=1; shift ;;
+            --all|-a)   all=1;  shift ;;
+            --wide|-w)  wide=1; shift ;;
+            --with-ip)  with_ip=1; shift ;;
             *) die "sandbox-list：未知参数 '$1'" ;;
         esac
     done
     need_cli
+    if [ -n "$with_ip" ]; then
+        echo "沙箱列表:"
+        sandbox_collect
+        if [ "$N" -eq 0 ]; then
+            echo "当前服务器上没有可管理的沙箱实例。"
+            return 0
+        fi
+        sandbox_fetch_ips
+        echo
+        sandbox_print_table
+        echo
+        echo "共 $N 个沙箱（按创建时间从旧到新排列）。"
+        return 0
+    fi
     if [ -n "$all" ]; then
         run_cli ls --all --wide
     elif [ -n "$wide" ]; then
@@ -602,16 +682,101 @@ cmd_sandbox_connect() {
 }
 
 # ：沙箱生命周期管理-销毁（cubemastercli）
+# 带 ID：直接销毁指定沙箱（可一次多个，原有行为）。
+# 不带 ID：交互模式——列出当前服务器全部沙箱（编号/sandbox_id/status/创建时间/sandbox_ip，
+#           按创建时间从旧到新排列），输入编号选择要销毁的沙箱（支持 1,3,4-7 形式），
+#           确认后执行销毁。
 cmd_sandbox_destroy() {
     if [ "${1-}" = "-h" ] || [ "${1-}" = "--help" ]; then usage; fi
-    [ $# -ge 1 ] || die "用法：bash $0 sandbox-destroy <sandbox-id> [sandbox-id ...]"
     need_cli
-    run_cli cubebox destroy "$@"
+    local out
+    if [ $# -ge 1 ]; then
+        if ! out="$("$CUBEMASTERCLI" cubebox destroy "$@" 2>&1)"; then
+            printf '%s\n' "$out" >&2
+            die "销毁失败"
+        fi
+        echo
+        echo "已销毁：$*"
+        return 0
+    fi
+
+    # ---- 交互模式 ----
+    local ans seltext valid
+    local -a sel=() targets=() parts=()
+    local n=0 i j start end
+
+    echo "沙箱列表:"
+    sandbox_collect
+    n="$N"
+    if [ "$n" -eq 0 ]; then
+        echo "当前服务器上没有可管理的沙箱实例。"
+        return 0
+    fi
+    sandbox_fetch_ips
     echo
-    echo "已销毁：$*"
-    echo "提示：若怀疑有残留进程持续占用 CPU，检查并按 PID 清理（勿用 pkill -f）："
-    echo "  pgrep -f containerd-shim-cube-rs"
-    echo "  kill <PID>"
+    sandbox_print_table
+    echo
+    echo "共 $n 个沙箱（按创建时间从旧到新排列）。销毁不可恢复，请谨慎选择。"
+
+    # 输入编号（支持 1,3,4-7），非法则重新输入；空输入取消
+    while :; do
+        printf '输入要销毁的沙箱编号（示例格式：1,3,4-7）：'
+        read -r seltext || { echo; return 0; }
+        seltext="$(printf '%s' "$seltext" | sed -E 's/[[:space:]]+/,/g; s/,+/,/g; s/^,|,$//g')"
+        [ -n "$seltext" ] || { echo "已取消。"; return 0; }
+        sel=()
+        valid=1
+        IFS=',' read -ra parts <<<"$seltext"
+        for part in "${parts[@]}"; do
+            if [[ "$part" =~ ^[0-9]{1,6}$ ]]; then
+                start=$((10#$part)); end=$start
+            elif [[ "$part" =~ ^([0-9]{1,6})-([0-9]{1,6})$ ]]; then
+                start=$((10#${BASH_REMATCH[1]})); end=$((10#${BASH_REMATCH[2]}))
+            else
+                echo "无效输入：$part（支持单个编号或区间，如 1,3,4-7）" >&2
+                valid=0
+                break
+            fi
+            if [ "$start" -lt 1 ] || [ "$end" -gt "$n" ] || [ "$start" -gt "$end" ]; then
+                echo "编号越界或区间无效：$part（有效范围 1-$n）" >&2
+                valid=0
+                break
+            fi
+            for ((j=start; j<=end; j++)); do
+                sel+=("$j")
+            done
+        done
+        if [ "$valid" = 1 ]; then
+            break
+        fi
+    done
+
+    # 去重并升序，映射为沙箱 ID
+    mapfile -t sel < <(printf '%s\n' "${sel[@]}" | sort -n -u)
+    targets=()
+    for i in "${sel[@]}"; do
+        targets+=("${IDS[$((i-1))]}")
+    done
+
+    echo
+    echo "以下 ${#targets[@]} 个沙箱将被销毁："
+    for i in "${sel[@]}"; do
+        printf '  [%d] %s  %s  创建于 %s  IP %s\n' "$i" "${IDS[$((i-1))]}" \
+            "${STATS[$((i-1))]}" "${CTIMES[$((i-1))]}" "${IPS[$((i-1))]:--}"
+    done
+    printf '确认销毁？此操作不可恢复，输入 yes 继续（其他输入取消）：'
+    read -r ans || { echo; return 0; }
+    case "$ans" in
+        y|Y|yes|Yes|YES) ;;
+        *) echo "已取消。"; return 0 ;;
+    esac
+
+    if ! out="$("$CUBEMASTERCLI" cubebox destroy "${targets[@]}" 2>&1)"; then
+        printf '%s\n' "$out" >&2
+        die "销毁失败"
+    fi
+    echo
+    echo "已销毁：${targets[*]}"
 }
 
 # ---------------------------------------------------------------- 快照操作
