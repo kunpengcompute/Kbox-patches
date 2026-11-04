@@ -78,14 +78,18 @@ sudo apt-get install python-is-python3 ninja-build autoconf
 ./build_cf.sh $AOSP_PATH a16
 ```
 
-脚本会自动应用对应版本的 patch、拷贝 envd 二进制、并执行 `make dist`。
+脚本会自动准备固定版本的 U-Boot 源码到 `$AOSP_PATH/u-boot/`，应用对应版本的 patch，从源码编译 StratoVirt bootloader、拷贝 envd，并执行 `make dist` 生成完整镜像和 Host 工具包。
+
+`u-boot/` 由脚本管理，重复构建会清理并重新应用补丁。
+
+U-Boot 默认使用 AOSP 自带的 Clang；可通过 `UBOOT_CLANG_BIN=/path/to/clang/bin` 指定工具链，通过 `UBOOT_REPO_URL=<源码仓地址>` 指定源码镜像。
 
 **编译产物**
 
 产物会生成在 `$AOSP_PATH/out/dist/` 目录下：
 
 - `aosp_cf_arm64_only_phone-img-eng.android-build.zip`：安卓镜像包
-- `cvd-host_package.tar.gz`：Host 工具包，用于启动 Cuttlefish 实例
+- `cvd-host_package.tar.gz`：Host 工具包，包含本次源码编译的 `etc/bootloader_aarch64/bootloader.stratovirt`
 
 # 2. Cuttlefish 启动命令
 

@@ -5,7 +5,7 @@
 #   ./build_cf.sh <AOSP_ROOT> [ANDROID_VERSION] [TARGET] [TARGET_TYPE] [--damon] [--trim-secure-env=true|false]
 #
 #   AOSP_ROOT       : (required) absolute path to AOSP source tree
-#   ANDROID_VERSION : (optional) target Android version: a14|a16, default: a14
+#   ANDROID_VERSION : (optional) target Android version: a14|a15|a16, default: a14
 #   TARGET          : (optional) lunch target override, auto-detected by version
 #   TARGET_TYPE     : (optional) build variant: user|userdebug|eng, default: eng
 #   --damon         : (optional) build DAMON kernel and replace prebuilt kernel/modules
@@ -47,10 +47,13 @@ if [ ! -d "$AOSP_ROOT" ]; then
     echo "ERROR: AOSP_ROOT '$AOSP_ROOT' does not exist."
     exit 1
 fi
+AOSP_ROOT="$(cd "$AOSP_ROOT" && pwd -P)"
 
 # ── version-specific defaults ──────────────────────────────
 case "$ANDROID_VERSION" in
     a14)
+        UBOOT_REV="b3cc1cd24d1b30b8965bbe71bae97fec319fc526"
+        UBOOT_CLANG_VERSION="clang-r487747c"
         DEFAULT_TARGET="aosp_cf_arm64_only_phone"
         TARGET="${3:-$DEFAULT_TARGET}"
         TARGET_TYPE="${4:-eng}"
@@ -62,6 +65,8 @@ case "$ANDROID_VERSION" in
         fi
         ;;
     a15)
+        UBOOT_REV="1ed8f8bde33ebbe2d12ccec4d882810bdbd3c3dd"
+        UBOOT_CLANG_VERSION="clang-r530567"
         DEFAULT_TARGET="aosp_cf_arm64_only_phone"
         TARGET="${3:-$DEFAULT_TARGET}"
         TARGET_TYPE="${4:-eng}"
@@ -69,6 +74,8 @@ case "$ANDROID_VERSION" in
         TRIM_SECURE_ENV="${TRIM_SECURE_ENV:-false}"
         ;;
     a16)
+        UBOOT_REV="7b79f5b573949b55c0c794ee971a57849ad6ec1c"
+        UBOOT_CLANG_VERSION="clang-r563880c"
         DEFAULT_TARGET="aosp_cf_arm64_only_phone"
         TARGET="${3:-$DEFAULT_TARGET}"
         TARGET_TYPE="${4:-eng}"
@@ -87,6 +94,71 @@ PATCH_ROOT="$SCRIPT_DIR/patchForCuttlefish-$ANDROID_VERSION"
 ENVD_BINARY="$SCRIPT_DIR/envd-android-arm64"
 CF_DIR="$AOSP_ROOT/device/google/cuttlefish"
 ENVD_DEST="$CF_DIR/envd/envd-android-arm64"
+UBOOT_SRC="$AOSP_ROOT/u-boot"
+UBOOT_OUT="$AOSP_ROOT/out/bootloader-stratovirt"
+UBOOT_REPO_URL="${UBOOT_REPO_URL:-https://android.googlesource.com/platform/external/u-boot}"
+UBOOT_CLANG_BIN="${UBOOT_CLANG_BIN:-$AOSP_ROOT/prebuilts/clang/host/linux-x86/$UBOOT_CLANG_VERSION/bin}"
+JOBS="${JOBS:-$(nproc)}"
+
+prepare_uboot_source() {
+    for tool in clang ld.lld llvm-ar llvm-nm llvm-objcopy llvm-objdump llvm-strip; do
+        if [ ! -x "$UBOOT_CLANG_BIN/$tool" ]; then
+            echo "ERROR: missing $UBOOT_CLANG_BIN/$tool; set UBOOT_CLANG_BIN to the Clang bin directory."
+            return 1
+        fi
+    done
+    for source_file in external/dtc/libfdt/libfdt.h bootable/libbootloader/libxbc/libxbc.c; do
+        if [ ! -f "$AOSP_ROOT/$source_file" ]; then
+            echo "ERROR: missing AOSP source dependency: $AOSP_ROOT/$source_file"
+            return 1
+        fi
+    done
+    if [ ! -e "$UBOOT_SRC/.git" ]; then
+        if [ -e "$UBOOT_SRC" ]; then
+            echo "ERROR: $UBOOT_SRC exists and is not a Git checkout."
+            return 1
+        fi
+        git init -q "$UBOOT_SRC"
+    fi
+    if ! git -C "$UBOOT_SRC" rev-parse --verify HEAD >/dev/null 2>&1; then
+        echo "  Fetching U-Boot source at $UBOOT_REV ..."
+        git -C "$UBOOT_SRC" fetch --depth=1 "$UBOOT_REPO_URL" "$UBOOT_REV"
+        git -C "$UBOOT_SRC" checkout -q --detach FETCH_HEAD
+    fi
+    if [ "$(git -C "$UBOOT_SRC" rev-parse HEAD)" != "$UBOOT_REV" ]; then
+        echo "ERROR: $UBOOT_SRC must be at $UBOOT_REV for $ANDROID_VERSION."
+        return 1
+    fi
+}
+
+build_stratovirt_bootloader() (
+    export PATH="$UBOOT_CLANG_BIN:$PATH"
+    ROOT_DIR="$AOSP_ROOT"
+    # Reuse the same configuration as the native U-Boot Bazel target.
+    source "$UBOOT_SRC/build.config.stratovirt.aarch64"
+    export KCONFIG_CONFIG="$UBOOT_SRC/configs/$DEFCONFIG"
+    local defconfig_path="$KCONFIG_CONFIG"
+    trap 'rm -f "$defconfig_path"' EXIT
+    # Native build configs split command arguments across lines.
+    eval "${PRE_DEFCONFIG_CMDS//$'\n'/ }"
+    unset KCONFIG_CONFIG
+
+    local make_args=(
+        -C "$UBOOT_SRC" O="$UBOOT_OUT" ARCH=arm
+        HOSTCC=cc CC=clang CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=llvm-
+        LD=ld.lld AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy
+        OBJDUMP=llvm-objdump STRIP=llvm-strip
+    )
+    make "${make_args[@]}" "$DEFCONFIG"
+    if ! grep -qx 'CONFIG_STRATOVIRT_MEM_MAP=y' "$UBOOT_OUT/.config" ||
+        grep -qx 'CONFIG_CROSVM_MEM_MAP=y' "$UBOOT_OUT/.config"; then
+        echo "ERROR: U-Boot configuration did not select the StratoVirt memory map."
+        return 1
+    fi
+    make "${make_args[@]}" -j"$JOBS" u-boot.bin
+    install -D -m 644 "$UBOOT_OUT/u-boot.bin" "$CF_DIR/build/bootloader/bootloader.stratovirt"
+    install -m 644 "$UBOOT_SRC/Licenses/gpl-2.0.txt" "$CF_DIR/build/bootloader/LICENSE"
+)
 
 # ── validate ───────────────────────────────────────────────
 if [ ! -d "$PATCH_ROOT" ]; then
@@ -98,6 +170,8 @@ if [ ! -f "$ENVD_BINARY" ]; then
     echo "ERROR: envd binary not found: $ENVD_BINARY"
     exit 1
 fi
+
+prepare_uboot_source
 
 echo "============================================"
 echo "  Cuttlefish Build Script"
@@ -119,7 +193,7 @@ if $DAMON_MODE; then
     echo ""
 fi
 
-echo "[1/4] Applying patches from $PATCH_ROOT ..."
+echo "[1/5] Applying patches from $PATCH_ROOT ..."
 
 # Auto-discover all unique repo directories from patch paths,
 # reset each to clean state before applying patches.
@@ -136,6 +210,10 @@ for repo in $PATCHED_REPOS; do
     if [ -d "$repo_dir" ]; then
         echo "    Reset: $repo"
         git -C "$repo_dir" checkout -q HEAD -- . 2>/dev/null || true
+        if [ "$repo" = "u-boot" ]; then
+            # Android 15/16 ignore /build*, including this patch-added file.
+            git -C "$repo_dir" clean -fqx -- build.config.stratovirt.aarch64
+        fi
         git -C "$repo_dir" clean -fdq 2>/dev/null || true
     fi
 done
@@ -171,7 +249,7 @@ if $DAMON_MODE; then
     fi
 fi
 
-echo "[2/4] Copying envd binary..."
+echo "[2/5] Copying envd binary..."
 mkdir -p "$(dirname "$ENVD_DEST")"
 cp "$ENVD_BINARY" "$ENVD_DEST"
 chmod 755 "$ENVD_DEST"
@@ -184,9 +262,12 @@ for repo in $PATCHED_REPOS; do
     find "$repo_dir" -name '*.orig' -delete 2>/dev/null || true
 done
 
+echo "[3/5] Building StratoVirt bootloader from U-Boot source..."
+build_stratovirt_bootloader
+
 # ── Step 4: build ──────────────────────────────────────────
 echo ""
-echo "[3/4] Building target: $TARGET-$TARGET_TYPE ..."
+echo "[4/5] Building target: $TARGET-$TARGET_TYPE ..."
 
 cd "$AOSP_ROOT"
 
@@ -204,11 +285,19 @@ else
 fi
 set -u
 
-JOBS=$(nproc)
-echo "[4/4] Running 'make dist -j${JOBS}' (with ninja proto pipe fix) ..."
+echo "[5/5] Running 'make dist -j${JOBS}' (with ninja proto pipe fix) ..."
 # ARM servers have ninja protobuf pipe instability.
 # Setting ANDROID_QUIET_BUILD disables the proto status channel entirely.
 ANDROID_QUIET_BUILD=true make dist -j"${JOBS}"
+
+# Check that dist packaged this build's firmware, including its exact contents.
+HOST_PACKAGE="${DIST_DIR:-${OUT_DIR:-$AOSP_ROOT/out}/dist}/cvd-host_package.tar.gz"
+BOOTLOADER_MEMBER="$(tar -tzf "$HOST_PACKAGE" | grep -E '^(\./)?etc/bootloader_aarch64/bootloader\.stratovirt$')" || BOOTLOADER_MEMBER=""
+if [ -z "$BOOTLOADER_MEMBER" ] ||
+    ! tar -xOf "$HOST_PACKAGE" "$BOOTLOADER_MEMBER" | cmp - "$UBOOT_OUT/u-boot.bin"; then
+    echo "ERROR: $HOST_PACKAGE does not contain the newly built StratoVirt bootloader."
+    exit 1
+fi
 
 echo ""
 echo "============================================"

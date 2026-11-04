@@ -1,0 +1,124 @@
+diff --git a/BUILD.bazel b/BUILD.bazel
+index 9448743f0f90f2acb46b24c1f5e8af5e082b7482..1fbdf08f4b327d98f64231b1dd042dc030886e64 100644
+--- a/BUILD.bazel
++++ b/BUILD.bazel
+@@ -103,6 +103,26 @@ copy_to_dist_dir(
+     flat = True,
+ )
+ 
++kernel_build(
++    name = "stratovirt_aarch64",
++    outs = [
++        "System.map",
++        "u-boot",
++        "u-boot.bin",
++    ],
++    build_config = "build.config.stratovirt.aarch64",
++    deps = [
++        "//prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9:binaries",
++    ],
++)
++
++copy_to_dist_dir(
++    name = "stratovirt_aarch64_dist",
++    data = [":stratovirt_aarch64"],
++    dist_dir = "out/u-boot/dist",
++    flat = True,
++)
++
+ kernel_build(
+     name = "qemu_arm",
+     outs = [
+diff --git a/board/emulation/common/Kconfig b/board/emulation/common/Kconfig
+index 02a017e961d40d025c688f7e8abd57087bcb36c5..d5b8bc1a600d533c8b6e271939b592ea6134e5ad 100644
+--- a/board/emulation/common/Kconfig
++++ b/board/emulation/common/Kconfig
+@@ -19,3 +19,10 @@ config CROSVM_MEM_MAP
+ 	help
+ 	  Replace the standard QEMU memory layout with the one from CrosVM
+ 	  during MMU initialization.
++
++config STRATOVIRT_MEM_MAP
++	bool "Use StratoVirt ARM64 memory map"
++	depends on ARM64
++	help
++	  Use the StratoVirt-specific ARM64 memory layout during MMU
++	  initialization, including its GIC and PCIe regions.
+diff --git a/board/emulation/qemu-arm/qemu-arm.c b/board/emulation/qemu-arm/qemu-arm.c
+index a7069a0116e1e6cfdc5d3b06a6ad0c4b85f48a8b..202085b3b3c11fbe59f36e6ba9b9ecb8f7447b67 100644
+--- a/board/emulation/qemu-arm/qemu-arm.c
++++ b/board/emulation/qemu-arm/qemu-arm.c
+@@ -59,6 +59,62 @@ static struct mm_region crosvm_arm64_mem_map[] = {
+ 
+ struct mm_region *mem_map = crosvm_arm64_mem_map;
+ 
++#elif CONFIG_IS_ENABLED(STRATOVIRT_MEM_MAP)
++
++static struct mm_region stratovirt_arm64_mem_map[] = {
++	{
++		/* Flash: 0 - 128 MiB */
++		.virt = 0x0000000000ULL,
++		.phys = 0x0000000000ULL,
++		.size = 0x08000000ULL,
++		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
++			 PTE_BLOCK_INNER_SHARE,
++	}, {
++		/* Low-memory peripherals: 128 MiB - 1 GiB */
++		.virt = 0x08000000ULL,
++		.phys = 0x08000000ULL,
++		.size = 0x38000000ULL,
++		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
++			 PTE_BLOCK_NON_SHARE |
++			 PTE_BLOCK_PXN | PTE_BLOCK_UXN,
++	}, {
++		/* RAM: 1 GiB - 510 GiB */
++		.virt = 0x40000000ULL,
++		.phys = 0x40000000ULL,
++		.size = 0x7f40000000ULL,
++		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
++			 PTE_BLOCK_INNER_SHARE,
++	}, {
++		/* High GIC redistributor */
++		.virt = 0x7f80000000ULL,
++		.phys = 0x7f80000000ULL,
++		.size = 0x02000000ULL,
++		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
++			 PTE_BLOCK_NON_SHARE |
++			 PTE_BLOCK_PXN | PTE_BLOCK_UXN,
++	}, {
++		/* StratoVirt PCIe ECAM */
++		.virt = 0x7fc0000000ULL,
++		.phys = 0x7fc0000000ULL,
++		.size = 0x10000000ULL,
++		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
++			 PTE_BLOCK_NON_SHARE |
++			 PTE_BLOCK_PXN | PTE_BLOCK_UXN,
++	}, {
++		/* High PCIe MMIO */
++		.virt = 0x8000000000ULL,
++		.phys = 0x8000000000ULL,
++		.size = 0x8000000000ULL,
++		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
++			 PTE_BLOCK_NON_SHARE |
++			 PTE_BLOCK_PXN | PTE_BLOCK_UXN,
++	}, {
++		0,
++	}
++};
++
++struct mm_region *mem_map = stratovirt_arm64_mem_map;
++
+ #else
+ 
+ static struct mm_region qemu_arm64_mem_map[] = {
+diff --git a/build.config.stratovirt.aarch64 b/build.config.stratovirt.aarch64
+new file mode 100644
+index 0000000000000000000000000000000000000000..f4e16483684a35e6d6c223fe7dd0c257d5a21810
+--- /dev/null
++++ b/build.config.stratovirt.aarch64
+@@ -0,0 +1,5 @@
++. ${ROOT_DIR}/u-boot/build.config.qemu.aarch64
++
++PRE_DEFCONFIG_CMDS="${PRE_DEFCONFIG_CMDS};
++    ${ROOT_DIR}/${KERNEL_DIR}/scripts/config --file ${ROOT_DIR}/${KERNEL_DIR}/configs/${DEFCONFIG} --enable STRATOVIRT_MEM_MAP --disable CROSVM_MEM_MAP --enable AVB_IS_UNLOCKED
++"

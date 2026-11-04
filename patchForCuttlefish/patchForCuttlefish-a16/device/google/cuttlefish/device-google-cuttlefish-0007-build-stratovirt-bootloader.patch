@@ -1,0 +1,35 @@
+diff --git a/build/Android.bp b/build/Android.bp
+index 3515d0e14226a22f628706fe34782054931be42f..25f9d57023f541ce0c6e64169d169f6c6d1b1400 100644
+--- a/build/Android.bp
++++ b/build/Android.bp
+@@ -381,6 +381,7 @@
+     "bootloader_qemu_arm",
+     "bootloader_qemu_riscv64",
+     "bootloader_qemu_x86_64",
++    "bootloader_stratovirt_aarch64",
+ ]
+ 
+ cvd_host_ti50_emulator = [
+@@ -392,6 +393,22 @@
+     "desktop_keyboard.json",
+     "domkey_mapping.json",
+ ]
++
++// Firmware and license are generated from U-Boot source by build_cf.sh.
++license {
++    name: "cuttlefish_stratovirt_bootloader_license",
++    visibility: [":__subpackages__"],
++    license_kinds: ["SPDX-license-identifier-GPL-2.0-only"],
++    license_text: ["bootloader/LICENSE"],
++}
++
++prebuilt_etc_host {
++    name: "bootloader_stratovirt_aarch64",
++    licenses: ["cuttlefish_stratovirt_bootloader_license"],
++    filename: "bootloader.stratovirt",
++    sub_dir: "bootloader_aarch64",
++    src: "bootloader/bootloader.stratovirt",
++}
+ 
+ prebuilt_etc_host {
+     name: "cvd_avb_testkey_rsa2048",
