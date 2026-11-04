@@ -1,0 +1,14 @@
+diff --git a/build/Android.bp b/build/Android.bp
+index 3515d0e..9485487 100644
+--- a/build/Android.bp
++++ b/build/Android.bp
+@@ -157,7 +157,8 @@ cvd_host_aarch64_swiftshader = [
+ 
+ cvd_host_tools = [
+     "acloud_translator",
+-    "adb",
++    // [PROCESS_TRIM] adb 移除：15/16 统一使用 android-14 包中的 bin/adb
++    // "adb",
+     "adb_connector",
+     "allocd_client",
+     "assemble_cvd",

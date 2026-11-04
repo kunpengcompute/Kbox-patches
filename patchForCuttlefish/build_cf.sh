@@ -2,12 +2,16 @@
 # Build cuttlefish for arm64 target with patches applied.
 #
 # Usage:
-#   ./build_cf.sh <AOSP_ROOT> [ANDROID_VERSION] [TARGET] [TARGET_TYPE]
+#   ./build_cf.sh <AOSP_ROOT> [ANDROID_VERSION] [TARGET] [TARGET_TYPE] [--damon] [--trim-secure-env=true|false]
 #
 #   AOSP_ROOT       : (required) absolute path to AOSP source tree
 #   ANDROID_VERSION : (optional) target Android version: a14|a16, default: a14
 #   TARGET          : (optional) lunch target override, auto-detected by version
 #   TARGET_TYPE     : (optional) build variant: user|userdebug|eng, default: eng
+#   --damon         : (optional) build DAMON kernel and replace prebuilt kernel/modules
+#   --trim-secure-env=true|false
+#                   : (optional) apply *trim-secure-env* patches or not.
+#                     default: a14=true (false not supported), a15/a16=false
 #
 # Examples:
 #   ./build_cf.sh /home/user/aosp
@@ -16,15 +20,22 @@
 
 set -euo pipefail
 
-# ── DAMON 模式解析 ─────────────────────────────────────
+# ── DAMON / trim-secure-env 选项解析 ───────────────────
 DAMON_MODE=false
+TRIM_SECURE_ENV=""    # empty: use version default below
 ARGS=()
 for arg in "$@"; do
-    if [ "$arg" = "--damon" ]; then
-        DAMON_MODE=true
-    else
-        ARGS+=("$arg")
-    fi
+    case "$arg" in
+        --damon)
+            DAMON_MODE=true ;;
+        --trim-secure-env=true|--trim-secure-env=false)
+            TRIM_SECURE_ENV="${arg#*=}" ;;
+        --trim-secure-env*)
+            echo "ERROR: invalid '$arg', use --trim-secure-env=true or --trim-secure-env=false."
+            exit 1 ;;
+        *)
+            ARGS+=("$arg") ;;
+    esac
 done
 set -- ${ARGS[@]+"${ARGS[@]}"}
 
@@ -43,16 +54,26 @@ case "$ANDROID_VERSION" in
         DEFAULT_TARGET="aosp_cf_arm64_only_phone"
         TARGET="${3:-$DEFAULT_TARGET}"
         TARGET_TYPE="${4:-eng}"
+        # a14 does not need secure_env, and later a14 patches depend on trim-secure-env
+        TRIM_SECURE_ENV="${TRIM_SECURE_ENV:-true}"
+        if [ "$TRIM_SECURE_ENV" = "false" ]; then
+            echo "ERROR: --trim-secure-env=false is not supported for a14 (later a14 patches depend on it)."
+            exit 1
+        fi
         ;;
     a15)
         DEFAULT_TARGET="aosp_cf_arm64_only_phone"
         TARGET="${3:-$DEFAULT_TARGET}"
         TARGET_TYPE="${4:-eng}"
+        # a15 needs secure_env (keymaster/gatekeeper/oemlock/keymint FIFOs)
+        TRIM_SECURE_ENV="${TRIM_SECURE_ENV:-false}"
         ;;
     a16)
         DEFAULT_TARGET="aosp_cf_arm64_only_phone"
         TARGET="${3:-$DEFAULT_TARGET}"
         TARGET_TYPE="${4:-eng}"
+        # a16 needs secure_env (keymaster/gatekeeper/oemlock/keymint FIFOs)
+        TRIM_SECURE_ENV="${TRIM_SECURE_ENV:-false}"
         ;;
     *)
         echo "ERROR: Unsupported ANDROID_VERSION '$ANDROID_VERSION'. Use 'a14', 'a15' or 'a16'."
@@ -84,6 +105,7 @@ echo "  AOSP root       : $AOSP_ROOT"
 echo "  Android version : $ANDROID_VERSION"
 echo "  Target          : $TARGET"
 echo "  Variant         : $TARGET_TYPE"
+echo "  Trim secure_env : $TRIM_SECURE_ENV"
 echo "============================================"
 
 # ── Step 1: apply all patches ──────────────────────────────
@@ -126,6 +148,10 @@ find "$PATCH_ROOT" -name '*.patch' -type f | sort | while read -r patch_file; do
     rel_path="${patch_file#$PATCH_ROOT/}"
     repo_subdir="$(dirname "$rel_path")"
     repo_absdir="$AOSP_ROOT/$repo_subdir"
+    if [ "$TRIM_SECURE_ENV" = "false" ] && [[ "$rel_path" == *trim-secure-env* ]]; then
+        echo "    Skipping: $rel_path (--trim-secure-env=false)"
+        continue
+    fi
     echo "    Patching: $rel_path"
     (cd "$repo_absdir" && git apply -p1 < "$patch_file") || exit 1
 done

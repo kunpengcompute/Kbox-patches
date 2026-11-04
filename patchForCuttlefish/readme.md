@@ -150,7 +150,16 @@ HOME=$PWD ./bin/launch_cvd \
   --run_adb_connector=false
 ```
 
-# 3. DAMON 内核构建 (可选)
+# 3. 可选编译参数
+
+以下参数可追加在 `build_cf.sh` 命令末尾，可组合使用：
+
+| 参数 | 作用 | 默认 |
+|---|---|---|
+| `--damon` | 构建 DAMON 自定义内核（见 3.1） | 不开启 |
+| `--trim-secure-env=true` / `--trim-secure-env=false` | 是否裁剪 host 侧 secure_env（见 3.2） | 随安卓版本 |
+
+## 3.1 DAMON 内核构建（`--damon`）
 
 在编译安卓镜像时加 `--damon` 参数，自动构建带 `CONFIG_DAMON_RECLAIM=y` 的自定义内核并替换预编译内核，实现 guest 内存主动回收。支持安卓 14/15/16。
 
@@ -164,10 +173,26 @@ HOME=$PWD ./bin/launch_cvd \
 
 各版本使用独立的构建脚本（`kernel/build_aXX.sh` + `kernel/modules_aXX.sh`），经过端到端实测验证。
 
-| Android 版本 | 内核版本 | kernel_common 分支 |
-|---|---|---|
-| 14 | 6.1.23 | android14-6.1-2023-05-exp |
-| 15 | 6.6.30 | deprecated/android15-6.6-2024-08 |
-| 16 | 6.12.38 | android16-6.12-2025-08 |
+| Android 版本 | 内核版本 | kernel_common 分支 | `damon_reclaim.skip_anon` |
+|---|---|---|---|
+| 14 | 6.1.23 | android14-6.1-2023-05-exp | 不支持（同时回收匿名页和文件页） |
+| 15 | 6.6.30 | deprecated/android15-6.6-2024-08 | 支持 |
+| 16 | 6.12.38 | android16-6.12-2025-08 | 支持 |
 
-注意：安卓16 的 trunk_staging 构建实际使用 6.12 内核（`kernel/prebuilts/6.12/`），而非 BoardConfig 默认的 6.6。安卓14 的 6.1 内核没有 `skip_anon` 参数，DAMON 会同时回收匿名页和文件页。
+注意：安卓16 的 trunk_staging 构建实际使用 6.12 内核（`kernel/prebuilts/6.12/`），而非 BoardConfig 默认的 6.6。
+
+## 3.2 secure_env 裁剪（`--trim-secure-env`）
+
+`--trim-secure-env=true|false` 控制是否应用 `*trim-secure-env*` patch，裁剪 host 侧的 secure_env（keymaster/gatekeeper/oemlock/keymint 服务）。
+
+| Android 版本 | 默认值 | 可选值 | 说明 |
+|---|---|---|---|
+| 14 | `true` | `true` | 不需要 secure_env；后续 patch 依赖该裁剪，传 `false` 会报错 |
+| 15 | `false` | `true` / `false` | 需要 secure_env，默认保留 |
+| 16 | `false` | `true` / `false` | 需要 secure_env，默认保留 |
+
+一般使用默认值即可。如需在安卓15/16 上裁剪 secure_env：
+
+```bash
+./build_cf.sh $AOSP_PATH a15 --trim-secure-env=true
+```
