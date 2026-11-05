@@ -55,7 +55,7 @@ build_envd() {
     mkdir -p "$(dirname "$ENVD_DST")"
     (
         cd "$ENVD_SRC"
-        export GOPROXY="${GOPROXY:-https://goproxy.cn,direct}"
+        export GOPROXY="${GOPROXY:-$ENVD_GOPROXY}"
         export GOSUMDB="${GOSUMDB:-off}"
         export GOTOOLCHAIN="${GOTOOLCHAIN:-auto}"
         # 纯 Go 静态交叉编译到 Android arm64，无需 NDK

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Cube Sandbox 最简客户端（Cube + Redroid）。
 
-覆盖 7 类常用操作：
+覆盖 8 类常用操作：
   模板  : template-create / template-commit / template-list / template-info / template-delete
-  沙箱  : sandbox-create  / sandbox-list  / sandbox-info  / sandbox-delete
+  沙箱  : sandbox-create  / sandbox-list  / sandbox-info  / sandbox-delete / sandbox-ips
   快照  : snapshot-create / snapshot-list / snapshot-delete
   恢复  : sandbox-rollback
 
@@ -21,6 +21,8 @@
   CUBE_API_URL    CubeAPI 地址，默认 http://127.0.0.1:3000
   CUBE_API_KEY    启用鉴权时填写（作为 X-API-Key 与 Bearer 发送）
   CUBEMASTERCLI   cubemastercli 路径，默认取 PATH 中的 cubemastercli
+  CUBE_MASTER_API CubeMaster 原生 HTTP API 地址（sandbox-ips 用；默认解析
+                  CubeMaster/conf.yaml 的 http_port，解析失败回退 8089）
 
 用法示例：
   python3 cube_client.py template-create --image 127.0.0.1:5000/redroid:14 --alias android14
@@ -29,6 +31,7 @@
   python3 cube_client.py snapshot-create <sandbox-id>
   python3 cube_client.py sandbox-rollback <sandbox-id> <snap-id>
   python3 cube_client.py sandbox-delete <sandbox-id>
+  python3 cube_client.py sandbox-ips <sandbox-id>...   # 并发查询各沙箱 IP（每行一个）
 """
 
 import argparse
@@ -44,6 +47,19 @@ import urllib.request
 API = os.environ.get("CUBE_API_URL", "http://127.0.0.1:3000").rstrip("/")
 KEY = os.environ.get("CUBE_API_KEY", "")
 CLI = os.environ.get("CUBEMASTERCLI", "cubemastercli")
+
+# CubeMaster 原生 HTTP API（sandbox-ips 并发取 IP 用；CubeAPI /sandboxes 不含 sandbox_ip）
+MASTER_API = os.environ.get("CUBE_MASTER_API", "").rstrip("/")
+if not MASTER_API:
+    master_port = ""
+    try:
+        with open("/usr/local/services/cubetoolbox/CubeMaster/conf.yaml",
+                  encoding="utf-8") as fh:
+            m = re.search(r"^[ \t]*http_port:[ \t]*([0-9]+)", fh.read(), re.M)
+            master_port = m.group(1) if m else ""
+    except OSError:
+        pass
+    MASTER_API = "http://127.0.0.1:%s" % (master_port or "8089")
 
 ANNO_CGROUP = "cube.vm.cgroup.unified_hierarchy=false"
 RE_TEMPLATE_ID = re.compile(r"tpl-[0-9a-f]{24}")
@@ -189,6 +205,34 @@ def sandbox_delete(a):
         print("deleted: %s" % sandbox_id)
 
 
+def sandbox_ips(a):
+    """按输入顺序并发查询各沙箱 IP（CubeMaster 原生 API /cube/sandbox/info）。
+
+    每行输出一个 IP；查询失败或未返回 IP 时输出空行（调用方据此判定是否回退）。
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    base = MASTER_API + "/cube/sandbox/info"
+    ids = a.sandbox_id
+
+    def fetch(sid):
+        try:
+            with urllib.request.urlopen(
+                base + "?requestID=sbxip&sandbox_id=" + sid, timeout=10
+            ) as resp:
+                data = json.load(resp)
+            for it in data.get("data", []):
+                if it.get("sandbox_id") == sid:
+                    return it.get("sandbox_ip", "") or ""
+        except Exception:
+            pass
+        return ""
+
+    with ThreadPoolExecutor(max_workers=16) as ex:
+        for ip in ex.map(fetch, ids):
+            print(ip)
+
+
 def sandbox_rollback(a):
     show(http("POST", "/sandboxes/%s/rollback" % a.sandbox_id,
               {"snapshotID": a.snapshot_id}))
@@ -271,6 +315,10 @@ def main():
     p = sub.add_parser("sandbox-delete", help="删除沙箱（可多个）")
     p.add_argument("sandbox_id", nargs="+")
     p.set_defaults(func=sandbox_delete)
+
+    p = sub.add_parser("sandbox-ips", help="并发查询各沙箱 IP（每行一个，失败输出空行）")
+    p.add_argument("sandbox_id", nargs="+")
+    p.set_defaults(func=sandbox_ips)
 
     p = sub.add_parser("sandbox-rollback", help="把沙箱回滚到指定快照")
     p.add_argument("sandbox_id")
