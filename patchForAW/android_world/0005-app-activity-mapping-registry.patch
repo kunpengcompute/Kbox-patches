@@ -1,0 +1,58 @@
+diff --git a/android_world/env/adb_utils.py b/android_world/env/adb_utils.py
+index 2720bbc..9b216cb 100644
+--- a/android_world/env/adb_utils.py
++++ b/android_world/env/adb_utils.py
+@@ -167,6 +167,23 @@ _PATTERN_TO_ACTIVITY = immutabledict.immutabledict({
+         'code.name.monkey.retromusic/.activities.MainActivity'
+     ),
+ })
++
++_ACTIVITY_OVERRIDES: dict[str, str] = {}
++
++
++def register_activity_mapping(overrides: dict[str, str]) -> None:
++  """Merges activity overrides into the default app-name-to-activity mapping.
++
++  Overrides take precedence over the defaults. Intended for device bases
++  (e.g. AOSP images) whose apps live under different packages/activities than
++  the stock Google apps assumed by the defaults.
++  """
++  global _PATTERN_TO_ACTIVITY  # pylint: disable=global-statement
++  _ACTIVITY_OVERRIDES.update(overrides)
++  _PATTERN_TO_ACTIVITY = immutabledict.immutabledict(
++      {**_PATTERN_TO_ACTIVITY, **_ACTIVITY_OVERRIDES}
++  )
++
+ # pylint: enable=line-too-long
+ 
+ _ORIENTATIONS = {
+diff --git a/android_world/task_evals/single/system.py b/android_world/task_evals/single/system.py
+index dd26567..09e5750 100644
+--- a/android_world/task_evals/single/system.py
++++ b/android_world/task_evals/single/system.py
+@@ -455,6 +455,22 @@ _APP_NAME_TO_PACKAGE_NAME = immutabledict.immutabledict({
+     'dialer': 'com.google.android.dialer',
+ })
+ 
++_PACKAGE_OVERRIDES: dict[str, str] = {}
++
++
++def register_package_mapping(overrides: dict[str, str]) -> None:
++  """Merges package-name overrides into the default app-name-to-package map.
++
++  Kept in sync with register_activity_mapping in android_world.env.adb_utils;
++  used by OpenAppTaskEval to verify the foreground package on AOSP bases.
++  """
++  global _APP_NAME_TO_PACKAGE_NAME  # pylint: disable=global-statement
++  _PACKAGE_OVERRIDES.update(overrides)
++  _APP_NAME_TO_PACKAGE_NAME = immutabledict.immutabledict(
++      {**_APP_NAME_TO_PACKAGE_NAME, **_PACKAGE_OVERRIDES}
++  )
++
++
+ 
+ class OpenAppTaskEval(task_eval.TaskEval):
+   """Task eval for opening an app."""
+-- 
+2.43.0
+

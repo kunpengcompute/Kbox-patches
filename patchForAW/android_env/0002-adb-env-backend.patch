@@ -1,0 +1,228 @@
+diff --git a/android_env/envs/__init__.py b/android_env/envs/__init__.py
+new file mode 100644
+index 0000000..78ca2df
+--- /dev/null
++++ b/android_env/envs/__init__.py
+@@ -0,0 +1 @@
++"""Environment backends for AndroidEnv."""
+diff --git a/android_env/envs/adb_env.py b/android_env/envs/adb_env.py
+new file mode 100644
+index 0000000..64f3a33
+--- /dev/null
++++ b/android_env/envs/adb_env.py
+@@ -0,0 +1,212 @@
++"""AdbEnv: an AndroidEnvInterface backed by a plain adb connection.
++
++The official AndroidEnv stack drives an emulator (emulator console 5554 and
++emulator gRPC 8554). Sandboxed Android instances (e.g. redroid containers in
++CubeSandbox) expose only adbd over TCP 5555; this backend reuses the official
++AdbController and AdbCallParser (which only need the adb binary) to implement
++a minimal AndroidEnvInterface:
++
++  - execute_adb_call: AdbRequest proto -> adb command (full AdbCallParser)
++  - step/reset: screenshot (exec-out screencap) + basic input events
++  - observation_spec/action_spec: dm_env specs
++
++The accessibility tree is not produced here: UIAUTOMATOR mode fetches it at
++the controller layer via `uiautomator dump`.
++"""
++
++from __future__ import annotations
++
++import subprocess
++import time
++
++import cv2
++import dm_env
++import numpy as np
++
++from android_env import env_interface
++from android_env.components import action_type
++from android_env.components import adb_call_parser
++from android_env.components import adb_controller
++from android_env.components import config_classes
++from android_env.components import errors as adb_errors
++from android_env.proto import adb_pb2
++
++
++class AdbEnv(env_interface.AndroidEnvInterface):
++  """AndroidEnvInterface backed by a plain adb connection (serial: <ip>:<port>)."""
++
++  def __init__(
++      self,
++      serial: str,
++      adb_path: str = 'adb',
++      default_timeout: float = 60.0,
++  ):
++    self._serial = serial
++    self._adb_path = adb_path
++    self._default_timeout = default_timeout
++
++    cfg = config_classes.AdbControllerConfig(
++        adb_path=adb_path,
++        device_name=serial,
++        default_timeout=default_timeout,
++    )
++    self._adb_controller = adb_controller.AdbController(cfg)
++    self._adb_call_parser = adb_call_parser.AdbCallParser(self._adb_controller)
++
++    self._latest_observation = None
++    self._latest_action = None
++    self._pending_touch = None
++
++    self._screen_size = self._query_screen_size()
++
++  # ---------- internal helpers ----------
++
++  def _raw_adb(self, args: list[str], timeout: float | None = None) -> bytes:
++    """Runs `adb -s <serial> <args>` and returns stdout. Raises on failure.
++
++    Sandbox network daemons periodically re-apply eth0 config, which can
++    transiently drop established adb TCP connections; on disconnection errors
++    the device is reconnected and the command retried once.
++    """
++    cmd = [self._adb_path, '-s', self._serial] + args
++    for attempt in range(2):
++      proc = subprocess.run(
++          cmd,
++          stdin=subprocess.DEVNULL,
++          capture_output=True,
++          timeout=timeout or self._default_timeout,
++      )
++      if proc.returncode == 0:
++        return proc.stdout
++      stderr = proc.stderr.decode(errors='replace')
++      if attempt == 0 and adb_controller._is_disconnection(stderr):
++        self._reconnect()
++        continue
++      raise RuntimeError(
++          f'adb {" ".join(args)} failed ({proc.returncode}): {stderr}'
++      )
++    raise RuntimeError(f'adb {" ".join(args)} failed after reconnect')
++
++  def _reconnect(self) -> None:
++    """Reconnects the TCP device (idempotent)."""
++    subprocess.run(
++        [self._adb_path, 'connect', self._serial],
++        stdin=subprocess.DEVNULL,
++        capture_output=True,
++        timeout=30,
++    )
++    time.sleep(1.0)
++
++  def _query_screen_size(self) -> tuple[int, int]:
++    out = self._raw_adb(['shell', 'wm', 'size']).decode(errors='replace')
++    for line in out.splitlines():
++      if 'Physical size' in line:
++        dims = line.split(':')[-1].strip()
++        width, height = dims.lower().split('x')
++        return int(width), int(height)
++    raise RuntimeError(f'Cannot determine screen size from: {out!r}')
++
++  def _screenshot(self) -> np.ndarray:
++    raw = self._raw_adb(['exec-out', 'screencap', '-p'], timeout=90.0)
++    image = cv2.imdecode(np.frombuffer(raw, np.uint8), cv2.IMREAD_COLOR)
++    if image is None:
++      raise RuntimeError('Failed to decode screencap output')
++    return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
++
++  def _timestep(self, step_type: dm_env.StepType) -> dm_env.TimeStep:
++    self._latest_observation = {'pixels': self._screenshot()}
++    return dm_env.TimeStep(
++        step_type=step_type,
++        reward=0.0,
++        discount=1.0,
++        observation=self._latest_observation,
++    )
++
++  def _send_action(self, action: dict) -> None:
++    action_type_value = int(np.asarray(action['action_type']).item())
++    if action_type_value == action_type.ActionType.LIFT:
++      # A tap = TOUCH (down) followed by LIFT (up): send `input tap` on lift.
++      if self._pending_touch is not None:
++        x, y = self._pending_touch
++        self._raw_adb(['shell', 'input', 'tap', str(x), str(y)])
++        self._pending_touch = None
++      return
++    if action_type_value == action_type.ActionType.TOUCH:
++      position = np.asarray(action.get('touch_position', (0.5, 0.5)), dtype=float)
++      self._pending_touch = (
++          int(position[0] * self._screen_size[0]),
++          int(position[1] * self._screen_size[1]),
++      )
++      return
++    if action_type_value in (
++        action_type.ActionType.KEYDOWN,
++        action_type.ActionType.KEYPRESS,
++    ):
++      keycode = int(action['keycode'])
++      self._raw_adb(['shell', 'input', 'keyevent', str(keycode)])
++      return
++    if action_type_value == action_type.ActionType.KEYUP:
++      return
++    if action_type_value == action_type.ActionType.REPEAT:
++      return
++    raise ValueError(f'Unsupported action type: {action_type_value}')
++
++  # ---------- dm_env.Environment ----------
++
++  def observation_spec(self) -> dict[str, dm_env.specs.Array]:
++    width, height = self._screen_size
++    return {
++        'pixels': dm_env.specs.Array(shape=(height, width, 3), dtype=np.uint8)
++    }
++
++  def action_spec(self) -> dict[str, dm_env.specs.Array]:
++    return {
++        'action_type': dm_env.specs.Array(shape=(), dtype=np.int32),
++        'touch_position': dm_env.specs.Array(shape=(2,), dtype=np.float32),
++        'keycode': dm_env.specs.Array(shape=(), dtype=np.int32),
++        'text': dm_env.specs.StringArray(shape=()),
++    }
++
++  def reset(self) -> dm_env.TimeStep:
++    self._raw_adb(['shell', 'input', 'keyevent', 'KEYCODE_HOME'])
++    time.sleep(1.0)
++    self._latest_action = None
++    self._pending_touch = None
++    return self._timestep(dm_env.StepType.FIRST)
++
++  def step(self, action: dict[str, np.ndarray]) -> dm_env.TimeStep:
++    self._latest_action = action
++    self._send_action(action)
++    time.sleep(0.5)
++    return self._timestep(dm_env.StepType.MID)
++
++  def close(self) -> None:
++    pass
++
++  # ---------- AndroidEnv extensions ----------
++
++  def execute_adb_call(self, call: adb_pb2.AdbRequest) -> adb_pb2.AdbResponse:
++    try:
++      return self._adb_call_parser.parse(call)
++    except adb_errors.AdbControllerError as exc:
++      if adb_controller._is_disconnection(str(exc)):
++        # Transient drop (sandbox network re-config): reconnect and retry once.
++        self._reconnect()
++        return self._adb_call_parser.parse(call)
++      raise
++
++  @property
++  def raw_action(self):
++    return self._latest_action
++
++  @property
++  def raw_observation(self):
++    return self._latest_observation
++
++  @property
++  def serial(self) -> str:
++    return self._serial
++
++  @property
++  def screen_size(self) -> tuple[int, int]:
++    return self._screen_size
+-- 
+2.43.0
+

@@ -1,0 +1,59 @@
+diff --git a/android_world/task_evals/common_validators/sms_validators.py b/android_world/task_evals/common_validators/sms_validators.py
+index ca6772e..ee3314b 100644
+--- a/android_world/task_evals/common_validators/sms_validators.py
++++ b/android_world/task_evals/common_validators/sms_validators.py
+@@ -173,11 +173,48 @@ def sms_are_equal(message1: str, message2: str) -> bool:
+   )
+ 
+ 
++_SMS_DB_PATHS = (
++    "/data/user_de/0/com.android.providers.telephony/databases/mmssms.db",
++    "/data/data/com.android.providers.telephony/databases/mmssms.db",
++)
++
++
+ def clear_sms_and_threads(env: env_interface.AndroidEnvInterface) -> None:
+   """Removes all messages from UI by clearing the sms and threads tables."""
+-  db_path = "/data/data/com.android.providers.telephony/databases/mmssms.db"
+-  adb_utils.execute_sql_command(db_path, "DELETE FROM sms;", env)
+-  adb_utils.execute_sql_command(db_path, "DELETE FROM threads;", env)
++  cleared = False
++  for db_path in _SMS_DB_PATHS:
++    try:
++      # The three statements must run in one sqlite3 session: .dbconfig
++      # trusted_schema on is only honored by the DELETEs issued afterwards
++      # (deleting from sms fires FTS triggers on the words virtual table).
++      adb_utils.issue_generic_request(
++          [
++              "shell",
++              f'sqlite3 {db_path} ".dbconfig trusted_schema on"'
++              ' "DELETE FROM sms;" "DELETE FROM threads;"',
++          ],
++          env,
++      )
++      remaining = (
++          adb_utils.issue_generic_request(
++              ["shell", f'sqlite3 {db_path} "SELECT count(*) FROM sms;"'], env
++          )
++          .generic.output.decode("utf-8", "replace")
++          .strip()
++      )
++      if remaining in ("0", ""):
++        cleared = True
++        break
++      logging.warning(
++          "SMS clear at %s left %s rows (stale history would fail"
++          " SimpleSmsResend)",
++          db_path,
++          remaining,
++      )
++    except Exception as exc:  # pylint: disable=broad-except
++      logging.warning("Failed to clear SMS tables at %s: %s", db_path, exc)
++  if not cleared:
++    logging.warning("SMS clear failed on all paths")
+ 
+ 
+ class SimpleSMSSendSms(task_eval.TaskEval):
+-- 
+2.43.0
+

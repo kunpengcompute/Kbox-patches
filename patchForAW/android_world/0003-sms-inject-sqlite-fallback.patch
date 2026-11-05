@@ -1,0 +1,137 @@
+diff --git a/android_world/env/adb_utils.py b/android_world/env/adb_utils.py
+index 4689b45..2720bbc 100644
+--- a/android_world/env/adb_utils.py
++++ b/android_world/env/adb_utils.py
+@@ -1382,13 +1382,108 @@ def call_phone_number(
+   return issue_generic_request(adb_args, env, timeout_sec)
+ 
+ 
++
++
++_SMS_DB_PATH = (
++    "/data/user_de/0/com.android.providers.telephony/databases/mmssms.db"
++)
++_SMS_APP_PACKAGE = "com.simplemobiletools.smsmessenger"
++
++
++def _sqlite_execute(
++    env: env_interface.AndroidEnvInterface, statement: str
++) -> str:
++  """Runs one sqlite3 statement on the SMS DB and returns trimmed stdout."""
++  response = issue_generic_request(
++      ["shell", f'sqlite3 {_SMS_DB_PATH} "{statement}"'], env
++  )
++  return response.generic.output.decode("utf-8", "replace").strip()
++
++
++def _inject_sms_sqlite(
++    env: env_interface.AndroidEnvInterface,
++    phone_number: str,
++    message: str,
++) -> None:
++  """Writes an incoming SMS directly into the telephony provider database.
++
++  `adb emu sms send` requires the emulator console, which is unavailable on
++  plain adb devices (e.g. redroid containers). Writing the provider SQLite
++  directly mirrors the official clear_sms_and_threads mechanism, and rows
++  become visible through `content query --uri content://sms/inbox`.
++  """
++  number = re.sub(r"[^0-9+]", "", phone_number)
++  body = message.replace("'", "''")
++  now_ms = int(time.time() * 1000)
++
++  row = _sqlite_execute(
++      env, f"SELECT _id FROM canonical_addresses WHERE address='{number}';"
++  )
++  if row:
++    canonical_id = int(row.splitlines()[0])
++  else:
++    canonical_id = int(
++        _sqlite_execute(
++            env, "SELECT COALESCE(MAX(_id),0)+1 FROM canonical_addresses;"
++        ).splitlines()[0]
++    )
++    _sqlite_execute(
++        env,
++        "INSERT INTO canonical_addresses (_id, address, sub_id) VALUES"
++        f" ({canonical_id}, '{number}', 1);",
++    )
++
++  row = _sqlite_execute(
++      env, f"SELECT _id FROM threads WHERE recipient_ids='{canonical_id}';"
++  )
++  if row:
++    thread_id = int(row.splitlines()[0])
++  else:
++    thread_id = int(
++        _sqlite_execute(env, "SELECT COALESCE(MAX(_id),0)+1 FROM threads;")
++        .splitlines()[0]
++    )
++  _sqlite_execute(
++      env,
++      "INSERT INTO sms (thread_id, address, person, date, date_sent, read,"
++      " status, type, reply_path_present, body, locked, sub_id, seen) VALUES"
++      f" ({thread_id}, '{number}', NULL, {now_ms}, 0, 0, -1, 1, 0, '{body}',"
++      " 0, 1, 1);",
++  )
++  _sqlite_execute(
++      env,
++      "INSERT OR REPLACE INTO threads (_id, date, message_count,"
++      " recipient_ids, snippet, snippet_cs, read, archived, type, error,"
++      " has_attachment, sub_id) VALUES"
++      f" ({thread_id}, {now_ms}, 1, '{canonical_id}', '{body}', 0, 0, 0, 0,"
++      " 0, 0, 1);",
++  )
++  # Direct SQLite writes do not trigger provider change notifications; the
++  # messaging app's local conversation cache would stay stale. Stop the app
++  # and drop its cache so the next launch re-syncs.
++  issue_generic_request(
++      ["shell", f"am force-stop {_SMS_APP_PACKAGE}"], env
++  )
++  issue_generic_request(
++      [
++          "shell",
++          f"rm -f /data/data/{_SMS_APP_PACKAGE}/databases/conversations.db*",
++      ],
++      env,
++  )
++
++
+ def text_emulator(
+     env: env_interface.AndroidEnvInterface,
+     phone_number: str,
+     message: str,
+     timeout_sec: float = _DEFAULT_TIMEOUT_SECS,
+ ) -> adb_pb2.AdbResponse:
+-  """Simulate an incoming text message in an emulator using ADB.
++  """Simulate an incoming text message using ADB.
++
++  Prefers the emulator console command (`adb emu sms send`); falls back to a
++  direct SQLite write into the telephony provider when the console is not
++  available (e.g. redroid containers).
+ 
+   Args:
+     env: The Android environment interface.
+@@ -1407,8 +1502,17 @@ def text_emulator(
+       f'{escaped_phone_number}',
+       f'{message}',
+   ]
+-  response = issue_generic_request(adb_args, env, timeout_sec)
+-  return response
++  try:
++    response = issue_generic_request(adb_args, env, timeout_sec)
++    if response.status == adb_pb2.AdbResponse.Status.OK:
++      return response
++  except Exception:  # pylint: disable=broad-except
++    pass
++  logging.warning(
++      "adb emu sms send unavailable, falling back to direct SQLite write"
++  )
++  _inject_sms_sqlite(env, phone_number, message)
++  return adb_pb2.AdbResponse(status=adb_pb2.AdbResponse.Status.OK)
+ 
+ 
+ def set_default_app(
+-- 
+2.43.0
+
