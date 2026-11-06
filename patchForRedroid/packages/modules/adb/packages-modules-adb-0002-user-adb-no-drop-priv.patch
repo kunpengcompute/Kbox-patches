@@ -1,0 +1,17 @@
+diff --git a/daemon/main.cpp b/daemon/main.cpp
+--- a/daemon/main.cpp
++++ b/daemon/main.cpp
+@@ -77,6 +77,13 @@
+     // Drop privileges if ro.secure is set...
+     bool drop = ro_secure;
+ 
++    // Cube/redroid 云手机: user 变体下 ro.debuggable=0 且无 UI 执行 "adb root", 仅按
++    // ro.secure 判断会让 adbd 降权到 shell uid, 导致 adb shell 非 root、date -s 等
++    // 需要 root 的操作被拒。显式配置 ro.adb.secure=0(免认证, 见 0001 补丁)时保持 root。
++    if (!android::base::GetBoolProperty("ro.adb.secure", true)) {
++        drop = false;
++    }
++
+     // ... except "adb root" lets you keep privileges in a debuggable build.
+     std::string prop = android::base::GetProperty("service.adb.root", "");
+     bool adb_root = (prop == "1");

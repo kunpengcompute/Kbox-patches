@@ -1,0 +1,14 @@
+diff --git a/redroid.prop b/redroid.prop
+index f20de9a..23a9ffb 100644
+--- a/redroid.prop
++++ b/redroid.prop
+@@ -8,3 +8,9 @@ persist.sys.fuse=1
+ ro.radio.noril=yes
+ 
+ debug.sf.nobootanimation=1
++
++# Cube/redroid 云手机: 关闭 "deprecated target sdk" 兼容性警告弹窗。
++# app(targetSdk<23, 如 clipper targetSdk=0) 启动时该弹窗会抢走前台焦点,
++# 使 app 被 Android 14 判定为"非前台", 进而拒绝其读剪贴板(clipper.get 返回空)。
++# 云手机/自动化场景无需面向真人的兼容性警告。
++debug.wm.disable_deprecated_target_sdk_dialog=1

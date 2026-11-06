@@ -1,0 +1,14 @@
+diff --git a/framework/java/android/bluetooth/BluetoothAdapter.java b/framework/java/android/bluetooth/BluetoothAdapter.java
+index e0cdc2c..e7aff65 100644
+--- a/framework/java/android/bluetooth/BluetoothAdapter.java
++++ b/framework/java/android/bluetooth/BluetoothAdapter.java
+@@ -1543,6 +1552,9 @@ public final class BluetoothAdapter {
+     }
+ 
+     boolean getLeAccess() {
++        if (mService == null) {
++            return false;
++        }
+         if (getLeState() == STATE_ON) {
+             return true;
+         } else if (getLeState() == STATE_BLE_ON) {
