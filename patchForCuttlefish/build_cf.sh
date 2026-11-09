@@ -95,7 +95,10 @@ ENVD_BINARY="$SCRIPT_DIR/envd-android-arm64"
 CF_DIR="$AOSP_ROOT/device/google/cuttlefish"
 ENVD_DEST="$CF_DIR/envd/envd-android-arm64"
 UBOOT_SRC="$AOSP_ROOT/u-boot"
-UBOOT_OUT="$AOSP_ROOT/out/bootloader-stratovirt"
+UBOOT_OUT="${OUT_DIR:-$AOSP_ROOT/out}/bootloader-stratovirt"
+if [[ "$UBOOT_OUT" != /* ]]; then
+    UBOOT_OUT="$AOSP_ROOT/$UBOOT_OUT"
+fi
 UBOOT_REPO_URL="${UBOOT_REPO_URL:-https://android.googlesource.com/platform/external/u-boot}"
 UBOOT_CLANG_BIN="${UBOOT_CLANG_BIN:-$AOSP_ROOT/prebuilts/clang/host/linux-x86/$UBOOT_CLANG_VERSION/bin}"
 JOBS="${JOBS:-$(nproc)}"
@@ -305,5 +308,5 @@ echo "  Build completed."
 if $DAMON_MODE; then
     echo "  DAMON kernel enabled."
 fi
-echo "  Output artifacts: $AOSP_ROOT/out/dist/"
+echo "  Output artifacts: ${DIST_DIR:-${OUT_DIR:-$AOSP_ROOT/out}/dist}"
 echo "============================================"

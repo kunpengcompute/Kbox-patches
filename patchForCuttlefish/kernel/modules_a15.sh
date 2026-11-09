@@ -131,12 +131,13 @@ log "抽查自编模块"
 VM=$(strings "$VD/virtio_blk.ko" | grep -m1 "vermagic=" || true)
 echo "  vd/virtio_blk.ko  $VM"
 strings "$VD/nd_virtio.ko" | grep -m1 "vermagic=" || true
-"$CLANG/llvm-objcopy" --dump-section __versions=/tmp/rv.bin "$VD/virtio_blk.ko"
+VERSIONS_DUMP="$OUT/virtio_blk.versions.bin"
+"$CLANG/llvm-objcopy" --dump-section "__versions=$VERSIONS_DUMP" "$VD/virtio_blk.ko"
 KCRC=$(grep -w module_layout 2>/dev/null "$OUT/vmlinux.symvers" | awk '{print $1}') || KCRC=""
-python3 - "$KCRC" <<'PYEOF'
+python3 - "$KCRC" "$VERSIONS_DUMP" <<'PYEOF'
 import struct, sys
 want = sys.argv[1]
-d = open("/tmp/rv.bin","rb").read()
+d = open(sys.argv[2],"rb").read()
 for i in range(0, len(d)-63, 64):
     crc, name = struct.unpack_from("<Q56s", d, i)
     n = name.split(b"\x00")[0].decode(errors="ignore")
