@@ -39,7 +39,7 @@ sudo install -m 0755 -d /etc/apt/keyrings && sudo curl -fsSL https://download.do
   | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null \
   && sudo apt update && sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 # 安装Go
-GO_VERSION=1.26.2 && curl -fsSL -o /tmp/go$GO_VERSION.linux-amd64.tar.gz https://go.dev/dl/go$GO_VERSION.linux-amd64.tar.gz \
+GO_VERSION=1.26.10 && curl -fsSL -o /tmp/go$GO_VERSION.linux-amd64.tar.gz https://go.dev/dl/go$GO_VERSION.linux-amd64.tar.gz \
   && sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf /tmp/go$GO_VERSION.linux-amd64.tar.gz \
   && echo 'export PATH=/usr/local/go/bin:$PATH' >> ~/.bashrc && . ~/.bashrc && go version
 ```
@@ -56,12 +56,11 @@ GO_VERSION=1.26.2 && curl -fsSL -o /tmp/go$GO_VERSION.linux-amd64.tar.gz https:/
 mkdir -p ~/redroid-workspace && cd ~/redroid-workspace
 mkdir aosp-14 && cd aosp-14
 
-# repo 工具与 AOSP manifest 均指向清华镜像
-export REPO_URL='https://mirrors.tuna.tsinghua.edu.cn/git/git-repo'
-repo init -u https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/platform/manifest \
+# repo 工具与 AOSP manifest 使用官方地址
+export REPO_URL='https://gerrit.googlesource.com/git-repo'
+repo init -u https://android.googlesource.com/platform/manifest \
   -b android-14.0.0_r75
-repo sync -c -j"$(nproc)"
-```
+repo sync -c  --no-tags -j"$(nproc)"
 
 ### 拉取runtime（envd）源码
 
@@ -69,7 +68,7 @@ repo sync -c -j"$(nproc)"
 cd ~/redroid-workspace
 git clone https://github.com/e2b-dev/runtime.git
 cd runtime
-git checkout c45276c975c433f3fb16c8b6c4633c3b2b730139
+git checkout 1b46ac89015b27f866515150385e6b938c861b7a
 ```
 
 ## 合入Redroid源码
@@ -83,8 +82,7 @@ cd aosp-14
 
 git clone https://github.com/remote-android/local_manifests.git \
   .repo/local_manifests -b 14.0.0
-cd .repo/local_manifests
-git checkout d801ec2ab62b45b920bada57260701d2b1c60321
+git -C .repo/local_manifests checkout d801ec2ab62b45b920bada57260701d2b1c60321
 
 repo sync -c -j"$(nproc)" \
   device/redroid \
@@ -134,7 +132,7 @@ git checkout a5c70c0dd89c12b5027c902ab4182f31d38f3bb7
 
 >![](./public_sys-resources/icon-note.gif) **说明：**
 >
-> 该脚本遍历`redroid-patches/android-14.0.0_r75/`下各子目录，对每个git仓执行`git am`，输出不应出现`[ERROR]`。
+> 该脚本遍历`redroid-patches/android-14.0.0_r75/`下各子目录，脚本第一个参数aosp-14为源码目录，需写入绝对路径，否则脚本执行会出错，对每个git仓执行`git am`，输出不应出现`[ERROR]`。
 > redroid官方patch仅作用于AOSP核心仓（frameworks/av、system/core等），不涉及redroid专属仓。
 
 完成本步骤后，`aosp-14`达到**redroid默认基线**（不含Kbox-patches增量修改），可直接编译出官方redroid镜像。
@@ -232,7 +230,7 @@ GMS即Google Mobile Services，默认编译流程中构建的AOSP镜像不会包
 | GMS_SCRIPT | \$SCRIPT_DIR/pack_gms.sh | GMS统一维护脚本（下载源清单 / 载荷下载校验 / 注入参数均由其管理） |
 | ENABLE_GMS | 0 | 是否打包包含GMS载荷的镜像：1 = 打包时注入GMS；0 = 不含GMS（默认） |
 
-执行脚本一键构建
+由root权限执行脚本一键构建时，所有编译过程中文件所有者建议均设置为root。
 
 ```bash
 cd ~/redroid-workspace/Kbox-patches/build
@@ -254,7 +252,7 @@ sudo ./build_redroid.sh pack       # 5) 打包 Docker 镜像
 
 ### 产物与注意事项
 
-最终产物：`aosp-14/redroid-14.0.0_r75_arm64_only-docker.tar`
+最终产物：`aosp-14/redroid-14.0.0_r75_arm64_only-cubesandbox.tar`
 
 >![](./public_sys-resources/icon-note.gif) **说明：**
 >
