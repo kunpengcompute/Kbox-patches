@@ -1,0 +1,12 @@
+Subject: [PATCH] Enable Android system printing
+
+diff --git a/shared/permissions/cuttlefish_excluded_hardware.xml b/shared/permissions/cuttlefish_excluded_hardware.xml
+index 3fba9f6..9b7a659 100644
+--- a/shared/permissions/cuttlefish_excluded_hardware.xml
++++ b/shared/permissions/cuttlefish_excluded_hardware.xml
+@@ -14,5 +14,4 @@
+      limitations under the License.
+ -->
+ <permissions>
+-    <unavailable-feature name="android.software.print" />
+ </permissions>
