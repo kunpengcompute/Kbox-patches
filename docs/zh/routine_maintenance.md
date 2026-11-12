@@ -1,5 +1,7 @@
 # 例行维护<a name="ZH-CN_TOPIC_0000002552775785"></a>
 
+本文档介绍Kbox云手机容器的例行维护方法，包括巡检、看管/记录、日志管理、高危操作和日常运维等维护能力，适用于负责Kbox云手机容器运行环境维护的运维人员。
+
 ## 运维概述<a name="ZH-CN_TOPIC_0000002549705313"></a>
 
 Kbox云手机容器是基于Docker容器技术，使能Android系统的虚拟化方案，通过云服务器提供云服务的虚拟手机。Kbox云手机容器可凭借自带的Android系统及厂商架设的网络终端，通过网络应用在云托管、云应用和云终端等业务场景。
@@ -8,7 +10,7 @@ Kbox云手机为满足高密度低成本的业务诉求，采用容器直通架�
 
 **图 1** Kbox云手机容器架构图<a name="fig4553133553919"></a><a id="Kbox云手机容器架构图"></a>
 
-![](./figures/Kbox云手机容器架构图.png "Kbox云手机容器架构图")
+![Kbox云手机容器容器直通架构示意：完整Android系统以Docker容器形式运行于Linux主机](./figures/Kbox云手机容器架构图.png)
 
 本文档主要用于描述Kbox云手机容器例行维护相关内容。
 
@@ -50,7 +52,7 @@ getprop | grep boot
 
 若回显信息中，sys.boot_completed显示为“1”，则表示启动成功，否则，说明容器启动失败，通过提交ISSUE反馈。回显示例如下。
 
-```bash
+```output
 [service.bootanim.exit]: [1]
 [sys.boot.reason]: [reboot,factory_reset]
 [sys.boot.reason.last]: [reboot]
@@ -70,7 +72,7 @@ ps -elf
 
 若超过10个进程的父进程变为进程sh（进程号为1），如下图所示，则说明容器内发生了crash，容器当前处于异常情况，请重启容器或通过提交ISSUE反馈。
 
-![](./figures/zh-cn_image_0000002549825431.png)
+![容器内执行ps -elf的回显，多行进程的父进程均为1号进程sh，表明容器内发生crash](./figures/zh-cn_image_0000002549825431.png)
 
 重启容器命令如下：
 
@@ -88,7 +90,7 @@ docker stats
 
 上述命令可动态显示Kbox云手机容器使用的资源消耗情况，包括CPU使用率、内存使用率、网络I/O数据以及磁盘I/O数据等，如下图所示。
 
-![](./figures/zh-cn_image_0000002549705419.png)
+![docker stats命令回显，按容器列出CPU使用率、内存使用率、网络I/O与磁盘I/O数据](./figures/zh-cn_image_0000002549705419.png)
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >
@@ -108,7 +110,7 @@ docker stats
 top
 ```
 
-![](./figures/zh-cn_image_0000002518185658.png)
+![容器内top命令回显，按进程显示CPU占用率与内存消耗，可定位占用过高的进程](./figures/zh-cn_image_0000002518185658.png)
 
 通过该命令，可以看管/记录Kbox云手机容器中是否有CPU占用率过高的进程，若有，则需要进一步排查该进程是否异常。
 
@@ -120,7 +122,7 @@ htop
 
 如下图所示，除CPU负载、内存消耗以及交换空间的实时信息外，还显示了任务、线程、平均负载及系统运行时间信息，最下方列出了系统中的进程信息。
 
-![](./figures/zh-cn_image_0000002518345562.png)
+![容器内htop命令界面，显示CPU负载、内存与交换空间使用、任务线程及平均负载信息](./figures/zh-cn_image_0000002518345562.png)
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >
@@ -156,7 +158,7 @@ df -h
 
 如下图所示Kbox云手机容器数据存储在“/root/mount/data/”下，红色矩形中为容器kbox_1的数据存储信息，其存储大小为“16GB”，当前使用率为“1%”。若“Use%”的值不大于85%，则磁盘空间使用率正常，否则需要清理磁盘空间。
 
-![](./figures/zh-cn_image_0000002518185698.png)
+![df -h命令回显，红色矩形标出容器kbox_1的存储位于/root/mount/data及其使用率](./figures/zh-cn_image_0000002518185698.png)
 
 ### GPU使用详情<a name="ZH-CN_TOPIC_0000002549705267"></a>
 
@@ -182,7 +184,7 @@ df -h
 
 4. 如下图所示，VRAM一行表示显存使用率。
 
-    ![](./figures/unnaming.png)
+    ![radeontop工具界面，VRAM一行显示GPU显存使用率，用于查看GPU使用状态](./figures/unnaming.png)
 
 **GPU温度<a name="section115451839147"></a>**
 
@@ -196,7 +198,7 @@ cat /sys/kernel/debug/dri/*/amdgpu_pm_info |grep Temp
 
 如下图所示为查询结果。若温度长期高于80°C，请通过提交ISSUE反馈。
 
-![](./figures/zh-cn_image_0000002549825411.png)
+![查询GPU温度命令的回显，Temp字段给出当前GPU温度数值](./figures/zh-cn_image_0000002549825411.png)
 
 #### 道客DC1000/DC1000C状态查询<a name="ZH-CN_TOPIC_0000002518185532"></a>
 
@@ -233,7 +235,7 @@ docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}
 
 |查询项|命令|
 |--|--|
-|获取容器绑定的CPU|docker inspect --format='{{.Name }} {{ .HostConfig.CpusetCpus }}' kbox_|
+|获取容器绑定的CPU|docker inspect --format='{{.Name }} {{ .HostConfig.CpusetCpus }}' kbox_${index}|
 |获取容器的内存大小（单位为字节）|docker inspect --format='{{.Name }} {{ .HostConfig.Memory }}' kbox_|
 
 #### 容器内logcat日志<a name="ZH-CN_TOPIC_0000002549825243"></a>
@@ -294,7 +296,7 @@ docker exec -it kbox_${index} dumpsys
 
     结果如下图所示。
 
-    ![](./figures/zh-cn_image_0000002549705371.png)
+    ![容器内执行dumpsys meminfo的回显，按进程列出容器内存占用明细](./figures/zh-cn_image_0000002549705371.png)
 
 #### 容器属性信息<a name="ZH-CN_TOPIC_0000002518345450"></a>
 

@@ -1,5 +1,7 @@
 # 验收测试指南<a name="ZH-CN_TOPIC_0000002552775781"></a>
 
+本文档介绍Kbox云手机产品验收测试，明确测试准备、测试约定、基本功能测试用例与测试结果记录方法，适用于参与验收的华为公司测试人员及用户方相关人员。
+
 ## 概述<a name="ZH-CN_TOPIC_0000002518186290"></a>
 
 ### 验收依据<a name="ZH-CN_TOPIC_0000002518346216"></a>
@@ -134,7 +136,7 @@
 | 测试目的 | 验证IMEI Mock功能。 |
 | 测试组网 | 无 |
 | 预置条件 | 1. Kbox云手机基本环境已部署完成。<br>2. 已创建Kbox云手机容器，并使用SCRCPY连接显示云手机界面。 |
-| 测试步骤 | 1. 在云手机拨号界面输入<b>`*#06#`</b> <br>2. 服务器端使用命令`docker exec -it kbox_<x> setprop persist.sys.prop.writeimei imei_num`修改IMEI的值，修改的值需要是一个合法的15位数字。重启kbox云手机，重新查询IMEI的值。<br>3. 在setprop设置完之后。在服务器端使用命令`docker exec -it kbox_<x> getprop persist.sys.prop.writeimei`，查询IMEI的值。<br> 说明：<br> 其中x代表容器编号数字部分。 |
+| 测试步骤 | 1. 在云手机拨号界面输入<b>`*#06#`</b> <br>2. 服务器端使用命令`docker exec -it kbox_<x> setprop persist.sys.prop.writeimei imei_num`修改IMEI的值，修改的值需要是一个合法的15位数字。重启Kbox云手机，重新查询IMEI的值。<br>3. 在setprop设置完之后。在服务器端使用命令`docker exec -it kbox_<x> getprop persist.sys.prop.writeimei`，查询IMEI的值。<br> 说明：<br> 其中x代表容器编号数字部分。 |
 | 预期结果 | 1. 显示当前Kbox云手机容器预置的IMEI码。<br>2. 服务端修改IMEI值后，再次查询显示为修改之后的IMEI值。 |
 | 测试结果 | - |
 | 备注 | - |
@@ -212,7 +214,7 @@
 | 测试目的 | 验证传感器Mock的x/y/z三轴属性值以及数据采集频率属性值能够修改。 |
 | 测试组网 | 无 |
 | 预置条件 | 1. Kbox云手机基本环境已部署完成。<br>2. 已创建Kbox云手机容器，并使用adb连接。 |
-| 测试步骤 | 1. 在PC端CMD窗口或服务器端输入命令`adb -s [ip:port] shell setprop persist.sensors.mock.[acce/gyro].data.[x/y/z] <xx>`（xx为±3.402823466e+38内任意值）修改传感器（acce代表加速度传感器，gyro代表陀螺仪传感器）的x/y/z三轴参数。<br>2. 打开sensors_test.apk查询传感器各属性的数值。<br>3. 在PC端CMD窗口或服务器端输入命令`adb -s [ip:port] shell setprop persist.sensors.mock.delaytime xx`（*xx*为[20000,1000000]任意值）设置传感器Mock中的数据采集频率属性值。<br>4. 再次执行步骤1与步骤2。<br>5. 观察修改数据采集频率之后所修改的传感器的属性值的变化时长。 |
+| 测试步骤 | 1. 在PC端CMD窗口或服务器端输入命令`adb -s [ip:port] shell setprop persist.sensors.mock.[acce/gyro].data.[x/y/z] <xx>`（xx为±3.402823466e+38内任意值）修改传感器（acce代表加速度传感器，gyro代表陀螺仪传感器）的x/y/z三轴参数。<br>2. 打开sensors_test.apk查询传感器各属性的数值。<br>3. 在PC端CMD窗口或服务器端输入命令`adb -s [ip:port] shell setprop persist.sensors.mock.delaytime xx`（*xx*为[20000,1000000]内的整数，单位为微秒，默认值以当前版本为准）设置传感器Mock中的数据采集频率属性值。<br>4. 再次执行步骤1与步骤2。<br>5. 观察修改数据采集频率之后所修改的传感器的属性值的变化时长。 |
 | 预期结果 | 1. 设置过程无报错。<br>2. 能够成功设置各参数。<br>3. 能够成功查询各参数。<br>4. 修改数据采集频率为不同的数值之后传感器的属性值变化的时长不同。 |
 | 测试结果 | - |
 | 备注 | - |
@@ -230,7 +232,7 @@
 | 测试结果 | - |
 | 备注 | - |
 
-#### Kbox云手机硬解视频播放能力测试<a name="ZH-CN_TOPIC_0000002549826065"></a>
+#### Kbox云手机硬件解码视频播放能力测试<a name="ZH-CN_TOPIC_0000002549826065"></a>
 
 | 项目 | 内容 |
 | --- | --- |
@@ -264,7 +266,7 @@
 | 测试目的 | 验证网络运营商信息、SIM卡信息查询功能。 |
 | 测试组网 | 无 |
 | 预置条件 | 1. Kbox云手机基本环境已部署完成。<br>2. 已创建Kbox云手机容器，并使用SCRCPY连接显示云手机界面。<br>3. Kbox云手机容器已安装zausan.zdevicetest.apk。 |
-| 测试步骤 | 1. 在服务端执行`sudo docker exec -it kbox_<x> sh`进入Kbox云手机容器。<br>2. 输入`dumpsys isub \| grep -i iccid`查询SIM卡序列号，出现结果1。<br>3. 在客户端打开zausan.zdevicetest.apk中SSM/UMTS。<br>4. 查看SIM operator/SIM operator name/SIM country/Network operator/Network operator name/Network country/Line one number，得到SIM卡运营商代码、SIM卡运营商名字、SIM卡运营商国家码、网络运营商代码、网络运营商名字、网络运营商国家码、手机号码，出现结果2。<br>5. 在PC端CMD窗口连接容器后输入命令`adb -s [ip:port] shell setprop persist.[sys.prop.writesimserial/gsm.sim.operator.alphacph/sys.prop.writeimsi/gsm.operator.numericcph/gsm.operator.alphacph/gsm.operator.numericcph/sys.prop.writephonenum] <xx>`分别修改各属性。<br> 说明：<br> 其中xx为各属性的合法值。ip:port为Kbox云手机的部署IP地址以及启动的容器对应的端口。<br>6. 重启kbox云手机，重新查询各数值，出现结果3。 |
+| 测试步骤 | 1. 在服务端执行`sudo docker exec -it kbox_<x> sh`进入Kbox云手机容器。<br>2. 输入`dumpsys isub \| grep -i iccid`查询SIM卡序列号，出现结果1。<br>3. 在客户端打开zausan.zdevicetest.apk中SSM/UMTS。<br>4. 查看SIM operator/SIM operator name/SIM country/Network operator/Network operator name/Network country/Line one number，得到SIM卡运营商代码、SIM卡运营商名字、SIM卡运营商国家码、网络运营商代码、网络运营商名字、网络运营商国家码、手机号码，出现结果2。<br>5. 在PC端CMD窗口连接容器后输入命令`adb -s [ip:port] shell setprop persist.[sys.prop.writesimserial/gsm.sim.operator.alphacph/sys.prop.writeimsi/gsm.operator.numericcph/gsm.operator.alphacph/sys.prop.writephonenum] <xx>`分别修改各属性。<br> 说明：<br> 其中xx为各属性的合法值。ip:port为Kbox云手机的部署IP地址以及启动的容器对应的端口。<br>6. 重启kbox云手机，重新查询各数值，出现结果3。 |
 | 预期结果 | 1. 显示当前Kbox云手机容器预置的SIM卡序列号默认iccId初始值：898600+随机数字+[****]。<br>2. 显示当前Kbox云手机容器预置的SIM卡运营商代码、SIM卡运营商名字、SIM卡运营商国家码、网络运营商代码、网络运营商名字、网络运营商国家码默认初始值分别为：46011/CMCC/cn/46000/CMCC/cn，手机号码默认初始值为空值。<br>3. 显示当前Kbox云手机容器修改后的值。 |
 | 测试结果 | - |
 | 备注 | - |

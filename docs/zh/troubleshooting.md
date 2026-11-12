@@ -20,7 +20,7 @@
 
 **操作步骤<a name="section12646853105012"></a>**
 
-1. <a name="li1655995125318"></a>执行如下命令检查回显信息是否正常，显示“enable”为正常。
+1. <a name="li1655995125318"></a>执行如下命令检查回显信息是否正常，显示“enabled”为正常。
 
     ```bash
     cat /proc/sys/fs/binfmt_misc/ubt_a32a64

@@ -1,14 +1,16 @@
 # Kbox云手机介绍<a name="ZH-CN_TOPIC_0000002550238281"></a>
 
+本文档介绍Kbox云手机容器的基本概念、软件架构和规格说明，提供Kbox云手机容器的编译、部署及相关配置流程，适用于需要部署和使用云手机的用户。
+
 简体中文 | [English](./README_EN.md)
 
 ## 最新消息
 
-\[2026.06.30\]: 新增支持NFS挂载，CPU/F2FS文件系统/System分区/init进程仿真增强。
+\[2026-06-30\]: 新增支持NFS挂载，CPU/F2FS文件系统/System分区/init进程仿真增强。
 
-\[2026.03.30\]：新增对安卓Codec2.0编解码框架的支持。
+\[2026-03-30\]：新增对安卓Codec2.0编解码框架的支持。
 
-\[2025.12.30\]：新增支持Android 15版本。
+\[2025-12-30\]：新增支持Android 15版本。
 
 ## 项目简介<a name="ZH-CN_TOPIC_0000002518598550"></a>
 
@@ -18,7 +20,7 @@ Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的核心能力组件，
 
 云手机是基于ARM服务器虚拟出的带有AOSP （Android Open Source Project，安卓开放源代码项目）系统的虚拟手机服务。简而言之，云手机=ARM服务器+Android OS。您可以远程实时控制云手机，实现Android APP的云端运行；也可以基于云手机的基础算力，高效搭建应用，如云游戏、移动办公、直播互娱等场景。
 
-Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的重要组成部分，是实现Android应用运行的基础软件。它将AOSP系统直接运行在容器内，实现GPS、加速度传感器、陀螺仪、IMEI、Wi-Fi等外设硬件的数据Mock功能，以及Gralloc&HWComposor模块，确保AOSP系统可以正常启动运行。
+Kbox云手机容器是鲲鹏BoostKit云手机Turbo套件的重要组成部分，是实现Android应用运行的基础软件。它将AOSP系统直接运行在容器内，实现GPS、加速度传感器、陀螺仪、IMEI、Wi-Fi等外设硬件的数据Mock功能，以及Gralloc&HWComposer模块，确保AOSP系统可以正常启动运行。
 
 ### 软件架构<a name="ZH-CN_TOPIC_0000002550238279"></a>
 
@@ -84,7 +86,7 @@ Docker：采用开源Docker软件，为Android系统提供软件运行时环境�
 
 Kbox云手机包含Android11和Android15两个分支版本，本节主要介绍两个版本差异和特性变更说明。
 
-版本介绍<a name="section10131916143616"></a>
+### 版本介绍<a name="section10131916143616"></a>
 
 Kbox云手机是基于AOSP开发的，目前适配了AOSP11和AOSP15，由于Android版本的差异，Kbox云手机在两套代码用于支持不同的Android代码，分别是AOSP11和AOSP15两个代码分支。
 
@@ -96,7 +98,7 @@ Kbox云手机是基于AOSP开发的，目前适配了AOSP11和AOSP15，由于And
 |支持的docker版本|18.0|24.0|
 |对应的AOSP版本|11|15|
 
-变更说明<a name="section4408930144513"></a>
+### 变更说明<a name="section4408930144513"></a>
 
 每个发布版本特性变更详细信息，请参见《[版本说明书](./docs/zh/release_notes.md)》。
 
@@ -108,18 +110,18 @@ Kbox云手机支持裸机和虚拟机，详见的环境部署请参见《[安装
 
 ## 学习文档<a name="ZH-CN_TOPIC_0000002518598548"></a>
 
-|学习资源类别|学习资源名称|学习资源简介|
-|--|--|--|
-|文档| 《[版本说明书](./docs/zh/release_notes.md)》|提供Kbox云手机每个发布版本的基础信息和特性更新信息。|
-|文档| 《[特性指南](./docs/zh/feature_guide.md)》|提供Kbox云手机支持的功能与特性介绍。|
-|文档| 《[编译指南](./docs/zh/compile_guide.md)》|提供Kbox云手机编译构建流程与操作指导。|
-|文档| 《[安装指南](./docs/zh/install_guide.md)》|提供Kbox云手机裸机和虚拟机两种环境部署的详细指导。|
-|文档| 《[用户指南](./docs/zh/user_guide.md)》|提供Kbox云手机启动和卸载云手机实例的操作指导。|
-|文档| 《[例行维护](./docs/zh/routine_maintenance.md)》|提供Kbox云手机容器例行维护相关内容。|
-|文档| 《[最佳实践](./docs/zh/best_practices.md)》|提供Kbox云手机在docker、k8s环境下的实践案例。|
-|文档| 《[故障案例](./docs/zh/troubleshooting.md)》|提供Kbox云手机的故障处理方法。|
-|文档| 《[验收测试指南](./docs/zh/test_guide.md)》|提供Kbox云手机产品验收的指导信息。|
-|文档| 《[安全声明](./docs/zh/security_statement.md)》|提供Kbox云手机使用时的安全说明。|
+|学习资源名称|学习资源简介|
+|--|--|
+| [版本说明书](./docs/zh/release_notes.md)|提供Kbox云手机每个发布版本的基础信息和特性更新信息。|
+| [特性指南](./docs/zh/feature_guide.md)|提供Kbox云手机支持的功能与特性介绍。|
+| [编译指南](./docs/zh/compile_guide.md)|提供Kbox云手机编译构建流程与操作指导。|
+| [安装指南](./docs/zh/install_guide.md)|提供Kbox云手机裸机和虚拟机两种环境部署的详细指导。|
+| [用户指南](./docs/zh/user_guide.md)|提供Kbox云手机启动和卸载云手机实例的操作指导。|
+| [例行维护](./docs/zh/routine_maintenance.md)|提供Kbox云手机容器例行维护相关内容。|
+| [最佳实践](./docs/zh/best_practices.md)|提供Kbox云手机在docker、k8s环境下的实践案例。|
+| [故障案例](./docs/zh/troubleshooting.md)|提供Kbox云手机的故障处理方法。|
+| [验收测试指南](./docs/zh/test_guide.md)|提供Kbox云手机产品验收的指导信息。|
+| [安全声明](./docs/zh/security_statement.md)|提供Kbox云手机使用时的安全说明。|
 
 ## 版本维护策略<a name="ZH-CN_TOPIC_0000002518758444"></a>
 
@@ -155,8 +157,14 @@ Kbox版本维护策略如下：
 
 ## 贡献声明<a name="ZH-CN_TOPIC_0000002550238283"></a>
 
-欢迎大家为社区做贡献，如果使用过程中有任何问题/建议，或者需要反馈特性需求和bug报告，可以提交[Issues](https://gitcode.com/boostkit/community/blob/master/docs/contributor/issue-submit.md)联系我们，具体贡献方法可参考[这里](https://gitcode.com/boostkit/community/blob/master/docs/contributor/contributing.md)。同时也欢迎大家在[讨论专区](https://gitcode.com/boostkit/community/discussions)展开讨论交流。感谢您的支持。
+欢迎大家为社区做贡献，如果使用过程中有任何问题/建议，或者需要反馈特性需求和bug报告，可以提交[Issues](https://gitcode.com/boostkit/community/blob/master/docs/contributor/issue-submit.md)联系我们，具体贡献方法可参考[贡献指南](https://gitcode.com/boostkit/community/blob/master/docs/contributor/contributing.md)。同时也欢迎大家在[讨论专区](https://gitcode.com/boostkit/community/discussions)展开讨论交流。感谢您的支持。
 
 ## 致谢<a name="ZH-CN_TOPIC_0000002550278293"></a>
 
 感谢来自社区的每一个PR，欢迎贡献Kbox！
+
+## 修订记录
+
+| 文档版本 | 发布日期 | 修改说明 |
+| :--- | :--- | :--- |
+| 01 | 2026-09-30 | 第一次正式发布。 |
