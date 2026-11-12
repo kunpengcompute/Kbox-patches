@@ -24,15 +24,35 @@ BoostKit Kbox 7.2.RC1及以上版本。
 ### 特性使能
 
 1. 进入视频流服务目录。
-cd /home/kbox_video
+
+    ```bash
+    cd /home/kbox_video
+    ```
+
 2. 从容器android_1取回系统属性文件build.prop。
-docker cp android_1:/system/vendor/build.prop .
+
+    ```bash
+    docker cp android_1:/system/vendor/build.prop .
+    ```
+
 3. 追加自适应Vsync属性，取值1表示使能。
-echo "ro.vmi.adaptive.vsync=1" >> build.prop
+
+    ```bash
+    echo "ro.vmi.adaptive.vsync=1" >> build.prop
+    ```
+
 4. 将修改后的build.prop覆盖回容器系统目录。
-docker cp build.prop android_1:/system/vendor/build.prop
+
+    ```bash
+    docker cp build.prop android_1:/system/vendor/build.prop
+    ```
+
 5. 重启视频流服务使属性生效。
-./cfct_video restart 1
+
+    ```bash
+    ./cfct_video restart 1
+    ```
+    
 6. 观察logcat日志中是否有"`Enabling adaptive vsync.`"，若有则说明成功使能自适应vsync。
 
 > 说明：
