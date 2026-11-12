@@ -1,5 +1,7 @@
 # 最佳实践<a id="ZH-CN_TOPIC_0000002521463656"></a>
 
+本文档介绍云手机最佳实践，通过使能自适应Vsync优化服务端安卓图形子系统vsync机制，降低图像渲染-抓图阶段时延，适用于需要部署视频流云手机并优化云游戏端到端操控时延的用户。
+
 ## 实践1：使能自适应Vsync降低端到端操作时延<a id="ZH-CN_TOPIC_0000002549833663"></a>
 
 ### 介绍
@@ -21,11 +23,16 @@ BoostKit Kbox 7.2.RC1及以上版本。
 
 ### 特性使能
 
-1. `cd /home/kbox_video`
-2. `docker cp android_1:/system/vendor/build.prop .`
-3. `echo "ro.vmi.adaptive.vsync=1" >> build.prop`
-4. `docker cp build.prop android_1:/system/vendor/build.prop`
-5. `./cfct_video restart 1`
+1. 进入视频流服务目录
+cd /home/kbox_video
+2. 从容器android_1取回系统属性文件build.prop，建议先备份为build.prop.bak
+docker cp android_1:/system/vendor/build.prop .
+3. 追加自适应Vsync属性，取值1表示使能
+echo "ro.vmi.adaptive.vsync=1" >> build.prop
+4. 将修改后的build.prop覆盖回容器系统目录，属高风险操作，失败时用备份文件还原
+docker cp build.prop android_1:/system/vendor/build.prop
+5. 重启视频流服务使属性生效
+./cfct_video restart 1
 6. 观察logcat日志中是否有"`Enabling adaptive vsync.`"，若有则说明成功使能自适应vsync。
 
 > 说明：
@@ -35,15 +42,15 @@ BoostKit Kbox 7.2.RC1及以上版本。
 
 ### 效果验证
 
-1. 按《环境准备》、《特性使能》章节部署视频流云手机。
+1. 按“环境准备”“特性使能”章节完成视频流云手机部署与自适应Vsync使能。
 2. 打开手机十字线光标显示（确保在单击时本地屏幕会显示十字线）。运行常见游戏应用，如原神，进入游戏后在某一固定位置保持静止
-3. 云机出流
+3. 云手机出流
 4. 准备一个秒表（或另一个手机运行秒表应用），开始计时
 5. 使用支持120/240fps的拍摄设备，同时录制出流手机画面和秒表，确保出流手机画面、秒表时钟在录制画面中不受遮挡
 6. 快速单击游戏按钮，重复多次，中间停顿5s，完成单击后结束录制。
 7. 在录制的画面中，找到每一次单击，十字线开始显示的时间，到画面中按钮被单击后发生反应的时间间隔，记为单击时延。取多次单击的平均时延。
 8. 使能自适应vsync功能后，重复2~7步骤，并记录自适应vsync生效后的平均单击时延。
-9. 对比自适应vsync功能使能前后测得的平均单击时延，即可观察自适应vsync功能对端到端时延的优化效果。
+9. 对比自适应Vsync功能使能前后测得的平均单击时延，即可观察自适应vsync功能对端到端时延的优化效果。
 
 ## 修订记录
 

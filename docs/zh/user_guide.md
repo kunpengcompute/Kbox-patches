@@ -1,5 +1,7 @@
 # 用户指南<a id="ZH-CN_TOPIC_0000002521463654"></a>
 
+本文档介绍Kbox云手机容器的使用方法，涵盖启动和卸载云手机实例、仿真设备参数配置、故障处理与信息收集，适用于需要部署和维护Kbox云手机容器的系统维护人员。
+
 ## 启动和卸载云手机实例<a id="ZH-CN_TOPIC_0000002549712545"></a>
 
 ### 挂载安卓镜像<a id="ZH-CN_TOPIC_0000002518192786"></a>
@@ -86,7 +88,7 @@ docker import android.tar kbox:demo
 
     在启动实例时输入的参数需和此处制作的名称、tag保持一致。
 
-### 启动与卸载云手机实例<a id="ZH-CN_TOPIC_0000002518192802"></a>
+### 启动和卸载云手机实例<a id="ZH-CN_TOPIC_0000002518192802"></a>
 
 启动云手机实例路径下应存在kbox_config.cfg，hardware_bind.cfg配置文件。容器会使用该文件中的配置，因此使用时应确保kbox_config.cfg，hardware_bind.cfg中的配置正确。若启动路径中无该配置文件，则云手机将无法启动。
 
@@ -109,7 +111,7 @@ docker import android.tar kbox:demo
 >
 >为确保Kbox云手机的稳定运行与最佳性能，请保障每个容器所绑定的CPU物理核和GPU渲染节点同属于一个CPU片。
 
-Kbox云手机容器支持根据客户需求定制系统属性，以覆盖原有系统属性。如需使用定制属性，需要在启动路径中生成“local.prop”文件，文件内记录定制的系统属性，容器启动后的初始化过程会读取该文件内的属性并覆盖写入。修改方法请参见《[Kbox云手机容器 例行维护](routine_maintenance.md)》文档的“支持Android系统属性可定制”章节。
+Kbox云手机容器支持根据客户需求定制系统属性，以覆盖原有系统属性。如需使用定制属性，需要在启动路径中生成“local.prop”文件，文件内记录定制的系统属性，容器启动后的初始化过程会读取该文件内的属性并覆盖写入。修改方法请参见《[例行维护](routine_maintenance.md)》文档的“支持Android系统属性可定制”章节。
 
 Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置文件中的“ENABLE_RENDER_LAYER”修改为“1”进行使能。打开“~/dependency/deploy_scripts”路径下的“kbox_render_accelerating_configuration.xml”配置文件，对应用的图形加速层功能进行配置。具体配置项描述请参见《[视频流引擎 用户指南](https://gitcode.com/boostkit/vmi/blob/CloudPhone/docs/zh/user_guide.md)》中的“图形加速层配置项”章节。首次启动云手机容器时，若需要修改图形加速层功能的配置，则修改配置文件中应用对应的配置，手动将其拷贝到云手机容器“/data/local/tmp”路径，重启应用即可生效。
 
@@ -124,7 +126,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
             回显示例如下，请以实际为准。加粗部分为NETINT编码卡Quadra芯片NVMe节点，一张编码卡包含2颗芯片。
 
-            ```bash
+            ```output
             Node          SN                   Model            Namespace Usage                    Format           FW Rev
             ------------- -------------------- ---------------- --------- ------------------------ ---------------- --------
             /dev/nvme0n1  Q2A325A11DC082-0454A QuadraT2A        1         8.59  TB /   8.59  TB    4 KiB +  0 B     48F6rKr1
@@ -306,7 +308,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
 - 方法一：通过获取的软件包查询版本号信息。
 
-    请参见[**表 1** Kbox安卓容器环境搭建软件环境要求](install_guide.md#Kbox安卓容器环境搭建软件环境要求)中获取并解压BoostKit-boostcph-kbox_\*.zip，并通过查询kbox_version.txt文件，确认当前软件包的版本号。
+    请参见[软件环境](install_guide.md#Kbox安卓容器环境搭建软件环境要求)中获取并解压BoostKit-boostcph-kbox_\*.zip，并通过查询kbox_version.txt文件，确认当前软件包的版本号。
 
     ```bash
     unzip BoostKit-boostcph-kbox_*.zip
@@ -316,7 +318,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
     回显信息即为Kbox版本号信息，示例如下。
 
-    ```bash
+    ```output
     Product Name: Kunpeng BoostKit
     Product Version: 26.0.RC1
     Component Name: BoostKit-boostcph-kbox
@@ -451,7 +453,7 @@ docker inspect kbox_1 | jq -r '.[].Mounts[] | select(.Destination=="/data") | .S
 
 预期结果是`/tmp/nfs/data/kbox_1/data`。
 
-### （可选） 实现云机cpu频率动态调整<a id="ZH-CN_TOPIC_000000254983254923"></a>
+### （可选） 实现云手机cpu频率动态调整<a id="ZH-CN_TOPIC_000000254983254923"></a>
 
 在真机中，系统为了平衡负载和功耗，会动态调节 CPU 的运行频率，而云机依托于服务器宿主机的容器化环境运行，其底层物理 CPU 的频率通常处于恒定状态，与真机存在差异。下面步骤说明如何实现云手机cpu频率动态调节，提高仿真能力。
 
@@ -461,7 +463,7 @@ docker inspect kbox_1 | jq -r '.[].Mounts[] | select(.Destination=="/data") | .S
 
 #### 实施修改<a id="ZH-CN_TOPIC_000000254983255011"></a>
 
-   当前第三方检测应用一般通过读取scaling_cur_freq和cpuinfo_cur_freq这两个文件来获取当前设备的cpu运行频率，为了提高云机设备的仿真能力，在修改前先在容器内输入如下命令读取cpu所支持的频率列表。并且要对这两个文件都进行修改。
+   当前第三方检测应用一般通过读取scaling_cur_freq和cpuinfo_cur_freq这两个文件来获取当前设备的cpu运行频率，为了提高云手机设备的仿真能力，在修改前先在容器内输入如下命令读取cpu所支持的频率列表。并且要对这两个文件都进行修改。
 
    ```bash
    cat /sys/devices/system/cpu/cpu${准备进行频率修改的cpu的编号}/cpufreq/scaling_available_frequencies
@@ -713,7 +715,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     回显示例如下。
 
-    ```bash
+    ```output
     [persist.gps.mock.latitude]: [30.188433]
     [persist.gps.mock.longitude]: [120.193818]
     ```
@@ -912,7 +914,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     回显示例如下。
 
-    ```bash
+    ```output
     add device 1: /dev/input/event4
       name:     "mouse"
     add device 2: /dev/input/event3
@@ -1008,7 +1010,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 故障处理总体流程主要分为四个过程：故障信息收集、故障判断、故障定位、故障排除。
 
 **图 1** 常见故障处理流程<a id="fig1890714518232"></a><a id="常见故障处理流程"></a>
-![常见故障处理流程](./figures/常见故障处理流程.png "常见故障处理流程")
+![故障处理总体流程图：按故障信息收集、故障判断、故障定位、故障排除四个阶段依次推进](./figures/常见故障处理流程.png "常见故障处理流程")
 
 ##### 故障信息收集<a id="section196271610142212"></a>
 
