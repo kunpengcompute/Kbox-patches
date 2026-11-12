@@ -236,7 +236,7 @@ docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}
 |查询项|命令|
 |--|--|
 |获取容器绑定的CPU|docker inspect --format='{{.Name }} {{ .HostConfig.CpusetCpus }}' kbox_${index}|
-|获取容器的内存大小（单位为字节）|docker inspect --format='{{.Name }} {{ .HostConfig.Memory }}' kbox_|
+|获取容器的内存大小（单位为字节）|docker inspect --format='{{.Name }} {{ .HostConfig.Memory }}' kbox_${index}|
 
 #### 容器内logcat日志<a name="ZH-CN_TOPIC_0000002549825243"></a>
 
