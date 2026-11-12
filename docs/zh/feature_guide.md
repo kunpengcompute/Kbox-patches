@@ -480,7 +480,7 @@ NFS采用典型的客户端/服务器（C/S）架构，客户端/服务器均需
 
    ```bash
    /home 192.168.20.0/24(rw,fsid=0,sync,no_root_squash)
-   /home/nfs 192.168.20.0/24(rw,sync,no_root_squash)
+   /home/nfs 192.168.20.0/24/(rw,sync,no_root_squash)
    ```
 
 3. 重启相关服务。
