@@ -101,7 +101,7 @@ Kbox云手机是基于AOSP开发的，目前适配了AOSP11和AOSP15，由于And
 |支持的docker版本|18.0|24.0|
 |对应的AOSP版本|11|15|
 
-变更说明<a name="section4408930144513"></a>
+### 变更说明<a name="section4408930144513"></a>
 
 每个发布版本特性变更详细信息，请参见《[版本说明书](./docs/zh/release_notes.md)》。
 
