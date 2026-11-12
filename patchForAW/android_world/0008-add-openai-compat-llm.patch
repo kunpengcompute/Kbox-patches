@@ -138,7 +138,7 @@ index 0000000..2e17c78
 +    return infer.ERROR_CALLING_LLM, None, None
 diff --git a/redroid/seeact_compat.py b/redroid/seeact_compat.py
 new file mode 100644
-index 0000000..c825b69
+index 0000000..17fb877
 --- /dev/null
 +++ b/redroid/seeact_compat.py
 @@ -0,0 +1,71 @@
@@ -149,7 +149,7 @@ index 0000000..c825b69
 +无法接入本底座的 AW_LLM_* 配置。这里做一次进程内替换：请求仍由官方 SeeAct 发起，
 +只是端点、鉴权与模型名改由 AW_LLM_* 环境变量决定。
 +
-+只替换一个函数，不动官方源码；仅在 --agent=seeact 时由 redroid.run_task 调用 install()，
++只替换一个函数，不动官方源码；仅在 --agent_name=seeact 时由 redroid.run 调用 install()，
 +其余 agent 路径完全不受影响。
 +"""
 +

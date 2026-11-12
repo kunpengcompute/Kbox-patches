@@ -1,0 +1,21 @@
+diff --git a/services/core/java/com/android/server/clipboard/ClipboardService.java b/services/core/java/com/android/server/clipboard/ClipboardService.java
+index 49f60709..fa62d9c8 100644
+--- a/services/core/java/com/android/server/clipboard/ClipboardService.java
++++ b/services/core/java/com/android/server/clipboard/ClipboardService.java
+@@ -672,10 +672,12 @@ public class ClipboardService extends SystemService {
+                 try {
+                     addActiveOwnerLocked(intendingUid, intendingDeviceId, pkg);
+                 } catch (SecurityException e) {
+-                    // Permission could not be granted - URI may be invalid
+-                    Slog.i(TAG, "Could not grant permission to primary clip. Clearing clipboard.");
+-                    setPrimaryClipInternalLocked(null, intendingUid, intendingDeviceId, pkg);
+-                    return null;
++                    // Cube/redroid: in-container callers (adb/root, preinstalled
++                    // components) may pass a package name that does not map back to
++                    // their calling uid. The stock code treats that as a bad URI and
++                    // wipes the whole primary clip, which makes the clipboard
++                    // write-only. Skip the URI grant instead of destroying content.
++                    Slog.w(TAG, "Could not grant permission to primary clip; keeping clipboard.", e);
+                 }
+ 
+                 Clipboard clipboard = getClipboardLocked(intendingUserId, intendingDeviceId);

@@ -250,54 +250,192 @@ index 0000000..6e88f61
 +    "cube.master.instance.type": "cubebox"
 +  }
 +}
-diff --git a/redroid/run_suite.py b/redroid/run_suite.py
+diff --git a/redroid/run.py b/redroid/run.py
 new file mode 100644
-index 0000000..47cf6f9
+index 0000000..eab5188
 --- /dev/null
-+++ b/redroid/run_suite.py
-@@ -0,0 +1,168 @@
-+"""套件 runner：按官方 suite 语义在 cube + redroid 沙箱上批量跑用例。
++++ b/redroid/run.py
+@@ -0,0 +1,365 @@
++"""run.py —— 在 cube + redroid 沙箱上运行 Android World 评测套件。
 +
-+与 redroid/run_task.py 的分工：
-+  run_task.py   一次跑一个（或逗号分隔的若干）用例，逐条落盘截图与 result.json，
-+                适合冒烟、单点复现与人工验收；
-+  run_suite.py  直接复用官方 android_world.suite_utils，支持「整族 / 指定多任务 /
-+                每个用例多组随机参数 / 增量 checkpoint 断点续跑」，结果汇总表由官方
-+                process_episodes 打印，适合批量评测。
++本文件是 redroid 底座下的评测入口，CLI 与回显对齐官方 android_world/run.py
++（同名 flag、同款输出文案），差别只在三处：
 +
-+环境层与 agent 构造都复用 redroid.run_task，保证与单用例路径完全一致；官方源码零修改。
++  1. 环境层：官方走 emulator（console 5554 / gRPC 8554），redroid 容器没有这两条
++     通路，这里换成纯 adb 的 AdbEnv（android_env/envs/adb_env.py），无障碍树固定
++     走 UIAUTOMATOR 模式。因此 --console_port / --perform_emulator_setup 保留以
++     兼容官方命令行，但对本底座无实际作用。
++  2. Agent 的 LLM：官方的 t3a_gpt4 / m3a_gpt4v / *_gemini_gcp 绑定具体厂商端点，
++     这里统一接 AW_LLM_* 的 OpenAI 兼容端点，故 --agent_name 取值收敛为
++     human_agent / random_agent / seeact / t3a / m3a。
++  3. 新增几个 redroid 必需的 flag：--serial（设备 serial，官方靠 `adb devices`
++     推断，容器场景不适用）、--list / --list_all（列出任务名，官方 run.py 无此能力）、
++     --max_steps 与 --demo_mode（扩展开关，缺省行为与官方一致）。
++
++其余全部复用官方实现：任务注册表、随机参数、suite 构建、episode 执行与判分
++（android_world.suite_utils），官方源码零修改。
 +
 +用法：
-+  export AW_ADB_SERIAL=10.100.0.2:5555
-+  .venv/bin/python -m redroid.run_suite --suite_family=android_world --tasks=A,B --agent=random
-+  .venv/bin/python -m redroid.run_suite --suite_family=android_world --n_task_combinations=2 --agent=t3a
-+  .venv/bin/python -m redroid.run_suite --suite_family=miniwob --agent=m3a --demo_mode
++  export AW_ADB_SERIAL=10.100.0.208:5555
++  .venv/bin/python -m redroid.run --list_all
++  .venv/bin/python -m redroid.run --tasks=CameraTakePhoto --agent_name=human_agent
++  .venv/bin/python -m redroid.run --tasks=A,B --agent_name=random_agent
++  .venv/bin/python -m redroid.run --suite_family=miniwob --agent_name=m3a
++  .venv/bin/python -m redroid.run --checkpoint_dir=runs/ckpt_AB --agent_name=random_agent
 +"""
 +
 +from __future__ import annotations
 +
-+import argparse
++import math
++import os
 +import sys
++from collections.abc import Sequence
 +
++from absl import app
++from absl import flags
++from absl import logging
 +from android_world import checkpointer as checkpointer_lib
++from android_world import constants
 +from android_world import registry
 +from android_world import suite_utils
++from android_world.agents import base_agent
++from android_world.agents import human_agent
++from android_world.agents import m3a
++from android_world.agents import random_agent
++from android_world.agents import seeact
++from android_world.agents import t3a
++from android_world.env import interface
 +from redroid import env_factory
-+from redroid.run_task import build_agent
++from redroid import openai_compat_llm
++from redroid import seeact_compat
 +
-+_FAMILIES = (
-+    registry.TaskRegistry.ANDROID_WORLD_FAMILY,
-+    registry.TaskRegistry.ANDROID_FAMILY,
-+    registry.TaskRegistry.MINIWOB_FAMILY,
-+    registry.TaskRegistry.MINIWOB_FAMILY_SUBSET,
-+    registry.TaskRegistry.INFORMATION_RETRIEVAL_FAMILY,
++logging.set_verbosity(logging.WARNING)
++
++# ---------------------------------------------------------------------------
++# Flags：以下 11 个与官方 run.py 逐字对齐（名字 / 类型 / 默认值 / help 文案）。
++# ---------------------------------------------------------------------------
++_ADB_PATH = flags.DEFINE_string(
++    'adb_path',
++    '',
++    'Path to adb. Fallback: $AW_ADB_PATH, then adb on PATH.',
++)
++_PERFORM_EMULATOR_SETUP = flags.DEFINE_boolean(
++    'perform_emulator_setup',
++    False,
++    'Whether to perform emulator setup. This must be done once and only once'
++    ' before running Android World. After an emulator is setup, this flag'
++    ' should always be False. (No-op on redroid: there is no emulator.)',
++)
++_DEVICE_CONSOLE_PORT = flags.DEFINE_integer(
++    'console_port',
++    5554,
++    'The console port of the running Android device. This can usually be'
++    ' retrieved by looking at the output of `adb devices`. In general, the'
++    ' first connected device is port 5554, the second is 5556, and'
++    ' so on. (Unused on redroid: the emulator console is absent.)',
 +)
 +
-+# 与官方 run.py 一致：MiniWoB 页面加载很快，不必等界面稳定。
-+MINIWOB_TRANSITION_PAUSE = 0.2
++_SUITE_FAMILY = flags.DEFINE_enum(
++    'suite_family',
++    registry.TaskRegistry.ANDROID_WORLD_FAMILY,
++    [
++        # Families from the paper.
++        registry.TaskRegistry.ANDROID_WORLD_FAMILY,
++        registry.TaskRegistry.MINIWOB_FAMILY_SUBSET,
++        # Other families for more testing.
++        registry.TaskRegistry.MINIWOB_FAMILY,
++        registry.TaskRegistry.ANDROID_FAMILY,
++        registry.TaskRegistry.INFORMATION_RETRIEVAL_FAMILY,
++    ],
++    'Suite family to run. See registry.py for more information.',
++)
++_TASK_RANDOM_SEED = flags.DEFINE_integer(
++    'task_random_seed', 30, 'Random seed for task randomness.'
++)
 +
-+# MiniWoB 跑在 mock app 里，需额外约束 agent 不要退回桌面（官方同名常量）。
-+MINIWOB_ADDITIONAL_GUIDELINES = [
++_TASKS = flags.DEFINE_list(
++    'tasks',
++    None,
++    'List of specific tasks to run in the given suite family. If None, run all'
++    ' tasks in the suite family.',
++)
++_N_TASK_COMBINATIONS = flags.DEFINE_integer(
++    'n_task_combinations',
++    1,
++    'Number of task instances to run for each task template.',
++)
++
++_CHECKPOINT_DIR = flags.DEFINE_string(
++    'checkpoint_dir',
++    '',
++    'The directory to save checkpoints and resume evaluation from. If the'
++    ' directory contains existing checkpoint files, evaluation will resume from'
++    ' the latest checkpoint. If the directory is empty or does not exist, a new'
++    ' directory will be created.',
++)
++_OUTPUT_PATH = flags.DEFINE_string(
++    'output_path',
++    os.path.expanduser('~/android_world/runs'),
++    'The path to save results to if not resuming from a checkpoint is not'
++    ' provided.',
++)
++
++# Agent specific.
++_AGENT_NAME = flags.DEFINE_string(
++    'agent_name',
++    'm3a',
++    'Agent name. Available: human_agent / random_agent / seeact / t3a / m3a.'
++    ' The LLM-backed agents (t3a / m3a / seeact) read endpoint, key and model'
++    ' from the AW_LLM_* environment variables.',
++)
++
++_FIXED_TASK_SEED = flags.DEFINE_boolean(
++    'fixed_task_seed',
++    False,
++    'Whether to use the same task seed when running multiple task combinations'
++    ' (n_task_combinations > 1).',
++)
++
++# ---------------------------------------------------------------------------
++# Flags：redroid 扩展（官方 run.py 没有对应项）。
++# ---------------------------------------------------------------------------
++_SERIAL = flags.DEFINE_string(
++    'serial',
++    None,
++    'adb serial of the target redroid sandbox. Fallback: $AW_ADB_SERIAL.'
++    ' (redroid extension; official run.py infers the device via `adb devices`.)',
++)
++_LIST = flags.DEFINE_boolean(
++    'list',
++    False,
++    'List all task names of the --suite_family registry and exit.'
++    ' (redroid extension; official run.py has no such flag.)',
++)
++_LIST_ALL = flags.DEFINE_boolean(
++    'list_all',
++    False,
++    'List every task name across all 5 families (208 distinct tasks) and exit.'
++    ' (redroid extension; official run.py has no such flag.)',
++)
++_MAX_STEPS = flags.DEFINE_integer(
++    'max_steps',
++    None,
++    'Override the per-episode step budget (default: official complexity * 10).'
++    ' (redroid extension; official run.py has no such flag.)',
++)
++_DEMO_MODE = flags.DEFINE_boolean(
++    'demo_mode',
++    False,
++    'Show the goal as a notification and a running scoreboard on the device.'
++    ' (redroid extension; official run.py hard-codes this to False.)',
++)
++
++
++# MiniWoB is very lightweight and new screens/View Hierarchy load quickly.
++_MINIWOB_TRANSITION_PAUSE = 0.2
++
++# Additional guidelines for the MiniWob tasks.
++_MINIWOB_ADDITIONAL_GUIDELINES = [
 +    (
 +        'This task is running in a mock app, you must stay in this app and'
 +        ' DO NOT use the `navigate_home` action.'
@@ -305,489 +443,184 @@ index 0000000..47cf6f9
 +]
 +
 +
-+def tune_agent(agent, family: str) -> None:
-+  """对齐官方 run.py 的 agent 调优：miniwob 族用 0.2s 过渡 + 追加 guidelines，
-+  其余族等界面稳定（None = 自动等待）。human/random 也照此设置，与官方一致。
++def _get_agent(
++    env: interface.AsyncEnv,
++    family: str | None = None,
++) -> base_agent.EnvironmentInteractingAgent:
++  """Gets agent.
++
++  与官方 run.py 的差别：官方用 *_gpt4 / *_gemini_gcp 等后缀绑定厂商端点，这里统一
++  接 AW_LLM_* 的 OpenAI 兼容端点，故取值收敛为 human_agent / random_agent /
++  seeact / t3a / m3a。
 +  """
-+  if family.startswith('miniwob'):
-+    agent.transition_pause = MINIWOB_TRANSITION_PAUSE
-+    if hasattr(agent, 'set_task_guidelines'):
-+      agent.set_task_guidelines(MINIWOB_ADDITIONAL_GUIDELINES)
-+  else:
-+    agent.transition_pause = None
++  print('Initializing agent...')
++  agent = None
++  if _AGENT_NAME.value == 'human_agent':
++    agent = human_agent.HumanAgent(env)
++  elif _AGENT_NAME.value == 'random_agent':
++    agent = random_agent.RandomAgent(env)
++  elif _AGENT_NAME.value == 'seeact':
++    # 官方 SeeAct 在 seeact_utils 里写死了 OpenAI 端点；先做一次进程内重定向，
++    # 使其端点/密钥/模型改由 AW_LLM_* 决定。
++    seeact_compat.install()
++    agent = seeact.SeeAct(env)
++  elif _AGENT_NAME.value == 't3a':
++    agent = t3a.T3A(env, openai_compat_llm.OpenAiCompatLlm())
++  elif _AGENT_NAME.value == 'm3a':
++    agent = m3a.M3A(env, openai_compat_llm.OpenAiCompatLlm())
++
++  if not agent:
++    raise ValueError(
++        f'Unknown agent: {_AGENT_NAME.value}'
++        ' (available: human_agent / random_agent / seeact / t3a / m3a)'
++    )
++
++  # 官方此处按 `agent.name in ['M3A', 'T3A', 'SeeAct']` 判断，但各 agent 构造时
++  # name 默认是空串，该条件恒为 False —— 官方注释里的 miniwob 附加 guidelines
++  # 实际从未生效。这里改为按能力探测，行为与官方注释的意图一致。
++  if (
++      family
++      and family.startswith('miniwob')
++      and hasattr(agent, 'set_task_guidelines')
++  ):
++    agent.set_task_guidelines(_MINIWOB_ADDITIONAL_GUIDELINES)
++  agent.name = _AGENT_NAME.value
++
++  return agent
 +
 +
-+def _build_parser() -> argparse.ArgumentParser:
-+  parser = argparse.ArgumentParser(
-+      prog='python -m redroid.run_suite',
-+      description=(
-+          '套件 runner：在 cube + redroid 沙箱上按官方 suite 语义批量跑用例。'
-+      ),
++def _print_tasks() -> None:
++  """--list / --list_all：列出任务名后退出。
++
++  官方 run.py 没有列任务的 flag；这里新增。--list 跟随 --suite_family（缺省
++  android_world，即 android 91 + 信息检索 25 = 116 条）；--list_all 展开成
++  三个基本族（android / information_retrieval / miniwob），派生族只给计数摘要，
++  避免重复刷屏。
++  """
++  task_registry = registry.TaskRegistry()
++
++  if not _LIST_ALL.value:
++    names = sorted(task_registry.get_registry(family=_SUITE_FAMILY.value))
++    print(f'[{_SUITE_FAMILY.value}] {len(names)} tasks')
++    for name in names:
++      print(f'  {name}')
++    return
++
++  families = (
++      (registry.TaskRegistry.ANDROID_FAMILY, 'android'),
++      (registry.TaskRegistry.INFORMATION_RETRIEVAL_FAMILY, 'information_retrieval'),
++      (registry.TaskRegistry.MINIWOB_FAMILY, 'miniwob'),
 +  )
-+  parser.add_argument(
-+      '--suite_family',
-+      default=registry.TaskRegistry.ANDROID_WORLD_FAMILY,
-+      choices=_FAMILIES,
-+      help='任务族，缺省 android_world（整族）；其余为 android / miniwob / miniwob_subset / information_retrieval',
++  distinct: set[str] = set()
++  for family, label in families:
++    names = sorted(task_registry.get_registry(family=family))
++    print(f'[{label}] {len(names)} tasks')
++    for name in names:
++      print(f'  {name}')
++    print()
++    distinct.update(names)
++
++  n_world = len(task_registry.get_registry(family=registry.TaskRegistry.ANDROID_WORLD_FAMILY))
++  n_android = len(task_registry.get_registry(family=registry.TaskRegistry.ANDROID_FAMILY))
++  n_ir = len(
++      task_registry.get_registry(family=registry.TaskRegistry.INFORMATION_RETRIEVAL_FAMILY)
 +  )
-+  parser.add_argument('--tasks', help='可选：只跑这些用例，逗号分隔，如 A,B；缺省跑整族')
-+  parser.add_argument(
-+      '--n_task_combinations',
-+      type=int,
-+      default=1,
-+      help='每个用例生成几组不同随机参数（缺省 1）',
++  n_subset = len(
++      task_registry.get_registry(family=registry.TaskRegistry.MINIWOB_FAMILY_SUBSET)
 +  )
-+  parser.add_argument(
-+      '--task_random_seed', type=int, default=30, help='任务参数随机种子（缺省 30）'
++  print(
++      f'[android_world] {n_world} tasks'
++      f' = android {n_android} + information_retrieval {n_ir} (names listed above)'
 +  )
-+  parser.add_argument(
-+      '--fixed_task_seed',
-+      action='store_true',
-+      help='每个用例的多组参数使用同一组（与官方同名 flag 语义一致）',
-+  )
-+  parser.add_argument(
-+      '--agent',
-+      default='random',
-+      choices=('human', 'random', 'seeact', 't3a', 'm3a'),
-+      help=(
-+          'human=人工投屏操作；random=随机点击（默认，验证链路用）；'
-+          'seeact=官方 SeeAct + AW_LLM_*；t3a=官方纯文本 agent + LLM；'
-+          'm3a=官方多模态 agent + LLM'
-+      ),
-+  )
-+  parser.add_argument('--output_path', default='runs', help='输出根目录（缺省 runs）')
-+  parser.add_argument(
-+      '--checkpoint_dir', help='检查点目录；缺省在 --output_path 下按时间戳新建'
-+  )
-+  parser.add_argument(
-+      '--demo_mode',
-+      action='store_true',
-+      help='演示模式：每个用例开始时把目标以通知方式显示在设备上（与官方同名 flag 一致）',
-+  )
-+  parser.add_argument('--serial', help='adb serial，默认取环境变量 AW_ADB_SERIAL')
-+  parser.add_argument('--adb_path', help='adb 路径，默认取环境变量 AW_ADB_PATH 或 PATH')
-+  return parser
++  print(f'[miniwob_subset] {n_subset} tasks  ⊂ miniwob (names listed above)')
++  print(f'Total: 5 families, {len(distinct)} distinct tasks')
 +
 +
-+def main() -> int:
-+  args = _build_parser().parse_args()
++def _count_passed(episodes: list[dict]) -> tuple[int, int]:
++  """统计通过数 / 计入数；异常中断（is_successful 为 NaN）的用例不计入分母。"""
++  passed = total = 0
++  for episode in episodes:
++    score = episode.get(constants.EpisodeConstants.IS_SUCCESSFUL)
++    if score is None or (isinstance(score, float) and math.isnan(score)):
++      continue
++    total += 1
++    if float(score) > 0.5:
++      passed += 1
++  return passed, total
 +
-+  tasks = None
-+  if args.tasks:
-+    tasks = [t.strip() for t in args.tasks.split(',') if t.strip()]
-+    if not tasks:
-+      print('--tasks 为空，请形如 --tasks=A,B')
-+      return 2
 +
-+  env = env_factory.create_env(args.serial, args.adb_path)
-+  try:
-+    task_registry = registry.TaskRegistry()
-+    try:
-+      suite = suite_utils.create_suite(
-+          task_registry.get_registry(family=args.suite_family),
-+          n_task_combinations=args.n_task_combinations,
-+          seed=args.task_random_seed,
-+          tasks=tasks,
-+          use_identical_params=args.fixed_task_seed,
-+      )
-+    except ValueError as exc:  # 任务名拼错 / 族名不支持
-+      print(f'[错误] 套件构建失败: {exc}')
-+      return 2
-+    suite.suite_family = args.suite_family
-+
-+    instances = sum(len(v) for v in suite.values())
++def _main() -> int:
++  """Runs eval suite and gets rewards back."""
++  if _PERFORM_EMULATOR_SETUP.value:
 +    print(
-+        f'套件: {args.suite_family}；用例数 {len(suite)}；实例总数 {instances}；'
-+        f'每用例参数组数 {args.n_task_combinations}；agent {args.agent}'
++        '注意：redroid 容器没有模拟器，--perform_emulator_setup 无实际作用；'
++        '安装 App 请用 redroid/setup_apps。'
 +    )
 +
-+    agent = build_agent(args.agent, env)
-+    agent.name = args.agent
-+    tune_agent(agent, args.suite_family)
-+
-+    checkpoint_dir = args.checkpoint_dir or checkpointer_lib.create_run_directory(
-+        args.output_path
++  env = env_factory.create_env(
++      serial=_SERIAL.value, adb_path=_ADB_PATH.value or None
++  )
++  try:
++    n_task_combinations = _N_TASK_COMBINATIONS.value
++    task_registry = registry.TaskRegistry()
++    suite = suite_utils.create_suite(
++        task_registry.get_registry(family=_SUITE_FAMILY.value),
++        n_task_combinations=n_task_combinations,
++        seed=_TASK_RANDOM_SEED.value,
++        tasks=_TASKS.value,
++        use_identical_params=_FIXED_TASK_SEED.value,
 +    )
-+    print(f'检查点目录（中断后重跑同一目录即续跑）: {checkpoint_dir}')
++    suite.suite_family = _SUITE_FAMILY.value
 +
-+    suite_utils.run(
++    agent = _get_agent(env, _SUITE_FAMILY.value)
++
++    if _SUITE_FAMILY.value.startswith('miniwob'):
++      # MiniWoB pages change quickly, don't need to wait for screen to stabilize.
++      agent.transition_pause = _MINIWOB_TRANSITION_PAUSE
++    else:
++      agent.transition_pause = None
++
++    if _CHECKPOINT_DIR.value:
++      checkpoint_dir = _CHECKPOINT_DIR.value
++    else:
++      checkpoint_dir = checkpointer_lib.create_run_directory(_OUTPUT_PATH.value)
++
++    if _MAX_STEPS.value:
++      # redroid 扩展：覆盖官方的 complexity * 10 步数预算。
++      suite_utils._allocate_step_budget = lambda _complexity: _MAX_STEPS.value  # pylint: disable=protected-access
++
++    print(
++        f'Starting eval with agent {_AGENT_NAME.value} and writing to'
++        f' {checkpoint_dir}'
++    )
++    episodes = suite_utils.run(
 +        suite,
 +        agent,
 +        checkpointer=checkpointer_lib.IncrementalCheckpointer(checkpoint_dir),
-+        demo_mode=args.demo_mode,
++        demo_mode=_DEMO_MODE.value,
 +    )
-+    print(f'完成；逐用例结果与汇总表见上面的输出，检查点与结果文件在 {checkpoint_dir}')
-+    return 0
++    print(
++        f'Finished running agent {_AGENT_NAME.value} on {_SUITE_FAMILY.value}'
++        f' family. Wrote to {checkpoint_dir}.'
++    )
 +  finally:
 +    env.close()
 +
-+
-+if __name__ == '__main__':
-+  sys.exit(main())
-diff --git a/redroid/run_task.py b/redroid/run_task.py
-new file mode 100644
-index 0000000..3e6b3f3
---- /dev/null
-+++ b/redroid/run_task.py
-@@ -0,0 +1,358 @@
-+"""最小任务 runner：在 cube + redroid 沙箱上运行 Android World 测试用例。
-+
-+与官方 run.py 只差环境层：redroid 没有模拟器 console(5554)/gRPC(8554)，
-+底层换成纯 adb 的 AdbEnv（android_env/envs/adb_env.py），无障碍树走 UIAUTOMATOR 模式。
-+任务注册表、随机参数、初始化与判定（is_successful）全部复用官方 android_world 实现。
-+SMS/Phone 用例另在 init 前注入底座适配补丁（清库 / 收信注入，与 manual_task.py
-+共用实现），官方源码零修改。
-+
-+支持一次跑多个用例：--task=A,B,C（或 --tasks=A,B,C）。多个用例复用同一个环境与
-+agent，每个用例开始前先复位桌面并清空 agent 历史，全部结束后打印逐条结果与汇总，
-+并写 summary.json；只要有用例没通过，退出码就是 1，便于在 CI 里串联。
-+加 --checkpoint_dir 可断点续跑：每跑完一个用例就落一份检查点，用同一目录重跑时
-+跳过已完成的、只补未完成的；需要「整族 / 每模板多组参数」时用 redroid/run_suite.py。
-+
-+用法：
-+  export AW_ADB_SERIAL=10.100.0.2:5555
-+  .venv/bin/python -m redroid.run_task --list                    # 列出全部任务名
-+  .venv/bin/python -m redroid.run_task --task=CameraTakePhoto --agent=human
-+  .venv/bin/python -m redroid.run_task --task=SystemWifiTurnOn,SystemWifiTurnOff --agent=random
-+  .venv/bin/python -m redroid.run_task --task=A,B --agent=m3a --checkpoint_dir=runs/ckpt_AB
-+
-+--agent 取值：human=人工投屏；random=随机点击（验证链路）；t3a/m3a=官方 agent +
-+OpenAI 兼容 LLM；seeact=官方 SeeAct（端点、鉴权、模型名由 AW_LLM_* 决定）。
-+"""
-+
-+from __future__ import annotations
-+
-+import argparse
-+import json
-+import os
-+import random
-+import sys
-+import traceback
-+from datetime import datetime
-+
-+import cv2
-+
-+from android_world import checkpointer as checkpointer_lib
-+from android_world import registry
-+from android_world.agents import human_agent
-+from android_world.agents import m3a
-+from android_world.agents import random_agent
-+from android_world.agents import seeact
-+from android_world.agents import t3a
-+from android_world.task_evals import task_eval
-+from redroid import env_factory
-+from redroid import openai_compat_llm
-+from redroid import seeact_compat
-+
-+_RESULT_JSON = 'result.json'
-+_SUMMARY_JSON = 'summary.json'
++  passed, total = _count_passed(episodes)
++  print(f'Passed {passed}/{total}.')
++  return 0 if passed == total else 1
 +
 +
-+def _get_task_class(task_name: str) -> type[task_eval.TaskEval]:
-+  task_registry = registry.TaskRegistry().ANDROID_TASK_REGISTRY
-+  if task_name not in task_registry:
-+    close = [n for n in sorted(task_registry) if task_name.lower() in n.lower()]
-+    msg = f'未知任务: {task_name}'
-+    if close:
-+      msg += f'\n你是不是想找: {", ".join(close[:10])}'
-+    msg += '\n用 --list 查看全部可用任务。'
-+    raise SystemExit(msg)
-+  return task_registry[task_name]
-+
-+
-+def build_agent(agent_name: str, env):
-+  """构造 agent；t3a/m3a 接 OpenAI 兼容 LLM，seeact 走端点重定向（均需 AW_LLM_*）。"""
-+  if agent_name == 'human':
-+    return human_agent.HumanAgent(env)
-+  if agent_name == 'random':
-+    return random_agent.RandomAgent(env)
-+  if agent_name == 'seeact':
-+    # 官方 SeeAct 自己发起 OpenAI 请求（seeact_utils 里端点写死），
-+    # 这里先做一次进程内重定向，使其端点/密钥/模型改由 AW_LLM_* 决定。
-+    seeact_compat.install()
-+    return seeact.SeeAct(env)
-+  # 以下两个 = 官方 agent + OpenAI 兼容 LLM（需要 AW_LLM_* 环境变量）。
-+  llm = openai_compat_llm.OpenAiCompatLlm()
-+  if agent_name == 't3a':  # 纯文本 agent：只看无障碍树文本，不看截图。
-+    return t3a.T3A(env, llm)
-+  if agent_name == 'm3a':  # 多模态 agent：无障碍树 + 截图。
-+    return m3a.M3A(env, llm)
-+  raise SystemExit(
-+      f'未知 agent: {agent_name}（可选: human / random / seeact / t3a / m3a）'
-+  )
-+
-+
-+def cmd_list() -> int:
-+  task_registry = registry.TaskRegistry().ANDROID_TASK_REGISTRY
-+  for name in sorted(task_registry):
-+    print(name)
-+  return 0
-+
-+
-+def _parse_tasks(args: argparse.Namespace) -> list[str]:
-+  """--task / --tasks 二选一，值可以是逗号分隔的多个任务名（去重且保持顺序）。"""
-+  raw = args.tasks or args.task or ''
-+  return list(dict.fromkeys(t.strip() for t in raw.split(',') if t.strip()))
-+
-+
-+def _output_dir(
-+    args: argparse.Namespace, task_name: str, stamp: str, n_tasks: int
-+) -> str:
-+  """单用例沿用 runs/<任务名>_<时间戳>/；多用例时在指定目录下按任务名分子目录。"""
-+  if args.output_dir:
-+    if n_tasks > 1:
-+      return os.path.join(args.output_dir, task_name)
-+    return args.output_dir
-+  return os.path.join('runs', f'{task_name}_{stamp}')
-+
-+
-+def _load_done(
-+    checkpointer: checkpointer_lib.Checkpointer, task_name: str
-+) -> dict | None:
-+  """取该用例上次跑完的记录；上次是异常中断的返回 None，让它重跑。
-+
-+  与官方 suite 一致：异常中断（带 error 字段）的用例不算完成，续跑时会重试。
-+  """
-+  for row in checkpointer.load():
-+    if row.get('task_name') == task_name and not row.get('error'):
-+      return row
-+  return None
-+
-+
-+def _run_one(
-+    args: argparse.Namespace, task_name: str, env, agent, output_dir: str
-+) -> dict:
-+  """复位 -> 初始化 -> 执行 -> 验收 -> 落盘证据，返回该用例的结果字典。"""
-+  # 复位桌面并清空上一用例留给 agent 的历史（T3A/M3A 累积 self.history，
-+  # 不清会串到下一用例）。必须用位置参数，与官方 episode_runner 一致：
-+  # 各 agent 的 reset() 关键字不统一（base/SeeAct 是 go_home，T3A/M3A 是 go_home_on_reset）。
-+  print(f'[1/4] 复位到桌面（任务: {task_name}，agent: {args.agent}）...')
-+  agent.reset(True)
-+  env.hide_automation_ui()
-+
-+  task_class = _get_task_class(task_name)
-+  if args.seed is not None:
-+    random.seed(args.seed)
-+  params = task_class.generate_random_params()
-+  task = task_class(params)
-+
-+  print('[2/4] 调用官方 initialize_task() 初始化任务 ...')
-+  try:
-+    task.initialize_task(env)
-+  except Exception as exc:
-+    print(
-+        f'[错误] 任务初始化失败: {exc}\n'
-+        ' 常见原因: ① 用例需要的 App 没装；'
-+        '② 命中本底座的已知限制（见 redroid/START.md 第六部分）。'
-+    )
-+    raise
-+  print(f'      目标 goal: {task.goal}')
-+
-+  print('[3/4] Agent 开始执行 ...')
-+  if args.agent == 'human':
-+    print(
-+        '      请用投屏工具（scrcpy）操作沙箱完成上述目标；\n'
-+        '      完成后回到本终端按回车，脚本会自动验收。'
-+    )
-+  max_steps = args.max_steps or max(1, int(task.complexity * 10))
-+  for _ in range(max_steps):
-+    if agent.step(task.goal).done:
-+      break
-+
-+  print('[4/4] 调用官方 is_successful() 验收 ...')
-+  score = float(task.is_successful(env))
-+
-+  # 落盘证据：末屏截图 + 结果 JSON。
-+  os.makedirs(output_dir, exist_ok=True)
-+  state = env.get_state()
-+  cv2.imwrite(
-+      os.path.join(output_dir, 'final_screen.png'),
-+      cv2.cvtColor(state.pixels, cv2.COLOR_RGB2BGR),
-+  )
-+  passed = score > 0.5
-+  result = {
-+      'task_name': task_name,
-+      'goal': task.goal,
-+      'params': params,
-+      'agent': args.agent,
-+      'score': score,
-+      'passed': passed,
-+      'serial': env_factory.resolve_serial(args.serial),
-+      'finished_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-+  }
-+  with open(os.path.join(output_dir, _RESULT_JSON), 'w') as f:
-+    json.dump(result, f, ensure_ascii=False, indent=2, default=str)
-+
-+  print('=' * 64)
-+  print(
-+      f'结果: {"PASS ✅" if passed else "FAIL ❌"}'
-+      f'（官方 is_successful() = {score}）'
-+  )
-+  print(f'证据: {os.path.abspath(output_dir)}/final_screen.png')
-+  print(f'结果: {os.path.abspath(output_dir)}/{_RESULT_JSON}')
-+  print('=' * 64)
-+  return result
-+
-+
-+def _write_summary(
-+    args: argparse.Namespace, rows: list[dict], stamp: str, n_passed: int
-+) -> None:
-+  """多用例运行额外落一份汇总，并在终端打印逐条结果。"""
-+  summary_dir = args.output_dir or os.path.join('runs', f'multi_{stamp}')
-+  os.makedirs(summary_dir, exist_ok=True)
-+  path = os.path.join(summary_dir, _SUMMARY_JSON)
-+  summary = {
-+      'agent': args.agent,
-+      'serial': env_factory.resolve_serial(args.serial),
-+      'finished_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-+      'total': len(rows),
-+      'passed': n_passed,
-+      'failed': len(rows) - n_passed,
-+      'results': rows,
-+  }
-+  with open(path, 'w') as f:
-+    json.dump(summary, f, ensure_ascii=False, indent=2, default=str)
-+
-+  print()
-+  print('用例汇总:')
-+  for row in rows:
-+    mark = 'PASS' if row['passed'] else 'FAIL'
-+    score = '-' if row['score'] is None else row['score']
-+    print(f'  {mark}  {row["task_name"]:<40} score={score}')
-+  print(f'汇总文件: {os.path.abspath(path)}')
-+
-+
-+def run(args: argparse.Namespace) -> int:
-+  # 设备对时（P3）/SMS 清库（P4）/收信注入（P5）适配已随 patch 进入官方源码。
-+  tasks = _parse_tasks(args)
-+  # 先校验全部任务名，避免跑到一半才发现拼错。
-+  for task_name in tasks:
-+    _get_task_class(task_name)
-+
-+  env = env_factory.create_env(args.serial, args.adb_path)
-+  try:
-+    agent = build_agent(args.agent, env)
-+    if args.agent in ('t3a', 'm3a', 'seeact'):
-+      # 与官方 run.py 一致：等界面稳定后再取状态（None = 自动等待）。
-+      agent.transition_pause = None
-+
-+    checkpointer = (
-+        checkpointer_lib.IncrementalCheckpointer(args.checkpoint_dir)
-+        if args.checkpoint_dir
-+        else None
-+    )
-+    if checkpointer is not None:
-+      print(f'断点续跑已开启，检查点目录: {os.path.abspath(args.checkpoint_dir)}')
-+
-+    stamp = datetime.now().strftime('%Y%m%d-%H%M%S')
-+    rows = []
-+    for i, task_name in enumerate(tasks, start=1):
-+      print()
-+      print(f'[用例 {i}/{len(tasks)}] {task_name}')
-+      print('-' * 64)
-+      if checkpointer is not None:
-+        done = _load_done(checkpointer, task_name)
-+        if done is not None:
-+          print('      检查点里已有该用例，跳过（断点续跑）。')
-+          rows.append(done)
-+          continue
-+      try:
-+        row = _run_one(
-+            args,
-+            task_name,
-+            env,
-+            agent,
-+            _output_dir(args, task_name, stamp, len(tasks)),
-+        )
-+        rows.append(row)
-+      except SystemExit:
-+        raise
-+      except Exception as exc:  # 单个用例失败不中断后续用例，与官方 suite 行为一致。
-+        traceback.print_exc()
-+        row = {
-+            'task_name': task_name,
-+            'goal': None,
-+            'params': None,
-+            'agent': args.agent,
-+            'score': None,
-+            'passed': False,
-+            'serial': env_factory.resolve_serial(args.serial),
-+            'finished_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-+            'error': f'{type(exc).__name__}: {exc}',
-+        }
-+        rows.append(row)
-+      if checkpointer is not None:
-+        checkpointer.save_episodes([row], task_name)
-+
-+    n_passed = sum(1 for row in rows if row['passed'])
-+    if len(tasks) > 1:
-+      _write_summary(args, rows, stamp, n_passed)
-+    print()
-+    print('=' * 64)
-+    print(f'总计: {n_passed}/{len(rows)} PASS，{len(rows) - n_passed} FAIL')
-+    print('=' * 64)
-+    return 0 if n_passed == len(rows) else 1
-+  finally:
-+    env.close()
-+
-+
-+def _build_parser() -> argparse.ArgumentParser:
-+  parser = argparse.ArgumentParser(
-+      prog='python -m redroid.run_task',
-+      description=(
-+          '最小任务 runner：在 cube + redroid 沙箱上运行 Android World 用例'
-+          '（支持一次跑多个，逗号分隔）。'
-+      ),
-+  )
-+  parser.add_argument('--task', help='任务名，如 CameraTakePhoto；多个用逗号分隔，如 A,B,C')
-+  parser.add_argument('--tasks', help='同 --task（与 --task 二选一，便于对齐官方 run.py 的写法）')
-+  parser.add_argument(
-+      '--agent',
-+      default='human',
-+      choices=('human', 'random', 'seeact', 't3a', 'm3a'),
-+      help=(
-+          'human=人工投屏操作（默认）；random=随机点击（验证链路用）；'
-+          'seeact=官方 SeeAct + AW_LLM_*；t3a=官方纯文本 agent + LLM；'
-+          'm3a=官方多模态 agent + LLM'
-+      ),
-+  )
-+  parser.add_argument('--list', action='store_true', help='列出全部可用任务名后退出')
-+  parser.add_argument('--seed', type=int, help='可选：随机种子（复现同一组任务参数）')
-+  parser.add_argument(
-+      '--max_steps', type=int, help='可选：agent 最大步数（默认 复杂度x10，逐用例生效）'
-+  )
-+  parser.add_argument(
-+      '--output_dir',
-+      help=(
-+          '可选：证据与结果输出目录。单用例默认 runs/<任务名>_<时间戳>/；'
-+          '多用例默认 runs/<任务名>_<时间戳>/，指定本参数时在其下按任务名分子目录'
-+      ),
-+  )
-+  parser.add_argument(
-+      '--checkpoint_dir',
-+      help=(
-+          '可选：断点续跑目录。跑完一个用例即落一份检查点，用同一目录重跑会跳过'
-+          '已完成的用例、只补未完成的；异常中断的用例不算完成，会被重试。'
-+          '不指定则每次全跑'
-+      ),
-+  )
-+  parser.add_argument('--serial', help='adb serial，默认取环境变量 AW_ADB_SERIAL')
-+  parser.add_argument('--adb_path', help='adb 路径，默认取环境变量 AW_ADB_PATH 或 PATH')
-+  return parser
-+
-+
-+def main() -> int:
-+  args = _build_parser().parse_args()
-+  if args.list:
-+    return cmd_list()
-+  if not (args.task or args.tasks):
-+    print('请指定 --task=<任务名>（多个用逗号分隔；--list 可查看全部任务名）')
-+    return 2
-+  return run(args)
++def main(argv: Sequence[str]) -> None:
++  del argv
++  if _LIST.value or _LIST_ALL.value:
++    _print_tasks()
++    return
++  sys.exit(_main())
 +
 +
 +if __name__ == '__main__':
-+  sys.exit(main())
++  app.run(main)
 diff --git a/redroid/setup_apps.py b/redroid/setup_apps.py
 new file mode 100644
 index 0000000..df30937

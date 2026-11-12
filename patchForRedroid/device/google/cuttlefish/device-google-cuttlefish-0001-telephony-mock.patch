@@ -287,27 +287,6 @@ index 655c37a..5e55891 100755
         </EF>
         <EF name="EF_MWIS" id="6FCA" structure="linear fixed">
             <SIMIO cmd="C0" p1="0" p2="0" p3="F" data="">144,0,62198205422100050183026FCA8A01058B036F060E800200058800</SIMIO>
-diff --git a/host/commands/modem_simulator/files/numeric_operator.xml b/host/commands/modem_simulator/files/numeric_operator.xml
-index 202c84b..f3f6162 100644
---- a/host/commands/modem_simulator/files/numeric_operator.xml
-+++ b/host/commands/modem_simulator/files/numeric_operator.xml
-@@ -2,8 +2,6 @@
- <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-     <add-resource name="numeric_to_operator" type="array"/>
-     <string-array name="numeric_to_operator">
--        <item numeric="311740">TelAlaska=TelAlaska</item>
--        <item numeric="310260">T-Mobile=TMOBILE</item>
-         <item numeric="46000">China Mobile=CMCC</item>
-         <item numeric="46001">China UNICOM=UNICOM</item>
-         <item numeric="46002">China Mobile=CMCC</item>
-@@ -14,6 +12,7 @@
-         <item numeric="46007">China Mobile=CMCC</item>
-         <item numeric="46008">China Mobile=CMCC</item>
-         <item numeric="46009">China UNICOM=UNICOM</item>
-+        <item numeric="46010">China Mobile=CMCC</item>
-         <item numeric="46011">China Telecom=CT</item>
-     </string-array>
- </resources>
 diff --git a/host/commands/modem_simulator/main.cpp b/host/commands/modem_simulator/main.cpp
 index a979c36..d5f0d58 100644
 --- a/host/commands/modem_simulator/main.cpp
