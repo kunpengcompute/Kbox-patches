@@ -1,0 +1,56 @@
+Subject: [PATCH] Keep eth1 routing maintenance running under init
+
+diff --git a/envd/static_eth.rc b/envd/static_eth.rc
+--- a/envd/static_eth.rc
++++ b/envd/static_eth.rc
+@@ -3,7 +3,6 @@
+     user root
+     group root net_admin
+     seclabel u:r:su:s0
+-    oneshot
+     disabled
+ 
+ on property:sys.boot_completed=1
+diff --git a/envd/static_eth.sh b/envd/static_eth.sh
+--- a/envd/static_eth.sh
++++ b/envd/static_eth.sh
+@@ -1,8 +1,19 @@
+ #!/system/bin/sh
+ DEV=eth1
+ TABLE=200
+-i=0
+-while [ $i -lt 12 ]; do
++
++# Initialize the boot proxy once without blocking eth1 maintenance.
++(
++    # 5) HTTP 代理：从内核命令行 androidboot.http_proxy=ip:port 读取
++    #    若存在则写入 SettingsProvider，实现开机自配置
++    #    实例启动时通过 --extra_kernel_cmdline="... androidboot.http_proxy=10.0.2.2:8080" 传入
++    PROXY=$(getprop ro.boot.http_proxy)
++    if [ -n "$PROXY" ]; then
++        settings put global http_proxy "$PROXY"
++    fi
++) &
++
++while true; do
+     # 1) IP / 掩码 / 广播
+     if ! ip addr show dev $DEV 2>/dev/null | grep -q "169.254.0.21"; then
+         ip addr flush dev $DEV 2>/dev/null
+@@ -19,16 +30,7 @@
+     fi
+     # 4) ip rule：源 .21 的流量查 table 200
+     if ! ip rule 2>/dev/null | grep -q "from 169.254.0.21 lookup $TABLE"; then
+-        ip rule add from 169.254.0.21/32 lookup $TABLE 2>/dev/null
++        ip rule add priority 9999 from 169.254.0.21/32 lookup $TABLE 2>/dev/null
+     fi
+-    i=$((i+1))
+     sleep 5
+ done
+-
+-# 5) HTTP 代理：从内核命令行 androidboot.http_proxy=ip:port 读取
+-#    若存在则写入 SettingsProvider，实现开机自配置
+-#    实例启动时通过 --extra_kernel_cmdline="... androidboot.http_proxy=10.0.2.2:8080" 传入
+-PROXY=$(getprop ro.boot.http_proxy)
+-if [ -n "$PROXY" ]; then
+-    settings put global http_proxy "$PROXY"
+-fi

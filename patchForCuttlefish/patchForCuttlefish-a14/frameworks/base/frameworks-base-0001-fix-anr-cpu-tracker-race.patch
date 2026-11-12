@@ -1,0 +1,76 @@
+Subject: [PATCH] Synchronize both sides of ANR CPU tracker access
+
+diff --git a/services/core/java/com/android/server/am/ProcessErrorStateRecord.java b/services/core/java/com/android/server/am/ProcessErrorStateRecord.java
+--- a/services/core/java/com/android/server/am/ProcessErrorStateRecord.java
++++ b/services/core/java/com/android/server/am/ProcessErrorStateRecord.java
+@@ -517,12 +517,16 @@
+             }
+             mService.updateCpuStatsNow();
+             mService.mAppProfiler.printCurrentCpuState(report, anrTime);
+-            info.append(processCpuTracker.printCurrentLoad());
++            synchronized (processCpuTracker) {
++                info.append(processCpuTracker.printCurrentLoad());
++            }
+             info.append(report);
+         }
+         report.append(tracesFileException.getBuffer());
+ 
+-        info.append(processCpuTracker.printCurrentState(anrTime));
++        synchronized (processCpuTracker) {
++            info.append(processCpuTracker.printCurrentState(anrTime));
++        }
+ 
+         Slog.e(TAG, info.toString());
+         if (tracesFile == null) {
+diff --git a/services/core/java/com/android/server/am/StackTracesDumpHelper.java b/services/core/java/com/android/server/am/StackTracesDumpHelper.java
+--- a/services/core/java/com/android/server/am/StackTracesDumpHelper.java
++++ b/services/core/java/com/android/server/am/StackTracesDumpHelper.java
+@@ -464,28 +464,31 @@
+             latencyTracker.processCpuTrackerMethodsCalled();
+         }
+         ArrayList<Integer> extraPids = new ArrayList<>();
+-        processCpuTracker.init();
++        synchronized (processCpuTracker) {
++            processCpuTracker.init();
++        }
+         try {
+             Thread.sleep(200);
+         } catch (InterruptedException ignored) {
+         }
+ 
+-        processCpuTracker.update();
+-
+-        // We'll take the stack crawls of just the top apps using CPU.
+-        final int workingStatsNumber = processCpuTracker.countWorkingStats();
+-        for (int i = 0; i < workingStatsNumber && extraPids.size() < 2; i++) {
+-            ProcessCpuTracker.Stats stats = processCpuTracker.getWorkingStats(i);
+-            if (lastPids.indexOfKey(stats.pid) >= 0) {
+-                if (DEBUG_ANR) {
+-                    Slog.d(TAG, "Collecting stacks for extra pid " + stats.pid);
+-                }
+-
+-                extraPids.add(stats.pid);
+-            } else {
+-                Slog.i(TAG,
+-                        "Skipping next CPU consuming process, not a java proc: "
+-                        + stats.pid);
++        synchronized (processCpuTracker) {
++            processCpuTracker.update();
++            // We'll take the stack crawls of just the top apps using CPU.
++            final int workingStatsNumber = processCpuTracker.countWorkingStats();
++            for (int i = 0; i < workingStatsNumber && extraPids.size() < 2; i++) {
++                ProcessCpuTracker.Stats stats = processCpuTracker.getWorkingStats(i);
++                if (lastPids.indexOfKey(stats.pid) >= 0) {
++                    if (DEBUG_ANR) {
++                        Slog.d(TAG, "Collecting stacks for extra pid " + stats.pid);
++                    }
++
++                    extraPids.add(stats.pid);
++                } else {
++                    Slog.i(TAG,
++                            "Skipping next CPU consuming process, not a java proc: "
++                            + stats.pid);
++                }
+             }
+         }
+         if (latencyTracker != null) {
