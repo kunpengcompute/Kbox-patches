@@ -41,7 +41,7 @@ mkdir -p ~/cube-workspace && cd ~/cube-workspace
 cd ~/cube-workspace
 git clone https://gitcode.com/boostkit/CubeSandbox.git
 cd CubeSandbox
-git checkout v0.7.1-rc1
+git checkout febb88f92979ff116e3285e4ef6c8b9e399f4e75
 ```
 
 ### 拉取Guest内核源码
@@ -274,6 +274,9 @@ CUBE_SANDBOX_NODE_IP=<本机IP>
 
 # 沙箱网段：必须避开物理网段（物理网段为 192.168.x.x 时改用 10.100.0.0/16）
 CUBE_SANDBOX_NETWORK_CIDR=10.100.0.0/16
+
+# 把 WEB_UI_HOST_PORT 从 12088 改成 8088（10000~19999 临时端口范围之外）
+WEB_UI_HOST_PORT=8088
 ```
 
 ### 执行安装

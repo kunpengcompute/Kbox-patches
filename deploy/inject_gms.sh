@@ -38,6 +38,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"     # Kbox-patches
 
 # GMS 统一维护脚本（清单/下载/校验唯一来源，与 build_redroid.sh 共用）
 GMS_SCRIPT="$REPO_ROOT/build/pack_gms.sh"
+# 本脚本职责即注入 GMS，显式启用 pack_gms.sh 的唯一开关 ENABLE_GMS
+export ENABLE_GMS=1
 # GMS 载荷根不在此预设：以 pack_gms.sh tar-args 输出的实际路径为准（见
 # resolve_members），本脚本不依赖仓库外的固定工作区布局。
 

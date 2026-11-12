@@ -39,9 +39,9 @@ if [ ! -f "$CONFIG_FILE" ]; then
 fi
 source "$CONFIG_FILE"
 
-# GMS 控制：由 conf 的 ENABLE_GMS 决定是否包含 GMS（1=包含，0=不含），
-# 转换为 pack_gms.sh 内部使用的 GMS_SKIP 语义（1=跳过），pack_gms.sh 保持原逻辑
-export GMS_SKIP=$(( 1 - ${ENABLE_GMS:-0} ))
+# GMS 控制：开关为 conf 的 ENABLE_GMS（1=包含，0=不含），
+# 导出给 pack_gms.sh 的 fetch / tar-args 使用
+export ENABLE_GMS="${ENABLE_GMS:-0}"
 
 log() { echo -e "\033[1;32m$*\033[0m"; }
 die() { echo -e "\033[1;31m错误: $*\033[0m" >&2; exit 1; }

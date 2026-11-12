@@ -14,15 +14,17 @@
 #   bash pack_gms.sh tar-args   输出 tar 注入参数（每行一个，供 build_redroid.sh mapfile 读取）
 #   bash pack_gms.sh            同 fetch
 #
-# 环境变量（GMS_LOCAL / GMS_LOCAL_DIR / GMS_ZIP_FILE / GMS_SKIP 默认在
-# pack_gms.conf 中配置，同名环境变量可覆盖）:
+# 环境变量:
+#   ENABLE_GMS     开关（1=启用 GMS，0/缺省=跳过下载与注入）；由
+#                  build_redroid.conf 配置，部署期 inject_gms.sh 会显式置 1
+#   GMS_LOCAL / GMS_LOCAL_DIR / GMS_ZIP_FILE / GMS_ZIP_URL / GMS_ZIP_CACHE
+#                  默认在 pack_gms.conf 中配置，同名环境变量可覆盖:
 #   GMS_LOCAL=1    本地模式：用本地 GMS 文件打包（GMS_LOCAL_DIR 或 GMS_ZIP_FILE），
 #                  校验不通过即报错、绝不联网下载；缺省/0 走 ZIP_URL 下载
 #   GMS_LOCAL_DIR  本地已还原的 GMS 载荷根目录（3 APK + 2 XML 已就位且校验通过）
 #   GMS_ZIP_FILE   本地已下载好的 GMS zip 文件路径（sha256 校验通过即用）
 #   GMS_ZIP_URL    覆盖 zip 下载地址（自建代理/镜像），内容仍以 ZIP_SHA256 校验兜底
 #   GMS_ZIP_CACHE  覆盖 zip 缓存目录（默认 <工作区>/downloads）
-#   GMS_SKIP=1     跳过 GMS 下载与注入（产出无 GMS 基础镜像）
 # =============================================================================
 set -eo pipefail
 
@@ -38,7 +40,7 @@ CACHE_DIR="${GMS_ZIP_CACHE:-$WORKSPACE/downloads}"
 log() { echo -e "\033[1;32m$*\033[0m" >&2; }
 die() { echo -e "\033[1;31m错误: $*\033[0m" >&2; exit 1; }
 
-gms_skip() { [ "${GMS_SKIP:-0}" = "1" ]; }
+gms_enabled() { [ "${ENABLE_GMS:-0}" = "1" ]; }
 
 # ===== 下载源与GMS清单 =====
 # 下载源（ZIP_URL / ZIP_SHA256 / ZIP_MIRRORS）含第三方下载链接，随库提交在
@@ -147,7 +149,7 @@ ensure_zip() {
 
 # fetch: 下载/校验/还原全部GMS（幂等）
 cmd_fetch() {
-    gms_skip && { log "[gms] GMS_SKIP=1，跳过 GMS 下载"; return 0; }
+    gms_enabled || { log "[gms] ENABLE_GMS=0，跳过 GMS 下载"; return 0; }
     log "[gms] 检查/下载 GMS （3 APK + 2 XML）"
     command -v curl >/dev/null   || die "未找到 curl（GMS 下载需要）"
     command -v unzip >/dev/null || die "未找到 unzip（GMS 解压需要）"
@@ -178,7 +180,7 @@ cmd_fetch() {
 
 # tar-args: 向 stdout 输出 tar 注入参数（-C GMS根路径 + 5 个成员），stdout 不得混入其他内容
 cmd_tar_args() {
-    gms_skip && return 0
+    gms_enabled || return 0
     all_present || cmd_fetch          # 正常流程 pack 已先 fetch，这里只是幂等兜底
     echo "-C"
     echo "$GMS_DIR"
