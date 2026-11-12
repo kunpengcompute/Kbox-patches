@@ -44,7 +44,7 @@ docker images | grep redroid
 redroid  14.0.0_r75_arm64_only  c04246f72191  2 hours ago  1.63GB
 ```
 
-### 注入GMS（可选）
+### 注入GMS（可选）<a id="加载镜像时注入GMS"></a>
 
 加载镜像后，如果需要镜像包含GMS框架
 可通过执行脚本`./inject_gms.sh`注入GMS。
@@ -362,12 +362,12 @@ cd ~/dependency/Kbox-patches/deploy
 
 |配置项名称|含义|类型|取值范围|默认值|说明|
 |---|---|---|---|---|---|
-|persist.sys.prop.writeimei| 国际移动设备识别码（IMEI） |int|15~17位数字|86+15位随机值|86表示中国|
-|persist.gsm.operator.alphacph| 网络运营商名字 |string|1~20位字母或数字|CMCC|-|
+|persist.sys.prop.writeimei| 国际移动设备识别码（IMEI） |int|15~17位数字|867400022047199|86表示中国|
+|persist.gsm.operator.alphacph| 网络运营商名字 |string|1~20位字母或数字|China Mobile|-|
 |persist.gsm.operator.numericcph| 网络运营商代码 |int|5~6位数字|46000| 由3位网络运营商国家代码+2~3位移动网络代码组成，比如460表示中国（cn），00表示中国移动 |
-|persist.sys.prop.writeimsi| 国际移动用户识别码（IMSI） |int|15位数字|46011+随机值| 前5~6位表示SIM卡运营商代码，组成和网络运营商代码相同，460表示中国（cn），11表示中国移动 |
-|persist.gsm.sim.operator.alphacph| SIM卡运营商名字 |string|1~20位字母或数字|CMCC|-|
-|persist.sys.prop.writesimserial| SIM卡序列号 |int|20位数字|898600+随机值| 89为国际代码，86表示中国，00表示中国移动 |
+|persist.sys.prop.writeimsi| 国际移动用户识别码（IMSI） |int|15位数字|460000123456789| 前5~6位表示SIM卡运营商代码，组成和网络运营商代码相同，460表示中国（cn），00表示中国移动 |
+|persist.gsm.sim.operator.alphacph| SIM卡运营商名字 |string|1~20位字母或数字|China Mobile|-|
+|persist.sys.prop.writesimserial| SIM卡序列号 |int|20位数字|89860318640220111111| 89为国际代码，86表示中国，03表示中国电信 |
 |persist.sys.prop.writephonenum| 手机号码 |int|0~20位数字|空|-|
 
 >![](./public_sys-resources/icon-note.gif) **说明：**
@@ -502,15 +502,64 @@ cd ~/dependency/Kbox-patches/deploy
 
 ### 部署测试框架
 
-#### 安装依赖
+#### 安装依赖包
 
-安装系统依赖
+##### 安装系统依赖
 
 ```bash
 dnf install -y python3 git curl unzip gcc gcc-c++ make ffmpeg
+dnf install -y cmake protobuf-devel openssl-devel libusb-devel \
+  systemd-devel pkgconf-pkg-config brotli-devel lz4-devel zstd-devel \
+  pcre2-devel gtest-devel
 ```
 
-安装adb
+##### 安装adb
+
+下载android-tools源码包。
+
+```bash
+cd ~/dependency
+mkdir -p adb_downloads && cd adb_downloads
+
+curl -L -O https://github.com/nmeum/android-tools/releases/download/37.0.0p1/android-tools-37.0.0p1.tar.xz
+curl -L -O https://github.com/nmeum/android-tools/releases/download/37.0.0p1/android-tools-37.0.0p1-vendor.tar.xz
+```
+
+补充符号链接。
+
+```bash
+ln -sf libprotobuf.so.25.1.0 /usr/lib64/libprotobuf-lite.so.25.1.0
+ln -sf libprotobuf-lite.so.25.1.0 /usr/lib64/libprotobuf-lite.so.25
+ln -sf libprotobuf-lite.so.25.1.0 /usr/lib64/libprotobuf-lite.so
+ldconfig
+```
+
+解压源码。
+
+```bash
+mkdir -p /opt/android-tools-full
+tar xJf android-tools-37.0.0p1.tar.xz -C /opt/android-tools-full --strip-components=1
+tar xJf android-tools-37.0.0p1-vendor.tar.xz -C /opt/android-tools-full
+```
+
+编译并安装。
+
+```bash
+cd /opt/android-tools-full
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local \
+  -DANDROID_TOOLS_USE_BUNDLED_FMT=ON \
+  -DANDROID_TOOLS_ADB_ENABLE_MDNS=OFF \
+  -DANDROID_TOOLS_USE_BUNDLED_LIBUSB=ON \
+  -DANDROID_TOOLS_LIBUSB_ENABLE_UDEV=OFF
+cmake --build build -j $(nproc) --target adb
+install -m 0755 build/vendor/adb /usr/local/bin/adb
+```
+
+检查安装结果，预期回显adb版本。
+
+```bash
+adb version
+```
 
 #### 拉取android_world和android_env代码
 
@@ -621,12 +670,17 @@ M="-i https://pypi.tuna.tsinghua.edu.cn/simple"
 ls android_world/task_evals/information_retrieval/proto/*_pb2.py
 # 期望：state_pb2.py  task_pb2.py
 
-.venv/bin/python -c "import redroid.env_factory, redroid.run_task; print('env stack ok')"
+.venv/bin/python -c "import redroid.env_factory, redroid.run; print('env stack ok')"
 ```
 
 ### 执行测试
 
 #### 安装测试APP
+
+>![](./public_sys-resources/icon-note.gif) **说明：**
+>
+>- 如需执行Chrome App相关用例，请确保镜像包含GMS（安装方法参考[注入GMS](#加载镜像时注入GMS)章节），并在执行以下指令前手动安装Chrome App。
+>- App安装过程中可能打印报错日志，其会自动运行备选方案，因此不一定影响最终安装效果。安装结果请以[最终结果汇总回显](#Andoird_World_APP安装结果)为准。
 
 支持以下多种指令：
 
@@ -669,48 +723,43 @@ export AW_ADB_SERIAL=10.100.x.x:5555
 [完成] 全部成功.
 ```
 
->![](./public_sys-resources/icon-note.gif) **说明：**
->
->- 使用`userdebug`镜像：APP快照功能依赖root权限，因此需使用`userdebug`镜像；`user`镜像由于缺少root权限，则不支持该功能
->- APP安装过程中可能打印报错日志，其会自动运行备选方案，因此不一定影响最终安装效果。安装结果请参考[最终结果汇总回显](#Andoird_World_APP安装结果)。
-
 #### 运行测试用例
 
-执行用例测试前，先设置测试运行的沙箱IP
+执行用例测试前，先设置测试运行的沙箱IP。
 
 ```bash
 export AW_ADB_SERIAL=<SANDBOX_IP>:5555
 ```
 
-支持以下指令，使用`--task`选项指定执行的测试用例：
+支持以下指令，使用`--tasks`选项指定执行的测试用例：
 
-- **查看全部用例名（90+）：**
+- **查看全部用例名：**
 
-  使用`--list`选项
+  使用`--list`选项。
 
   ```bash
-  .venv/bin/python -m redroid.run_task --list
+  .venv/bin/python -m redroid.run --list
   ```
 
 - **人工操作执行用例：**
 
-  使用`--agent=human`选项指定。打印用例目标后，用户自行投屏操作沙箱，回车后调用Android World官方判定
+  使用`--agent_name=human_agent`选项指定。打印用例目标后，用户自行投屏操作沙箱，回车后调用Android World官方判定。
 
   ```bash
-  .venv/bin/python -m redroid.run_task --task=CameraTakePhoto --agent=human
+  .venv/bin/python -m redroid.run --tasks=ContactsAddContact --agent_name=human_agent
   ```
 
 - **random冒烟测试：**
 
-  验证"截图→随机动作→判定"全链路，用例极大概率会FAIL，属正常现象
+  使用`--agent_name=random_agent`选项表明执行随机动作，以用于验证"下发任务→动作→结果判定"全链路；`--max_steps`选项指定最大执行步数。该模式下用例极大概率会FAIL，属正常现象。
 
   ```bash
-  .venv/bin/python -m redroid.run_task --task=SystemWifiTurnOnVerify --agent=random --max_steps=1
+  .venv/bin/python -m redroid.run --tasks=ContactsAddContact --agent_name=random_agent --max_steps=1
   ```
 
 - **大模型（OpenAI兼容LLM）agent执行用例：**
 
-  `--agent`选项可指定`t3a`或`m3a`，分别对应纯文本agent和多模态agent。
+  `--agent_name`选项指定agent，可选：`t3a`、`m3a`、`seeact`，分别对应纯文本、多模态、Web agent。
 
   以下3个变量`AW_LLM_API_KEY`、`AW_LLM_BASE_URL`、`AW_LLM_MODEL`必须配置。
 
@@ -718,7 +767,7 @@ export AW_ADB_SERIAL=<SANDBOX_IP>:5555
   export AW_LLM_API_KEY=sk-xxxxxxxx
   export AW_LLM_BASE_URL=https://api.example.com/v1
   export AW_LLM_MODEL=example-model
-  .venv/bin/python -m redroid.run_task --task=SystemWifiTurnOn --agent=t3a
+  .venv/bin/python -m redroid.run --tasks=ContactsAddContact --agent_name=t3a
   ```
   
   | 变量名 | 含义 | 是否必填 | 示例值 |
