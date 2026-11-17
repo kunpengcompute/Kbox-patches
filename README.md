@@ -115,16 +115,16 @@ Kbox云手机支持裸机和虚拟机两种环境部署方式，部署步骤请�
 
 |学习资源名称|学习资源简介|
 |--|--|
-| [版本说明书](./docs/zh/release_notes.md)|提供Kbox云手机每个发布版本的基础信息和特性更新信息。|
-| [特性指南](./docs/zh/feature_guide.md)|提供Kbox云手机支持的功能与特性介绍。|
-| [编译指南](./docs/zh/compile_guide.md)|提供Kbox云手机编译构建流程与操作指导。|
-| [安装指南](./docs/zh/install_guide.md)|提供Kbox云手机裸机和虚拟机两种环境部署的详细指导。|
-| [用户指南](./docs/zh/user_guide.md)|提供Kbox云手机启动和卸载云手机实例的操作指导。|
-| [例行维护](./docs/zh/routine_maintenance.md)|提供Kbox云手机容器例行维护相关内容。|
-| [最佳实践](./docs/zh/best_practices.md)|提供Kbox云手机在docker、k8s环境下的实践案例。|
-| [故障案例](./docs/zh/troubleshooting.md)|提供Kbox云手机的故障处理方法。|
-| [验收测试指南](./docs/zh/test_guide.md)|提供Kbox云手机产品验收的指导信息。|
-| [安全声明](./docs/zh/security_statement.md)|提供Kbox云手机使用时的安全说明。|
+| 《[版本说明书](./docs/zh/release_notes.md)》|提供Kbox云手机每个发布版本的基础信息和特性更新信息。|
+| 《[特性指南](./docs/zh/feature_guide.md)》|提供Kbox云手机支持的功能与特性介绍。|
+| 《[编译指南](./docs/zh/compile_guide.md)》|提供Kbox云手机编译构建流程与操作指导。|
+| 《[安装指南](./docs/zh/install_guide.md)》|提供Kbox云手机裸机和虚拟机两种环境部署的详细指导。|
+| 《[用户指南](./docs/zh/user_guide.md)》|提供Kbox云手机启动和卸载云手机实例的操作指导。|
+| 《[例行维护](./docs/zh/routine_maintenance.md)》|提供Kbox云手机容器例行维护相关内容。|
+| 《[最佳实践](./docs/zh/best_practices.md)》|提供Kbox云手机在docker、k8s环境下的实践案例。|
+| 《[故障案例](./docs/zh/troubleshooting.md)》|提供Kbox云手机的故障处理方法。|
+| 《[验收测试指南](./docs/zh/test_guide.md)》|提供Kbox云手机产品验收的指导信息。|
+| 《[安全声明](./docs/zh/security_statement.md)》|提供Kbox云手机使用时的安全说明。|
 
 ## 版本维护策略<a name="ZH-CN_TOPIC_0000002518758444"></a>
 
