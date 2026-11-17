@@ -5,11 +5,12 @@
 # 基于以下本地预制代码仓（工作区根为脚本所在目录的上上级目录）：
 #   - CubeSandbox/          CubeSandbox v0.7.0 源码
 #   - opencloudos-kernel/   guest 内核源码
-#   - Kbox-patches/         patchForCube/ 下增量 patch
+#   - Kbox-patches/         patchForCube/ 下 CubeSandbox 增量 patch
+#                           patchForKernel/<内核版本>/ 下内核源码增量 patch
 #
 # 用法:
 #   bash build-cube.sh [patch|kernel|bundle|all]
-#     patch    仅合入 patchForCube/ 下的所有 patch
+#     patch    合入 patchForCube/ 与 patchForKernel/ 下的所有 patch
 #     kernel   仅编译 guest 内核（builder 容器内，产物 vmlinux）
 #     bundle   仅编译 CubeSandbox 一键发布包（自动放入内核制品）
 #     all      按顺序执行以上全部（默认）
@@ -17,6 +18,7 @@
 # 可覆盖的环境变量:
 #   CUBE_SRC             CubeSandbox 源码目录（默认 <工作区>/CubeSandbox）
 #   KERNEL_SRC           guest 内核源码目录（默认 <工作区>/opencloudos-kernel）
+#   KERNEL_PATCH_DIR     内核源码 patch 目录（默认 <Kbox-patches>/patchForKernel/cube_openCloud_6.6.119-49.6）
 #   KERNEL_TARGET_ARCH   目标架构（默认 aarch64）
 #   KERNEL_BUILD_JOBS    内核编译并发（默认 nproc）
 #   GOPROXY              受限网络下的 Go module 代理（透传给 bundle 步骤）
@@ -34,6 +36,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE="$(cd "$SCRIPT_DIR/../.." && pwd)"
 PATCH_DIR="$SCRIPT_DIR/../patchForCube"
+KERNEL_PATCH_DIR="$SCRIPT_DIR/../patchForKernel/cube_openCloud_6.6.119-49.6"
 
 CUBE_SRC="${CUBE_SRC:-$WORKSPACE/CubeSandbox}"
 KERNEL_SRC="${KERNEL_SRC:-$WORKSPACE/opencloudos-kernel}"
@@ -49,24 +52,37 @@ KERNEL_ARTIFACT="$CUBE_SRC/deploy/one-click/assets/kernel-artifacts/vmlinux"
 log() { echo -e "\033[1;32m$*\033[0m"; }
 die() { echo -e "\033[1;31m错误: $*\033[0m" >&2; exit 1; }
 
-# ===== 步骤 1：合入 patchForCube 下的所有 patch =====
+# ===== 步骤 1：合入 patchForCube 与 patchForKernel 下的所有 patch =====
 apply_patches() {
-    log "[1/3] 合入 Kbox-patches/patchForCube 下的所有 patch"
-    [ -d "$PATCH_DIR" ] || die "patch 目录不存在: $PATCH_DIR"
-    [ -d "$CUBE_SRC/.git" ] || die "不是 git 仓: $CUBE_SRC"
+    log "[1/3] 合入 Kbox-patches 下的增量 patch"
+    local count_cube=0 count_kernel=0 patch_file
 
-    # CubeSandbox 是单一 git 仓库（无多仓相对路径问题），直接在该仓内应用。
-    # 文件名前缀含编号（0001/0002...），sort 保证按编号升序应用；
-    # 依赖只存在于同文件内（0002 依赖 0001、0006 依赖 0005）。
-    local patch_file count=0
-    while IFS= read -r patch_file; do
-        log "  apply $(basename "$patch_file")"
-        git -C "$CUBE_SRC" apply "$patch_file" || die "应用失败: $patch_file（源码树可能不干净）"
-        count=$((count + 1))
-    done < <(find "$PATCH_DIR" -type f -name '*.patch' | sort)
+    # patchForCube：作用于 CubeSandbox 单一 git 仓库，编号前缀决定应用顺序。
+    if [ -d "$PATCH_DIR" ] && [ -n "$(find "$PATCH_DIR" -type f -name '*.patch' -print -quit)" ]; then
+        git -C "$CUBE_SRC" rev-parse --git-dir >/dev/null 2>&1 || die "不是 git 仓: $CUBE_SRC"
+        log "  CubeSandbox patch: $PATCH_DIR"
+        while IFS= read -r patch_file; do
+            log "    apply $(basename "$patch_file")"
+            git -C "$CUBE_SRC" apply "$patch_file" || die "应用失败: $patch_file（源码树可能不干净）"
+            count_cube=$((count_cube + 1))
+        done < <(find "$PATCH_DIR" -type f -name '*.patch' | sort)
+    fi
 
-    [ "$count" -gt 0 ] || die "未在 $PATCH_DIR 下找到任何 *.patch"
-    log "  共应用 $count 个 patch，修改文件数: $(git -C "$CUBE_SRC" status --porcelain | wc -l)"
+    # patchForKernel/<内核版本>：作用于内核源码树，与 CubeSandbox 补丁分开归档。
+    if [ -d "$KERNEL_PATCH_DIR" ] && [ -n "$(find "$KERNEL_PATCH_DIR" -type f -name '*.patch' -print -quit)" ]; then
+        git -C "$KERNEL_SRC" rev-parse --git-dir >/dev/null 2>&1 || die "不是 git 仓: $KERNEL_SRC"
+        log "  内核源码 patch: $KERNEL_PATCH_DIR"
+        while IFS= read -r patch_file; do
+            log "    apply $(basename "$patch_file")"
+            git -C "$KERNEL_SRC" apply "$patch_file" || die "应用失败: $patch_file（内核源码树可能不干净）"
+            count_kernel=$((count_kernel + 1))
+        done < <(find "$KERNEL_PATCH_DIR" -type f -name '*.patch' | sort)
+    fi
+
+    [ $((count_cube + count_kernel)) -gt 0 ] || die "未找到任何 *.patch（$PATCH_DIR / $KERNEL_PATCH_DIR）"
+    log "  共应用 $((count_cube + count_kernel)) 个 patch（CubeSandbox $count_cube 个，内核源码 $count_kernel 个）"
+    log "  CubeSandbox 修改文件数: $(git -C "$CUBE_SRC" status --porcelain | wc -l)"
+    [ "$count_kernel" -eq 0 ] || log "  内核源码修改文件数: $(git -C "$KERNEL_SRC" status --porcelain | wc -l)"
 }
 
 # ===== 步骤 2：编译 guest 内核 =====

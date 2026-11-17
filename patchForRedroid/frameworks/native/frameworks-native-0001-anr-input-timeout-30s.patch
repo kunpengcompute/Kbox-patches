@@ -1,0 +1,16 @@
+diff --git a/libs/input/android/os/IInputConstants.aidl b/libs/input/android/os/IInputConstants.aidl
+index 8f6f95b..1488327 100644
+--- a/libs/input/android/os/IInputConstants.aidl
++++ b/libs/input/android/os/IInputConstants.aidl
+@@ -23,7 +23,10 @@ interface IInputConstants
+     // This should be multiplied by the value of the system property ro.hw_timeout_multiplier before
+     // use. A pre-multiplied constant is available in Java in
+     // android.os.InputConstants.DEFAULT_DISPATCHING_TIMEOUT_MILLIS.
+-    const int UNMULTIPLIED_DEFAULT_DISPATCHING_TIMEOUT_MILLIS = 5000; // 5 seconds
++    // Cube/redroid: extend the input dispatching ANR timeout from 5s to 30s.
++    // Guest scheduling under the sandbox can exceed the stock 5s threshold, which
++    // produces false ANRs for otherwise responsive apps.
++    const int UNMULTIPLIED_DEFAULT_DISPATCHING_TIMEOUT_MILLIS = 30000; // 30 seconds
+ 
+     // Indicate invalid battery capacity
+     const int INVALID_BATTERY_CAPACITY = -1;
