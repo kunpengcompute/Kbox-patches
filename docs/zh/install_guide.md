@@ -48,9 +48,7 @@ Kbox云手机容器目前支持Android 11系统，环境部署的软件环境要
 |4|ExaGear_ARM32-ARM64_V2.5.tar.gz| ExaGear转码二进制包 |[ExaGear_ARM32-ARM64_V2.5.tar.gz下载地址](https://raw.gitcode.com/boostkit/boostcph/blobs/7ef9a9a3e1f45f1d1d974d45ce191f5f8f9de076/ExaGear_ARM32-ARM64_V2.5.tar.gz)|√|√|√|√|
 |5|linux-firmware-20210919.tar.gz| 包含Kbox运行所需相关固件 |[linux-firmware-20210919.tar.gz下载地址](https://mirrors.aliyun.com/linux-kernel/firmware/linux-firmware-20210919.tar.gz)|√|-|-|-|
 |6|Kbox-patches-AOSP11.zip| 包含内核补丁Demo包、容器部署脚本Demo包 |[Kbox-patches代码仓库](https://gitcode.com/boostkit/Kbox-patches)切换到AOSP11分支，并单击“下载zip”进行下载。|√|√|√|√|
-|7|NETINT-vXXX.tar.gz| NETINT编解码库，当使能硬解的时候获取该软件包，配套版本4.8.F-adapt |[NETINT Quadra固件下载页面](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)下载密码：test123|√|-|-|-|
-|8|Quadra_V*XXX*.zip| 包含NETINT编码卡Quadra软固件及文档包 |[获取链接](https://www.netint.cn/kunpeng-quadra-firmware-downloads/)下载密码：test123|√|-|-|-|
-|9|VAGPU-25.03.01.01-RC24-SP1.tgz| 显卡驱动 |通过提交ISSUE反馈。|-|√|√|√|
+|7|VAGPU-25.03.01.01-RC24-SP1.tgz| 显卡驱动 |通过提交ISSUE反馈。|-|√|√|√|
 
 >![](./public_sys-resources/icon-note.gif) **说明：**
 >
