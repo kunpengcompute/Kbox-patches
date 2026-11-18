@@ -47,10 +47,8 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 | 3 | kernel-6.6.0-72.0.0.zip | openEuler 24.03 LTS SP1 Kernel源码 | [kernel仓库（6.6.0-72.0.0分支）](https://atomgit.com/openeuler/kernel/tree/6.6.0-72.0.0) | √ | √ | √ | √ |√ |
 | 4 | ExaGear_ARM32-ARM64.tar.gz | ExaGear转码二进制包 | 通过提交ISSUE反馈 | √ | √ | √ | √ |√ |
 | 5 | Kbox-patches-AOSP15.zip | 内核补丁Demo包、容器部署脚本Demo包 | [Kbox-patches仓库（AOSP15分支）](https://gitcode.com/boostkit/Kbox-patches/tree/AOSP15) | √ | √ | √ | √ |√ |
-| 6 | NETINT-v*XXX*.tar.gz（可选） | NETINT编解码库，当使能硬解的时候获取该软件包，配套版本4.8.F-Android15 | [NETINT Quadra固件下载页面](https://www.netint.cn/quadra-firmware-downloads-android15)<br/>下载密码:test123 | √ | - | - | - | - |
-| 7 | Quadra_V*XXX*.zip | 包含NETINT编码卡Quadra软固件及文档包，配套版本V4.8.F-Android15 | [获取链接](https://www.netint.cn/quadra-firmware-downloads-android15/)<br>下载密码:test123 | √ | - | - | - | - |
-| 8 | VAGPU-A15-C-F-26.02.08.01.RC2.tgz | 显卡驱动 | 通过提交ISSUE反馈 | - | √ | √ | √ |√ |
-| 9 | docker-24.0.0.tgz | Docker 24.0.0版本二进制包 | [Docker 24.0.0二进制包下载地址](https://download.docker.com/linux/static/stable/aarch64/docker-24.0.0.tgz) | √ | √ | √ | √ |√ |
+| 6 | VAGPU-A15-C-F-26.02.08.01.RC2.tgz | 显卡驱动 | 通过提交ISSUE反馈 | - | √ | √ | √ |√ |
+| 7 | docker-24.0.0.tgz | Docker 24.0.0版本二进制包 | [Docker 24.0.0二进制包下载地址](https://download.docker.com/linux/static/stable/aarch64/docker-24.0.0.tgz) | √ | √ | √ | √ |√ |
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >
