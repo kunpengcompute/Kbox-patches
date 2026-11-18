@@ -118,10 +118,13 @@ redroid_operation.sh —— CubeSandbox（Cube + Redroid）模板与沙箱管理
 配置文件（默认 <脚本目录>/redroid_config.conf）：
   TPL_* 段   template-create 的默认参数：TPL_IMAGE（缺省镜像全名）、TPL_CPU、
             TPL_MEMORY、TPL_WRITABLE_LAYER_SIZE、TPL_PROBE、TPL_PROBE_TIMEOUT_MS、
-            TPL_ANNOTATIONS、TPL_REDROID_ARGS（androidboot.redroid_width/height/dpi/fps）。
+            TPL_ANNOTATIONS、TPL_REDROID_ARGS（androidboot.redroid_width/height/dpi/fps）、
+            TPL_COW_DEFRAG（1=创建模板时追加 --cow-defrag）。
             alias 不再从配置读取，--alias 为必填命令行参数
   SBX_* 段   启动沙箱的 multirun 请求体：SBX_INSTANCE_TYPE、SBX_NETWORK_TYPE、
             SBX_NAMESPACE、SBX_ANNOTATIONS、SBX_LABELS（模板/快照 ID 由脚本运行时注入）
+  SNAP_COW_DEFRAG  1=snapshot-create 改走 cubemastercli 并追加 --cow-defrag
+            （CubeAPI 的 /sandboxes/{id}/snapshots 不支持该参数）
   可用 --config <文件> 或环境变量 REDROID_CONFIG 指定其他配置文件
   注意：cube.vm.cgroup.unified_hierarchy=false 为 redroid 必需注解，缺失时脚本会
         自动补上（勿改为其他值，否则沙箱会进入重启循环）
@@ -232,6 +235,10 @@ cfg_template_args() {
     for a in "${TPL_REDROID_ARGS[@]}"; do
         args+=( "--arg" "$a" )
     done
+    # 配置开关：TPL_COW_DEFRAG=1 时模板构建阶段对 CoW 层做 defrag
+    if [ "${TPL_COW_DEFRAG:-0}" = "1" ]; then
+        args+=( "--cow-defrag" )
+    fi
     printf '%s\n' "${args[@]}"
 }
 
@@ -865,11 +872,17 @@ cmd_snapshot_create() {
         case "$1" in
             -h|--help) usage ;;
             --name) [ $# -ge 2 ] || die "--name 需要一个值"; name="$2"; shift 2 ;;
+            --config) [ $# -ge 2 ] || die "--config 需要一个值"; OPT_CONFIG="$2"; shift 2 ;;
             -*) die "snapshot-create：未知参数 '$1'" ;;
             *) [ -z "$id" ] || die "snapshot-create：只能指定一个沙箱 ID"; id="$1"; shift ;;
         esac
     done
     [ -n "$id" ] || die "用法：bash $0 snapshot-create <sandbox-id> [--name <显示名>]（沙箱须为 running）"
+    # SNAP_COW_DEFRAG 来自配置文件，必须在此处显式加载，否则始终走 CubeAPI 分支
+    local cfg
+    cfg="$(resolve_config)"
+    # shellcheck disable=SC1090
+    source "$cfg"
     local body="{}"
     if [ -n "$name" ]; then
         # 显示名做最小转义：去掉引号与反斜杠，避免破坏 JSON
@@ -877,8 +890,17 @@ cmd_snapshot_create() {
         body="{\"name\": \"$name\"}"
     fi
     local resp snap
-    resp="$(api POST "/sandboxes/$id/snapshots" "$body")"
-    printf '%s\n' "$resp" | pretty
+    if [ "${SNAP_COW_DEFRAG:-0}" = "1" ]; then
+        # CubeAPI 不支持 --cow-defrag，改走 cubemastercli
+        need_cli
+        local -a sargs=( snapshot create --sandbox-id "$id" --cow-defrag )
+        [ -n "$name" ] && sargs+=( --display-name "$name" )
+        resp="$(run_cli "${sargs[@]}" 2>&1)" || die "快照创建失败（snapshot create --cow-defrag）"
+        printf '%s\n' "$resp"
+    else
+        resp="$(api POST "/sandboxes/$id/snapshots" "$body")"
+        printf '%s\n' "$resp" | pretty
+    fi
     snap="$(first_match "$resp" 'snap-[0-9a-fA-F]+')"
     echo
     if [ -n "$snap" ]; then
