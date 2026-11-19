@@ -1,0 +1,13 @@
+diff --git a/configs/kernel-oc9.aarch64.config b/configs/kernel-oc9.aarch64.config
+--- a/configs/kernel-oc9.aarch64.config
++++ b/configs/kernel-oc9.aarch64.config
+@@ -7095,7 +7095,8 @@
+ 
+ # CONFIG_GREYBUS is not set
+ # CONFIG_COMEDI is not set
+-# CONFIG_STAGING is not set
++CONFIG_STAGING=y
++CONFIG_ASHMEM=y
+ # CONFIG_PRISM2_USB is not set
+ # CONFIG_RTL8192U is not set
+ # CONFIG_RTLLIB is not set

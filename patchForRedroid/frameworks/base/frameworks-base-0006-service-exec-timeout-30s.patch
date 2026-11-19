@@ -1,0 +1,20 @@
+diff --git a/services/core/java/com/android/server/am/ActivityManagerConstants.java b/services/core/java/com/android/server/am/ActivityManagerConstants.java
+index ff837974..e4b4d0c3 100644
+--- a/services/core/java/com/android/server/am/ActivityManagerConstants.java
++++ b/services/core/java/com/android/server/am/ActivityManagerConstants.java
+@@ -288,12 +288,13 @@ final class ActivityManagerConstants extends ContentObserver {
+     /**
+      * Default value to {@link #SERVICE_TIMEOUT}.
+      */
+-    private static final long DEFAULT_SERVICE_TIMEOUT = 20 * 1000 * Build.HW_TIMEOUT_MULTIPLIER;
++    // Cube/redroid: extend the service execution ANR timeout from 20s to 30s.
++    private static final long DEFAULT_SERVICE_TIMEOUT = 30 * 1000 * Build.HW_TIMEOUT_MULTIPLIER;
+ 
+     /**
+      * Default value to {@link #SERVICE_BACKGROUND_TIMEOUT}.
+      */
+-    private static final long DEFAULT_SERVICE_BACKGROUND_TIMEOUT = DEFAULT_SERVICE_TIMEOUT * 10;
++    private static final long DEFAULT_SERVICE_BACKGROUND_TIMEOUT = 200 * 1000 * Build.HW_TIMEOUT_MULTIPLIER;
+ 
+     /**
+      * Maximum number of cached processes.
