@@ -59,7 +59,10 @@ redroid_operation.sh —— CubeSandbox（Cube + Redroid）模板与沙箱管理
   template-list [--wide]             列举模板
   template-info <tpl-id>             查询模板详情（含各节点副本状态）
   template-delete <tpl-id>           删除模板
-  template-commit <sandbox-id>       把运行中的沙箱提交为新模板
+  template-commit <sandbox-id> --alias <别名>
+                                    把运行中的沙箱提交为新模板并命名（--alias 必填；
+                                    commit 成功后自动执行 template set-alias，
+                                    之后可用该别名 sandbox-create）
 
 沙箱操作（沙箱生命周期管理）：
   sandbox-create --alias <模板别名> [--count <N>] [--runcc <M>] [--config <文件>]
@@ -121,6 +124,7 @@ redroid_operation.sh —— CubeSandbox（Cube + Redroid）模板与沙箱管理
   bash redroid_operation.sh health
   bash redroid_operation.sh template-create --alias android14-4c8g
   bash redroid_operation.sh template-create --alias android14-4c8g --image 127.0.0.1:5000/redroid:14.0.0_r75_arm64_only_zp
+  bash redroid_operation.sh template-commit sbx-xxxxxxxxxxxxxxxxxxxxxxxx --alias android14-gms
   bash redroid_operation.sh sandbox-create --alias android14-4c8g
   bash redroid_operation.sh sandbox-create --alias android14-4c8g --count 5
   bash redroid_operation.sh sandbox-create --alias android14-4c8g --count 5 --runcc 2
@@ -484,7 +488,7 @@ print(req.get("annotations", {}).get(TID, ""))' "$req")"
 # 注意：awk 不能匹配后立即 exit——那样会关闭管道使 CLI 收到 SIGPIPE（141），
 #       set -euo pipefail 下会让整个脚本静默崩溃。
 template_alias_to_id() {
-    cubemastercli template list -o wide 2>/dev/null \
+    "$CUBEMASTERCLI" template list -o wide 2>/dev/null \
         | awk -v a="$1" '$1 ~ /^tpl-/ && $2 == a { print $1 }' \
         || true
 }
@@ -571,19 +575,49 @@ cmd_template_delete() {
 }
 
 # ：模板生命周期管理-从运行中沙箱提交为新模板
-# 说明：CubeAPI 无对应端点，走 cubemastercli template commit（user_guide.md §5.7）
+# 说明：CubeAPI 无对应端点，走 cubemastercli template commit（user_guide.md §5.7）。
+#       template commit 不支持 --alias，提交成功后用 template set-alias 命名，
+#       否则模板无别名，无法用 sandbox-create --alias 派生沙箱。
 cmd_template_commit() {
     if [ "${1-}" = "-h" ] || [ "${1-}" = "--help" ]; then usage; fi
-    [ $# -eq 1 ] || die "用法：bash $0 template-commit <sandbox-id>（沙箱须为 running）"
+    local sandbox_id="" alias=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -h|--help) usage ;;
+            --alias) [ $# -ge 2 ] || die "--alias 需要一个值"; alias="$2"; shift 2 ;;
+            -*) die "template-commit：未知参数 '$1'" ;;
+            *)
+                [ -z "$sandbox_id" ] || die "用法：bash $0 template-commit <sandbox-id> --alias <模板别名>（沙箱须为 running）"
+                sandbox_id="$1"; shift ;;
+        esac
+    done
+    [ -n "$sandbox_id" ] || die "用法：bash $0 template-commit <sandbox-id> --alias <模板别名>（沙箱须为 running）"
+    [ -n "$alias" ] || die "template-commit：必须指定 --alias <模板别名>（否则模板无别名，无法用于 sandbox-create）"
+    [[ "$alias" =~ ^[a-z0-9][a-z0-9-]{0,63}$ ]] \
+        || die "模板别名非法：$alias（仅允许小写字母/数字/连字符，首字符须为字母或数字，最长 64）"
+    case "$alias" in
+        tpl-*|snap-*) die "模板别名非法：$alias（不能以 tpl- / snap- 开头）" ;;
+    esac
     need_cli
+    if template_alias_exists "$alias"; then
+        die "模板别名已存在：alias=$alias（$(template_alias_to_id "$alias")），请换一个别名"
+    fi
     local out tpl build
-    out="$(run_cli template commit --sandbox-id "$1")" || die "提交模板失败（沙箱须为 running 状态）"
+    # cubemastercli 把 template_id/build_id 打到 stderr（log.Printf），必须一并捕获
+    out="$(run_cli template commit --sandbox-id "$sandbox_id" 2>&1)" || die "提交模板失败（沙箱须为 running 状态）"
     printf '%s\n' "$out"
     tpl="$(first_match "$out" 'tpl-[0-9a-f]+')"
-    build="$(first_match "$out" 'build-[0-9A-Za-z]+')"
+    build="$(first_match "$out" 'build-[0-9A-Za-z]+|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}')"
     echo
     if [ -n "$tpl" ]; then
         echo "TEMPLATE_ID=$tpl"
+        run_cli template set-alias "$tpl" --alias "$alias" \
+            || die "模板已提交（TEMPLATE_ID=$tpl），但设置别名失败；可手动重试：
+  $CUBEMASTERCLI template set-alias $tpl --alias $alias"
+        echo "TEMPLATE_ALIAS=$alias"
+        echo "启动沙箱：bash $0 sandbox-create --alias $alias"
+    else
+        echo "警告：commit 输出中未解析到 template_id，无法设置别名 $alias；请用 template-list 确认后手动 set-alias" >&2
     fi
     if [ -n "$build" ]; then
         echo "BUILD_ID=$build"
