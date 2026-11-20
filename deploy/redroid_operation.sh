@@ -57,8 +57,8 @@ redroid_operation.sh —— CubeSandbox（Cube + Redroid）模板与沙箱管理
                                     template.image；其余参数（cpu/memory/注解等）取自
                                     配置文件的 template 段
   template-list [--wide]             列举模板
-  template-info <tpl-id>             查询模板详情（含各节点副本状态）
-  template-delete <tpl-id>           删除模板
+  template-info <tpl-id|别名>        查询模板详情（含各节点副本状态）
+  template-delete <tpl-id|别名>      删除模板（支持模板 ID 或别名）
   template-commit <sandbox-id> --alias <别名>
                                     把运行中的沙箱提交为新模板并命名（--alias 必填；
                                     commit 成功后自动执行 template set-alias，
@@ -558,7 +558,7 @@ cmd_template_list() {
 # ：模板生命周期管理-查询（cubemastercli）
 cmd_template_info() {
     if [ "${1-}" = "-h" ] || [ "${1-}" = "--help" ]; then usage; fi
-    [ $# -eq 1 ] || die "用法：bash $0 template-info <tpl-xxxxxxxxxxxxxxxxxxxxxxxx>"
+    [ $# -eq 1 ] || die "用法：bash $0 template-info <tpl-id|模板别名>"
     need_cli
     run_cli template info "$1"
 }
@@ -566,12 +566,14 @@ cmd_template_info() {
 # ：模板生命周期管理-删除（cubemastercli）
 cmd_template_delete() {
     if [ "${1-}" = "-h" ] || [ "${1-}" = "--help" ]; then usage; fi
-    [ $# -eq 1 ] || die "用法：bash $0 template-delete <tpl-xxxxxxxxxxxxxxxxxxxxxxxx>"
+    [ $# -eq 1 ] || die "用法：bash $0 template-delete <tpl-id|模板别名>"
     need_cli
+    echo "提醒：请确认该模板派生的沙箱、快照及其派生的沙箱都已删除干净，"
+    echo "否则会转化为游离沙箱，阻塞再次以同镜像、同参数创建模板。"
+    echo
     run_cli template delete --template-id "$1"
     echo
     echo "已请求删除模板：$1"
-    echo "提示：若报 already in progress（t_cube_template_image_job 残留 PENDING 自锁），处理办法见 ../guide/user_guide.md §5.6。"
 }
 
 # ：模板生命周期管理-从运行中沙箱提交为新模板
