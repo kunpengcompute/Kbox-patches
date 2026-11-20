@@ -171,7 +171,7 @@ cd ~/dependency/Kbox-patches/deploy
 | template-list | 列举模板 | template-list [--wide] | cubemastercli template list |
 | template-info | 查询模板详情 | template-info \<tpl-id\> | cubemastercli template info |
 | template-delete | 删除模板 | template-delete \<tpl-id\> | cubemastercli template delete |
-| template-commit | 把运行中沙箱提交为新模板 | template-commit \<sandbox-id\> | cubemastercli template commit |
+| template-commit | 把运行中沙箱提交为新模板并命名（--alias必填） | template-commit \<sandbox-id\> --alias \<别名\> | cubemastercli template commit + template set-alias |
 
 **沙箱操作**
 
