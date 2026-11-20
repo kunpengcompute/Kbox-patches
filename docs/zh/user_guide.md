@@ -462,7 +462,7 @@ cd ~/dependency/Kbox-patches/deploy
     通过命令查询设置结果。
 
     ```bash
-    dumpsys isub | grep iccid
+    dumpsys isub | grep -i iccid
     ```
 
     SIM卡序列号查询结果示例：
