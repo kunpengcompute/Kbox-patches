@@ -1,5 +1,7 @@
 # 安装指南<a name="ZH-CN_TOPIC_0000002552895803"></a>
 
+本文档介绍Kbox云手机容器环境的安装部署，涵盖硬件与软件环境准备、BIOS配置、网卡绑定CPU、编译内核和部署Kbox等操作，适用于基于鲲鹏服务器体验云手机Demo的用户。
+
 ## 部署说明<a name="ZH-CN_TOPIC_0000002549745285"></a>
 
 为了方便用户快速部署Kbox，鲲鹏BoostKit提供了Demo部署脚本与Demo补丁。请参考以下操作步骤，基于鲲鹏服务器体验云手机Demo。
@@ -30,25 +32,23 @@ Kbox云手机容器环境部署的硬件环境配置方案要求如[**表 1** Kb
 
 ### 软件环境<a name="ZH-CN_TOPIC_0000002518385414"></a>
 
-在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72.0.0）操作系统下部署Kbox安卓容器前，请通过本节提供的渠道获取相应的软件包，并对华为提供的软件包进行完整性校验，以便进行后续的部署步骤。
+在openEuler 24.03 LTS SP1（对应内核版本6.6.0-72.0.0）操作系统下部署Kbox云手机容器前，请通过本节提供的渠道获取相应的软件包，并对华为提供的软件包进行完整性校验，以便进行后续的部署步骤。
 
 **获取软件包<a name="section18549163914575"></a>**
 
-Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求如[**表 2** Kbox安卓容器环境搭建软件环境要求](#Kbox安卓容器环境搭建软件环境要求)所示，请使用推荐软件包进行下载部署。
+Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求如[**表 2** Kbox云手机容器环境搭建软件环境要求](#Kbox安卓容器环境搭建软件环境要求)所示，请使用推荐软件包进行下载部署。
 
-**表 2** Kbox安卓容器环境搭建软件环境要求<a id="Kbox安卓容器环境搭建软件环境要求"></a>
+**表 2** Kbox云手机容器环境搭建软件环境要求<a id="Kbox安卓容器环境搭建软件环境要求"></a>
 
 |序号|软件包|说明|获取地址|配置方案一|配置方案二|配置方案三|配置方案四|配置方案五
 |--|--|--|--|--|--|--|--|--|
 | 1 | android.tar | Kbox安卓镜像包，用于部署Kbox基础环境 | 自行编译（请参见[编译指南](compile_guide.md)进行编译） | √ | √ | √ | √ |√ |
-| 2 | BoostKit-boostcph-kbox_*_15.zip | Android Kbox二进制文件包，包含运行所需组件 | [获取链接](https://www.hikunpeng.com/zh/developer/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft) | √ | √ | √ | √ |√ |
-| 3 | kernel-6.6.0-72.0.0.zip | openEuler 24.03 LTS SP1 Kernel源码 | [获取链接](https://atomgit.com/openeuler/kernel/tree/6.6.0-72.0.0) | √ | √ | √ | √ |√ |
+| 2 | BoostKit-boostcph-kbox_*_15.zip | Android Kbox二进制文件包，包含运行所需组件 | [Kbox云手机容器软件包获取页面](https://www.hikunpeng.com/zh/developer/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft) | √ | √ | √ | √ |√ |
+| 3 | kernel-6.6.0-72.0.0.zip | openEuler 24.03 LTS SP1 Kernel源码 | [kernel仓库（6.6.0-72.0.0分支）](https://atomgit.com/openeuler/kernel/tree/6.6.0-72.0.0) | √ | √ | √ | √ |√ |
 | 4 | ExaGear_ARM32-ARM64.tar.gz | ExaGear转码二进制包 | 通过提交ISSUE反馈 | √ | √ | √ | √ |√ |
-| 5 | Kbox-patches-AOSP15.zip | 内核补丁Demo包、容器部署脚本Demo包 | [获取链接](https://gitcode.com/boostkit/Kbox-patches/tree/AOSP15) | √ | √ | √ | √ |√ |
-| 6 | NETINT-v*XXX*.tar.gz（可选） | NETINT编解码库，当使能硬解的时候获取该软件包，配套版本4.8.F-Android15 | [获取链接](https://www.netint.cn/quadra-firmware-downloads-android15)<br/>下载密码:test123 | √ | - | - | - | - |
-| 7 | Quadra_V*XXX*.zip | 包含NETINT编码卡Quadra软固件及文档包，配套版本V4.8.F-Android15 | [获取链接](https://www.netint.cn/quadra-firmware-downloads-android15/)<br>下载密码:test123 | √ | - | - | - | - |
-| 8 | VAGPU-A15-C-F-26.02.08.01.RC2.tgz | 显卡驱动 | 通过提交ISSUE反馈 | - | √ | √ | √ |√ |
-| 9 | docker-24.0.0.tgz | Docker 24.0.0版本二进制包 | [获取链接](https://download.docker.com/linux/static/stable/aarch64/docker-24.0.0.tgz) | √ | √ | √ | √ |√ |
+| 5 | Kbox-patches-AOSP15.zip | 内核补丁Demo包、容器部署脚本Demo包 | [Kbox-patches仓库（AOSP15分支）](https://gitcode.com/boostkit/Kbox-patches/tree/AOSP15) | √ | √ | √ | √ |√ |
+| 6 | VAGPU-A15-C-F-26.02.08.01.RC2.tgz | 显卡驱动 | 通过提交ISSUE反馈 | - | √ | √ | √ |√ |
+| 7 | docker-24.0.0.tgz | Docker 24.0.0版本二进制包 | [Docker 24.0.0二进制包下载地址](https://download.docker.com/linux/static/stable/aarch64/docker-24.0.0.tgz) | √ | √ | √ | √ |√ |
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >
@@ -85,13 +85,13 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 ## 部署流程简述<a name="ZH-CN_TOPIC_0000002518385446"></a>
 
-本章节提供Kbox安卓容器环境部署流程，帮助您更好地理解部署过程中的各个环节。部署过程中，使用硬件配置方案二、三、四、五时需要执行安装显卡驱动操作步骤。
+本章节提供Kbox云手机容器环境部署流程，帮助您更好地理解部署过程中的各个环节。部署过程中，使用硬件配置方案二、三、四、五时需要执行安装显卡驱动操作步骤。
 
 容器环境部署的流程如[**图 1** 环境部署流程](#环境部署流程)所示。
 
 **图 1** 环境部署流程<a name="fig269321515327"></a><a id="环境部署流程"></a>
 
-![](./figures/环境部署流程.png "环境部署流程")
+![Kbox云手机容器部署流程示意图，依次包含环境准备、BIOS配置、网卡绑核、编译内核与部署Kbox](./figures/环境部署流程.png "环境部署流程")
 
 ## 配置BIOS<a name="ZH-CN_TOPIC_0000002518385450" id="配置BIOS"></a>
 
@@ -102,7 +102,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 内存插入格式如[**图 2** 内存插入格式](#内存插入格式)所示。表格的每一行对应CPU的编号，每一列对应插入内存数量，分别根据插入内存的数量和CPU编号找到表格中对应的行和列，确定插入内存条的卡槽位置。
 
 **图 2** 内存插入格式<a name="fig10693358191820"></a><a id="内存插入格式"></a>
-![](./figures/内存插入格式.png "内存插入格式")
+![内存插入格式对照表，行为CPU编号、列为内存条数量，用于确定内存条卡槽位置](./figures/内存插入格式.png "内存插入格式")
 
 ### （硬件配置方案一、二）配置BIOS<a name="ZH-CN_TOPIC_0000002549865263"></a>
 
@@ -112,11 +112,11 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 1. 登录服务器远程管理平台。进入远程虚拟控制台，出现系统启动界面后，按下“Del”键或“F4”键。
 
-    ![](./figures/zh-cn_image_0000002518385460.png)
+    ![服务器远程管理平台的远程虚拟控制台启动界面，底部提示按Del或F4键进入BIOS](./figures/zh-cn_image_0000002518385460.png)
 
 2. 输入BIOS密码，即可进入BIOS设置界面。
 
-    ![](./figures/BIOS-2-0.png)
+    ![BIOS密码输入提示界面，输入正确密码后进入BIOS设置主界面](./figures/BIOS-2-0.png)
 
 **配置MISC相关选项<a name="section131715818217"></a>**
 
@@ -124,15 +124,15 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 1. 在BIOS设置界面，依次选择“Advanced \> MISC Config”。
 
-    ![](./figures/BIOS4.png)
+    ![BIOS设置界面中Advanced菜单下MISC Config子菜单的选项位置](./figures/BIOS4.png)
 
 2. 进入MISC Config设置界面后，将“Support Smmu”选项设置为“Disabled”。
 
-    ![](./figures/zh-cn_image_0000002518385458.png)
+    ![MISC Config设置界面中将Support Smmu选项设置为Disabled的配置结果](./figures/zh-cn_image_0000002518385458.png)
 
 3. （硬件配置方案一）仅对于硬件配置方案一，需要将“Support 44Bit”选项设置为“Enabled”。
 
-    ![](./figures/zh-cn_image_0000002518225530.png)
+    ![MISC Config界面中将Support 44Bit选项设置为Enabled，仅硬件配置方案一需要](./figures/zh-cn_image_0000002518225530.png)
 
 4. 保存BIOS配置并退出设置界面。
 
@@ -140,11 +140,11 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 1. 在BIOS设置界面，依次选择“Advanced \> Performance Config”。
 
-    ![](./figures/BIOS6.png)
+    ![BIOS设置界面中Advanced菜单下Performance Config子菜单的选项位置](./figures/BIOS6.png)
 
 2. 进入Performance Config设置页面后，将“Power Policy”选项设置为“Performance”后保存BIOS配置并退出设置界面。
 
-    ![](./figures/BIOS7.png)
+    ![Performance Config设置界面中Power Policy选项设置为Performance的配置结果](./figures/BIOS7.png)
 
 **配置Memory相关选项<a name="section2544330723"></a>**
 
@@ -153,7 +153,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 1. 在BIOS设置界面，依次选择“Advanced \> Memory Config”。
 2. 进入Memory Config设置页面后，将“Memory Frequency”选项设置为“2933”，将“Custom Refresh Rate”选项设置为“Auto”后保存BIOS配置并退出设置界面。
 
-    ![](./figures/zh-cn_image_0000002549745299.png)
+    ![Memory Config设置界面中Memory Frequency设为2933、Custom Refresh Rate设为Auto](./figures/zh-cn_image_0000002549745299.png)
 
 **（硬件配置方案一，可选）配置PCIe相关选项<a name="section1053210511726"></a>**
 
@@ -165,7 +165,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
     例如Quadra安装在Slot3时，需要将“Slot3 BandWidth Splitting”选项设置为“x4”。
 
-    ![](./figures/zh-cn_image_0000002549745303.png)
+    ![PCIe Config界面中NETINT编码卡所在Slot的BandWidth Splitting选项设为x4](./figures/zh-cn_image_0000002549745303.png)
 
 3. 进入服务器OS系统，确认PCIe分叉功能是否实现，可以通过调用**nvme**命令来查看。
 
@@ -183,7 +183,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
         回显如下表示NETINT编码卡安装正确。该内容为回显示例，请以实际为准。
 
-        ```bash
+        ```output
         Node          SN                   Model            Namespace Usage                    Format           FW Rev
         ------------- -------------------- ---------------- --------- ------------------------ ---------------- --------
         /dev/nvme0n1  Q2A325A11DC082-0454A QuadraT2A        1         8.59  TB /   8.59  TB    4 KiB +  0 B     48F6rKr1
@@ -202,11 +202,11 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 1. 登录服务器远程管理平台。进入远程虚拟控制台，出现系统启动界面后，按下“Del”键或“F4”键。
 
-    ![](./figures/BIOS设置界面.png)
+    ![服务器远程管理平台远程虚拟控制台的系统启动界面，按Del键或F4键进入BIOS](./figures/BIOS设置界面.png)
 
 2. 输入BIOS密码，即可进入BIOS设置界面。
 
-    ![](./figures/BIOS-2-0-0.png)
+    ![BIOS设置入口的密码输入提示界面，输入密码后进入BIOS设置主界面](./figures/BIOS-2-0-0.png)
 
 **配置MISC相关选项<a name="section131715818217"></a>**
 
@@ -214,21 +214,21 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 1. 在BIOS设置界面，依次选择“Advanced \> MISC Configuration”。
 
-    ![](./figures/zh-cn_image_0000002549865321.png)
+    ![BIOS设置界面中Advanced菜单下MISC Configuration子菜单的选项位置](./figures/zh-cn_image_0000002549865321.png)
 
 2. 进入MISC Configuration设置界面后，将“Support Smmu”选项设置为“Disabled”后保存BIOS配置并退出设置界面。
 
-    ![](./figures/zh-cn_image_0000002518225546.png)
+    ![MISC Configuration设置界面中将Support Smmu选项设置为Disabled后保存退出](./figures/zh-cn_image_0000002518225546.png)
 
 **配置Performance相关选项<a name="section18236319121"></a>**
 
 1. 在BIOS设置界面，依次选择“Advanced \> Power And Performance Configuration”。
 
-    ![](./figures/zh-cn_image_0000002549745317.png)
+    ![BIOS设置界面中Advanced菜单下Power And Performance Configuration子菜单位置](./figures/zh-cn_image_0000002549745317.png)
 
 2. 进入Power And Performance Configuration设置页面后，将“Power Policy”选项设置为“Performance”后保存BIOS配置并退出设置界面。
 
-    ![](./figures/zh-cn_image_0000002518225548.png)
+    ![Power And Performance Configuration界面中Power Policy选项设置为Performance](./figures/zh-cn_image_0000002518225548.png)
 
 **配置Memory相关选项<a name="section2544330723"></a>**
 
@@ -236,11 +236,11 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
 1. 在BIOS设置界面，依次选择“Advanced \> Memory Configuration”。
 
-    ![](./figures/zh-cn_image_0000002549865323.png)
+    ![BIOS设置界面中Advanced菜单下Memory Configuration子菜单的选项位置](./figures/zh-cn_image_0000002549865323.png)
 
 2. 进入Memory Configuration设置页面后，硬件配置方案三将**Memory Frequency**选项设置为“4800”，配置方案四将**Memory Frequency**选项设置为“5200”，配置方案五将**Memory Frequency**选项设置为“3200”，将**Custom Refresh Rate**选项设置为“Auto”后保存BIOS配置并退出设置界面。
 
-    ![](./figures/zh-cn_image_0000002549745319.png)
+    ![Memory Configuration界面中Memory Frequency按具体方案设置、Custom Refresh Rate设为Auto](./figures/zh-cn_image_0000002549745319.png)
 
 ## 网卡绑定CPU<a name="ZH-CN_TOPIC_0000002518225524"></a>
 
@@ -259,7 +259,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
     回显如下所示，表示网卡enp125s0f1的pci设备号为0000:7d:00.1。
 
-    ```bash
+    ```output
     0000:7d:00.1
     ```
 
@@ -273,7 +273,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
     回显如下所示，表示网卡对应的中断为358、359。
 
-    ```bash
+    ```output
     358
     359
     ```
@@ -301,7 +301,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
 
     回显如下所示，根据pci设备号查询得到的网卡enp125s0f1所属的NUMA node为0。
 
-    ```bash
+    ```output
     7d:00.1 Ethernet controller: Huawei Technologies Co., Ltd. HNS GE/10GE/25GE Network Controller (rev 21)
             Control: I/O- Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR- FastB2B- DisINTx-
             Status: Cap+ 66MHz- UDF- FastB2B- ParErr- DEVSEL=fast >TAbort- <TAbort- <MAbort- >SERR- <PERR- INTx-
@@ -345,7 +345,7 @@ Kbox安卓容器目前支持Android 15系统，环境部署的软件环境要求
     >
     >如回显所示，NUMA node0其对应的core区间为0~31。
     >
-    >```bash
+    >```output
     >NUMA node0 CPU(s):               0-31
     >NUMA node1 CPU(s):               32-63
     >NUMA node2 CPU(s):               64-95
@@ -429,7 +429,7 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
 
         确认指令回显如下。
 
-        ```bash
+        ```output
         SELINUX=disabled
         ```
 
@@ -464,7 +464,7 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
 
         确认回显如下。
 
-        ```bash
+        ```output
         fs.inotify.max_user_instances=8192
         ```
 
@@ -497,7 +497,7 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
 
 6. Docker升级到24.0.0版本。若**yum**安装的Docker版本低于24.0.0版本，则需要升级版本。
 
-    请参见[软件环境](#Kbox安卓容器环境搭建软件环境要求)中的下载链接，下载docker-24.0.0.tgz文件。在任意目录下，解压，并将二进制包中的文件拷贝到“/usr/bin”下。
+    请参见[**表 2** Kbox安卓容器环境搭建软件环境要求](#Kbox安卓容器环境搭建软件环境要求)中的下载链接，下载docker-24.0.0.tgz文件。在任意目录下，解压，并将二进制包中的文件拷贝到“/usr/bin”下。
 
     ```bash
     tar -xvf docker-24.0.0.tgz
@@ -527,7 +527,7 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
 
     预期回显
     
-    ```bash
+    ```output
     Active: inactive (dead) since ...
     ```
 
@@ -608,18 +608,18 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
 
 3. 执行命令后，在出现的界面中选择“Load”，如图所示。
 
-    ![](./figures/内核configure_load.png)
+    ![make menuconfig界面底部的操作菜单，选中Load项以加载已有.config配置文件](./figures/内核configure_load.png)
 
 4. 出现如图所示的界面时，选择“OK”。
 
-    ![](./figures/zh-cn_image_0000002549865311.png)
+    ![加载配置文件后的确认提示框，选中OK按钮继续加载](./figures/zh-cn_image_0000002549865311.png)
 
 5. 配置内核编译选项。
 
     在出现如[**图 3** 内核配置界面](#内核配置界面)所示的内核配置界面中，进行内核编译选项的配置，具体配置项如[**表 3** 内核编译选项配置说明](#内核编译选项配置说明)所示。
 
     **图 3** 内核配置界面<a name="fig4732181117012"></a><a id="内核配置界面"></a>
-    ![](./figures/内核配置界面.jpg "内核配置界面")
+    ![内核配置界面menuconfig主菜单树，展示KBOX、HISI_PMU等配置项及其位置](./figures/内核配置界面.jpg "内核配置界面")
 
     **表 3** 内核编译选项配置说明<a id="内核编译选项配置说明"></a>
 
@@ -665,33 +665,33 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
 
     1. 在配置界面，按“/”键打开搜索，输入“STAGING”，按回车进行确认，出现下图的搜索结果。
 
-        ![](./figures/Snipaste_2023-08-14_15-01-18.jpg)
+        ![菜单搜索界面，在搜索框中输入STAGING后的搜索结果列表及配置项编号](./figures/Snipaste_2023-08-14_15-01-18.jpg)
 
     2. 确认配置项的编号，如图中的“（1）”，按数字“1”进行选择。
 
-        ![](./figures/Snipaste_2023-08-14_15-01-52.jpg)
+        ![搜索结果中配置项编号（1）的显示位置，按数字键1选中该配置项](./figures/Snipaste_2023-08-14_15-01-52.jpg)
 
     3. 按“y”键将选中项调整为编译进内核，然后使用左右键导航到“<Exit\>”，按“<Enter\>”确认返回。
 
-        ![](./figures/Snipaste_2023-08-14_15-02-39.jpg)
+        ![按y键后配置项前出现星号表示编译进内核，底部导航至Exit按钮](./figures/Snipaste_2023-08-14_15-02-39.jpg)
 
     4. 返回到内核配置首页，进行下一项的配置。
 
 6. 完成配置后，在内核配置首页选择“Save”。
 
-    ![](./figures/内核configure_save.png)
+    ![内核配置首页底部操作菜单，选中Save项将配置保存到.config文件](./figures/内核configure_save.png)
 
 7. 出现如图所示的界面时，选择“Ok”。
 
-    ![](./figures/zh-cn_image_0000002549865307.png)
+    ![保存配置后的文件确认提示框，选中Ok按钮完成保存](./figures/zh-cn_image_0000002549865307.png)
 
 8. 出现如图所示的界面时，选择“Exit”。
 
-    ![](./figures/zh-cn_image_0000002518225536.png)
+    ![配置操作完成后的退出确认界面，选中Exit按钮返回上一级](./figures/zh-cn_image_0000002518225536.png)
 
 9. 执行完上述操作，进入如图所示的初始界面，选择“Exit”，当前文件夹下即可生成.config文件。
 
-    ![](./figures/内核configure_exit.png)
+    ![返回内核配置首页后选中Exit退出，退出后当前目录生成.config文件](./figures/内核configure_exit.png)
 
 ##### 编译并安装Kernel<a id="编译并安装Kernel"></a>
 
@@ -729,7 +729,7 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
 
     回显如下三个文件时，表示编译成功。
 
-    ```bash
+    ```output
     -rwxr-xr-x   1 root root 39495600 Dec  8 17:06 vmlinux
     -rw-r--r--   1 root root   214542 Dec  8 17:06 vmlinux.a
     -rw-r--r--   1 root root 49125656 Dec  8 17:06 vmlinux.o
@@ -821,7 +821,7 @@ find /sys -name power_dpm_force_performance_level | xargs -I {} sh -c "echo high
 
     回显示例如下。
 
-    ```bash
+    ```output
     lrwxrwxrwx 1 root root 13 Oct 25 10:58 pci-0000:03:00.0-render -> ../renderD128
     lrwxrwxrwx 1 root root 13 Oct 25 10:58 pci-0000:83:00.0-render -> ../renderD129
     ```
@@ -858,7 +858,7 @@ lspci -vvv -d :0200 | grep NUMA
 
 道客DC1000/DC1000C每张单卡对应有4个GPU节点，以4\*道客DC1000/DC1000C的配置为例，回显输出的每行和GPU节点（renderD节点，编号从128开始）顺序依次对应。示例回显如下：
 
-```bash
+```output
 NUMA node: 0
 NUMA node: 0
 NUMA node: 0
@@ -893,7 +893,7 @@ NUMA node: 2
 
     回显如下说明识别正确。该内容为回显示例，请以实际为准。
 
-    ```bash
+    ```output
     Node          SN                   Model            Namespace Usage                    Format           FW Rev
     ------------- -------------------- ---------------- --------- ------------------------ ---------------- --------
     /dev/nvme0n1  Q2A325A11DC082-0454A QuadraT2A        1         8.59  TB /   8.59  TB    4 KiB +  0 B     48F6rKr1
@@ -979,9 +979,9 @@ NUMA node: 2
     dmesg | grep VAGPU | grep version
     ```
 
-    回显信息中显卡内核态驱动版本号和显卡固件版本号相同，如下命令中加粗的内容，则表明显卡驱动安装完成。
+    回显信息中显卡内核态驱动版本号（VAGPU-A15-C-F-26.02.08.01.RC2）和显卡固件版本号相同，则表明显卡驱动安装完成。
 
-    ```bash
+    ```output
     PVR_K:(Log): 3697791: Meta firmware version: 1.18@6276027B20260602 build: release branch: release/26.02 commit: d0697cf9 tag: VAGPU-A15-C-F-26.02.08.01.RC2
     ...
     ```
@@ -1055,7 +1055,7 @@ NUMA node: 2
 
     显示如下信息时，表示已经成功注册。
 
-    ```bash
+    ```output
     enabled 
     interpreter /opt/exagear/ubt_a32a64 
     flags: POCF 

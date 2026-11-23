@@ -1,5 +1,7 @@
 # 用户指南<a name="ZH-CN_TOPIC_0000002521735840"></a>
 
+本文档介绍Kbox云手机实例的启动与卸载、版本号查询、系统属性配置、SCRCPY测试与故障处理，适用于需要部署和运维云手机实例的维护人员。
+
 ## 启动和卸载云手机实例<a name="ZH-CN_TOPIC_0000002518225838"></a>
 
 ### 挂载安卓镜像<a name="ZH-CN_TOPIC_0000002549865629"></a>
@@ -97,7 +99,7 @@ docker import android.tar kbox:demo
 |参数名称|参数说明|配置说明|
 |--|--|--|
 |VIDEO_GPU_MAP_AMDXXX（硬件配置一）VIDEO_GPU_MAP_HBXXX（硬件配置二、三、四）| 参数设置了不同规格服务器的GPU节点分配范围 |VIDEO_GPU_MAP_AMDXXX表示在硬件配置方案一的服务器上，为云手机容器分配的GPU节点范围；VIDEO_GPU_MAP_HBXXX表示在硬件配置方案二、三、四、五的服务器上，为云手机容器分配的GPU节点范围。节点的分配方式会根据服务器规格+容器的编号进行取模运算分配|
-|MODE0_CPUSXXX，MODE1_CPUSXXX| 参数设置了不同规格服务器的CPU核心分配范围 |MODE0_CPUSXXX表示绑核模式下CPU核心分配范围，MODE1_CPUSXXX表示绑定NUMA的CPU核心分配范围。容器启动时android_kbox.sh脚本会根据容器规格选择对应的CPU核心范围。|
+|MODE0_CPUSXXX，MODE1_CPUSXXX| 参数设置了不同规格服务器的CPU核心分配范围 |MODE0_CPUSXXX表示绑核模式下CPU核心分配范围，MODE1_CPUSXXX表示绑定NUMA的CPU核心分配范围。容器启动时android_kbox_aosp15.sh脚本会根据容器规格选择对应的CPU核心范围。|
 
 **表 2** kbox_config.cfg配置文件中容器使用的数据卷存放路径配置说明<a id="kbox挂载配置说明"></a>
 
@@ -124,7 +126,7 @@ Kbox云手机容器支持使能图形加速层，通过将kbox_config.cfg配置�
 
             回显示例如下，请以实际为准。加粗部分为NETINT编码卡Quadra芯片NVMe节点，一张编码卡包含2颗芯片。
 
-            ```shell
+            ```output
             Node          SN                   Model            Namespace Usage                    Format           FW Rev
             ------------- -------------------- ---------------- --------- ------------------------ ---------------- --------
             /dev/nvme0n1  Q2A325A11DC082-0454A QuadraT2A        1         8.59  TB /   8.59  TB    4 KiB +  0 B     48F6rKr1
@@ -316,7 +318,7 @@ cat ./products/kbox_version.txt
 
 回显信息即为Kbox版本号信息，示例如下。
 
-```bash
+```output
 Product Name: Kunpeng BoostKit
 Product Version: 26.0.RC1
 Component Name: BoostKit-boostcph-kbox
@@ -359,10 +361,6 @@ mount | grep -i /data
 ### （可选）共享数据卷功能 <a id="ZH-CN_TOPIC_000000254983254923"></a>
 
 当前云手机容器的数据卷独立挂载在宿主机，不同容器间数据卷相互隔离，对于多个容器会有多个独立重复的数据卷。共享数据卷功能可以实现多个容器由同一镜像创建，从而实现所有容器的数据卷共享。
-
-#### 环境准备
-
-   集成26.2.RC1或更高版本的Kbox云手机组件即包含本功能。
 
 #### 实施修改<a id="ZH-CN_TOPIC_000000254983255011"></a>
 
@@ -700,7 +698,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     回显示例如下。
 
-    ```bash
+    ```output
     [persist.gps.mock.latitude]: [30.188433]
     [persist.gps.mock.longitude]: [120.193818]
     ```
@@ -769,7 +767,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     重启容器后，拨号界面输入“\*\#06\#”，获得如下提示。
 
-    ![](./figures/zh-cn_image_0000002518225892.png)
+    ![在拨号界面输入*#06#后弹出的IMEI查询结果回显，显示设置后的IMEI值](./figures/zh-cn_image_0000002518225892.png)
 
 2. 调用**setprop**方法设置“网络运营商名字”和“网络运营商代码”。
 
@@ -780,7 +778,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     重启容器后，在应用中查询设置结果。
 
-    ![](./figures/zh-cn_image_0000002549865675.png)
+    ![应用中查询网络运营商设置的界面，显示修改后的运营商名字China Telecom与运营商代码46011](./figures/zh-cn_image_0000002549865675.png)
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >
@@ -800,11 +798,11 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     重启容器后，拨号界面输入<b>`*#*#4636#*#*`</b>，打开手机信息，可以查询到“IMSI”。
 
-    ![](./figures/zh-cn_image_0000002549865673.png)
+    ![拨号界面输入*#*#4636#*#*进入手机信息页面，查看到设置后的IMSI值](./figures/zh-cn_image_0000002549865673.png)
 
     在应用中查询到“SIM卡运营商名字”和“SIM卡运营商代码”。
 
-    ![](./figures/zh-cn_image_0000002549745665.png)
+    ![应用中显示的SIM卡运营商名字与SIM卡运营商代码查询结果界面，名字为China test1](./figures/zh-cn_image_0000002549745665.png)
 
 4. 调用**setprop**方法设置“SIM卡序列号”。
 
@@ -818,7 +816,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
     dumpsys isub | grep iccid
     ```
 
-    ![](./figures/zh-cn_image_0000002549745667.png)
+    ![执行dumpsys isub并过滤iccid后的命令回显，显示设置后的20位SIM卡序列号](./figures/zh-cn_image_0000002549745667.png)
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >
@@ -844,7 +842,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     重启容器后，在应用中查询设置结果。
 
-    ![](./figures/zh-cn_image_0000002518225894.png)
+    ![应用中显示设置后手机号码12345678901的手机信息查询界面](./figures/zh-cn_image_0000002518225894.png)
 
 #### 配置加速度陀螺仪系统属性<a name="ZH-CN_TOPIC_0000002549745631"></a>
 
@@ -880,7 +878,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 2. 在应用中可以查看设置的加速度数据。
 
-    ![](./figures/zh-cn_image_0000002518385810.png)
+    ![第三方应用传感器页面查看加速度x、y、z三轴数值，与setprop设置值一致](./figures/zh-cn_image_0000002518385810.png)
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >
@@ -896,7 +894,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
 4. 在应用中可查看陀螺仪数据。
 
-    ![](./figures/zh-cn_image_0000002549745655.png)
+    ![第三方应用传感器页面查看陀螺仪x、y、z三轴旋转速率，与setprop设置值一致](./figures/zh-cn_image_0000002549745655.png)
 
 #### 配置多VInput设备系统属性<a name="ZH-CN_TOPIC_0000002549745651"></a>
 
@@ -923,7 +921,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 
     回显示例如下。
 
-    ```bash
+    ```output
     add device 1: /dev/input/event4
       name:     "mouse"
     add device 2: /dev/input/event3
@@ -1019,7 +1017,7 @@ Docker不在本解决方案交付范围内，本章节提供的环境配置仅�
 故障处理总体流程主要分为四个过程：故障信息收集、故障判断、故障定位、故障排除。
 
 **图 1** 常见故障处理流程<a name="fig1890714518232"></a><a id="常见故障处理流程"></a>
-![](./figures/常见故障处理流程.png "常见故障处理流程")
+![常见故障处理流程图，依次为故障信息收集、故障判断、故障定位、故障排除四个阶段](./figures/常见故障处理流程.png "常见故障处理流程")
 
 **故障信息收集<a name="section196271610142212"></a>**
 

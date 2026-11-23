@@ -1,5 +1,7 @@
 # 编译指南<a name="ZH-CN_TOPIC_0000002521735842"></a>
 
+本文档介绍Kbox安卓镜像的编译构建方法，涵盖环境准备、编译依赖包安装、AOSP与Mesa源码下载、Kbox补丁与二进制内容合入、镜像生成等操作，适用于需要在x86_64服务器上自行编译Kbox安卓镜像的用户。
+
 ## 环境准备<a name="ZH-CN_TOPIC_0000002518346174"></a>
 
 ### 硬件环境<a name="ZH-CN_TOPIC_0000002549825993"></a>
@@ -25,17 +27,17 @@ Kbox安卓镜像编译构建的硬件环境要求如[**表 1** Kbox安卓镜像�
 
 **获取软件包<a name="section038565445713"></a>**
 
-Kbox安卓镜像编译构建的软件环境要求如[**表 1** Kbox安卓镜像编译构建软件环境要求](#Kbox安卓镜像编译构建软件环境要求)所示。
+Kbox安卓镜像编译构建的软件环境要求如[**表 2** Kbox安卓镜像编译构建软件环境要求](#Kbox安卓镜像编译构建软件环境要求)所示。
 
 **表 2** Kbox安卓镜像编译构建软件环境要求<a id="Kbox安卓镜像编译构建软件环境要求"></a>
 
 |序号|软件|说明|获取地址|
 |--|--|--|--|
-|1|AOSP源码|版本：android-15.0.0_r17|[获取链接](https://android.googlesource.com/platform/manifest)|
-|2|BoostKit-boostcph-kbox_*_15.zip|Android Kbox二进制文件包|[获取链接](https://www.hikunpeng.com/zh/developer/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft)|
-|3|Kbox-patches-AOSP15.zip|Android代码补丁Demo包、编译脚本Demo包|[获取链接](https://raw.gitcode.com/boostkit/Kbox-patches/archive/refs/heads/AOSP15.zip)|
-|4|Meson|1.1.0|[获取链接](https://github.com/mesonbuild/meson/releases/download/1.1.0/meson-1.1.0.tar.gz)|
-|5|Mesa|Mesa参考Demo24.3.4|[获取链接](https://gitcode.com/boostkit/mesa/tree/24.3.4)|
+|1|AOSP源码|版本：android-15.0.0_r17|[AOSP manifest代码仓库](https://android.googlesource.com/platform/manifest)|
+|2|BoostKit-boostcph-kbox_*_15.zip|Android Kbox二进制文件包|[鲲鹏BoostKit云手机软件包下载页面](https://www.hikunpeng.com/zh/developer/boostkit/arm-native?application=Kbox%E4%BA%91%E6%89%8B%E6%9C%BA%E5%AE%B9%E5%99%A8#application-soft)|
+|3|Kbox-patches-AOSP15.zip|Android代码补丁Demo包、编译脚本Demo包|[Kbox-patches源码包下载地址](https://raw.gitcode.com/boostkit/Kbox-patches/archive/refs/heads/AOSP15.zip)|
+|4|Meson|1.1.0|[meson 1.1.0源码包下载地址](https://github.com/mesonbuild/meson/releases/download/1.1.0/meson-1.1.0.tar.gz)|
+|5|Mesa|Mesa参考Demo24.3.4|[Mesa 24.3.4分支源码仓库](https://gitcode.com/boostkit/mesa/tree/24.3.4)|
 
 >![](public_sys-resources/icon-note.gif) **说明：** <br>
 >
@@ -79,7 +81,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
 **图 1** Kbox安卓镜像编译构建流程<a name="fig19747839194513"></a><a id="Kbox安卓镜像编译构建流程"></a>
 
-![](./figures/Kbox安卓镜像编译构建流程.png "Kbox安卓镜像编译构建流程")
+![Kbox安卓镜像编译构建流程图：环境准备、依赖包安装、源码下载、补丁合入到镜像生成的环节顺序](./figures/Kbox安卓镜像编译构建流程.png "Kbox安卓镜像编译构建流程")
 
 ## 安装编译依赖包<a name="ZH-CN_TOPIC_0000002549826019"></a>
 
@@ -131,7 +133,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
 
     若遇到如下图所示的提示信息，选择“Cancel”即可。
 
-    ![](./figures/zh-cn_image_0000002518186270.png)
+    ![安装依赖包过程中出现报错提示时选择Cancel按钮的提示框界面](./figures/zh-cn_image_0000002518186270.png)
 
 4. 确认服务器的Python3环境是否包含mako模块。若无，请为服务器的Python3环境安装mako模块。
     1. 执行如下命令，进入python3环境：
@@ -140,7 +142,7 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
         python3
         ```
 
-        ![](./figures/zh-cn_image_0000002518346190.png)
+        ![执行python3命令进入Python3交互环境的终端回显，显示版本号与>>>提示符](./figures/zh-cn_image_0000002518346190.png)
 
     2. 进入python3环境后，执行如下命令，查看包含的模块信息。
 
@@ -148,11 +150,11 @@ Kbox安卓镜像编译构建的流程如[**图 1** Kbox安卓镜像编译构建�
         help("modules")
         ```
 
-        ![](./figures/zh-cn_image_0000002549826041.png)
+        ![执行help("modules")后终端输出的Python3已安装模块列表回显](./figures/zh-cn_image_0000002549826041.png)
 
         如图所示，若回显中包含mako模块，则可继续后文步骤。若不包含，可通过执行“pip3 install mako”安装mako模块。请确保Python3环境中包含mako模块，再继续后文的步骤。
 
-        ![](./figures/zh-cn_image_0000002518186272.png)
+        ![模块列表回显中包含mako模块的示例，确认Python3环境已具备mako模块](./figures/zh-cn_image_0000002518186272.png)
 
     3. 退出python命令模式。
 
