@@ -6,7 +6,7 @@
 
 | 配置项 | 硬件配置方案一 | 硬件配置方案二 |
 | ---- | ---- | ---- |
-| CPU  | 2*鲲鹏920 7280Z处理器，80核，2.9Ghz | 2*鲲鹏950 7592C处理器，96核，2.3Ghz |
+| CPU  | 2*鲲鹏920 7280Z处理器，80核，2.9GHz | 2*鲲鹏950 7592C处理器，96核，2.3GHz |
 | 内存 | 16*DDR5 DIMM内存-64GB-4800MT/s | 24*DDR5 DIMM内存-64GB-6400MT/s |
 | 操作系统 | openEuler 24.03 LTS SP3 | openEuler 24.03 LTS SP3 |
 
@@ -14,9 +14,9 @@
 
 |序号|软件|说明|获取地址|
 | ---- | ---- | ---- | ---- |
-|1| CubeSandbox源码 | 版本：v0.7.1 | [下载连接](https://gitcode.com/boostkit/CubeSandbox.git) |
+|1| CubeSandbox源码 | 版本：v0.7.1 | [下载链接](https://gitcode.com/boostkit/CubeSandbox.git) |
 |2| Kbox-patches-dev_AndroidSandbox.zip | Kbox AOSP补丁、脚本Demo包 | [获取链接](https://gitcode.com/boostkit/Kbox-patches.git)<br>分支：dev_AndroidSandbox |
-|3| OpenCloud OS内核源码 | 版本：6.6.119-49.6 | [下载连接](https://gitee.com/OpenCloudOS/OpenCloudOS-Kernel.git) |
+|3| OpenCloud OS内核源码 | 版本：6.6.119-49.6 | [下载链接](https://gitee.com/OpenCloudOS/OpenCloudOS-Kernel.git) |
 
 ### 安装编译依赖包
 
@@ -62,6 +62,26 @@ cd ~/cube-workspace
 git clone https://gitcode.com/boostkit/Kbox-patches.git -b dev_AndroidSandbox
 ```
 
+### 修改本机网络配置
+
+沙箱网络依赖IP转发，`net.ipv4.ip_forward`为0时沙箱启动后网络会异常，需将其修改为1。先在shell命令行中手动修改并确认：
+
+```bash
+sudo sysctl -w net.ipv4.ip_forward=1
+sysctl -n net.ipv4.ip_forward    # 期望返回 1
+```
+
+`sysctl -w`只修改内核当前运行值，**重启后会失效**。如需重启后仍生效，需将配置写入`/etc/sysctl.conf`：
+
+```bash
+# 取消注释并改值为 1（兼容 = 两侧有无空格）
+sudo sed -i -E 's@^#?[[:space:]]*net\.ipv4\.ip_forward[[:space:]]*=.*@net.ipv4.ip_forward = 1@' /etc/sysctl.conf
+# 文件里原本没有这一行时兜底追加
+grep -q '^net.ipv4.ip_forward' /etc/sysctl.conf || echo 'net.ipv4.ip_forward = 1' | sudo tee -a /etc/sysctl.conf
+#写入后重启系统时该配置会被自动加载；若不重启，执行此命令立即生效
+sudo sysctl -p                
+```
+
 ## 构建CubeSandbox和Guest内核
 
 ### 一键构建<a id="一键构建"></a>
@@ -70,8 +90,8 @@ git clone https://gitcode.com/boostkit/Kbox-patches.git -b dev_AndroidSandbox
 
 | 变量 | 默认值 | 说明 |
 | -- | -- | -- |
-| CUBE_SRC | ~/CubeSandbox | CubeSandbox源码目录 |
-| KERNEL_SRC | ~/opencloudos-kernel | guest内核源码目录 |
+| CUBE_SRC | ~/cube-workspace/CubeSandbox | CubeSandbox源码目录 |
+| KERNEL_SRC | ~/cube-workspace/opencloudos-kernel | Guest内核源码目录 |
 
 ```bash
 cd ~/cube-workspace/Kbox-patches/build
@@ -80,7 +100,7 @@ cd ~/cube-workspace/Kbox-patches/build
 
 ### 分步构建
 
-本脚本提供分布构建能力，若已执行[一键构建](#一键构建)则可跳过本章节。
+本脚本提供分步构建能力，若已执行[一键构建](#一键构建)则可跳过本章节。
 
 ```bash
 cd ~/cube-workspace/Kbox-patches/build
@@ -93,8 +113,8 @@ cd ~/cube-workspace/Kbox-patches/build
 
 | 产物       | 路径                                                                          |
 | -------- | --------------------------------------------------------------------------- |
-| guest内核 | CubeSandbox/_output/kernel/aarch64/vmlinux                                |
-| 发布包      | CubeSandbox/deploy/one-click/dist/cube-sandbox-one-click-\<version\>.tar.gz |
+| Guest内核 | ~/cube-workspace/CubeSandbox/_output/kernel/aarch64/vmlinux                                |
+| 发布包    | ~/cube-workspace/CubeSandbox/deploy/one-click/dist/cube-sandbox-one-click-\<version\>.tar.gz |
 
 ## 部署CubeSandbox
 
@@ -109,17 +129,24 @@ mkdir -p /data
 mount /dev/nvme0n1 /data
 ```
 
-建议将磁盘挂载持久化配置到`/etc/fstab`文件，以实现开机自动挂载磁盘。配置示例：
+建议将磁盘挂载持久化配置到`/etc/fstab`文件，以实现开机自动挂载磁盘。推荐使用磁盘UUID进行配置，可避免设备名（如`/dev/nvme0n1`）在重启或硬盘增减后发生变化导致挂载失败。先查询磁盘UUID：
 
 ```bash
-/dev/nvme0n1                    /data  xfs  defaults,noatime       0 0
+blkid /dev/nvme0n1
+# 返回示例：/dev/nvme0n1: UUID="e7398a6b-XXXX-XXXX-XXXX-XXXXXXXXXXXX" TYPE="xfs"
+```
+
+将返回的UUID填入`/etc/fstab`，配置示例：
+
+```bash
+UUID=e7398a6b-XXXX-XXXX-XXXX-XXXXXXXXXXXX  /data  xfs  defaults,noatime  0 0
 ```
 
 校验：
 
 ```bash
 findmnt -no SOURCE,FSTYPE,TARGET /data
-# shell返回 <设备或镜像> xfs /data
+# shell返回 /dev/nvme0n1（或按UUID挂载时的/dev/disk/by-uuid/...） xfs /data
 df -h /data
 ```
 
@@ -149,7 +176,9 @@ mount -o loop /home/cube-sandbox/data-xfs.img /data
 本节把Docker相关的**安装与全部配置一次性做完**，之后直到部署完成都**不需要再重启Docker**。
 
 ```bash
-# 1) 安装 Docker：
+# 1) 安装 Docker：openEuler 24.03 仓库中维护的包名是 moby（提供 25.0.3）；
+#    此前用 `dnf install docker` 装到的是 18.09 之类的旧版本，无法满足部署要求
+#    （需 ≥ 20.10），且与 moby 包文件冲突，须先卸载再安装：
 sudo dnf list installed 'docker*' 'moby*'
 sudo dnf remove -y docker docker-client docker-common 2>/dev/null || true
 sudo dnf install -y moby moby-engine moby-client containerd
@@ -178,9 +207,9 @@ docker info | grep -A1 'Registry Mirrors'
 #    Cube 的 MySQL / Redis / MinIO / CoreDNS / WebUI / cube-proxy / cube-lifecycle-manager 等
 #    支撑组件全部以 compose 方式启动，必须是 v2；系统自带的 python 版 docker-compose 1.x
 #    与新版 python docker SDK 不兼容（报 kwargs_from_env() got an unexpected keyword argument 'ssl_version'）。
-curl -fL --retry 3 -o /usr/local/bin/docker-compose \
+sudo curl -fL --retry 3 -o /usr/local/bin/docker-compose \
   https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-aarch64
-chmod +x /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
 sudo mkdir -p /usr/libexec/docker/cli-plugins
 sudo install -m 0755 /usr/local/bin/docker-compose /usr/libexec/docker/cli-plugins/docker-compose
 
@@ -234,29 +263,40 @@ systemctl is-active crond
 安装其余系统依赖：
 
 ```bash
-sudo dnf install -y e2fsprogs util-linux iproute procps-ng curl tar gzip logrotate
+sudo dnf install -y e2fsprogs util-linux iproute procps-ng curl tar gzip
 ```
 
 部署前自检，需确保全部自检通过：
 
 ```bash
 ls /dev/kvm                                                   # 必须存在，否则无法创建沙箱  
-df -h /data /home /                                           # 期望 /data 和/home、/目录不在一个数据盘，/data为独立数据盘
-findmnt -no FSTYPE /data || findmnt -no FSTYPE /data/cubelet  # 期望: xfs（/data 或 /data/cubelet 其一为 XFS）
+df -h /data /home /                                           # 期望： /data为独立数据盘
+findmnt -no FSTYPE /data || findmnt -no FSTYPE /data/cubelet  # 期望: /data 或 /data/cubelet 其一为 XFS
 docker info | grep 'Docker Root Dir'                          # 期望: /data/docker
 docker compose version                                        # 期望: Docker Compose version v2.x
 logrotate -d /etc/logrotate.d/cube-sandbox                    # 期望无 error
+ls -ld /usr/local/services/cubetoolbox/cubebox_os_image \
+       /usr/local/services/cubetoolbox/cube-snapshot          # 期望: 均不存在；若为软链接需先删除（见下文）
 ```
 
 >![](./public_sys-resources/icon-note.gif) **说明：**
 >
 > 若两处 `findmnt` 返回的都不是xfs，`install.sh` 会直接终止并给出 `Cube Sandbox requires the /data/cubelet directory to reside on an XFS filesystem`。
 
+若目标机之前部署过 CubeSandbox，并且执行过下文的[迁移CubeSandbox工作目录](#迁移CubeSandbox工作目录)，`/usr/local/services/cubetoolbox` 下会残留 `cubebox_os_image` 和 `cube-snapshot` 两个软链接。重新部署时安装脚本会因目录已存在或类型冲突而失败，需先删除这两个软链接再继续：
+
+```bash
+sudo rm -f /usr/local/services/cubetoolbox/cubebox_os_image \
+           /usr/local/services/cubetoolbox/cube-snapshot
+```
+
+`rm -f` 只删除软链接本身，不会删除 `/data/cube-sandbox` 下的真实数据。安装完成后如需继续使用原数据盘，重新执行[迁移CubeSandbox工作目录](#迁移CubeSandbox工作目录)一节即可恢复软链接。
+
 ### 解压发布包
 
 ```bash
 mkdir -p /home/cube-sandbox/bundle && cd /home/cube-sandbox/bundle
-tar -xzf /path/to/cube-sandbox-one-click-<version>.tar.gz
+tar -xzf ~/cube-workspace/CubeSandbox/deploy/one-click/dist/cube-sandbox-one-click-\<version\>.tar.gz
 ```
 
 ### 配置 .env
@@ -287,9 +327,9 @@ sudo ./install.sh --mode=install
 
 >![](./public_sys-resources/icon-note.gif) **说明：**
 >
-> - 目标机已存在CubeSandbox时，不带 `--mode` 的 `./install.sh` 默认走「保留配置的升级」。**从零部署必须显式指定 `--mode=install`。
+> - 目标机已存在CubeSandbox时，不带 `--mode` 的 `./install.sh` 默认走「保留配置的升级」。**从零部署必须显式指定 `--mode=install`**。
 
-### 迁移CubeSandbox工作目录
+### 迁移CubeSandbox工作目录<a id="迁移CubeSandbox工作目录"></a>
 
 `CubeSandbox`工作目录中的`cubebox_os_image`和`cube-snapshot`两个目录会随着加载镜像和沙箱数快速增长，建议迁移到磁盘空间充足的分区，本文档以/data目录为例。
 
@@ -299,7 +339,7 @@ TC=/usr/local/services/cubetoolbox
 sudo systemctl stop cube-sandbox-control.target
 
 for d in cubebox_os_image cube-snapshot; do
-  src="$TC/$d"; dst="/data/cube-sandbox/$d"          # ← 改这里
+  src="$TC/$d"; dst="/data/cube-sandbox/$d"      
   [ -L "$src" ] && continue
   sudo mkdir -p "$dst"
   [ -d "$src" ] && sudo cp -a "$src/." "$dst/" && sudo rm -rf "$src"
@@ -312,19 +352,19 @@ sudo systemctl start cube-sandbox-control.target
 
 >![](./public_sys-resources/icon-note.gif) **说明：**
 >
-> `若`cubebox_os_image`尚不存在（首次模板构建时才生成），脚本会自动创建目标目录并建链，无数据损失。
+> 若`cubebox_os_image`尚不存在（首次模板构建时才生成），脚本会自动创建目标目录并建链，无数据损失。
 
 ### 一键健康校验
 
 ```bash
-bash ~/Kbox-patches/deploy/cube_healthcheck.sh
+bash ~/cube-workspace/Kbox-patches/deploy/cube_healthcheck.sh
 ```
 
 或者进入工作区路径
 
 ```bash
-cd ~/Kbox-patches/deploy
+cd ~/cube-workspace/Kbox-patches/deploy
 
 sudo bash cube_healthcheck.sh                        
-sudo bash cube_healthcheck.sh --sandbox 10.100.xx.xx  # 具体某一个容器
+sudo bash cube_healthcheck.sh --sandbox 10.100.xx.xx  # 具体某一个沙箱
 ```
