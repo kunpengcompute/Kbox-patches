@@ -1,18 +1,20 @@
 # Kbox云手机介绍<a name="ZH-CN_TOPIC_0000002550238281"></a>
 
+本文档介绍Kbox云手机容器，涵盖基本概念、软件架构、规格说明、版本说明与环境部署指引，适用于需要编译、部署和使用Kbox云手机容器的开发与运维人员。
+
 简体中文 | [English](./README_EN.md)
 
 ## 最新消息
 
-\[2026.06.30\]: 新增支持NFS挂载，CPU/F2FS文件系统/System分区/init进程仿真增强。
+\[2026-06-30\]: 新增支持NFS挂载，CPU/F2FS文件系统/System分区/init进程仿真增强。
 
-\[2026.03.30\]：新增对鲲鹏920 7260W型号的支持；新增对安卓Codec2.0编解码框架的支持。
+\[2026-03-30\]：新增对鲲鹏920 7260W型号的支持；新增对安卓Codec2.0编解码框架的支持。
 
-\[2025.09.30\]：自适应帧同步特性优化效果泛化；支持线程级Shader Cache。
+\[2025-09-30\]：自适应帧同步特性优化效果泛化；支持线程级Shader Cache。
 
-\[2025.06.30\]：新增内存超分特性；实现Android composer优化；实现K8s NUMA亲和绑定。
+\[2025-06-30\]：新增内存超分特性；实现Android composer优化；实现K8s NUMA亲和绑定。
 
-\[2025.03.30\]：Android轻量化裁剪；提供GPU显存、内存资源监控能力。
+\[2025-03-30\]：Android轻量化裁剪；提供GPU显存、内存资源监控能力。
 
 ## 项目简介<a name="ZH-CN_TOPIC_0000002518598550"></a>
 
@@ -75,7 +77,7 @@ Docker：采用开源Docker软件，为Android系统提供软件运行时环境�
 │       ├── security_statement.md                     # Kbox云手机安全声明
 │       ├── test_guide.md                             # Kbox云手机测试指南
 │       ├── troubleshooting.md                         # Kbox云手机使用常见问题
-│       ├── user_guide.md                             # Kbox云手机使用指南
+│       ├── user_guide.md                             # Kbox云手机用户指南
 ├── deploy_scripts                                 # 部署容器相关脚本
 ├── make_img_sample                                # 一键式参考脚本
 ├── patchForAndroid                                # 安卓补丁
@@ -85,9 +87,9 @@ Docker：采用开源Docker软件，为Android系统提供软件运行时环境�
 
 ## 版本说明<a name="ZH-CN_TOPIC_0000002550278289"></a>
 
-Kbox云手机包含Android11和Android15两个分支版本，本节主要介绍两个版本差异和特性变更说明。
+Kbox云手机包含Android 11和Android 15两个分支版本，本节主要介绍两个版本差异和特性变更说明。
 
-版本介绍<a name="section10131916143616"></a>
+### 版本介绍<a name="section10131916143616"></a>
 
 Kbox云手机是基于AOSP开发的，目前适配了AOSP11和AOSP15，由于Android版本的差异，Kbox云手机在两套代码用于支持不同的Android代码，分别是AOSP11和AOSP15两个代码分支。
 
@@ -99,7 +101,7 @@ Kbox云手机是基于AOSP开发的，目前适配了AOSP11和AOSP15，由于And
 |支持的docker版本|18.0|24.0|
 |对应的AOSP版本|11|15|
 
-变更说明<a name="section4408930144513"></a>
+### 变更说明<a name="section4408930144513"></a>
 
 每个发布版本特性变更详细信息，请参见《[版本说明书](./docs/zh/release_notes.md)》。
 
@@ -107,22 +109,22 @@ Kbox云手机是基于AOSP开发的，目前适配了AOSP11和AOSP15，由于And
 
 Kbox云手机支持的硬件环境和操作系统，以及环境部署所需的软件包请参见《[安装指南](./docs/zh/install_guide.md)》中的“环境要求”。
 
-Kbox云手机支持裸机和虚拟机，详见的环境部署请参见《[安装指南](./docs/zh/install_guide.md)》。
+Kbox云手机支持裸机和虚拟机两种环境部署方式，部署步骤请参见《[安装指南](./docs/zh/install_guide.md)》。
 
 ## 学习文档<a name="ZH-CN_TOPIC_0000002518598548"></a>
 
-|学习资源类别|学习资源名称|学习资源简介|
-|--|--|--|
-|文档| 《[版本说明书](./docs/zh/release_notes.md)》|提供Kbox云手机每个发布版本的基础信息和特性更新信息。|
-|文档| 《[特性指南](./docs/zh/feature_guide.md)》|提供Kbox云手机支持的功能与特性介绍。|
-|文档| 《[编译指南](./docs/zh/compile_guide.md)》|提供Kbox云手机编译构建流程与操作指导。|
-|文档| 《[安装指南](./docs/zh/install_guide.md)》|提供Kbox云手机裸机和虚拟机两种环境部署的详细指导。|
-|文档| 《[用户指南](./docs/zh/user_guide.md)》|提供Kbox云手机启动和卸载云手机实例的操作指导。|
-|文档| 《[例行维护](./docs/zh/routine_maintenance.md)》|提供Kbox云手机容器例行维护相关内容。|
-|文档| 《[最佳实践](./docs/zh/best_practices.md)》|提供Kbox云手机在docker、k8s环境下的实践案例。|
-|文档| 《[故障案例](./docs/zh/troubleshooting.md)》|提供Kbox云手机的故障处理方法。|
-|文档| 《[验收测试指南](./docs/zh/test_guide.md)》|提供Kbox云手机产品验收的指导信息。|
-|文档| 《[安全声明](./docs/zh/security_statement.md)》|提供Kbox云手机使用时的安全说明。|
+|学习资源名称|学习资源简介|
+|--|--|
+| 《[版本说明书](./docs/zh/release_notes.md)》|提供Kbox云手机每个发布版本的基础信息和特性更新信息。|
+| 《[特性指南](./docs/zh/feature_guide.md)》|提供Kbox云手机支持的功能与特性介绍。|
+| 《[编译指南](./docs/zh/compile_guide.md)》|提供Kbox云手机编译构建流程与操作指导。|
+| 《[安装指南](./docs/zh/install_guide.md)》|提供Kbox云手机裸机和虚拟机两种环境部署的详细指导。|
+| 《[用户指南](./docs/zh/user_guide.md)》|提供Kbox云手机启动和卸载云手机实例的操作指导。|
+| 《[例行维护](./docs/zh/routine_maintenance.md)》|提供Kbox云手机容器例行维护相关内容。|
+| 《[最佳实践](./docs/zh/best_practices.md)》|提供Kbox云手机在docker、k8s环境下的实践案例。|
+| 《[故障案例](./docs/zh/troubleshooting.md)》|提供Kbox云手机的故障处理方法。|
+| 《[验收测试指南](./docs/zh/test_guide.md)》|提供Kbox云手机产品验收的指导信息。|
+| 《[安全声明](./docs/zh/security_statement.md)》|提供Kbox云手机使用时的安全说明。|
 
 ## 版本维护策略<a name="ZH-CN_TOPIC_0000002518758444"></a>
 
@@ -158,8 +160,14 @@ Kbox版本维护策略如下：
 
 ## 贡献声明<a name="ZH-CN_TOPIC_0000002550238283"></a>
 
-欢迎大家为社区做贡献，如果使用过程中有任何问题/建议，或者需要反馈特性需求和bug报告，可以提交[Issues](https://gitcode.com/boostkit/community/blob/master/docs/contributor/issue-submit.md)联系我们，具体贡献方法可参考[这里](https://gitcode.com/boostkit/community/blob/master/docs/contributor/contributing.md)。同时也欢迎大家在[讨论专区](https://gitcode.com/boostkit/community/discussions)展开讨论交流。感谢您的支持。
+欢迎大家为社区做贡献，如果使用过程中有任何问题/建议，或者需要反馈特性需求和bug报告，可以提交[Issues](https://gitcode.com/boostkit/community/blob/master/docs/contributor/issue-submit.md)联系我们，具体贡献方法可参考[贡献指南](https://gitcode.com/boostkit/community/blob/master/docs/contributor/contributing.md)。同时也欢迎大家在[讨论专区](https://gitcode.com/boostkit/community/discussions)展开讨论交流。感谢您的支持。
 
 ## 致谢<a name="ZH-CN_TOPIC_0000002550278293"></a>
 
 感谢来自社区的每一个PR，欢迎贡献Kbox！
+
+## 修订记录
+
+|文档版本| 发布日期   | 修改说明         |
+|----------| ---------- | ---------------- |
+|01| 2026-09-30 | 第一次正式发布。 |

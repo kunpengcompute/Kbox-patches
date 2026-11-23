@@ -1,5 +1,7 @@
 # 例行维护<a id="ZH-CN_TOPIC_0000002552623629"></a>
 
+本文档介绍Kbox云手机容器的例行维护，涵盖巡检项目和周期、容器状态与资源消耗检查、看管/记录、日志管理、维护工具、高危操作和日常运维等内容，适用于负责Kbox云手机容器日常运维的维护人员。
+
 ## 运维概述<a id="ZH-CN_TOPIC_0000002518346014"></a>
 
 Kbox云手机容器是基于Docker容器技术，使能Android系统的虚拟化方案，通过云服务器提供云服务的虚拟手机。Kbox云手机容器可凭借自带的Android系统及厂商架设的网络终端，通过网络应用在云托管、云应用和云终端等业务场景。
@@ -8,7 +10,7 @@ Kbox云手机为满足高密度低成本的业务诉求，采用容器直通架�
 
 **图 1** Kbox云手机容器架构图<a name="fig4553133553919"></a><a id="Kbox云手机容器架构图"></a>
 
-![](./figures/zh-cn_image_0000002512069213.png "Kbox云手机容器架构图")
+![Kbox云手机容器架构示意图：基于容器直通架构在Linux系统上启动完整Android系统的分层结构](./figures/zh-cn_image_0000002512069213.png "Kbox云手机容器架构图")
 
 本文档主要用于描述Kbox云手机容器例行维护相关内容。
 
@@ -50,7 +52,7 @@ getprop | grep boot
 
 若回显信息中，sys.boot_completed显示为“1”，则表示启动成功，否则，说明容器启动失败，通过提交ISSUE反馈。回显示例如下。
 
-```bash
+```output
 [service.bootanim.exit]: [1]
 [sys.boot.reason]: [reboot,factory_reset]
 [sys.boot.reason.last]: [reboot]
@@ -140,7 +142,7 @@ free
 
 回显示例如下。
 
-```bash
+```output
                 total        used        free      shared  buff/cache   available
 Mem:        527039424     4531436   518860944        4860     3647044   519951396
 Swap:        83888604           0    83888604
@@ -168,7 +170,7 @@ df -h
 
 1. 获取radeontop工具包并上传到服务器。
 
-    [获取链接](https://download-ib01.fedoraproject.org/pub/epel/8/Everything/aarch64/Packages/r/radeontop-1.4-2.el8.aarch64.rpm)
+    [radeontop 1.4-2.el8.aarch64.rpm下载页面](https://download-ib01.fedoraproject.org/pub/epel/8/Everything/aarch64/Packages/r/radeontop-1.4-2.el8.aarch64.rpm)
 
 2. 安装命令如下。
 
@@ -507,9 +509,9 @@ python3 kbox_maintainer.py recover kbox_1
 
 ### 支持Android系统属性可定制<a id="ZH-CN_TOPIC_0000002518186102"></a>
 
-Kbox容器支持根据客户需求定制系统属性，以覆盖原有系统属性。如需使用定制属性，需要在启动路径中生成local.prop文件，文件内记录定制的系统属性参数和值，容器启动后的初始化过程会读取该文件内的属性并覆盖写入。local.prop文件格式如下所示：
+Kbox云手机容器支持根据客户需求定制系统属性，以覆盖原有系统属性。如需使用定制属性，需要在启动路径中生成local.prop文件，文件内记录定制的系统属性参数和值，容器启动后的初始化过程会读取该文件内的属性并覆盖写入。local.prop文件格式如下所示：
 
-```bash
+```properties
 ro.product.board=HUAWEI
 ro.product.brand=HUAWEI
 ro.product.manufacturer=Huawei
@@ -533,7 +535,7 @@ ro.product.vendor.name=Huawei_arm64
 
 Kbox容器启动过程中，会将启动路径中的local.prop文件推入到容器内的“/data”目录下，初始化过程会读取该文件的每一条定制属性覆盖写入该文件内的属性。
 
-Kbox容器内查询定制属性方法，以查询ro.product.system_ext.brand为例， index为kbox容器号：
+Kbox云手机容器内查询定制属性方法，以查询ro.product.system_ext.brand为例，其中“${index}”为启动实例的编号：
 
 ```bash
 docker exec -it kbox_${index} getprop ro.product.system_ext.brand
