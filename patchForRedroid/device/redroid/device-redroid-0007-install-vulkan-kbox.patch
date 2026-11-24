@@ -1,0 +1,12 @@
+diff --git a/redroid.mk b/redroid.mk
+index 05b80aa..dc313d2 100644
+--- a/redroid.mk
++++ b/redroid.mk
+@@ -62,6 +62,7 @@ PRODUCT_PACKAGES += \
+     libGLESv1_CM_angle \
+     libGLESv2_angle \
+     vulkan.pastel \
++    vulkan.kbox \
+ 
+ 
+ # Phone App required
