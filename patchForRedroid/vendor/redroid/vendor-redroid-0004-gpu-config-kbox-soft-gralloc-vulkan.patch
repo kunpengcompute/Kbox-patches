@@ -7,7 +7,8 @@ index f43e935..d34b758 100755
  
      setprop ro.hardware.egl $egl
 -    setprop ro.hardware.gralloc redroid
+-    setprop ro.hardware.vulkan pastel
 +    setprop ro.hardware.gralloc kbox_soft
-     setprop ro.hardware.vulkan pastel
++    setprop ro.hardware.vulkan kbox
  }
  
