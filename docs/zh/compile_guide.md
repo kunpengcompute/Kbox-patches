@@ -22,7 +22,7 @@
 |4|envd源码|沙箱内部守护服务|[获取链接](https://github.com/e2b-dev/runtime.git)|
 |5|Redroid源码|1. Redroid Modules源码<br>2. Redroid AOSP patch|1. [获取链接](https://github.com/remote-android/local_manifests.git)<br> 2. [获取链接](https://github.com/remote-android/redroid-patches.git)|
 
-### 安装编译依赖包
+## 安装编译依赖包
 
 安装编译AOSP所需的依赖：
 
@@ -51,7 +51,7 @@ sudo curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo -o /usr/l
 >
 > 依赖包清单以AOSP官方文档为准，如遇缺失可参考 [AOSP官方构建要求](https://source.android.com/docs/setup/start/initializing) 补充。
 
-### 拉取AOSP 14.0.0\_r75源码
+## 拉取AOSP 14.0.0\_r75源码
 
 ```bash
 mkdir -p ~/redroid-workspace/aosp-14 && cd ~/redroid-workspace/aosp-14
@@ -90,10 +90,6 @@ repo sync -c -j"$(nproc)" \
   vendor/redroid
 ```
 
->![](./public_sys-resources/icon-note.gif) **说明：**
->
-> 先同步专属仓库、再合入增量patch，可避免后续`repo sync`覆盖`device/redroid`、`vendor/redroid`的本地修改。
-
 #### 同步WebView
 
 ```bash
@@ -105,7 +101,7 @@ repo sync -c -j"$(nproc)" \
   external/chromium-webview/prebuilt/x86 \
   external/chromium-webview/prebuilt/x86_64
 
-  
+ #普通的`git clone`只会拿到 LFS 指针文件，需要执行`git lfs pull`才能获取到完整文件
 for d in external/chromium-webview/prebuilt/{arm,arm64,x86,x86_64}; do
     git -C "$d" lfs pull LineageOS
 done
@@ -125,12 +121,12 @@ git checkout a5c70c0dd89c12b5027c902ab4182f31d38f3bb7
 #### 合入Redroid AOSP patch
 
 ```bash
-./redroid-patches/apply-patch.sh ~/redroid-workspace/aosp-14 android-14.0.0_r75
+bash ~/redroid-workspace/redroid-patches/apply-patch.sh ~/redroid-workspace/aosp-14 android-14.0.0_r75
 ```
 
 >![](./public_sys-resources/icon-note.gif) **说明：**
 >
-> 该脚本遍历`redroid-patches/android-14.0.0_r75/`下各子目录，脚本第一个参数aosp-14为源码目录，需写入绝对路径，否则脚本执行会出错，对每个git仓执行`git am`，输出不应出现`[ERROR]`。
+> 该脚本遍历`redroid-patches/android-14.0.0_r75/`下各子目录，脚本第一个参数`~/redroid-workspace/aosp-14`为源码目录，需写入绝对路径，否则脚本执行会出错，对每个git仓执行`git am`，输出不应出现`[ERROR]`。
 > redroid官方patch仅作用于AOSP核心仓（frameworks/av、system/core等），不涉及redroid专属仓。
 
 #### 验证Redroid默认基线（可选）
@@ -150,7 +146,9 @@ make -j"$(nproc)"
 >
 > 若基线编译失败，应先排查AOSP/Redroid/编译环境，再进入增量修改，避免把AOSP/Redroid/编译环境问题混入后续环节。
 
-## 获取Kbox软件包
+## 合入Kbox并编译Redroid镜像
+
+### 获取Kbox软件包
 
 创建目录`~/redroid-workspace/kbox-bin/`
 
@@ -167,8 +165,6 @@ cd ~/redroid-workspace
 git clone https://gitcode.com/boostkit/Kbox-patches.git -b dev_AndroidSandbox
 ```
 
-## 合入Kbox并编译Redroid镜像
-
 ### 合入Kbox二进制库
 
 ```bash
@@ -177,7 +173,7 @@ unzip BoostKit-boostcph-kbox_*_sbx_14.zip && unzip Kbox-BoostKit-boostcph-kbox_*
 cp -r product_prebuilt ~/redroid-workspace/aosp-14/
 ```
 
-### 合入Kbox AOSP patch并编译Redroid镜像
+### 编译Redroid镜像
 
 #### 注入GMS（可选）
 
@@ -197,7 +193,7 @@ GMS即Google Mobile Services，默认编译流程中构建的AOSP镜像不会包
 
    | 环境变量 | 作用 |
    | --- | --- |
-   | ENABLE_GMS=0 | 默认设置为0，不注入GMS，设置1时产生注入GMS的镜像 |
+   | ENABLE_GMS | 默认设置为0，不注入GMS，设置1时产生注入GMS的镜像 |
 
    ```bash
    vim pack_gms.conf
@@ -205,11 +201,11 @@ GMS即Google Mobile Services，默认编译流程中构建的AOSP镜像不会包
 
    | 环境变量 | 作用 |
    | --- | --- |
-   | GMS_LOCAL| 0（默认值）：时通过链接下载GMS，1：使用本地GMS目录，GMS_LOCAL_DIR与GMS_ZIP_FILE同时配置时优先前者 |
+   | GMS_LOCAL| 0（默认值）：通过链接下载GMS，1：使用本地GMS目录，GMS_LOCAL_DIR与GMS_ZIP_FILE同时配置时优先前者 |
    | GMS_LOCAL_DIR | GMS_LOCAL设置1时使用的本地已还原的GMS目录 |
    | GMS_ZIP_FILE | GMS_LOCAL设置1时使用的本地已下载好的GMS zip文件路径 |
 
-2. 执行[一键构建](#一键构建Redroid镜像)或[分布构建](#分布构建)，构建出包含GMS的Redroid镜像。
+2. 执行[一键构建](#一键构建Redroid镜像)或[分步构建](#分步构建)，构建出包含GMS的Redroid镜像。
 
 #### 一键构建Redroid镜像<a id="一键构建Redroid镜像"></a>
 
@@ -222,7 +218,7 @@ cd ~/redroid-workspace/Kbox-patches/build
 sudo ./build_redroid.sh all
 ```
 
-#### 分步构建（可选）<a id="分布构建"></a>
+#### 分步构建（可选）<a id="分步构建"></a>
 
 本脚本提供分步构建能力，若已执行[一键构建](#一键构建Redroid镜像)则可跳过本章节。
 

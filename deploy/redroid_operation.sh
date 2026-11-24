@@ -17,7 +17,7 @@
 # redroid_operation.sh —— CubeSandbox（Cube + Redroid）模板与沙箱统一管理脚本
 #
 # 依赖：bash、curl、cubemastercli、python3（生成 multirun 请求 JSON 与格式化输出）。
-# 部署前提见 ../guide/user_guide.md；完整用法文档见 ../guide/redroid_user_guide.md。
+# 部署前提见 ../docs/zh/install_guide.md；完整用法文档见../docs/zh/user_guide.md。
 #
 # 配置文件 redroid_config.conf（与本脚本同目录，可用 --config 或环境变量
 # REDROID_CONFIG 指定其他文件），bash 键值格式，分两段：
@@ -591,7 +591,7 @@ cmd_template_delete() {
 }
 
 # ：模板生命周期管理-从运行中沙箱提交为新模板
-# 说明：CubeAPI 无对应端点，走 cubemastercli template commit（user_guide.md §5.7）。
+# 说明：CubeAPI 无对应端点，走 cubemastercli template commit。
 #       template commit 不支持 --alias，提交成功后用 template set-alias 命名，
 #       否则模板无别名，无法用 sandbox-create --alias 派生沙箱。
 cmd_template_commit() {

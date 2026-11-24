@@ -14,9 +14,9 @@
 
 |序号|软件|说明|获取地址|
 | ---- | ---- | ---- | ---- |
-|1| CubeSandbox源码 | 版本：v0.7.1 | [下载链接](https://gitcode.com/boostkit/CubeSandbox.git) |
-|2| Kbox-patches-dev_AndroidSandbox.zip | Kbox AOSP补丁、脚本Demo包 | [获取链接](https://gitcode.com/boostkit/Kbox-patches.git)<br>分支：dev_AndroidSandbox |
-|3| OpenCloud OS内核源码 | 版本：6.6.119-49.6 | [下载链接](https://gitee.com/OpenCloudOS/OpenCloudOS-Kernel.git) |
+|1| CubeSandbox源码 | 版本：v0.7.1 | [CubeSandbox源码下载链接](https://gitcode.com/boostkit/CubeSandbox.git) |
+|2| Kbox-patches源码 | Kbox AOSP补丁、脚本Demo包 | [Kbox-patches源码下载链接](https://gitcode.com/boostkit/Kbox-patches.git)<br>分支：dev_AndroidSandbox |
+|3| Guest内核源码 | 版本：6.6.119-49.6 | [Guest内核源码下载链接](https://gitee.com/OpenCloudOS/OpenCloudOS-Kernel.git) |
 
 ### 安装编译依赖包
 
@@ -105,7 +105,7 @@ cd ~/cube-workspace/Kbox-patches/build
 ```bash
 cd ~/cube-workspace/Kbox-patches/build
 ./build-cube.sh patch     # 1) 合入 patchForCube/ 下的 6 个 patch
-./build-cube.sh kernel    # 2) 编译 guest 内核
+./build-cube.sh kernel    # 2) 编译 Guest内核
 ./build-cube.sh bundle    # 3) 编译 CubeSandbox 一键发布包
 ```
 
@@ -124,7 +124,7 @@ CubeSandbox工作路径在`/data`，文件格式需要为xfs。建议在安装�
 
 ```bash
 umount /dev/nvme0n1 2>/dev/null || true
-mkfs.xfs -f /dev/nvme0n1
+mkfs.xfs -f /dev/nvme0n1                # 该操作会销毁 /dev/nvme0n1 上的所有数据，请确认数据已备份
 mkdir -p /data
 mount /dev/nvme0n1 /data
 ```
@@ -177,7 +177,7 @@ mount -o loop /home/cube-sandbox/data-xfs.img /data
 
 ```bash
 # 1) 安装 Docker：openEuler 24.03 仓库中维护的包名是 moby（提供 25.0.3）；
-#    此前用 `dnf install docker` 装到的是 18.09 之类的旧版本，无法满足部署要求
+#    此前用 `dnf install docker` 装到的是编译需要用到的18.09之类的版本，无法满足部署要求
 #    （需 ≥ 20.10），且与 moby 包文件冲突，须先卸载再安装：
 sudo dnf list installed 'docker*' 'moby*'
 sudo dnf remove -y docker docker-client docker-common 2>/dev/null || true
@@ -274,7 +274,6 @@ df -h /data /home /                                           # 期望： /data�
 findmnt -no FSTYPE /data || findmnt -no FSTYPE /data/cubelet  # 期望: /data 或 /data/cubelet 其一为 XFS
 docker info | grep 'Docker Root Dir'                          # 期望: /data/docker
 docker compose version                                        # 期望: Docker Compose version v2.x
-logrotate -d /etc/logrotate.d/cube-sandbox                    # 期望无 error
 ls -ld /usr/local/services/cubetoolbox/cubebox_os_image \
        /usr/local/services/cubetoolbox/cube-snapshot          # 期望: 均不存在；若为软链接需先删除（见下文）
 ```
@@ -315,7 +314,8 @@ CUBE_SANDBOX_NODE_IP=<本机IP>
 # 沙箱网段：必须避开物理网段（物理网段为 192.168.x.x 时改用 10.100.0.0/16）
 CUBE_SANDBOX_NETWORK_CIDR=10.100.0.0/16
 
-# 把 WEB_UI_HOST_PORT 从 12088 改成 8088（10000~19999 临时端口范围之外）
+# 宿主机会监听10000~19999端口，随机分配给socket，需把WEB_UI_HOST_PORT从12088改成10000~19999范围之外的端口。
+# 需确定8088端口未被占用，若8088端口已被占用，可改为其他未被使用的临时端口
 WEB_UI_HOST_PORT=8088
 ```
 
