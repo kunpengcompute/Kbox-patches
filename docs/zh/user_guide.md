@@ -49,7 +49,7 @@ redroid  14.0.0_r75_arm64_only  c04246f72191  2 hours ago  1.63GB
 加载镜像后，如果需要镜像包含GMS框架
 可通过执行脚本`./inject_gms.sh`注入GMS。
 
-修改脚本`inject_gms.sh`，配置`BASE_IMAGE`，`NEW_IMAGE`镜像名称。
+修改脚本`inject_gms.sh`，按需配置`BASE_IMAGE`、`NEW_IMAGE`镜像名称；脚本内部已固定执行`export ENABLE_GMS=1`，即是否注入GMS由“是否运行本脚本”决定，无需再手工设置`ENABLE_GMS`。
 
 ```bash
 cd ~/dependency/Kbox-patches/deploy/
@@ -167,14 +167,14 @@ cd ~/dependency/Kbox-patches/deploy
 
 ### 操作总览（速查表）
 
-统一前缀：`./redroid_operation.sh <命令> [参数]`。方括号 `[ ]` 内为可选项；`...` 表示可重复。各命令的详细说明见4.3–4.5。
+统一前缀：`./redroid_operation.sh <命令> [参数]`。方括号 `[ ]` 内为可选项；`...` 表示可重复。
 
 **模板操作**
 
 | 脚本命令 | 用途 | 完整用法 | 实际调用路径 |
 | ---- | ---- | -------- | ------------ |
-| template-create | 从镜像创建模板（--alias必填，--image、--config可指定镜像、配置文件，缺省用默认配置） | template-create --alias \<别名\> [--image \<镜像名\>] [--config \<文件\>] | cubemastercli template create-from-image |
-| template-list | 列举模板 | template-list | cubemastercli template list |
+| template-create | 从镜像创建模板（--alias必填，--image可指定镜像，缺省用默认配置、--config可指定配置文件，缺省使用redroid_config.conf） | template-create --alias \<别名\> [--image \<镜像名\>] [--config \<文件\>] | cubemastercli template create-from-image |
+| template-list | 列举模板（--all扫描所有健康节点，无集群时与--wide效果相同；--wide展示更多详细信息） | template-list [--wide] | cubemastercli template list [-o wide] |
 | template-info | 查询模板详情 | template-info \<tpl-id\|别名\> | cubemastercli template info |
 | template-delete | 删除模板（支持模板ID或别名） | template-delete \<tpl-id\|别名\> | cubemastercli template delete |
 | template-commit | 把运行中沙箱提交为新模板并命名（--alias必填） | template-commit \<sandbox-id\> --alias \<别名\> | cubemastercli template commit + template set-alias |
@@ -183,8 +183,8 @@ cd ~/dependency/Kbox-patches/deploy
 
 | 脚本命令 | 用途 | 完整用法 | 实际调用路径 |
 | ---- | ---- | -------- | ------------ |
-| sandbox-create | 按模板别名创建沙箱（--alias与--snapshot二选一、必填，--count指定沙箱数，--runcc指定并行启动数） | sandbox-create --alias \<模板别名\> [--count \<沙箱数\>] [--runcc \<并行启动数\>] | cubemastercli multirun |
-| sandbox-list | 列举沙箱 | sandbox-list| cubemastercli ls |
+| sandbox-create | --alias（按模板别名创建沙箱）与--snapshot（按快照ID创建沙箱）二选一、必填；--count指定沙箱数，--runcc指定并行启动数，缺省值为1 | sandbox-create --alias \<模板别名\> [--count \<沙箱数\>] [--runcc \<并行启动数\>] | cubemastercli multirun |
+| sandbox-list | 列举沙箱（--all扫描所有健康节点，无集群时与--wide效果相同；--wide展示更多详细信息，--with-ip额外采集并显示沙箱IP，结果按创建时间从旧到新排列） | sandbox-list [--wide] [--with-ip] | cubemastercli ls [--wide]；--with-ip时经CubeAPI采集 IP |
 | sandbox-info | 查询沙箱详情 | sandbox-info \<sandbox-id\> | cubemastercli info -s |
 | sandbox-pause | 暂停沙箱（内存快照落盘，零占用） | sandbox-pause \<sandbox-id\> | POST /sandboxes/{id}/pause |
 | sandbox-connect | 连接 / 唤醒已暂停沙箱，可设空闲超时 | sandbox-connect \<sandbox-id\> [--timeout \<秒\>\|-1] | POST /sandboxes/{id}/connect |
@@ -268,7 +268,7 @@ cd ~/dependency/Kbox-patches/deploy
 
 ### 配置属性操作方式
 
-在进行配置属性前，需要先连接容器、进入容器，然后进行相应的属性操作。
+在进行配置属性前，需要先连接沙箱、进入沙箱，然后进行相应的属性操作。
 
 1. 正常启动沙箱，并确认沙箱的IP信息。
 2. 在服务器侧，通过**adb**命令行连接沙箱实例。
@@ -283,7 +283,7 @@ cd ~/dependency/Kbox-patches/deploy
     adb -s 10.100.x.x:5555 shell
     ```
 
-    进入容器后即可执行相应的云手机参数配置命令。
+    进入沙箱后即可执行相应的云手机参数配置命令。
 
     >![](./public_sys-resources/icon-note.gif) **说明：**
     >
@@ -339,7 +339,7 @@ cd ~/dependency/Kbox-patches/deploy
    setprop ctl.restart vendor.gnss_service
    ```
 
-4. 查询Location Service的GPS数据，进入容器后使用如下命令查询最近更新的GPS数据。
+4. 查询Location Service的GPS数据，进入沙箱后使用如下命令查询最近更新的GPS数据。
 
     ```bash
     dumpsys location | grep "last location"
