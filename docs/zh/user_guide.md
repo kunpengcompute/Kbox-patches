@@ -174,7 +174,7 @@ cd ~/dependency/Kbox-patches/deploy
 | 脚本命令 | 用途 | 完整用法 | 实际调用路径 |
 | ---- | ---- | -------- | ------------ |
 | template-create | 从镜像创建模板（--alias必填，--image可指定镜像，缺省用默认配置、--config可指定配置文件，缺省使用redroid_config.conf） | template-create --alias \<别名\> [--image \<镜像名\>] [--config \<文件\>] | cubemastercli template create-from-image |
-| template-list | 列举模板（--all扫描所有健康节点，无集群时与--wide效果相同；--wide展示更多详细信息） | template-list [--wide] | cubemastercli template list [-o wide] |
+| template-list | 列举模板（--wide展示更多详细信息） | template-list [--wide] | cubemastercli template list [-o wide] |
 | template-info | 查询模板详情 | template-info \<tpl-id\|别名\> | cubemastercli template info |
 | template-delete | 删除模板（支持模板ID或别名） | template-delete \<tpl-id\|别名\> | cubemastercli template delete |
 | template-commit | 把运行中沙箱提交为新模板并命名（--alias必填） | template-commit \<sandbox-id\> --alias \<别名\> | cubemastercli template commit + template set-alias |
@@ -183,8 +183,8 @@ cd ~/dependency/Kbox-patches/deploy
 
 | 脚本命令 | 用途 | 完整用法 | 实际调用路径 |
 | ---- | ---- | -------- | ------------ |
-| sandbox-create | --alias（按模板别名创建沙箱）与--snapshot（按快照ID创建沙箱）二选一、必填；--count指定沙箱数，--runcc指定并行启动数，缺省值为1 | sandbox-create --alias \<模板别名\> [--count \<沙箱数\>] [--runcc \<并行启动数\>] | cubemastercli multirun |
-| sandbox-list | 列举沙箱（--all扫描所有健康节点，无集群时与--wide效果相同；--wide展示更多详细信息，--with-ip额外采集并显示沙箱IP，结果按创建时间从旧到新排列） | sandbox-list [--wide] [--with-ip] | cubemastercli ls [--wide]；--with-ip时经CubeAPI采集 IP |
+| sandbox-create | --alias（按模板别名创建沙箱）与--snapshot（按快照ID创建沙箱）二选一、必填；--count指定沙箱数，--runcc指定并行启动数，缺省值为1 | sandbox-create (--alias \<模板别名\> \| --snapshot \<快照ID\>) [--count \<沙箱数\>] [--runcc \<并行启动数\>] | cubemastercli multirun |
+| sandbox-list | 列举沙箱（--all扫描所有健康节点，无集群时与--wide效果相同；--wide展示更多详细信息，--with-ip额外采集并显示沙箱IP，结果按创建时间从旧到新排列） | sandbox-list [--all] [--wide] [--with-ip] | cubemastercli ls [--all] [--wide] ；--with-ip时经CubeAPI采集 IP |
 | sandbox-info | 查询沙箱详情 | sandbox-info \<sandbox-id\> | cubemastercli info -s |
 | sandbox-pause | 暂停沙箱（内存快照落盘，零占用） | sandbox-pause \<sandbox-id\> | POST /sandboxes/{id}/pause |
 | sandbox-connect | 连接 / 唤醒已暂停沙箱，可设空闲超时 | sandbox-connect \<sandbox-id\> [--timeout \<秒\>\|-1] | POST /sandboxes/{id}/connect |
