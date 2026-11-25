@@ -116,9 +116,13 @@ cd ~/cube-workspace/Kbox-patches/build
 | Guest内核 | ~/cube-workspace/CubeSandbox/_output/kernel/aarch64/vmlinux                                |
 | 发布包    | ~/cube-workspace/CubeSandbox/deploy/one-click/dist/cube-sandbox-one-click-\<version\>.tar.gz |
 
+>![](./public_sys-resources/icon-note.gif) **说明：**
+>
+> 如需部署在鲲鹏 PVM（嵌套虚拟化）环境（L1 虚拟机内作为 CubeSandbox 宿主），请参见下文 [PVM（鲲鹏嵌套虚拟化）方案](#pvm鲲鹏嵌套虚拟化方案)，使用 `build-cube-pvm.sh` 构建已内置 PVM L2 内核的发布包。
+
 ## 部署CubeSandbox
 
-### `/data` 目录配置
+### `/data` 目录配置<a id="data目录配置"></a>
 
 CubeSandbox工作路径在`/data`，文件格式需要为xfs。建议在安装系统时给/data目录划分足够的空间（分区大小可根据需要酌情配置，建议>200GB），或者参考下文将一块独立的nvme硬盘挂载到该路径，以方便灵活配置。下文以`nvme0n1`为例，请根据实际磁盘名称替换相关字段：
 
@@ -258,7 +262,7 @@ systemctl is-active crond
 >
 > 用 `copytruncate` 是因为Cube组件不会因收到信号而重开日志文件句柄；`maxsize 2G` 是硬上限，即使轮转条件未满足，单文件也不会超过该值。
 
-### 安装系统依赖与部署前自检
+### 安装系统依赖与部署前自检<a id="安装系统依赖与部署前自检"></a>
 
 安装其余系统依赖：
 
@@ -420,4 +424,192 @@ cd ~/cube-workspace/Kbox-patches/deploy
 
 sudo bash cube_healthcheck.sh                        
 sudo bash cube_healthcheck.sh --sandbox 10.100.xx.xx  # 具体某一个沙箱
+```
+
+## PVM方案部署<a id="pvm鲲鹏嵌套虚拟化方案"></a>
+
+本章节介绍在鲲鹏物理服务器上部署PVM嵌套虚拟化方案的完整步骤，涵盖L1虚拟机创建、PVM L1与L2内核构建、L1环境部署与验证，适用于需要在鲲鹏服务器上搭建CubeSandbox沙箱环境的用户。
+
+```text
+L0：鲲鹏物理服务器
+  |
+  +-- L1：openEuler虚拟机 + PVM L1 内核
+        |
+        +-- L2：CubeSandbox Redroid 沙箱 + PVM L2 内核
+```
+
+与裸机方案相比增加了L1虚拟机，部署环节的主要差异点为以下2个制品：**PVM L1 内核**（`kernel-<ver>.aarch64.rpm`）和 **PVM L2 内核**（`vmlinux-pvm`）。其余步骤与裸机方案一致，可自行参考对应章节。
+
+### 创建 L1 虚拟机（在L0执行）
+
+#### 安装虚拟化组件
+
+```bash
+dnf install -y qemu libvirt edk2-aarch64 virt-install
+systemctl enable --now libvirtd
+virsh net-list --all            # default 需 active，否则 virsh net-start default
+```
+
+下载 `openEuler-24.03-LTS-SP3-aarch64-dvd.iso` 到 L0 的 `/home/` 选择Offline Standard ISO（下载页：<https://www.openeuler.org/zh/download/>）：
+
+```bash
+cd /home
+curl -LO https://repo.openeuler.org/openEuler-24.03-LTS-SP3/ISO/aarch64/openEuler-24.03-LTS-SP3-aarch64-dvd.iso
+```
+
+#### 创建磁盘与虚拟机
+
+```bash
+mkdir -p /home/images
+qemu-img create -f qcow2 /home/images/img.qcow2 100G     # 系统盘，可按需要设置大小
+qemu-img create -f qcow2 /home/images/data.qcow2 300G    # 数据盘，可按需要设置大小
+
+virt-install --name=pvm-l1 --vcpus=16 --ram=32768 \
+  --cpu host-passthrough --osinfo openeuler24.03 --boot uefi \
+  --disk path=/home/images/img.qcow2,format=qcow2,bus=virtio \
+  --disk path=/home/images/data.qcow2,format=qcow2,bus=virtio \
+  --location /home/openEuler-24.03-LTS-SP3-aarch64-dvd.iso \
+  --extra-args 'console=ttyAMA0,115200 inst.text' \
+  --network network=default,model=virtio \
+  --nographics --noautoconsole
+```
+
+虚拟机已在后台启动，用串口控制台进入安装界面：
+
+```bash
+virsh console pvm-l1
+# 连接后若黑屏，按回车刷新出 anaconda 文本安装界面
+# 退出控制台：Ctrl + ]
+# 若提示 Active console session exists：virsh console pvm-l1 --force
+```
+
+请自行安装L1虚拟机OS。
+
+#### 安装后检查
+
+```bash
+# 1) 检查域 XML 是否残留 <kernel>/<initrd>/<cmdline>
+#    作用：virt-install --location 安装时会把 ISO 内的内核写入域配置，装完若不清理，
+#          下次启动仍从 ISO 引导，而不是从 L1 系统盘引导。
+virsh dumpxml pvm-l1 | grep -E '<kernel|<initrd|<cmdline' #    预期输出：空（无任何匹配行）
+#    若上面有输出：执行 virsh edit pvm-l1，删除这三行后保存；再 virsh destroy pvm-l1 && virsh start pvm-l1
+
+# 2) 查询 L1 的 IP，后续所有 L1 操作都通过该地址进行
+virsh domifaddr pvm-l1  # 预期输出：ipv4 192.168.122.x/24
+```
+
+### 构建CubeSandbox和L1、L2内核（在L0执行）
+
+#### 准备 PVM 内核源码
+
+```bash
+cd ~/cube-workspace
+git clone https://gitcode.com/boostkit/pvm.git pvm-OLK6.6
+cd pvm-OLK6.6
+git checkout 6f549048513c39fa44f1dc9e38df3bfc967082a6
+```
+
+#### 执行构建
+
+安装依赖：
+
+```bash
+sudo dnf install -y gcc gcc-c++ make flex bison \
+  openssl-devel elfutils-libelf-devel rpm-build bc perl tar xz cpio dwarves python3
+```
+
+可覆盖的环境变量：
+
+| 变量 | 默认值 | 说明 |
+| -- | -- | -- |
+| PVM_SRC | \<工作区\>/pvm-OLK6.6 | PVM 内核源码目录 |
+| PVM_OUT | $PVM_SRC/_output | 编译输出根目录（l1/l2 子目录） |
+| PVM_BUILD_JOBS | nproc | 编译并发数 |
+| CUBE_SRC | \<工作区\>/CubeSandbox | CubeSandbox 源码目录 |
+| PATCH_DIR | \<Kbox 目录\>/patchForCube | CubeSandbox/Kbox 通用 patch 目录 |
+| PVM_L2_CONFIG | \<Kbox\>/patchForKernel/cube_pvm_openEuler_OLK-6.6/pvm_l2.config | L2 内核配置（可直接编辑） |
+| PVM_KERNEL_PATCH_DIR | \<Kbox\>/patchForKernel/cube_pvm_openEuler_OLK-6.6 | L2 源码补丁目录，编译前自动合入 |
+| SKIP_L1_CONFIG_CHECK | 未设置 | 设为 1 跳过 L1 宿主功能配置核对 |
+
+```bash
+cd ~/cube-workspace/Kbox-patches/build
+./build-cube-pvm.sh all
+
+# 或分步
+./build-cube-pvm.sh check-config   # 核对 L1 .config 的宿主功能配置
+./build-cube-pvm.sh pvm-l1         # 编译 PVM L1 内核 RPM
+./build-cube-pvm.sh pvm-l2         # 编译 L2 Image 并放入发布包内核输入目录
+./build-cube-pvm.sh bundle         # 打包
+```
+
+构建完成后，将构建产物传输至L1虚拟机以供后续使用
+
+产物：
+
+| 产物 | 路径 |
+| -------- | ---------------------------------------------------------------- |
+| PVM L1 内核 RPM | pvm-OLK6.6/_output/l1/rpmbuild/RPMS/aarch64/kernel-\<ver\>.aarch64.rpm |
+| PVM L2 guest 内核 | CubeSandbox/deploy/one-click/assets/kernel-artifacts/vmlinux-pvm |
+| 发布包（PVM-ready） | CubeSandbox/deploy/one-click/dist/cube-sandbox-one-click-\<version\>.tar.gz |
+
+### L1虚拟机环境部署（在L1执行）
+
+#### 安装 PVM L1 内核
+
+脚本需运行两次：第1次安装内核RPM包并设为默认内核，第2次（重启后）加载`kvm_pvm`并验证`/dev/kvm`。
+
+```bash
+# 准备工作路径和文件
+mkdir ~/cube-workspace
+# 将以下2个文件传输到该目录
+# 1、Kbox-patches/deploy/install-pvm-l1.sh
+# 2、pvm-OLK6.6/_output/l1/rpmbuild/RPMS/aarch64/kernel-*.aarch64.rpm
+
+# 第 1 次（安装内核 + 设置为默认内核）
+sudo bash install-pvm-l1.sh ./kernel-6.6.0-*.aarch64.rpm
+sudo reboot
+
+# 重启后第 2 次（加载 kvm_pvm + 验证）
+sudo bash install-pvm-l1.sh ./kernel-6.6.0-*.aarch64.rpm
+```
+
+第 2 次运行输出 `L1 PVM 状态验证全部通过` 即完成（`kvm_pvm` 已加载并配置开机自动加载）。RPM 缺省时脚本自动探测当前目录下唯一的 `kernel-*.aarch64.rpm`。
+
+#### 安装 CubeSandbox
+
+请在安装前，确保完成以下前置步骤：
+
+- [配置`/data`目录](#data目录配置)。
+- [安装并配置Docker](#安装并配置Docker)。
+- [安装系统依赖](#安装系统依赖与部署前自检)。
+
+安装CubeSandbox
+
+```bash
+tar -xzf cube-sandbox-one-click-<version>.tar.gz
+sudo bash install-cube-pvm.sh ./cube-sandbox-one-click-<version>
+```
+
+**安装常见问题**
+
+1）无外网时卡在 `[s3-deps] install jq` 
+请排查L0,L1的 net.ipv4.ip_forward 是否为1
+
+```bash
+sysctl -n net.ipv4.ip_forward   # 期望输出 1
+#若不为 1 分别在L0 L1 执行下述指令，配置 net.ipv4.ip_forward 为 1 
+sudo sed -i 's/^net.ipv4.ip_forward=0$/net.ipv4.ip_forward=1/' /etc/sysctl.conf # 或者vim修改
+sudo sysctl -p
+sysctl -n net.ipv4.ip_forward   # 期望输出 1
+```
+
+#### 验证
+
+```bash
+bash ~/Kbox-patches/deploy/cube_healthcheck.sh     # 期望全部通过
+
+uname -r                                           # 预期与所装 PVM 内核版本一致， 6.6.0+
+lsmod | grep '^kvm_pvm'                            # 预期输出 kvm_pvm 行，且被引用计数 > 0
+grep '^CUBE_PVM_ENABLE=1' /usr/local/services/cubetoolbox/.one-click.env   # CUBE_PVM_ENABLE=1
+readlink -f /usr/local/services/cubetoolbox/cube-kernel-scf/vmlinux   # 必须指向 /usr/local/services/cubetoolbox/cube-kernel-scf/vmlinux-pvm
 ```
