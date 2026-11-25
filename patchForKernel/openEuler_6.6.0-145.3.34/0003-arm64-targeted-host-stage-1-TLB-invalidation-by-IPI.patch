@@ -1,0 +1,611 @@
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index 954cc42..ac71c2e 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -2830,3 +2830,13 @@ source "drivers/acpi/Kconfig"
+ source "arch/arm64/kvm/Kconfig"
+ 
+ source "arch/arm64/mm/Kconfig"
++
++config ARM64_TLBI_IPI
++	bool "Targeted host TLB invalidation by IPI (experiment)"
++	depends on ARM64 && SMP
++	default n
++	help
++	  Track mm_cpumask() and optionally replace broadcast user-ASID TLB
++	  invalidation with local TLBIs on the CPUs that used the mm, sent by
++	  IPI.  Selected at runtime with arm64_tlbi_ipi.flags or the
++	  disable_tlbflush_is= boot option; the default keeps broadcasts.
+diff --git a/arch/arm64/include/asm/mmu_context.h b/arch/arm64/include/asm/mmu_context.h
+index a6fb325..dfb7dbe 100644
+--- a/arch/arm64/include/asm/mmu_context.h
++++ b/arch/arm64/include/asm/mmu_context.h
+@@ -25,6 +25,17 @@
+ #include <asm/sysreg.h>
+ #include <asm/tlbflush.h>
+ 
++#ifdef CONFIG_ARM64_TLBI_IPI
++DECLARE_PER_CPU(struct mm_struct *, arm64_tlbi_ipi_lazy_mm);
++/* The lazy mm left mm_cpumask(): TTBR0 stays reserved until switch_mm(). */
++static inline bool arm64_tlbi_ipi_lazy_dropped(struct mm_struct *mm)
++{
++	return unlikely(__this_cpu_read(arm64_tlbi_ipi_lazy_mm) == mm);
++}
++#else
++static inline bool arm64_tlbi_ipi_lazy_dropped(struct mm_struct *mm) { return false; }
++#endif
++
+ extern bool rodata_full;
+ 
+ static inline void contextidr_thread_switch(struct task_struct *next)
+@@ -106,7 +117,8 @@ static inline void cpu_uninstall_idmap(void)
+ 	local_flush_tlb_all();
+ 	cpu_set_default_tcr_t0sz();
+ 
+-	if (mm != &init_mm && !system_uses_ttbr0_pan())
++	if (mm != &init_mm && !system_uses_ttbr0_pan() &&
++	    !arm64_tlbi_ipi_lazy_dropped(mm))
+ 		cpu_switch_mm(mm->pgd, mm);
+ }
+ 
+@@ -241,6 +253,10 @@ enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
+ 	 * zero page.
+ 	 */
+ 	update_saved_ttbr0(tsk, &init_mm);
++#ifdef CONFIG_ARM64_TLBI_IPI
++	if (arm64_tlbi_ipi_test(ARM64_TLBI_IPI_LAZY))
++		arm64_tlbi_ipi_enter_lazy(mm);
++#endif
+ }
+ 
+ static inline void __switch_mm(struct mm_struct *next)
+@@ -261,8 +277,12 @@ static inline void
+ switch_mm(struct mm_struct *prev, struct mm_struct *next,
+ 	  struct task_struct *tsk)
+ {
+-	if (prev != next)
++	if (prev != next || arm64_tlbi_ipi_lazy_dropped(next))
+ 		__switch_mm(next);
++#ifdef CONFIG_ARM64_TLBI_IPI
++	if (prev != next && arm64_tlbi_ipi_test(ARM64_TLBI_IPI_SWITCH))
++		arm64_tlbi_ipi_switch_out(prev);
++#endif
+ 
+ 	/*
+ 	 * Update the saved TTBR0_EL1 of the scheduled-in task as the previous
+diff --git a/arch/arm64/include/asm/tlbflush.h b/arch/arm64/include/asm/tlbflush.h
+index c082cac..48700e1 100644
+--- a/arch/arm64/include/asm/tlbflush.h
++++ b/arch/arm64/include/asm/tlbflush.h
+@@ -16,6 +16,7 @@
+ #include <linux/mmu_notifier.h>
+ #include <asm/cputype.h>
+ #include <asm/mmu.h>
++#include <asm/tlbi_ipi.h>
+ 
+ /*
+  * Raw TLBI operations.
+@@ -254,11 +255,13 @@ static inline void flush_tlb_mm(struct mm_struct *mm)
+ {
+ 	unsigned long asid;
+ 
+-	dsb(ishst);
+-	asid = __TLBI_VADDR(0, ASID(mm));
+-	__tlbi(aside1is, asid);
+-	__tlbi_user(aside1is, asid);
+-	dsb(ish);
++	if (!(arm64_tlbi_ipi_test(ARM64_TLBI_IPI_MM) && arm64_tlbi_ipi_mm(mm))) {
++		dsb(ishst);
++		asid = __TLBI_VADDR(0, ASID(mm));
++		__tlbi(aside1is, asid);
++		__tlbi_user(aside1is, asid);
++		dsb(ish);
++	}
+ 	mmu_notifier_arch_invalidate_secondary_tlbs(mm, 0, -1UL);
+ }
+ 
+@@ -267,10 +270,12 @@ static inline void __flush_tlb_page_nosync(struct mm_struct *mm,
+ {
+ 	unsigned long addr;
+ 
+-	dsb(ishst);
+-	addr = __TLBI_VADDR(uaddr, ASID(mm));
+-	__tlbi(vale1is, addr);
+-	__tlbi_user(vale1is, addr);
++	if (!(arm64_tlbi_ipi_test(ARM64_TLBI_IPI_PAGE) && arm64_tlbi_ipi_page(mm, uaddr))) {
++		dsb(ishst);
++		addr = __TLBI_VADDR(uaddr, ASID(mm));
++		__tlbi(vale1is, addr);
++		__tlbi_user(vale1is, addr);
++	}
+ 	mmu_notifier_arch_invalidate_secondary_tlbs(mm, uaddr & PAGE_MASK,
+ 						(uaddr & PAGE_MASK) + PAGE_SIZE);
+ }
+@@ -415,10 +420,10 @@ static inline bool __flush_tlb_range_limit_excess(unsigned long start,
+ 	return false;
+ }
+ 
+-static inline void __flush_tlb_range_nosync(struct mm_struct *mm,
++static inline void ___flush_tlb_range_nosync(struct mm_struct *mm,
+ 				     unsigned long start, unsigned long end,
+ 				     unsigned long stride, bool last_level,
+-				     int tlb_level)
++				     int tlb_level, bool ipi)
+ {
+ 	unsigned long asid, pages;
+ 
+@@ -431,6 +436,10 @@ static inline void __flush_tlb_range_nosync(struct mm_struct *mm,
+ 		return;
+ 	}
+ 
++	if (ipi && arm64_tlbi_ipi_test(ARM64_TLBI_IPI_RANGE) &&
++	    arm64_tlbi_ipi_range(mm, start, pages, stride, last_level, tlb_level))
++		goto notify;
++
+ 	dsb(ishst);
+ 	asid = ASID(mm);
+ 
+@@ -439,9 +448,18 @@ static inline void __flush_tlb_range_nosync(struct mm_struct *mm,
+ 	else
+ 		__flush_tlb_range_op(vae1is, start, pages, stride, asid, tlb_level, true);
+ 
++notify:
+ 	mmu_notifier_arch_invalidate_secondary_tlbs(mm, start, end);
+ }
+ 
++static inline void __flush_tlb_range_nosync(struct mm_struct *mm,
++				     unsigned long start, unsigned long end,
++				     unsigned long stride, bool last_level,
++				     int tlb_level)
++{
++	___flush_tlb_range_nosync(mm, start, end, stride, last_level, tlb_level, true);
++}
++
+ static inline void __flush_tlb_range(struct vm_area_struct *vma,
+ 				     unsigned long start, unsigned long end,
+ 				     unsigned long stride, bool last_level,
+@@ -500,7 +518,8 @@ static inline void __flush_tlb_kernel_pgtable(unsigned long kaddr)
+ static inline void arch_tlbbatch_add_pending(struct arch_tlbflush_unmap_batch *batch,
+ 		struct mm_struct *mm, unsigned long start, unsigned long end)
+ {
+-	__flush_tlb_range_nosync(mm, start, end, PAGE_SIZE, true, 3);
++	/* Deferred completion (arch_tlbbatch_flush()) needs broadcast TLBIs. */
++	___flush_tlb_range_nosync(mm, start, end, PAGE_SIZE, true, 3, false);
+ }
+ 
+ #ifdef CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP
+diff --git a/arch/arm64/include/asm/tlbi_ipi.h b/arch/arm64/include/asm/tlbi_ipi.h
+new file mode 100644
+index 0000000..2cfde74
+--- /dev/null
++++ b/arch/arm64/include/asm/tlbi_ipi.h
+@@ -0,0 +1,49 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++#ifndef __ASM_TLBI_IPI_H
++#define __ASM_TLBI_IPI_H
++#include <linux/compiler.h>
++#include <linux/types.h>
++
++struct mm_struct;
++
++/* Bit values follow the OLK-6.6 disable_tlbflush_is= flags. */
++#define ARM64_TLBI_IPI_RANGE	0x01
++#define ARM64_TLBI_IPI_PAGE	0x02
++#define ARM64_TLBI_IPI_SWITCH	0x04
++#define ARM64_TLBI_IPI_MM	0x08
++#define ARM64_TLBI_IPI_LAZY	0x10
++/* Test only, deliberately unsafe: flush the calling CPU alone (negative control). */
++#define ARM64_TLBI_IPI_BROKEN	0x80
++
++#ifdef CONFIG_ARM64_TLBI_IPI
++extern unsigned int arm64_tlbi_ipi_flags;
++
++static __always_inline bool arm64_tlbi_ipi_test(unsigned int flag)
++{
++	return unlikely(READ_ONCE(arm64_tlbi_ipi_flags) & flag);
++}
++
++bool arm64_tlbi_ipi_mm(struct mm_struct *mm);
++bool arm64_tlbi_ipi_page(struct mm_struct *mm, unsigned long uaddr);
++bool arm64_tlbi_ipi_range(struct mm_struct *mm, unsigned long start,
++			  unsigned long pages, unsigned long stride,
++			  bool last_level, int tlb_level);
++void arm64_tlbi_ipi_new_asid(struct mm_struct *mm);
++void arm64_tlbi_ipi_track(struct mm_struct *mm);
++void arm64_tlbi_ipi_switch_out(struct mm_struct *prev);
++void arm64_tlbi_ipi_enter_lazy(struct mm_struct *mm);
++#else
++static inline bool arm64_tlbi_ipi_test(unsigned int flag) { return false; }
++static inline bool arm64_tlbi_ipi_mm(struct mm_struct *mm) { return false; }
++static inline bool arm64_tlbi_ipi_page(struct mm_struct *mm, unsigned long uaddr)
++{
++	return false;
++}
++static inline bool arm64_tlbi_ipi_range(struct mm_struct *mm, unsigned long start,
++					unsigned long pages, unsigned long stride,
++					bool last_level, int tlb_level)
++{
++	return false;
++}
++#endif
++#endif
+diff --git a/arch/arm64/kernel/smp.c b/arch/arm64/kernel/smp.c
+index 1131f96..f79a2a7 100644
+--- a/arch/arm64/kernel/smp.c
++++ b/arch/arm64/kernel/smp.c
+@@ -323,6 +323,11 @@ int __cpu_disable(void)
+ 	 */
+ 	irq_migrate_all_off_this_cpu();
+ 
++#ifdef CONFIG_ARM64_TLBI_IPI
++	/* Remove this CPU from the mm_cpumask() of all processes. */
++	clear_tasks_mm_cpumask(cpu);
++#endif
++
+ 	return 0;
+ }
+ 
+diff --git a/arch/arm64/mm/Makefile b/arch/arm64/mm/Makefile
+index c02aeb7..cfde05e 100644
+--- a/arch/arm64/mm/Makefile
++++ b/arch/arm64/mm/Makefile
+@@ -16,3 +16,5 @@ KASAN_SANITIZE_physaddr.o	+= n
+ obj-$(CONFIG_KASAN)		+= kasan_init.o
+ KASAN_SANITIZE_kasan_init.o	:= n
+ obj-$(CONFIG_PFN_RANGE_ALLOC)	+= pfn_range_alloc.o
++
++obj-$(CONFIG_ARM64_TLBI_IPI)	+= tlbi-ipi.o
+diff --git a/arch/arm64/mm/context.c b/arch/arm64/mm/context.c
+index b2ac062..922705e 100644
+--- a/arch/arm64/mm/context.c
++++ b/arch/arm64/mm/context.c
+@@ -209,6 +209,9 @@ static u64 new_context(struct mm_struct *mm)
+ set_asid:
+ 	__set_bit(asid, asid_map);
+ 	cur_idx = asid;
++#ifdef CONFIG_ARM64_TLBI_IPI
++	arm64_tlbi_ipi_new_asid(mm);
++#endif
+ 	return asid2ctxid(asid, generation);
+ }
+ 
+@@ -261,6 +264,9 @@ void check_and_switch_context(struct mm_struct *mm)
+ switch_mm_fastpath:
+ 
+ 	arm64_apply_bp_hardening();
++#ifdef CONFIG_ARM64_TLBI_IPI
++	arm64_tlbi_ipi_track(mm);
++#endif
+ 
+ 	/*
+ 	 * Defer TTBR0_EL1 setting for user threads to uaccess_enable() when
+diff --git a/arch/arm64/mm/tlbi-ipi.c b/arch/arm64/mm/tlbi-ipi.c
+new file mode 100644
+index 0000000..f07cf9a
+--- /dev/null
++++ b/arch/arm64/mm/tlbi-ipi.c
+@@ -0,0 +1,324 @@
++// SPDX-License-Identifier: GPL-2.0-only
++/*
++ * cubesandbox-v2 experiment: targeted host stage-1 TLB invalidation.
++ *
++ * Follows the OLK-6.6 "tlbi: Do not force the broadcasting of TLBI" patch
++ * (FUJITSU).  CPUs without DVM broadcast filtering pay a system-wide cost for
++ * every TLBI ...IS; when enabled, user-ASID page/range/mm flushes instead run
++ * local TLBIs, by synchronous IPI, on the CPUs in mm_cpumask().
++ *
++ * mm_cpumask() holds every CPU that may have TLB entries for the current
++ * ASID of the mm.  A CPU sets its bit before it can use the ASID
++ * (check_and_switch_context()); only the CPU itself clears it, after it has
++ * stopped using the ASID and invalidated it locally (switch and lazy modes).
++ * A newly allocated ASID starts with an empty mask: entries tagged with the
++ * old one are removed by the rollover flush before that ASID is reused.
++ * Tracking is always on, so the flags can be changed at runtime.
++ */
++#include <linux/cpumask.h>
++#include <linux/init.h>
++#include <linux/iommu.h>
++#include <linux/irqflags.h>
++#include <linux/moduleparam.h>
++#include <linux/percpu.h>
++#include <linux/smp.h>
++#include <linux/string.h>
++#include <asm/mmu_context.h>
++#include <asm/tlbflush.h>
++#include <asm/virt.h>
++
++#undef MODULE_PARAM_PREFIX
++#define MODULE_PARAM_PREFIX "arm64_tlbi_ipi."
++
++unsigned int arm64_tlbi_ipi_flags __read_mostly;
++
++/*
++ * Host only: the flags stay 0 unless the kernel runs at EL2 (VHE).  In a
++ * guest, IPIs trap to the hypervisor and HCR_EL2.FB upgrades the local TLBIs
++ * (including those of the switch and lazy exits) to broadcasts, so every
++ * mode would be slower than the plain broadcast it replaces.
++ */
++static bool flags_allowed(unsigned int flags)
++{
++	if (!flags || is_kernel_in_hyp_mode())
++		return true;
++	pr_warn_once("arm64_tlbi_ipi: not a VHE host, keeping broadcast TLBIs\n");
++	return false;
++}
++
++static int flags_set(const char *val, const struct kernel_param *kp)
++{
++	unsigned int flags;
++	int ret = kstrtouint(val, 0, &flags);
++
++	if (ret)
++		return ret;
++	if (!flags_allowed(flags))
++		return -EOPNOTSUPP;
++	WRITE_ONCE(arm64_tlbi_ipi_flags, flags);
++	return 0;
++}
++
++static const struct kernel_param_ops flags_ops = {
++	.set = flags_set,
++	.get = param_get_uint,
++};
++module_param_cb(flags, &flags_ops, &arm64_tlbi_ipi_flags, 0644);
++MODULE_PARM_DESC(flags, "0x1 range, 0x2 page, 0x4 switch, 0x8 mm, 0x10 lazy, 0x80 broken (test only)");
++static bool stats;
++module_param(stats, bool, 0644);
++MODULE_PARM_DESC(stats, "Count requests and targets");
++
++DEFINE_PER_CPU(struct mm_struct *, arm64_tlbi_ipi_lazy_mm);
++
++enum ipi_stat {
++	REQ_PAGE, REQ_RANGE, REQ_MM, TARGETS, SELF, FALLBACK,
++	TRACK, SWITCH_DROP, LAZY_DROP, LAZY_RELOAD, NR_IPI_STATS
++};
++
++static DEFINE_PER_CPU(u64 [NR_IPI_STATS], ipi_stats);
++static const char * const stat_names[] = {
++	"page", "range", "mm", "targets", "self", "fallback",
++	"track", "switch_drop", "lazy_drop", "lazy_reload"
++};
++
++static void count(enum ipi_stat stat, unsigned int n)
++{
++	if (READ_ONCE(stats))
++		this_cpu_add(ipi_stats[stat], n);
++}
++
++static int report_get(char *buf, const struct kernel_param *kp)
++{
++	int i, cpu, len = 0;
++
++	for (i = 0; i < NR_IPI_STATS; i++) {
++		u64 sum = 0;
++
++		for_each_possible_cpu(cpu)
++			sum += per_cpu(ipi_stats, cpu)[i];
++		len += sysfs_emit_at(buf, len, "%s%s=%llu", i ? " " : "",
++				     stat_names[i], sum);
++	}
++	return len + sysfs_emit_at(buf, len, "\n");
++}
++
++static const struct kernel_param_ops report_ops = { .get = report_get };
++module_param_cb(report, &report_ops, NULL, 0444);
++
++/* Compatible with the OLK-6.6 boot option: disable_tlbflush_is=range,page,switch,mm */
++static int __init disable_tlbflush_is_setup(char *str)
++{
++	static const char * const names[] = { "range", "page", "switch", "mm", "lazy" };
++	unsigned int flags = 0;
++	char *tok;
++	int i;
++
++	while ((tok = strsep(&str, ","))) {
++		for (i = 0; i < ARRAY_SIZE(names); i++)
++			if (!strcmp(tok, names[i]))
++				break;
++		if (i == ARRAY_SIZE(names)) {
++			pr_warn("disable_tlbflush_is: unknown flag '%s'\n", tok);
++			return 0;
++		}
++		flags |= 1U << i;
++	}
++	if (!flags_allowed(flags))
++		return 0;
++	arm64_tlbi_ipi_flags = flags;
++	pr_info("disable_tlbflush_is: flags 0x%x\n", flags);
++	return 0;
++}
++early_param("disable_tlbflush_is", disable_tlbflush_is_setup);
++
++static bool eligible(struct mm_struct *mm)
++{
++	/*
++	 * SMMU SVA with BTM snoops broadcast TLBIs on shared ASIDs, and
++	 * smp_call_function() must not wait with IRQs disabled.
++	 */
++	if (mm == &init_mm || mm_valid_pasid(mm) || irqs_disabled()) {
++		count(FALLBACK, 1);
++		return false;
++	}
++	/*
++	 * Publish the PTE update to the table walkers and order it before
++	 * mm_cpumask() is sampled.  Pairs with the dsb in arm64_tlbi_ipi_track():
++	 * either we see a joining CPU's bit or its walks see the new PTE.
++	 */
++	dsb(ish);
++	return true;
++}
++
++static void run(struct mm_struct *mm, smp_call_func_t func, void *info,
++		enum ipi_stat req)
++{
++	const struct cpumask *mask = mm_cpumask(mm);
++
++	if (READ_ONCE(stats)) {
++		count(req, 1);
++		count(TARGETS, cpumask_weight_and(mask, cpu_online_mask));
++		count(SELF, cpumask_test_cpu(raw_smp_processor_id(), mask));
++	}
++	if (arm64_tlbi_ipi_test(ARM64_TLBI_IPI_BROKEN)) {
++		/* Negative control for the stale-TLB tests: never use in production. */
++		preempt_disable();
++		if (cpumask_test_cpu(smp_processor_id(), mask)) {
++			unsigned long flags;
++
++			local_irq_save(flags);
++			func(info);
++			local_irq_restore(flags);
++		}
++		preempt_enable();
++		return;
++	}
++	on_each_cpu_mask(mask, func, info, true);
++}
++
++struct flush_args {
++	struct mm_struct *mm;
++	unsigned long start, pages, stride;
++	bool last_level;
++	int tlb_level;
++};
++
++/*
++ * The ASID is read on each target: a CPU in the mask is using (or used) the
++ * ASID it observed itself, which cannot be older than this read.
++ */
++static void ipi_flush_mm(void *info)
++{
++	unsigned long asid = __TLBI_VADDR(0, ASID((struct mm_struct *)info));
++
++	__tlbi(aside1, asid);
++	__tlbi_user(aside1, asid);
++	dsb(nsh);
++}
++
++static void ipi_flush_range(void *info)
++{
++	struct flush_args *a = info;
++	unsigned long asid = ASID(a->mm);
++
++	if (a->last_level)
++		__flush_tlb_range_op(vale1, a->start, a->pages, a->stride, asid,
++				     a->tlb_level, true);
++	else
++		__flush_tlb_range_op(vae1, a->start, a->pages, a->stride, asid,
++				     a->tlb_level, true);
++	dsb(nsh);
++}
++
++bool arm64_tlbi_ipi_mm(struct mm_struct *mm)
++{
++	if (!eligible(mm))
++		return false;
++	run(mm, ipi_flush_mm, mm, REQ_MM);
++	return true;
++}
++
++bool arm64_tlbi_ipi_page(struct mm_struct *mm, unsigned long uaddr)
++{
++	struct flush_args a = {
++		.mm = mm, .start = uaddr, .pages = 1, .stride = PAGE_SIZE,
++		.last_level = true, .tlb_level = 0,
++	};
++
++	if (!eligible(mm))
++		return false;
++	run(mm, ipi_flush_range, &a, REQ_PAGE);
++	return true;
++}
++
++bool arm64_tlbi_ipi_range(struct mm_struct *mm, unsigned long start,
++			  unsigned long pages, unsigned long stride,
++			  bool last_level, int tlb_level)
++{
++	struct flush_args a = {
++		.mm = mm, .start = start, .pages = pages, .stride = stride,
++		.last_level = last_level, .tlb_level = tlb_level,
++	};
++
++	if (!eligible(mm))
++		return false;
++	run(mm, ipi_flush_range, &a, REQ_RANGE);
++	return true;
++}
++
++/* new_context(): a fresh ASID, under cpu_asid_lock. */
++void arm64_tlbi_ipi_new_asid(struct mm_struct *mm)
++{
++	cpumask_clear(mm_cpumask(mm));
++	/* Before mm->context.id is published; fast-path joiners set bits after reading it. */
++	smp_wmb();
++}
++
++/* check_and_switch_context(), IRQs off: before the ASID is loaded. */
++void arm64_tlbi_ipi_track(struct mm_struct *mm)
++{
++	int cpu = smp_processor_id();
++
++	if (unlikely(__this_cpu_read(arm64_tlbi_ipi_lazy_mm))) {
++		if (__this_cpu_read(arm64_tlbi_ipi_lazy_mm) == mm)
++			count(LAZY_RELOAD, 1);
++		__this_cpu_write(arm64_tlbi_ipi_lazy_mm, NULL);
++	}
++	/* Test first: the mask cache line is shared by every CPU using the mm. */
++	if (cpumask_test_cpu(cpu, mm_cpumask(mm)))
++		return;
++	cpumask_set_cpu(cpu, mm_cpumask(mm));
++	/* Pairs with eligible(); a dsb, as table walks are not ordered by a dmb. */
++	dsb(ish);
++	count(TRACK, 1);
++}
++
++static void local_flush_asid(struct mm_struct *mm)
++{
++	unsigned long asid = __TLBI_VADDR(0, ASID(mm));
++
++	dsb(nshst);
++	__tlbi(aside1, asid);
++	__tlbi_user(aside1, asid);
++	dsb(nsh);
++}
++
++/* switch_mm(), after the next ASID is loaded: stop receiving flushes for prev. */
++void arm64_tlbi_ipi_switch_out(struct mm_struct *prev)
++{
++	int cpu = smp_processor_id();
++
++	if (prev == &init_mm || system_uses_ttbr0_pan() ||
++	    !cpumask_test_cpu(cpu, mm_cpumask(prev)))
++		return;
++	/*
++	 * Flushers that no longer see the bit skip this CPU; the prev ASID is
++	 * not in use here any more and is invalidated before it can be loaded
++	 * again.
++	 */
++	cpumask_clear_cpu(cpu, mm_cpumask(prev));
++	local_flush_asid(prev);
++	count(SWITCH_DROP, 1);
++}
++
++/*
++ * enter_lazy_tlb(): a kernel thread (or idle) keeps mm as active_mm.  Point
++ * TTBR0 at the reserved tables so no walk can allocate entries for the mm,
++ * then leave the mask: idle CPUs stop receiving flushes for it.  switch_mm()
++ * reloads the mm even if it is unchanged.
++ */
++void arm64_tlbi_ipi_enter_lazy(struct mm_struct *mm)
++{
++	int cpu = smp_processor_id();
++
++	if (mm == &init_mm || system_uses_ttbr0_pan() ||
++	    __this_cpu_read(arm64_tlbi_ipi_lazy_mm) == mm ||
++	    !cpumask_test_cpu(cpu, mm_cpumask(mm)))
++		return;
++	cpu_set_reserved_ttbr0();
++	__this_cpu_write(arm64_tlbi_ipi_lazy_mm, mm);
++	cpumask_clear_cpu(cpu, mm_cpumask(mm));
++	local_flush_asid(mm);
++	count(LAZY_DROP, 1);
++}

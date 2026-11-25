@@ -529,6 +529,81 @@ Cubelet 侧任一开关未打开时，脚本虽然仍会带 `--cow-defrag`，Cub
     >
     >用户可自行查找相关应用进行验证。
 
+## 软渲染优化参数配置
+
+### 属性说明
+
+| 配置项名称                                      | 含义                                      | 类型    | 取值范围        | 默认值     | 说明                                                     |
+| ------------------------------------------ | --------------------------------------- | ----- | ----------- | ------- | ------------------------------------------------------ |
+| debug.sf.swiftshader\_workers              | worker线程数，同时决定cluster扇出（≤workers的最大2的幂） | int   | 1，2，4       | 2       | ≤0视为未设置；超分场景推荐2；确认不超分可以开4；超分倍数确定大于4时才可以开1。             |
+| debug.sf.swiftshader\_marl\_spin\_us       | worker空闲自旋时长，单位：微秒                      | int   | 0\~1000（建议） | 200     | 0表示关闭自旋；池内有任务才自旋，完全空闲直接休眠                              |
+| debug.sf.swiftshader\_footprint\_threshold | footprint快路阈值，单位：texel                  | float | ≥0，建议不超过2   | 0.5     | 0表示关闭；值越大画质损失越大，性能收益也越大；小于0.5时理论无损，对于部分场景可以开到1.25也实测无损 |
+| debug.sf.swiftshader\_shortchain           | 采样索引短链优化开关                              | int   | 0或1         | 1       | 0表示回退基线                                                |
+| debug.sf.swiftshader\_lod\_dedup           | 单mip层级LOD采样去重开关                         | int   | 0或1         | 1       | 0表示保留逐lane循环                                           |
+| debug.sf.swiftshader\_static\_sampler      | 静态采样例程模式                                | int   | 0，1         | 未设置（启用） | 0=强制JIT；1/未设置=启用（默认使用最高级等价优化版，优先 opt3）              |
+| debug.sf.swiftshader\_static\_pixel        | 静态像素例程模式                                | int   | 0，1         | 未设置（启用） | 0=强制JIT；1/未设置=启用；                                      |
+
+> ![](./public_sys-resources/icon-note.gif) **说明：**
+>
+> 属性在渲染配置单例或采样例程创建时读取，必须在应用冷启动前设置。已运行的应用需重启SurfaceFlinger系统服务，使渲染配置单例按新属性重建。
+>
+> 非法值按默认值处理；未设置的属性使用代码默认值。属性不会持久化，重启后需重新设置。
+
+### 推荐配置
+
+以下四个参数已固化为代码默认值，通常无需下发；静态采样例程默认使用最高级等价优化版（优先 opt3，无 opt3 时回退 opt2/opt）：
+
+```bash
+setprop debug.sf.swiftshader_footprint_threshold 0.5
+setprop debug.sf.swiftshader_shortchain 1
+setprop debug.sf.swiftshader_workers 2
+setprop debug.sf.swiftshader_marl_spin_us 200
+```
+
+对于4C8G、720×1280、2×超分的云手机场景，建议保持上述默认值；其他规格可根据实际超分倍数调整`debug.sf.swiftshader_workers`。
+
+### 软渲染属性配置示例
+
+1. 正常启动沙箱，并确认沙箱IP信息。
+2. 在服务器侧通过**adb**连接沙箱并进入shell。
+
+   ```bash
+   adb connect 10.100.x.x:5555
+   adb -s 10.100.x.x:5555 shell
+   ```
+
+3. 调用**setprop**方法设置软渲染优化属性。
+
+   ```bash
+   setprop debug.sf.swiftshader_workers 2
+   setprop debug.sf.swiftshader_marl_spin_us 200
+   setprop debug.sf.swiftshader_footprint_threshold 0.5
+   setprop debug.sf.swiftshader_shortchain 1
+   setprop debug.sf.swiftshader_lod_dedup 1
+   ```
+
+4. 检查当前属性值。
+
+   ```bash
+   getprop | grep "debug.sf.swiftshader"
+   ```
+
+5. 重启SurfaceFlinger系统服务，使渲染配置单例按新属性重建。
+
+   ```bash
+   setprop ctl.restart surfaceflinger
+   ```
+
+### 验证
+
+```bash
+getprop | grep "debug.sf.swiftshader"
+dumpsys SurfaceFlinger | grep -iE "GLES|Vulkan|SwiftShader"
+logcat -d | grep -i swiftshader
+```
+
+`dumpsys SurfaceFlinger`中出现SwiftShader相关字样，表示软渲染链路已启用。
+
 ## Android World测试框架
 
 ### 部署测试框架
@@ -807,3 +882,9 @@ export AW_ADB_SERIAL=<SANDBOX_IP>:5555
   | AW_LLM_BASE_URL | OpenAI兼容端点的根地址，不含/chat/completions | **必填** | httpx://api.example.com/v1 |
   | AW_LLM_MODEL | 指定调用的模型名，以LLM服务实际支持的模型为准 | **必填** | example-model |
   | AW_LLM_EFFORT | 推理档位，用来控制推理深度/成本/时延<br>可选值包括：low / high / max，具体以端点支持为准。 | 可选 | high |
+
+## 修订记录
+
+|文档版本|发布日期|修改说明|
+|--|--|--|
+|01|2026-12-30|第一次正式发布。|

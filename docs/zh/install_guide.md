@@ -25,6 +25,68 @@ sudo dnf install -y git make tar gzip pigz python3 nodejs npm docker
 sudo systemctl start docker && sudo systemctl enable docker
 ```
 
+## 配置BIOS
+
+### 配置BIOS（鲲鹏920新型号）
+
+1. 进入BIOS设置界面后，先按“F9”恢复默认设置。
+2. 切换到“Advanced”页签，进入“Memory Configuration”页面：
+   - 将“Memory Frequency”设置为“4800”。
+   - 将“NUMA”设置为“Enabled”。
+   - 将“One Numa Per Socket”设置为“Disabled”。
+3. 返回上一页，进入“Power And Performance Configuration”页面：
+   - 将“Power Policy”设置为“Performance”。该项对性能影响较大。
+   - 进入“CPU PM Control”，将“SMT2”设置为“Enabled”。
+4. 返回“Advanced”初始界面，进入“MISC Configuration”页面：
+   - 将“Smmu”设置为“Disabled”。
+5. 保存BIOS配置并退出设置界面。
+
+配置项汇总：
+
+|页面|配置项|设置值|
+|---|---|---|
+|Memory Configuration|Memory Frequency|4800|
+|Memory Configuration|NUMA|Enabled|
+|Memory Configuration|One Numa Per Socket|Disabled|
+|Power And Performance Configuration|Power Policy|Performance|
+|CPU PM Control|SMT2|Enabled|
+|MISC Configuration|Smmu|Disabled|
+
+>![](./public_sys-resources/icon-note.gif) **说明：**
+>
+> 不同BIOS版本的菜单名称可能略有差异，请以实际界面为准。
+
+### 配置BIOS（鲲鹏950）
+
+1. 进入BIOS设置界面后先按“F9”恢复默认设置。
+2. 手动调整以下配置项：
+   - 切换到“Advanced”页签，进入“Memory Configuration”页面，将“Memory Frequency”设置为“6400”。
+3. 以下配置项在按F9恢复默认后通常已正确，需逐项确认：
+   - “Advanced > Processor Configuration > Processor Information”页面：将“TDP”设置为“440W”。
+   - “Advanced > Processor Configuration > Memory Configuration”页面：将“Custom Refresh”设置为“Enabled”。
+   - “Advanced > Memory Configuration”页面：将“Custom Refresh Rate”设置为“Auto”。
+   - “Advanced > Power And Performance Configuration”页面：将“Power Policy”设置为“Performance”。
+   - “Advanced > Power And Performance Configuration > CPU PM Control”页面：将“HiBoost”和“SMT2”设置为“Enabled”。
+   - “Advanced > MISC Configuration”页面：将“Support Smmu”设置为“Disabled”。
+4. 保存BIOS配置并退出设置界面。
+
+配置项汇总：
+
+|页面|配置项|设置值|
+|---|---|---|
+|Advanced > Memory Configuration|Memory Frequency|6400|
+|Advanced > Processor Configuration > Processor Information|TDP|440W|
+|Advanced > Processor Configuration > Memory Configuration|Custom Refresh|Enabled|
+|Advanced > Memory Configuration|Custom Refresh Rate|Auto|
+|Advanced > Power And Performance Configuration|Power Policy|Performance|
+|Advanced > Power And Performance Configuration > CPU PM Control|HiBoost|Enabled|
+|Advanced > Power And Performance Configuration > CPU PM Control|SMT2|Enabled|
+|Advanced > MISC Configuration|Support Smmu|Disabled|
+
+>![](./public_sys-resources/icon-note.gif) **说明：**
+>
+> 不同BIOS版本的菜单名称可能略有差异，请以实际界面为准。
+
 ## 拉取源码
 
 ### 准备工作区
@@ -62,7 +124,204 @@ cd ~/cube-workspace
 git clone https://gitcode.com/boostkit/Kbox-patches.git -b dev_AndroidSandbox
 ```
 
-### 修改本机网络配置
+## 系统调优配置与Numa亲和
+
+本节配置为一次性固化，机器重启后由systemd自动执行，无需每次重启后手工运行脚本。以下命令以root用户执行一次。
+
+### 配置方法
+
+1. 将Kbox-patches仓`deploy`目录下的`os_tune.sh`复制到稳定路径。
+
+    ```bash
+    install -m 755 ~/cube-workspace/Kbox-patches/deploy/os_tune.sh /usr/local/sbin/cube-os-tune.sh
+    ```
+
+    >![](./public_sys-resources/icon-note.gif) **说明：**
+    >
+    > 脚本路径以实际Kbox-patches克隆目录为准。
+
+2. 将可通过sysctl接口配置的3项写入`/etc/sysctl.d/99-cube-density-os-tune.conf`，使开机早期生效。
+
+    ```bash
+    cat >/etc/sysctl.d/99-cube-density-os-tune.conf <<'EOF'
+    kernel.numa_balancing = 0
+    kernel.sched_cluster = 1
+    vm.zone_reclaim_mode = 1
+    EOF
+    ```
+
+3. 创建systemd oneshot服务，在`tuned.service`之后重新施加全部 5 项 OS + 3 项 TLBI 调优。`tuned`的`throughput-performance`策略可能在开机时把THP改回`never`、把`numa_balancing`改回原值，因此需要在`tuned`之后执行。
+
+    ```bash
+    cat >/etc/systemd/system/cube-os-tune.service <<'EOF'
+    [Unit]
+    Description=CubeSandbox OS tuning (persistent)
+    After=tuned.service systemd-modules-load.service
+
+    [Service]
+    Type=oneshot
+    RemainAfterExit=yes
+    ExecStart=/usr/local/sbin/cube-os-tune.sh
+
+    [Install]
+    WantedBy=multi-user.target
+    EOF
+    ```
+
+4. 启用服务并立即执行一次。
+
+    ```bash
+    systemctl daemon-reload
+    systemctl enable --now cube-os-tune.service
+    systemctl status cube-os-tune.service --no-pager
+    ```
+
+脚本包含 5 项 OS 调优 + 3 项 TLBI 调优：
+
+|配置项|作用|
+|---|---|
+|kernel.numa_balancing=0|关闭auto-numa自动页迁移|
+|kernel.sched_cluster=1|启用鲲鹏cluster级调度|
+|transparent_hugepage=madvise|大页从always退回madvise|
+|vm.zone_reclaim_mode=1|内存回收优先在本zone内完成|
+|kvm.halt_poll_ns=0|关闭vCPU空转轮询|
+|kvm-arm.tlbi_ipi=1|开启KVM Stage-2 TLBI IPI优化|
+|kvm-arm.tlbi_ipi_lazy=1|允许延迟合并TLBI IPI|
+|arm64_tlbi_ipi.flags=31|打开全部TLBI IPI标志（现行基线）|
+
+> ![](./public_sys-resources/icon-note.gif) **说明：**
+>
+> `kernel.numa_balancing`、`kernel.sched_cluster`、`vm.zone_reclaim_mode`有sysctl接口，提前写入`sysctl.d`；大页、`halt_poll_ns` 和 3 项 TLBI 通过oneshot服务在开机后施加。
+>
+> TLBI 3 项与「编译内核」章节的 `KVM_ARM_TLBI_IPI`、`ARM64_TLBI_IPI` 配套。脚本会先尝试 `modprobe kvm-arm`、`modprobe arm64_tlbi_ipi` 加载参数所在模块，再写入 `/sys/module/kvm-arm/parameters/tlbi_ipi`、`tlbi_ipi_lazy` 和 `/sys/module/arm64_tlbi_ipi/parameters/flags`；写入失败时提示模块未加载或内核未包含 TLBI 优化，不得在未生效的环境上继续性能测试。
+
+### 回读确认
+
+```bash
+cat /proc/sys/kernel/numa_balancing                       # 0
+cat /proc/sys/kernel/sched_cluster                        # 1
+cat /sys/kernel/mm/transparent_hugepage/enabled           # [madvise]
+cat /proc/sys/vm/zone_reclaim_mode                        # 1
+cat /sys/module/kvm/parameters/halt_poll_ns               # 0
+cat /sys/module/kvm-arm/parameters/tlbi_ipi               # Y 或 1
+cat /sys/module/kvm-arm/parameters/tlbi_ipi_lazy          # Y 或 1
+cat /sys/module/arm64_tlbi_ipi/parameters/flags           # 31
+```
+
+预期结果依次为：`0`、`1`、`always [madvise] never`、`1`、`0`、`Y/1`、`Y/1`、`31`。
+
+> ![](./public_sys-resources/icon-note.gif) **说明：**
+>
+> 本节为一次性固化配置，机器重启后由`cube-os-tune.service`自动执行，无需重复执行本节命令。
+
+## 编译与安装Host内核
+
+### 获取内核源码和补丁
+
+#### 获取内核源码
+
+使用src.rpm获取与当前系统版本一致的内核源码。
+
+```bash
+# 安装依赖
+dnf install -y bc bison flex openssl-devel elfutils-libelf-devel dwarves gcc make
+
+# 下载内核源码包：src.rpm，下载到当前路径
+mkdir -p ~/cube-workspace/oe_kernel_src_rpm
+cd ~/cube-workspace/oe_kernel_src_rpm
+dnf download "https://repo.openeuler.org/openEuler-24.03-LTS-SP3/update/source/Packages/kernel-6.6.0-145.3.34.165.oe2403sp3.src.rpm"
+
+# 解压展开内核源码
+rpm -ivh ./kernel-6.6.0-145.3.34.165.oe2403sp3.src.rpm
+rpmbuild -bp --nodeps /root/rpmbuild/SPECS/kernel.spec
+
+# 进入展开后的源码目录
+cd /root/rpmbuild/BUILD/kernel-6.6.0/linux-6.6.0-145.3.34.165.aarch64
+```
+
+#### 获取内核补丁并应用
+
+`dev_AndroidSandbox`分支已包含`patchForKernel/openEuler_6.6.0-145.3.34/`补丁目录。使用“获取Kbox软件包”章节已克隆的Kbox-patches仓库，更新代码后合入内核补丁。
+
+```bash
+cd /root/rpmbuild/BUILD/kernel-6.6.0/linux-6.6.0-145.3.34.165.aarch64
+for p in ~/cube-workspace/Kbox-patches/patchForKernel/openEuler_6.6.0-145.3.34/*.patch; do
+    patch -p1 < "$p" || exit 1
+done
+```
+
+>![](./public_sys-resources/icon-note.gif) **说明：**
+>
+> 补丁路径以实际Kbox-patches克隆目录为准。src.rpm展开后的源码目录不是git仓库，使用`patch -p1`合入补丁。
+
+### 编译和安装内核
+
+#### 配置内核
+
+1. 使用SP3发行配置作为基础配置：
+
+    ```bash
+    cp /boot/config-6.6.0-145.3.34.165.oe2403sp3.aarch64 .config
+    ```
+
+2. 使用`scripts/config`统一配置以下内核选项，并生成`.config`：
+
+    ```bash
+    ./scripts/config --enable KVM_ARM_TLBI_IPI
+    ./scripts/config --enable ARM64_TLBI_IPI
+    ./scripts/config --set-str SYSTEM_TRUSTED_KEYS ""
+    make olddefconfig
+    ```
+
+    |配置项|说明|.config中预期结果|
+    |---|---|---|
+    |KVM_ARM_TLBI_IPI|开启KVM Stage-2 range失效IPI优化|`CONFIG_KVM_ARM_TLBI_IPI=y`|
+    |ARM64_TLBI_IPI|开启Host Stage-1 TLB失效IPI优化|`CONFIG_ARM64_TLBI_IPI=y`|
+    |SYSTEM_TRUSTED_KEYS|清空证书路径，避免编译报错|`CONFIG_SYSTEM_TRUSTED_KEYS=""`|
+
+3. 回读确认配置结果。
+
+    ```bash
+    grep -E '^CONFIG_KVM_ARM_TLBI_IPI=|^CONFIG_ARM64_TLBI_IPI=|^CONFIG_SYSTEM_TRUSTED_KEYS=' .config
+    ```
+
+    预期输出：
+
+    ```text
+    CONFIG_KVM_ARM_TLBI_IPI=y
+    CONFIG_ARM64_TLBI_IPI=y
+    CONFIG_SYSTEM_TRUSTED_KEYS=""
+    ```
+
+#### 编译内核
+
+进入内核工作目录后执行编译。
+
+```bash
+cd /root/rpmbuild/BUILD/kernel-6.6.0/linux-6.6.0-145.3.34.165.aarch64
+make -j64
+```
+
+#### 安装内核
+
+确认`vmlinux`和`arch/arm64/boot/Image`已生成后，执行安装。
+
+```bash
+make modules_install
+make install
+```
+
+安装成功后重启，确认进入新编译的内核：
+
+```bash
+reboot
+```
+
+>![](./public_sys-resources/icon-note.gif) **说明：**
+>
+> 重启后执行`uname -r`，返回版本应与本次编译的内核版本一致。
+
+## 修改本机网络配置
 
 沙箱网络依赖IP转发，`net.ipv4.ip_forward`为0时沙箱启动后网络会异常，需将其修改为1。先在shell命令行中手动修改并确认：
 
@@ -124,34 +383,51 @@ cd ~/cube-workspace/Kbox-patches/build
 
 ### `/data` 目录配置<a id="data目录配置"></a>
 
-CubeSandbox工作路径在`/data`，文件格式需要为xfs。建议在安装系统时给/data目录划分足够的空间（分区大小可根据需要酌情配置，建议>200GB），或者参考下文将一块独立的nvme硬盘挂载到该路径，以方便灵活配置。下文以`nvme0n1`为例，请根据实际磁盘名称替换相关字段：
+CubeSandbox工作路径在`/data`，其中`/data/cubelet`目录必须位于xfs文件系统，`/data`其余目录可使用ext4。为保证沙箱性能，`/data`、`/data/cubelet`目录需挂载到固态硬盘，此处以4TB NVMe固态硬盘（`nvme0n1`）为例，将单块NVMe物理盘划分为两个逻辑分区，示例按整盘3:1划分（约`/data` 3T、`/data/cubelet` 1T），实际容量可根据业务需求调整。
+
+如未安装分区与文件系统工具，先执行`dnf install -y parted e2fsprogs xfsprogs`。
 
 ```bash
-umount /dev/nvme0n1 2>/dev/null || true
-mkfs.xfs -f /dev/nvme0n1                # 该操作会销毁 /dev/nvme0n1 上的所有数据，请确认数据已备份
-mkdir -p /data
-mount /dev/nvme0n1 /data
+# 示例：nvme0n1p1 -> /data（ext4，约3T），nvme0n1p2 -> /data/cubelet（xfs，约1T）
+# 该操作会销毁 /dev/nvme0n1 上的所有数据，请确认数据已备份
+umount /dev/nvme0n1p1 /dev/nvme0n1p2 2>/dev/null || true
+parted -s /dev/nvme0n1 mklabel gpt
+parted -s /dev/nvme0n1 mkpart data ext4 1MiB 75%
+parted -s /dev/nvme0n1 mkpart cubelet xfs 75% 100%
+partprobe /dev/nvme0n1
+
+mkfs.ext4 -F /dev/nvme0n1p1
+mkfs.xfs -f /dev/nvme0n1p2
+
+mkdir -p /data /data/cubelet
+mount /dev/nvme0n1p1 /data
+mount /dev/nvme0n1p2 /data/cubelet
 ```
 
-建议将磁盘挂载持久化配置到`/etc/fstab`文件，以实现开机自动挂载磁盘。推荐使用磁盘UUID进行配置，可避免设备名（如`/dev/nvme0n1`）在重启或硬盘增减后发生变化导致挂载失败。先查询磁盘UUID：
+建议将分区挂载持久化配置到`/etc/fstab`文件，以实现开机自动挂载磁盘。推荐使用分区UUID进行配置，可避免设备名（如`/dev/nvme0n1p1`）在重启或硬盘增减后发生变化导致挂载失败。先查询分区UUID：
 
 ```bash
-blkid /dev/nvme0n1
-# 返回示例：/dev/nvme0n1: UUID="e7398a6b-XXXX-XXXX-XXXX-XXXXXXXXXXXX" TYPE="xfs"
+blkid /dev/nvme0n1p1 /dev/nvme0n1p2
+# 返回示例：
+# /dev/nvme0n1p1: UUID="e7398a6b-XXXX-XXXX-XXXX-XXXXXXXXXXXX" TYPE="ext4"
+# /dev/nvme0n1p2: UUID="f84a9b7c-XXXX-XXXX-XXXX-XXXXXXXXXXXX" TYPE="xfs"
 ```
 
-将返回的UUID填入`/etc/fstab`，配置示例：
+将返回的UUID填入`/etc/fstab`，配置示例（`/data`需先于`/data/cubelet`挂载）：
 
 ```bash
-UUID=e7398a6b-XXXX-XXXX-XXXX-XXXXXXXXXXXX  /data  xfs  defaults,noatime  0 0
+UUID=e7398a6b-XXXX-XXXX-XXXX-XXXXXXXXXXXX  /data          ext4  defaults,noatime  0 0
+UUID=f84a9b7c-XXXX-XXXX-XXXX-XXXXXXXXXXXX  /data/cubelet  xfs   defaults,noatime  0 0
 ```
 
 校验：
 
 ```bash
 findmnt -no SOURCE,FSTYPE,TARGET /data
-# shell返回 /dev/nvme0n1（或按UUID挂载时的/dev/disk/by-uuid/...） xfs /data
-df -h /data
+# shell返回 /dev/nvme0n1p1（或按UUID挂载时的/dev/disk/by-uuid/...） ext4 /data
+findmnt -no SOURCE,FSTYPE,TARGET /data/cubelet
+# shell返回 /dev/nvme0n1p2（或按UUID挂载时的/dev/disk/by-uuid/...） xfs /data/cubelet
+df -h /data /data/cubelet
 ```
 
 **备选方案：**
@@ -267,7 +543,7 @@ systemctl is-active crond
 安装其余系统依赖：
 
 ```bash
-sudo dnf install -y e2fsprogs util-linux iproute procps-ng curl tar gzip
+sudo dnf install -y e2fsprogs xfsprogs parted util-linux iproute procps-ng curl tar gzip
 ```
 
 部署前自检，需确保全部自检通过：
@@ -275,7 +551,7 @@ sudo dnf install -y e2fsprogs util-linux iproute procps-ng curl tar gzip
 ```bash
 ls /dev/kvm                                                   # 必须存在，否则无法创建沙箱  
 df -h /data /home /                                           # 期望： /data为独立数据盘
-findmnt -no FSTYPE /data || findmnt -no FSTYPE /data/cubelet  # 期望: /data 或 /data/cubelet 其一为 XFS
+findmnt -no FSTYPE /data/cubelet                              # 期望: xfs
 docker info | grep 'Docker Root Dir'                          # 期望: /data/docker
 docker compose version                                        # 期望: Docker Compose version v2.x
 ls -ld /usr/local/services/cubetoolbox/cubebox_os_image \
@@ -284,7 +560,7 @@ ls -ld /usr/local/services/cubetoolbox/cubebox_os_image \
 
 >![](./public_sys-resources/icon-note.gif) **说明：**
 >
-> 若两处 `findmnt` 返回的都不是xfs，`install.sh` 会直接终止并给出 `Cube Sandbox requires the /data/cubelet directory to reside on an XFS filesystem`。
+> 若 `/data/cubelet` 不在xfs文件系统上，`install.sh` 会直接终止并给出 `Cube Sandbox requires the /data/cubelet directory to reside on an XFS filesystem`。
 
 若目标机之前部署过 CubeSandbox，并且执行过下文的[迁移CubeSandbox工作目录](#迁移CubeSandbox工作目录)，`/usr/local/services/cubetoolbox` 下会残留 `cubebox_os_image` 和 `cube-snapshot` 两个软链接。重新部署时安装脚本会因目录已存在或类型冲突而失败，需先删除这两个软链接再继续：
 
@@ -425,6 +701,68 @@ cd ~/cube-workspace/Kbox-patches/deploy
 sudo bash cube_healthcheck.sh                        
 sudo bash cube_healthcheck.sh --sandbox 10.100.xx.xx  # 具体某一个沙箱
 ```
+
+### 配置节点配额
+
+高密度创建沙箱时，如果CubeMaster返回`ret_code=130597`（`no more resource`），说明节点调度配额不足。可使用`fix_node_quota.sh`修改Cubelet的`host.quota.mcpu_limit`和`mem_limit`，并向CubeOps重放节点注册，使新配额立即生效，无需重启Cubelet。
+
+脚本位于Kbox-patches仓的`deploy/`目录。以root用户执行：
+
+#### 默认配额
+
+```bash
+bash ~/cube-workspace/Kbox-patches/deploy/fix_node_quota.sh
+```
+
+默认配额为`mcpu_limit=2560000`（2560核，可容纳640个4C沙箱）、`mem_limit=3500000Mi`。
+
+#### 配置示例
+
+以4C8G起500路为例，按以下参数执行：
+
+```bash
+QUOTA_CPU=2000000 QUOTA_MEM=4096000Mi bash ~/cube-workspace/Kbox-patches/deploy/fix_node_quota.sh
+```
+
+计算方式如下：
+
+|资源|单实例|500路|说明|
+|---|---|---|---|
+|CPU|4C=4000 mcpu|500×4000=2000000 mcpu|`QUOTA_CPU`单位为mcpu|
+|内存|8G=8192Mi|500×8192=4096000Mi|`QUOTA_MEM`必须为`<数字>Mi`|
+
+>![](./public_sys-resources/icon-note.gif) **说明：**
+>
+> 脚本默认`QUOTA_MEM=3500000Mi`，按8G/实例计算只能容纳约427路；4C8G起500路时必须显式提高内存配额。默认`QUOTA_CPU=2560000`可容纳640个4C沙箱，CPU不是瓶颈。
+
+如需为系统预留余量，可适当上调，例如：
+
+```bash
+QUOTA_CPU=2200000 QUOTA_MEM=4500000Mi bash ~/cube-workspace/Kbox-patches/deploy/fix_node_quota.sh
+```
+
+配额是调度上限，不等于物理资源；CPU可按密度测试策略超分，但需确认节点实际资源和调度策略能够承载。
+
+#### 参数说明
+
+|环境变量|默认值|说明|
+|---|---|---|
+|QUOTA_CPU|2560000|`host.quota.mcpu_limit`，单位mcpu|
+|QUOTA_MEM|3500000Mi|`host.quota.mem_limit`，必须为`<数字>Mi`|
+|CUBELET_CONF|/usr/local/services/cubetoolbox/Cubelet/dynamicconf/conf.yaml|Cubelet动态配置文件|
+|CUBEOPS_ADDR|`http://127.0.0.1:3010`|CubeOps地址|
+|NODE_ID|空|多节点时指定节点；默认要求仅有一个节点|
+
+#### 验证
+
+脚本执行完成后会打印新配额和CubeOps节点视图。也可手动查询：
+
+```bash
+grep -nE '^[[:space:]]*(mcpu_limit|mem_limit):' /usr/local/services/cubetoolbox/Cubelet/dynamicconf/conf.yaml
+curl -s http://127.0.0.1:3010/internal/v1/nodes | python3 -m json.tool | grep -E '"QuotaCpu"|"QuotaMem"'
+```
+
+确认`QuotaCpu`、`QuotaMem`与本次传入的`QUOTA_CPU`、`QUOTA_MEM`一致（默认分别为`2560000`、`3500000`；4C8G起500路示例分别为`2000000`、`4096000`）后，重新创建4C8G沙箱，确认不再返回130597。
 
 ## PVM方案部署<a id="pvm鲲鹏嵌套虚拟化方案"></a>
 
@@ -613,3 +951,9 @@ lsmod | grep '^kvm_pvm'                            # 预期输出 kvm_pvm 行，
 grep '^CUBE_PVM_ENABLE=1' /usr/local/services/cubetoolbox/.one-click.env   # CUBE_PVM_ENABLE=1
 readlink -f /usr/local/services/cubetoolbox/cube-kernel-scf/vmlinux   # 必须指向 /usr/local/services/cubetoolbox/cube-kernel-scf/vmlinux-pvm
 ```
+
+## 修订记录
+
+|文档版本|发布日期|修改说明|
+|--|--|--|
+|01|2026-12-30|第一次正式发布。|

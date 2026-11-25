@@ -1,0 +1,412 @@
+diff --git a/arch/arm64/include/asm/kvm_asm.h b/arch/arm64/include/asm/kvm_asm.h
+index 24b5e6b..dec0fa2 100644
+--- a/arch/arm64/include/asm/kvm_asm.h
++++ b/arch/arm64/include/asm/kvm_asm.h
+@@ -233,6 +233,12 @@ extern void __kvm_tlb_flush_vmid_ipa_nsh(struct kvm_s2_mmu *mmu,
+ extern void __kvm_tlb_flush_vmid_range(struct kvm_s2_mmu *mmu,
+ 					phys_addr_t start, unsigned long pages);
+ extern void __kvm_tlb_flush_vmid(struct kvm_s2_mmu *mmu);
++#ifdef CONFIG_KVM_ARM_TLBI_IPI
++void __kvm_tlb_flush_vmid_local(struct kvm_s2_mmu *mmu);
++void __kvm_tlb_flush_vmid_local_s1(struct kvm_s2_mmu *mmu);
++void __kvm_tlb_flush_vmid_range_local_s2(struct kvm_s2_mmu *mmu,
++					 phys_addr_t start, unsigned long pages);
++#endif
+ 
+ extern void __kvm_timer_set_cntvoff(u64 cntvoff);
+ 
+diff --git a/arch/arm64/include/asm/kvm_host.h b/arch/arm64/include/asm/kvm_host.h
+index 7036a64..50717fa 100644
+--- a/arch/arm64/include/asm/kvm_host.h
++++ b/arch/arm64/include/asm/kvm_host.h
+@@ -147,7 +147,12 @@ struct kvm_vmid {
+ 	atomic64_t id;
+ };
+ 
++struct kvm_tlbi_ipi;
++
+ struct kvm_s2_mmu {
++#ifdef CONFIG_KVM_ARM_TLBI_IPI
++	struct kvm_tlbi_ipi *tlbi_ipi_state;
++#endif
+ 	struct kvm_vmid vmid;
+ 
+ 	/*
+@@ -184,6 +189,19 @@ struct kvm_s2_mmu {
+ 	struct kvm_arch *arch;
+ };
+ 
++#ifdef CONFIG_KVM_ARM_TLBI_IPI
++int kvm_tlbi_ipi_init(struct kvm_s2_mmu *mmu);
++void kvm_tlbi_ipi_destroy(struct kvm_s2_mmu *mmu);
++void kvm_tlbi_ipi_cpu_enable(void);
++void kvm_tlbi_ipi_enter(struct kvm_s2_mmu *mmu);
++bool kvm_tlbi_ipi_range(struct kvm_s2_mmu *mmu, phys_addr_t start, size_t size);
++#else
++static inline int kvm_tlbi_ipi_init(struct kvm_s2_mmu *mmu) { return 0; }
++static inline void kvm_tlbi_ipi_destroy(struct kvm_s2_mmu *mmu) { }
++static inline void kvm_tlbi_ipi_cpu_enable(void) { }
++static inline void kvm_tlbi_ipi_enter(struct kvm_s2_mmu *mmu) { }
++#endif
++
+ struct kvm_arch_memory_slot {
+ };
+ 
+diff --git a/arch/arm64/kvm/Kconfig b/arch/arm64/kvm/Kconfig
+index 0bde316..37bdf32 100644
+--- a/arch/arm64/kvm/Kconfig
++++ b/arch/arm64/kvm/Kconfig
+@@ -50,6 +50,17 @@ menuconfig KVM
+ 
+ 	  If unsure, say N.
+ 
++config KVM_ARM_TLBI_IPI
++	bool "Experimental VHE KVM range invalidation through IPIs"
++	depends on KVM
++	default n
++	help
++	  Add a default-off experimental synchronous IPI path for ordinary
++	  VHE Stage-2 range invalidation. Enable with kvm-arm.tlbi_ipi=1.
++	  Target CPUs retain membership after vCPU migration. Unsupported
++	  modes and calling contexts keep the original broadcast path.
++	  This changes internal KVM layouts and is not a stable kABI build.
++
+ config HISI_VIRTCCA_HOST
+ 	bool "Enable virtcca cvm host feature"
+ 	depends on KVM
+diff --git a/arch/arm64/kvm/Makefile b/arch/arm64/kvm/Makefile
+index a45d934..b6b9f98 100644
+--- a/arch/arm64/kvm/Makefile
++++ b/arch/arm64/kvm/Makefile
+@@ -24,6 +24,8 @@ kvm-y += arm.o mmu.o mmio.o psci.o hypercalls.o \
+ 	 vgic/vgic-its.o vgic/vgic-debug.o \
+ 	 rme.o rme-exit.o cca_base.o
+ 
++kvm-$(CONFIG_KVM_ARM_TLBI_IPI) += tlbi-ipi.o
++
+ kvm-$(CONFIG_VIRT_PLAT_DEV)  += vgic/shadow_dev.o
+ kvm-$(CONFIG_HW_PERF_EVENTS)  += pmu-emul.o pmu.o
+ kvm-$(CONFIG_HISI_VIRTCCA_HOST) += tmi.o
+diff --git a/arch/arm64/kvm/arm.c b/arch/arm64/kvm/arm.c
+index 58d2964..bd1387f 100644
+--- a/arch/arm64/kvm/arm.c
++++ b/arch/arm64/kvm/arm.c
+@@ -1339,6 +1339,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
+ 		 * kvm_arm_vmid_update() in non-premptible context.
+ 		 */
+ 		kvm_arm_vmid_update(&vcpu->arch.hw_mmu->vmid);
++		kvm_tlbi_ipi_enter(vcpu->arch.hw_mmu);
+ 
+ 		kvm_pmu_flush_hwstate(vcpu);
+ 
+@@ -2448,6 +2449,7 @@ int kvm_arch_hardware_enable(void)
+ 	preempt_disable();
+ 
+ 	cpu_hyp_init(NULL);
++	kvm_tlbi_ipi_cpu_enable();
+ 
+ 	kvm_vgic_cpu_up();
+ 	kvm_timer_cpu_up();
+diff --git a/arch/arm64/kvm/hyp/pgtable.c b/arch/arm64/kvm/hyp/pgtable.c
+index 1b0ded1..43adc6e 100644
+--- a/arch/arm64/kvm/hyp/pgtable.c
++++ b/arch/arm64/kvm/hyp/pgtable.c
+@@ -677,6 +677,10 @@ void kvm_tlb_flush_vmid_range(struct kvm_s2_mmu *mmu,
+ {
+ 	unsigned long pages = size >> PAGE_SHIFT;
+ 
++#if defined(CONFIG_KVM_ARM_TLBI_IPI) && !defined(__KVM_NVHE_HYPERVISOR__)
++	if (kvm_tlbi_ipi_range(mmu, addr, size))
++		return;
++#endif
+ 	if (!system_supports_tlb_range() || pages > MAX_TLBI_RANGE_PAGES) {
+ 		kvm_call_hyp(__kvm_tlb_flush_vmid, mmu);
+ 		return;
+diff --git a/arch/arm64/kvm/hyp/vhe/tlb.c b/arch/arm64/kvm/hyp/vhe/tlb.c
+index 23325e9..bd331b0 100644
+--- a/arch/arm64/kvm/hyp/vhe/tlb.c
++++ b/arch/arm64/kvm/hyp/vhe/tlb.c
+@@ -171,6 +171,45 @@ void __kvm_tlb_flush_vmid_range(struct kvm_s2_mmu *mmu,
+ 	__tlb_switch_to_host(&cxt);
+ }
+ 
++#ifdef CONFIG_KVM_ARM_TLBI_IPI
++/* Host callbacks establish global S2-before-S1 completion across targets. */
++void __kvm_tlb_flush_vmid_range_local_s2(struct kvm_s2_mmu *mmu,
++					 phys_addr_t start, unsigned long pages)
++{
++	struct tlb_inv_context cxt;
++
++	dsb(nshst);
++	__tlb_switch_to_guest(mmu, &cxt);
++	__flush_s2_tlb_range_op(ipas2e1, start, pages, PAGE_SIZE, 0);
++	dsb(nsh);
++	isb();
++	__tlb_switch_to_host(&cxt);
++}
++
++void __kvm_tlb_flush_vmid_local_s1(struct kvm_s2_mmu *mmu)
++{
++	struct tlb_inv_context cxt;
++
++	__tlb_switch_to_guest(mmu, &cxt);
++	__tlbi(vmalle1);
++	dsb(nsh);
++	isb();
++	__tlb_switch_to_host(&cxt);
++}
++
++void __kvm_tlb_flush_vmid_local(struct kvm_s2_mmu *mmu)
++{
++	struct tlb_inv_context cxt;
++
++	dsb(nshst);
++	__tlb_switch_to_guest(mmu, &cxt);
++	__tlbi(vmalls12e1);
++	dsb(nsh);
++	isb();
++	__tlb_switch_to_host(&cxt);
++}
++#endif
++
+ void __kvm_tlb_flush_vmid(struct kvm_s2_mmu *mmu)
+ {
+ 	struct tlb_inv_context cxt;
+diff --git a/arch/arm64/kvm/mmu.c b/arch/arm64/kvm/mmu.c
+index 455ed70..bd689ed 100644
+--- a/arch/arm64/kvm/mmu.c
++++ b/arch/arm64/kvm/mmu.c
+@@ -941,6 +941,12 @@ int kvm_init_stage2_mmu(struct kvm *kvm, struct kvm_s2_mmu *mmu, unsigned long t
+ 	for_each_possible_cpu(cpu)
+ 		*per_cpu_ptr(mmu->last_vcpu_ran, cpu) = -1;
+ 
++	err = kvm_tlbi_ipi_init(mmu);
++	if (err) {
++		free_percpu(mmu->last_vcpu_ran);
++		goto out_destroy_pgtable;
++	}
++
+ 	 /* The eager page splitting is disabled by default */
+ 	mmu->split_page_chunk_size = KVM_ARM_EAGER_SPLIT_CHUNK_SIZE_DEFAULT;
+ 	mmu->split_page_cache.gfp_zero = __GFP_ZERO;
+@@ -1071,6 +1077,7 @@ void kvm_free_stage2_pgd(struct kvm_s2_mmu *mmu)
+ 
+ 	if (pgt) {
+ 		kvm_pgtable_stage2_destroy(pgt);
++		kvm_tlbi_ipi_destroy(mmu);
+ 		kfree(pgt);
+ 	}
+ }
+diff --git a/arch/arm64/kvm/tlbi-ipi.c b/arch/arm64/kvm/tlbi-ipi.c
+new file mode 100644
+index 0000000..bd3ffca
+--- /dev/null
++++ b/arch/arm64/kvm/tlbi-ipi.c
+@@ -0,0 +1,207 @@
++// SPDX-License-Identifier: GPL-2.0-only
++/* Experimental VHE-only synchronous Stage-2 shootdown. */
++#include <linux/kvm_host.h>
++#include <linux/moduleparam.h>
++#include <linux/slab.h>
++#include <linux/smp.h>
++#include <asm/kvm_asm.h>
++#include <asm/kvm_mmu.h>
++#include <asm/tlbflush.h>
++
++#undef MODULE_PARAM_PREFIX
++#define MODULE_PARAM_PREFIX "kvm-arm."
++/* Runtime writable in cubesandbox-v2: sampled at VM creation and per flush. */
++static bool tlbi_ipi;
++module_param(tlbi_ipi, bool, 0644);
++MODULE_PARM_DESC(tlbi_ipi, "Experimental VHE range shootdown using local TLBI and IPIs");
++/* Diagnostic counters may be enabled between experiments, never timed. */
++static bool tlbi_ipi_stats;
++module_param(tlbi_ipi_stats, bool, 0644);
++
++enum ipi_stat {
++	REQUESTS, TARGETS, S2_LOCAL, S2_REMOTE, S1_LOCAL, S1_REMOTE,
++	ENTRY_FLUSH, FALLBACK_MODE, FALLBACK_CONTEXT, FALLBACK_RANGE,
++	NR_IPI_STATS
++};
++
++static atomic64_t stats[NR_IPI_STATS];
++static const char * const stat_names[] = {
++	"requests", "targets", "s2_local", "s2_remote", "s1_local", "s1_remote",
++	"entry_flush", "fallback_mode", "fallback_context", "fallback_range"
++};
++
++static void count(enum ipi_stat stat, unsigned int n)
++{
++	if (unlikely(READ_ONCE(tlbi_ipi_stats)))
++		atomic64_add(n, &stats[stat]);
++}
++
++static int report_get(char *buf, const struct kernel_param *kp)
++{
++	int i, len = 0;
++
++	for (i = 0; i < NR_IPI_STATS; i++)
++		len += scnprintf(buf + len, PAGE_SIZE - len, "%s=%lld%s",
++				 stat_names[i], atomic64_read(&stats[i]),
++				 i == NR_IPI_STATS - 1 ? "\n" : " ");
++	return len;
++}
++
++static const struct kernel_param_ops report_ops = { .get = report_get };
++module_param_cb(tlbi_ipi_report, &report_ops, NULL, 0444);
++
++struct ipi_cpu_state {
++	u64 online_generation;
++	u64 vmid;
++};
++
++struct kvm_tlbi_ipi {
++	raw_spinlock_t lock;
++	/* Never clear on migration: an idle CPU can retain guest translations. */
++	cpumask_t used;
++	struct ipi_cpu_state __percpu *seen;
++};
++
++static DEFINE_PER_CPU(u64, online_generation);
++
++static bool eligible(struct kvm_s2_mmu *mmu)
++{
++	struct kvm *kvm = kvm_s2_mmu_to_kvm(mmu);
++
++	return is_kernel_in_hyp_mode() && kvm_get_mode() == KVM_MODE_DEFAULT &&
++		mmu == &kvm->arch.mmu && !kvm->arch.is_realm &&
++		!kvm_vm_is_protected(kvm) && !kvm_dvmbm_support;
++}
++
++int kvm_tlbi_ipi_init(struct kvm_s2_mmu *mmu)
++{
++	struct kvm_tlbi_ipi *state;
++
++	if (!READ_ONCE(tlbi_ipi) || !eligible(mmu))
++		return 0;
++	state = kzalloc(sizeof(*state), GFP_KERNEL_ACCOUNT);
++	if (!state)
++		return -ENOMEM;
++	state->seen = alloc_percpu(struct ipi_cpu_state);
++	if (!state->seen) {
++		kfree(state);
++		return -ENOMEM;
++	}
++	raw_spin_lock_init(&state->lock);
++	mmu->tlbi_ipi_state = state;
++	return 0;
++}
++
++void kvm_tlbi_ipi_destroy(struct kvm_s2_mmu *mmu)
++{
++	struct kvm_tlbi_ipi *state = mmu->tlbi_ipi_state;
++
++	if (state) {
++		free_percpu(state->seen);
++		kfree(state);
++		mmu->tlbi_ipi_state = NULL;
++	}
++}
++
++void kvm_tlbi_ipi_cpu_enable(void)
++{
++	/* Also called when a CPU comes online while VMs are alive. */
++	this_cpu_inc(online_generation);
++}
++
++void kvm_tlbi_ipi_enter(struct kvm_s2_mmu *mmu)
++{
++	struct kvm_tlbi_ipi *state = mmu->tlbi_ipi_state;
++	struct ipi_cpu_state *seen;
++	unsigned long flags;
++	u64 generation, vmid;
++	int cpu;
++
++	if (!state || !eligible(mmu))
++		return;
++	lockdep_assert_preemption_disabled();
++	cpu = smp_processor_id();
++	generation = this_cpu_read(online_generation);
++	vmid = atomic64_read(&mmu->vmid.id);
++	seen = this_cpu_ptr(state->seen);
++	raw_spin_lock_irqsave(&state->lock, flags);
++	if (!cpumask_test_cpu(cpu, &state->used) ||
++	    seen->online_generation != generation || seen->vmid != vmid) {
++		/*
++		 * A new entrant either precedes the shootdown snapshot (and
++		 * receives it), or follows publication of the changed PTEs
++		 * (and discards all old local translations here).
++		 * VMID rollover keeps its original global invalidation.
++		 */
++		__kvm_tlb_flush_vmid_local(mmu);
++		seen->online_generation = generation;
++		seen->vmid = vmid;
++		cpumask_set_cpu(cpu, &state->used);
++		count(ENTRY_FLUSH, 1);
++	}
++	raw_spin_unlock_irqrestore(&state->lock, flags);
++}
++
++struct ipi_flush {
++	struct kvm_s2_mmu *mmu;
++	phys_addr_t start;
++	unsigned long pages;
++	int sender;
++};
++
++static void flush_s2(void *arg)
++{
++	struct ipi_flush *flush = arg;
++
++	__kvm_tlb_flush_vmid_range_local_s2(flush->mmu, flush->start, flush->pages);
++	count(smp_processor_id() == flush->sender ? S2_LOCAL : S2_REMOTE, 1);
++}
++
++static void flush_s1(void *arg)
++{
++	struct ipi_flush *flush = arg;
++
++	__kvm_tlb_flush_vmid_local_s1(flush->mmu);
++	count(smp_processor_id() == flush->sender ? S1_LOCAL : S1_REMOTE, 1);
++}
++
++bool kvm_tlbi_ipi_range(struct kvm_s2_mmu *mmu, phys_addr_t start, size_t size)
++{
++	struct kvm_tlbi_ipi *state = mmu->tlbi_ipi_state;
++	struct ipi_flush flush = { .mmu = mmu, .start = start,
++				   .pages = size >> PAGE_SHIFT };
++	cpumask_t targets;
++	unsigned long flags;
++
++	if (!READ_ONCE(tlbi_ipi))
++		return false;
++	if (!state || !eligible(mmu)) {
++		count(FALLBACK_MODE, 1);
++		return false;
++	}
++	if (irqs_disabled() || in_interrupt()) {
++		count(FALLBACK_CONTEXT, 1);
++		return false;
++	}
++	if (!system_supports_tlb_range() || !IS_ALIGNED(start, PAGE_SIZE) ||
++	    !IS_ALIGNED(size, PAGE_SIZE) || !size ||
++	    flush.pages > MAX_TLBI_RANGE_PAGES) {
++		count(FALLBACK_RANGE, 1);
++		return false;
++	}
++
++	preempt_disable();
++	flush.sender = smp_processor_id();
++	/* Publish the PTE changes before taking a snapshot of potential users. */
++	dsb(ishst);
++	raw_spin_lock_irqsave(&state->lock, flags);
++	cpumask_and(&targets, &state->used, cpu_online_mask);
++	raw_spin_unlock_irqrestore(&state->lock, flags);
++	count(REQUESTS, 1);
++	count(TARGETS, cpumask_weight(&targets));
++	/* No software locks acquired by these callbacks. Wait for completion. */
++	on_each_cpu_mask(&targets, flush_s2, &flush, true);
++	on_each_cpu_mask(&targets, flush_s1, &flush, true);
++	preempt_enable();
++	return true;
++}

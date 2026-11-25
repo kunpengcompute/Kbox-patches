@@ -1,0 +1,188 @@
+diff --git a/arch/arm64/include/asm/kvm_host.h b/arch/arm64/include/asm/kvm_host.h
+index 50717fa..0bb51b2 100644
+--- a/arch/arm64/include/asm/kvm_host.h
++++ b/arch/arm64/include/asm/kvm_host.h
+@@ -194,12 +194,16 @@ int kvm_tlbi_ipi_init(struct kvm_s2_mmu *mmu);
+ void kvm_tlbi_ipi_destroy(struct kvm_s2_mmu *mmu);
+ void kvm_tlbi_ipi_cpu_enable(void);
+ void kvm_tlbi_ipi_enter(struct kvm_s2_mmu *mmu);
++void kvm_tlbi_ipi_load(struct kvm_s2_mmu *mmu, int cpu);
++void kvm_tlbi_ipi_put(struct kvm_s2_mmu *mmu, int cpu);
+ bool kvm_tlbi_ipi_range(struct kvm_s2_mmu *mmu, phys_addr_t start, size_t size);
+ #else
+ static inline int kvm_tlbi_ipi_init(struct kvm_s2_mmu *mmu) { return 0; }
+ static inline void kvm_tlbi_ipi_destroy(struct kvm_s2_mmu *mmu) { }
+ static inline void kvm_tlbi_ipi_cpu_enable(void) { }
+ static inline void kvm_tlbi_ipi_enter(struct kvm_s2_mmu *mmu) { }
++static inline void kvm_tlbi_ipi_load(struct kvm_s2_mmu *mmu, int cpu) { }
++static inline void kvm_tlbi_ipi_put(struct kvm_s2_mmu *mmu, int cpu) { }
+ #endif
+ 
+ struct kvm_arch_memory_slot {
+diff --git a/arch/arm64/kvm/arm.c b/arch/arm64/kvm/arm.c
+index bd1387f..f129399 100644
+--- a/arch/arm64/kvm/arm.c
++++ b/arch/arm64/kvm/arm.c
+@@ -745,6 +745,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
+ 
+ 	mmu = vcpu->arch.hw_mmu;
+ 	last_ran = this_cpu_ptr(mmu->last_vcpu_ran);
++	kvm_tlbi_ipi_load(mmu, cpu);
+ 
+ 	/*
+ 	 * We guarantee that both TLBs and I-cache are private to each
+@@ -799,6 +800,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
+ 
+ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
+ {
++	kvm_tlbi_ipi_put(vcpu->arch.hw_mmu, smp_processor_id());
+ 	kvm_timer_vcpu_put(vcpu);
+ 	kvm_vgic_put(vcpu);
+ 
+diff --git a/arch/arm64/kvm/tlbi-ipi.c b/arch/arm64/kvm/tlbi-ipi.c
+index bd3ffca..394b3f6 100644
+--- a/arch/arm64/kvm/tlbi-ipi.c
++++ b/arch/arm64/kvm/tlbi-ipi.c
+@@ -17,17 +17,29 @@ MODULE_PARM_DESC(tlbi_ipi, "Experimental VHE range shootdown using local TLBI an
+ /* Diagnostic counters may be enabled between experiments, never timed. */
+ static bool tlbi_ipi_stats;
+ module_param(tlbi_ipi_stats, bool, 0644);
++/*
++ * cubesandbox-v2 lazy mode (read per flush): IPI only CPUs on
++ * which a vCPU of this VM is currently loaded.  Other CPUs in "used" may retain
++ * stale entries for this VMID, but they can only use or allocate them while
++ * running this VM's guest (VHE loads VTTBR and sets HCR_EL2.VM at guest entry),
++ * so a flush generation forces a full local flush before their next entry.
++ */
++static bool tlbi_ipi_lazy;
++module_param(tlbi_ipi_lazy, bool, 0644);
++MODULE_PARM_DESC(tlbi_ipi_lazy, "Skip CPUs without a loaded vCPU; flush them on next guest entry");
+ 
+ enum ipi_stat {
+ 	REQUESTS, TARGETS, S2_LOCAL, S2_REMOTE, S1_LOCAL, S1_REMOTE,
+ 	ENTRY_FLUSH, FALLBACK_MODE, FALLBACK_CONTEXT, FALLBACK_RANGE,
++	LAZY_REQUESTS, LAZY_SKIPPED, LAZY_ENTRY_FLUSH,
+ 	NR_IPI_STATS
+ };
+ 
+ static atomic64_t stats[NR_IPI_STATS];
+ static const char * const stat_names[] = {
+ 	"requests", "targets", "s2_local", "s2_remote", "s1_local", "s1_remote",
+-	"entry_flush", "fallback_mode", "fallback_context", "fallback_range"
++	"entry_flush", "fallback_mode", "fallback_context", "fallback_range",
++	"lazy_requests", "lazy_skipped", "lazy_entry_flush"
+ };
+ 
+ static void count(enum ipi_stat stat, unsigned int n)
+@@ -53,12 +65,17 @@ module_param_cb(tlbi_ipi_report, &report_ops, NULL, 0444);
+ struct ipi_cpu_state {
+ 	u64 online_generation;
+ 	u64 vmid;
++	u64 flush_gen;
+ };
+ 
+ struct kvm_tlbi_ipi {
+ 	raw_spinlock_t lock;
+ 	/* Never clear on migration: an idle CPU can retain guest translations. */
+ 	cpumask_t used;
++	/* CPUs with a vCPU of this VM loaded (maintained in all modes). */
++	cpumask_t loaded;
++	/* Bumped by every lazy flush after the PTE changes are published. */
++	atomic64_t flush_gen;
+ 	struct ipi_cpu_state __percpu *seen;
+ };
+ 
+@@ -103,6 +120,31 @@ void kvm_tlbi_ipi_destroy(struct kvm_s2_mmu *mmu)
+ 	}
+ }
+ 
++void kvm_tlbi_ipi_load(struct kvm_s2_mmu *mmu, int cpu)
++{
++	struct kvm_tlbi_ipi *state = mmu->tlbi_ipi_state;
++
++	if (!state || !eligible(mmu))
++		return;
++	cpumask_set_cpu(cpu, &state->loaded);
++	/*
++	 * Pairs with the fully ordered atomic64_inc_return() in a lazy flush:
++	 * either the flusher sees this CPU loaded and IPIs it, or the
++	 * flush_gen read in kvm_tlbi_ipi_enter() sees the new generation.
++	 */
++	smp_mb__after_atomic();
++}
++
++void kvm_tlbi_ipi_put(struct kvm_s2_mmu *mmu, int cpu)
++{
++	struct kvm_tlbi_ipi *state = mmu->tlbi_ipi_state;
++
++	if (!state || !eligible(mmu))
++		return;
++	/* Guest has exited (HCR_EL2 restored); entries are only reused after a re-entry check. */
++	cpumask_clear_cpu(cpu, &state->loaded);
++}
++
+ void kvm_tlbi_ipi_cpu_enable(void)
+ {
+ 	/* Also called when a CPU comes online while VMs are alive. */
+@@ -114,7 +156,7 @@ void kvm_tlbi_ipi_enter(struct kvm_s2_mmu *mmu)
+ 	struct kvm_tlbi_ipi *state = mmu->tlbi_ipi_state;
+ 	struct ipi_cpu_state *seen;
+ 	unsigned long flags;
+-	u64 generation, vmid;
++	u64 generation, vmid, flush_gen;
+ 	int cpu;
+ 
+ 	if (!state || !eligible(mmu))
+@@ -124,9 +166,16 @@ void kvm_tlbi_ipi_enter(struct kvm_s2_mmu *mmu)
+ 	generation = this_cpu_read(online_generation);
+ 	vmid = atomic64_read(&mmu->vmid.id);
+ 	seen = this_cpu_ptr(state->seen);
++	/* Read after the loaded bit was set in kvm_tlbi_ipi_load(); see there. */
++	flush_gen = atomic64_read(&state->flush_gen);
+ 	raw_spin_lock_irqsave(&state->lock, flags);
++	if (cpumask_test_cpu(cpu, &state->used) &&
++	    seen->online_generation == generation && seen->vmid == vmid &&
++	    seen->flush_gen != flush_gen)
++		count(LAZY_ENTRY_FLUSH, 1);
+ 	if (!cpumask_test_cpu(cpu, &state->used) ||
+-	    seen->online_generation != generation || seen->vmid != vmid) {
++	    seen->online_generation != generation || seen->vmid != vmid ||
++	    seen->flush_gen != flush_gen) {
+ 		/*
+ 		 * A new entrant either precedes the shootdown snapshot (and
+ 		 * receives it), or follows publication of the changed PTEs
+@@ -136,6 +185,7 @@ void kvm_tlbi_ipi_enter(struct kvm_s2_mmu *mmu)
+ 		__kvm_tlb_flush_vmid_local(mmu);
+ 		seen->online_generation = generation;
+ 		seen->vmid = vmid;
++		seen->flush_gen = flush_gen;
+ 		cpumask_set_cpu(cpu, &state->used);
+ 		count(ENTRY_FLUSH, 1);
+ 	}
+@@ -194,9 +244,23 @@ bool kvm_tlbi_ipi_range(struct kvm_s2_mmu *mmu, phys_addr_t start, size_t size)
+ 	flush.sender = smp_processor_id();
+ 	/* Publish the PTE changes before taking a snapshot of potential users. */
+ 	dsb(ishst);
+-	raw_spin_lock_irqsave(&state->lock, flags);
+-	cpumask_and(&targets, &state->used, cpu_online_mask);
+-	raw_spin_unlock_irqrestore(&state->lock, flags);
++	if (READ_ONCE(tlbi_ipi_lazy)) {
++		unsigned int all;
++
++		/* Fully ordered: publish the generation before sampling "loaded". */
++		atomic64_inc_return(&state->flush_gen);
++		raw_spin_lock_irqsave(&state->lock, flags);
++		cpumask_and(&targets, &state->used, cpu_online_mask);
++		all = cpumask_weight(&targets);
++		cpumask_and(&targets, &targets, &state->loaded);
++		raw_spin_unlock_irqrestore(&state->lock, flags);
++		count(LAZY_REQUESTS, 1);
++		count(LAZY_SKIPPED, all - cpumask_weight(&targets));
++	} else {
++		raw_spin_lock_irqsave(&state->lock, flags);
++		cpumask_and(&targets, &state->used, cpu_online_mask);
++		raw_spin_unlock_irqrestore(&state->lock, flags);
++	}
+ 	count(REQUESTS, 1);
+ 	count(TARGETS, cpumask_weight(&targets));
+ 	/* No software locks acquired by these callbacks. Wait for completion. */
