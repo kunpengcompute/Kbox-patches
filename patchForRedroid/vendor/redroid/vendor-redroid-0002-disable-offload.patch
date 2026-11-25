@@ -103,7 +103,7 @@ index 5099d19..e677193 100644
 @@ -6,6 +6,7 @@ PRODUCT_PACKAGES += \
  	gralloc.redroid \
  	ipconfigstore \
- 	envd \
+ 	kbox-probe \
 +	disable_offload \
  
  
@@ -111,7 +111,7 @@ index 5099d19..e677193 100644
 @@ -14,6 +15,7 @@ PRODUCT_COPY_FILES += \
      vendor/redroid/redroid.common.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/redroid.common.rc \
      vendor/redroid/redroid.legacy.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/redroid.legacy.rc \
-     vendor/redroid/envd.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/envd.rc \
+     vendor/redroid/probe.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/probe.rc \
 +    vendor/redroid/offload.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/offload.rc \
  
  

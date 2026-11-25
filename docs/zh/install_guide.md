@@ -104,7 +104,7 @@ cd ~/cube-workspace/Kbox-patches/build
 
 ```bash
 cd ~/cube-workspace/Kbox-patches/build
-./build-cube.sh patch     # 1) 合入 patchForCube/ 下的 6 个 patch
+./build-cube.sh patch     # 1) 合入 patchForCube/ 下的所有patch
 ./build-cube.sh kernel    # 2) 编译 Guest内核
 ./build-cube.sh bundle    # 3) 编译 CubeSandbox 一键发布包
 ```
@@ -328,6 +328,59 @@ sudo ./install.sh --mode=install
 >![](./public_sys-resources/icon-note.gif) **说明：**
 >
 > - 目标机已存在CubeSandbox时，不带 `--mode` 的 `./install.sh` 默认走「保留配置的升级」。**从零部署必须显式指定 `--mode=install`**。
+
+### 配置 CoW defrag（模板/快照整理，可选）<a id="配置CoW-defrag"></a>
+
+CoW defrag 用于在模板构建、快照生成后对 CoW 层 rootfs 做一次顺序重写，降低派生沙箱的随机读放大；不做该配置不影响功能，仅影响性能。
+
+前置条件：`Cubelet` 二进制已包含 Kbox 的 COW defrag 补丁（`patchForCube/0008-cubelet-cow-defrag.patch`），即使用本文档构建流程产出的发布包；官方原始 v0.7.1 包不含该补丁。
+
+编辑 `/usr/local/services/cubetoolbox/Cubelet/config/config.toml`，在文件末尾追加（已存在则确认取值）：
+
+```toml
+[plugins."io.cubelet.internal.v1.storage".cow.defrag]
+enable = true
+template = true
+snapshot = true
+min_extents = 64
+max_allocated_mib = 2048
+timeout_seconds = 60
+```
+
+| 字段 | 作用 |
+| ---- | ---- |
+| enable | defrag 总开关 |
+| template | 模板创建路径上的 CoW 层整理 |
+| snapshot | 快照创建路径上的 CoW 层整理 |
+| min_extents | 触发整理的最小 extent 数，默认 64 |
+| max_allocated_mib | 单次整理允许处理的最大分配量（MiB），默认 2048 |
+| timeout_seconds | 单次整理超时（秒），默认 60 |
+
+修改后重启 cubelet 生效：
+
+```bash
+sudo systemctl restart cube-sandbox-cubelet.service
+```
+
+cubelet 冷启动约需 180–260 秒，`systemctl is-active` 不能作为就绪依据，以 9998 端口开始监听为准。确认配置已被加载：
+
+```bash
+grep -A7 "cow.defrag" /usr/local/services/cubetoolbox/Cubelet/config/config.toml
+grep -h "cow defrag: config" /data/log/Cubelet/Cubelet-req.log | tail -1
+ss -ltn | grep -E ":9998|:9999|:9966"
+```
+
+期望日志形如：
+
+```text
+cow defrag: config enable=true template=true snapshot=true min_extents=64 max_allocated_mib=2048 timeout_seconds=60
+```
+
+>![](./public_sys-resources/icon-note.gif) **说明：**
+>
+> - Cubelet 侧开关只是允许整理；模板/快照是否需要整理，还由 `redroid_operation.sh` 读取的 `redroid_config.conf` 中 `TPL_COW_DEFRAG`、`SNAP_COW_DEFRAG` 控制（默认均为 1），用法见[用户指南](user_guide.md)的「模板与快照的 CoW defrag」章节。
+> - 重新执行 `install.sh` 会重置 `config.toml`，升级或重装后需重新追加上述配置并重启 cubelet。
+> - 每个整理对象在 Cubelet 日志中会留下 `cow defrag: candidate scope=... requested=true effective=true` 记录；只有日志中出现该行，才表示本次模板/快照真正执行了整理。
 
 ### 迁移CubeSandbox工作目录<a id="迁移CubeSandbox工作目录"></a>
 

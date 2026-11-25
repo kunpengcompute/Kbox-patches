@@ -1,0 +1,306 @@
+diff --git a/probe.rc b/probe.rc
+new file mode 100644
+index 0000000..eada07e
+--- /dev/null
++++ b/probe.rc
+@@ -0,0 +1,12 @@
++# CubeSandbox guest 最小探活服务: kbox-probe 监听 49983 端口(/health)
++# 在系统 boot 完成后启动(sys.boot_completed=1), 与 envd 的启动时机一致。
++# kbox-probe 为 AOSP 内编译的独立二进制(vendor/redroid/probe), 仅依赖 libc,
++# 只应答 GET /health -> 204。
++service kbox-probe /vendor/bin/kbox-probe -port 49983
++    class main
++    user root
++    group root
++    disabled
++
++on property:sys.boot_completed=1
++    start kbox-probe
+diff --git a/probe/Android.bp b/probe/Android.bp
+new file mode 100644
+index 0000000..e16a2ca
+--- /dev/null
++++ b/probe/Android.bp
+@@ -0,0 +1,22 @@
++// CubeSandbox guest 最小探活服务 kbox-probe
++//
++// 只实现 TCP 49983 上的 "GET /health -> 204", 供 CubeMaster --probe 使用,
++// 替代原 envd(Go) 探活服务。源码随 patchForRedroid 管理, 编译为独立二进制。
++// 启动时机与 envd 一致: sys.boot_completed=1 (见 probe.rc)。
++//
++// 仅依赖动态 libc(boot_completed 时 linker64 已可用, 与 envd 相同),
++// 单线程 poll 循环, 空闲时无任何周期性工作。
++cc_binary {
++    name: "kbox-probe",
++    srcs: ["probe.c"],
++    cflags: [
++        "-Os",
++        "-Wall",
++        "-Wextra",
++        "-fno-unwind-tables",
++        "-fno-asynchronous-unwind-tables",
++    ],
++    compile_multilib: "64",
++    vendor: true,
++    stl: "none",
++}
+diff --git a/probe/probe.c b/probe/probe.c
+new file mode 100644
+index 0000000..cacd183
+--- /dev/null
++++ b/probe/probe.c
+@@ -0,0 +1,235 @@
++/*
++ * CubeSandbox guest 最小探活服务 (kbox-probe)
++ *
++ * 仅实现 CubeMaster --probe 所需的最小契约:
++ *   TCP 0.0.0.0:49983, GET /health -> 204 No Content, 其余路径 -> 404。
++ *
++ * 设计约束(资源占用最小):
++ *   - 单线程 poll() 事件循环, 无定时器、无日志、无动态内存分配;
++ *   - 只依赖动态 libc, 无其他 .so 依赖;
++ *   - 空闲时不产生任何周期性系统调用, CPU 占用为 0。
++ *
++ * 启动时机与 envd 保持一致: sys.boot_completed=1 (见 probe.rc)。
++ */
++#define _GNU_SOURCE
++
++#include <arpa/inet.h>
++#include <errno.h>
++#include <netinet/in.h>
++#include <poll.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/socket.h>
++#include <time.h>
++#include <unistd.h>
++
++#define MAX_CONN 16
++#define READ_CAP 512
++#define IDLE_MS 30000
++
++static const char RESP_OK[] =
++    "HTTP/1.1 204 No Content\r\n"
++    "Cache-Control: no-store\r\n"
++    "Content-Length: 0\r\n"
++    "Connection: keep-alive\r\n"
++    "\r\n";
++
++static const char RESP_NOT_FOUND[] =
++    "HTTP/1.1 404 Not Found\r\n"
++    "Content-Length: 0\r\n"
++    "Connection: close\r\n"
++    "\r\n";
++
++struct conn {
++    int fd;
++    long long deadline;
++    size_t len;
++    char buf[READ_CAP];
++};
++
++static long long now_ms(void) {
++    struct timespec ts;
++    clock_gettime(CLOCK_MONOTONIC, &ts);
++    return (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
++}
++
++static void conn_close(struct conn *c) {
++    if (c->fd >= 0) {
++        close(c->fd);
++        c->fd = -1;
++    }
++    c->len = 0;
++}
++
++/*
++ * 处理缓冲区中已到达的完整请求。
++ * 返回 1: 已应答且保持连接; 0: 数据不完整; 2: 应关闭连接。
++ */
++static int serve_one(struct conn *c) {
++    char *end = memmem(c->buf, c->len, "\r\n\r\n", 4);
++    if (end == NULL) {
++        return c->len >= READ_CAP - 1 ? 2 : 0;
++    }
++
++    size_t used = (size_t)(end - c->buf) + 4;
++    char *eol = memchr(c->buf, '\r', used);
++    if (eol == NULL) {
++        eol = end;
++    }
++
++    int is_health = (size_t)(eol - c->buf) >= 12 &&
++                    memcmp(c->buf, "GET /health ", 12) == 0;
++    const char *resp = is_health ? RESP_OK : RESP_NOT_FOUND;
++    size_t rlen = is_health ? sizeof(RESP_OK) - 1 : sizeof(RESP_NOT_FOUND) - 1;
++
++    if (send(c->fd, resp, rlen, MSG_NOSIGNAL) != (ssize_t)rlen) {
++        conn_close(c);
++        return 2;
++    }
++
++    /* 丢弃已处理的头块, 保留可能存在的流水线数据 */
++    memmove(c->buf, c->buf + used, c->len - used);
++    c->len -= used;
++
++    if (!is_health) {
++        conn_close(c);
++        return 2;
++    }
++    c->deadline = now_ms() + IDLE_MS;
++    return 1;
++}
++
++int main(int argc, char **argv) {
++    int port = 49983;
++    if (argc == 3 && strcmp(argv[1], "-port") == 0) {
++        int v = atoi(argv[2]);
++        if (v > 0 && v < 65536) {
++            port = v;
++        }
++    }
++
++    int lfd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
++    if (lfd < 0) {
++        perror("socket");
++        return 1;
++    }
++
++    int one = 1;
++    setsockopt(lfd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
++
++    struct sockaddr_in addr;
++    memset(&addr, 0, sizeof(addr));
++    addr.sin_family = AF_INET;
++    addr.sin_addr.s_addr = htonl(INADDR_ANY);
++    addr.sin_port = htons((unsigned short)port);
++
++    if (bind(lfd, (const struct sockaddr *)&addr, sizeof(addr)) < 0) {
++        perror("bind");
++        return 1;
++    }
++    if (listen(lfd, 128) < 0) {
++        perror("listen");
++        return 1;
++    }
++
++    struct conn conns[MAX_CONN];
++    for (int i = 0; i < MAX_CONN; i++) {
++        conns[i].fd = -1;
++        conns[i].len = 0;
++    }
++
++    for (;;) {
++        struct pollfd pfd[MAX_CONN + 1];
++        int map[MAX_CONN + 1];
++        nfds_t n = 0;
++
++        pfd[n].fd = lfd;
++        pfd[n].events = POLLIN;
++        pfd[n].revents = 0;
++        map[n] = -1;
++        n++;
++
++        long long now = now_ms();
++        for (int i = 0; i < MAX_CONN; i++) {
++            if (conns[i].fd < 0) {
++                continue;
++            }
++            if (now >= conns[i].deadline) {
++                conn_close(&conns[i]);
++                continue;
++            }
++            pfd[n].fd = conns[i].fd;
++            pfd[n].events = POLLIN;
++            pfd[n].revents = 0;
++            map[n] = i;
++            n++;
++        }
++
++        int rc = poll(pfd, n, 1000);
++        if (rc < 0) {
++            if (errno == EINTR) {
++                continue;
++            }
++            break;
++        }
++        if (rc == 0) {
++            continue;
++        }
++
++        for (nfds_t k = 0; k < n; k++) {
++            short re = pfd[k].revents;
++            if (re == 0) {
++                continue;
++            }
++
++            if (map[k] < 0) {
++                for (;;) {
++                    int cfd = accept4(lfd, NULL, NULL, SOCK_NONBLOCK | SOCK_CLOEXEC);
++                    if (cfd < 0) {
++                        break;
++                    }
++                    int slot = -1;
++                    for (int i = 0; i < MAX_CONN; i++) {
++                        if (conns[i].fd < 0) {
++                            slot = i;
++                            break;
++                        }
++                    }
++                    if (slot < 0) {
++                        close(cfd);
++                        continue;
++                    }
++                    conns[slot].fd = cfd;
++                    conns[slot].len = 0;
++                    conns[slot].deadline = now_ms() + IDLE_MS;
++                }
++                continue;
++            }
++
++            struct conn *c = &conns[map[k]];
++            if (re & (POLLERR | POLLHUP | POLLNVAL)) {
++                conn_close(c);
++                continue;
++            }
++
++            ssize_t got = read(c->fd, c->buf + c->len, READ_CAP - 1 - c->len);
++            if (got <= 0) {
++                conn_close(c);
++                continue;
++            }
++            c->len += (size_t)got;
++            c->buf[c->len] = '\0';
++
++            int st;
++            while ((st = serve_one(c)) == 1 && c->fd >= 0) {
++            }
++            if (st == 2) {
++                conn_close(c);
++            }
++        }
++    }
++
++    close(lfd);
++    return 0;
++}
+diff --git a/vendor.mk b/vendor.mk
+--- a/vendor.mk
++++ b/vendor.mk
+@@ -5,6 +5,7 @@ PRODUCT_PACKAGES += \
+ 	binder_alloc \
+ 	gralloc.redroid \
+ 	ipconfigstore \
++	kbox-probe \
+ 
+ 
+ PRODUCT_COPY_FILES += \
+@@ -12,6 +13,7 @@ PRODUCT_COPY_FILES += \
+     vendor/redroid/post-fs-data.redroid.sh:$(TARGET_COPY_OUT_VENDOR)/bin/post-fs-data.redroid.sh \
+     vendor/redroid/redroid.common.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/redroid.common.rc \
+     vendor/redroid/redroid.legacy.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/redroid.legacy.rc \
++    vendor/redroid/probe.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/probe.rc \
+ 
+ 
+ PRODUCT_COPY_FILES += \

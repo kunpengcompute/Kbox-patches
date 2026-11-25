@@ -165,6 +165,32 @@ cd ~/dependency/Kbox-patches/deploy
 ./redroid_operation.sh sandbox-destroy <sandbox-id> [sandbox-id ...]   # 可一次多个
 ```
 
+#### 模板与快照的 CoW defrag（可选）
+
+模板构建、快照生成完成后，可对 CoW 层做一次顺序重写（defrag），改善派生沙箱的随机读性能。defrag 需要 Cubelet 侧与脚本侧两级开关同时打开：
+
+- **Cubelet 侧**：`config.toml` 中 `[plugins."io.cubelet.internal.v1.storage".cow.defrag]` 的 `enable`、`template`、`snapshot` 为 `true`，配置与验证方法见[安装指南](install_guide.md)的「配置 CoW defrag」章节。
+- **脚本侧**：`redroid_config.conf` 中
+
+| 配置项 | 默认值 | 作用 |
+| ---- | ---- | ---- |
+| TPL_COW_DEFRAG | 1 | 为 1 时 `template-create` 追加 `--cow-defrag`，模板提交后整理 CoW 层 |
+| SNAP_COW_DEFRAG | 1 | 为 1 时 `snapshot-create` 改走 `cubemastercli snapshot create --cow-defrag`（CubeAPI 的 `/sandboxes/{id}/snapshots` 不支持该参数） |
+
+将对应项改为 `0` 即可关闭。`template-commit` 不支持 defrag；`sandbox-clone` 内部打快照仍走 CubeAPI，不受 `SNAP_COW_DEFRAG` 影响，需要整理时应先执行 `snapshot-create` 再 `sandbox-create --snapshot`。
+
+defrag 在模板/快照提交后、尚未被沙箱引用时执行，只重写 CoW 层 rootfs 的物理布局，不改变模板或快照内容；整理失败只告警，不影响模板/快照创建。是否真正执行可在 Cubelet 日志中确认：
+
+```bash
+grep "cow defrag: candidate" /data/log/Cubelet/Cubelet-req.log | tail -5
+```
+
+Cubelet 侧任一开关未打开时，脚本虽然仍会带 `--cow-defrag`，Cubelet 会直接跳过，上述日志不会出现。
+
+>![](./public_sys-resources/icon-note.gif) **说明：**
+>
+> 单次整理的触发阈值（`min_extents`）、分配量上限（`max_allocated_mib`）和超时（`timeout_seconds`）均在 Cubelet 侧配置，默认分别为 64、2048MiB、60s。
+
 ### 操作总览（速查表）
 
 统一前缀：`./redroid_operation.sh <命令> [参数]`。方括号 `[ ]` 内为可选项；`...` 表示可重复。
