@@ -1,0 +1,17 @@
+diff --git a/CubeMaster/pkg/templatecenter/snapshot_runtime_ref.go b/CubeMaster/pkg/templatecenter/snapshot_runtime_ref.go
+index d34e076..739e865 100644
+--- a/CubeMaster/pkg/templatecenter/snapshot_runtime_ref.go
++++ b/CubeMaster/pkg/templatecenter/snapshot_runtime_ref.go
+@@ -648,7 +648,11 @@ func acquireCreatedSandboxRuntimeRef(ctx context.Context, snapshotID, sandboxID,
+ 	if snapshotID == "" {
+ 		return nil
+ 	}
+-	return withSnapshotWriteLocks([]string{snapshotResourceLockKey(snapshotID)}, func() error {
++	// Each sandbox writes its own runtime-ref rows. Snapshot deletion and
++	// finalize still take the write lock and re-check refs, so a shared local
++	// lock is enough to exclude same-process snapshot deletion without
++	// serializing registrations for the same source snapshot.
++	return withTemplateReadLock(snapshotResourceLockKey(snapshotID), func() error {
+ 		allowInFlight := false
+ 		if rec, err := getSnapshotRecord(ctx, snapshotID); err == nil && rec != nil {
+ 			allowInFlight = snapshotRejectsNewUse(rec.Status)
