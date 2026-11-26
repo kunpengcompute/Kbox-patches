@@ -17,13 +17,11 @@
 # CubeSandbox + Redroid 14 自动化构建脚本
 #
 # 基于以下本地预制代码仓：
-#   - runtime/        e2b-dev/runtime（envd 源码，packages/envd）
 #   - Kbox-patches/   patchForRedroid/ 下增量 patch
 #   - aosp-14/        AOSP 14.0.0_r75 源码（已应用 redroid 官方 patch）
 #
 # 用法:
-#   bash build_redroid.sh [envd|patch|gms|redroid|pack|all]
-#     envd     仅编译 envd 二进制（放入 aosp-14/vendor/redroid/envd/envd）
+#   bash build_redroid.sh [patch|gms|redroid|pack|all]
 #     patch    仅应用 patchForRedroid/ 下的所有 patch
 #     gms      仅下载/还原 GMS 载荷（转发给 pack_gms.sh fetch，无需 sudo，可提前执行）
 #     redroid  仅编译 AOSP 镜像（lunch + make）
@@ -60,30 +58,9 @@ export ENABLE_GMS="${ENABLE_GMS:-0}"
 log() { echo -e "\033[1;32m$*\033[0m"; }
 die() { echo -e "\033[1;31m错误: $*\033[0m" >&2; exit 1; }
 
-# ===== 步骤 1：编译 envd 二进制 =====
-build_envd() {
-    log "[1/4] 编译 envd 二进制"
-    command -v go >/dev/null || die "未找到 go。runtime 的 envd 需要 go 1.26.x（建议安装 go ≥ 1.21 并启用 GOTOOLCHAIN=auto 自动下载）"
-    [ -d "$ENVD_SRC" ] || die "envd 源码目录不存在: $ENVD_SRC"
-
-    mkdir -p "$(dirname "$ENVD_DST")"
-    (
-        cd "$ENVD_SRC"
-        export GOPROXY="${GOPROXY:-$ENVD_GOPROXY}"
-        export GOSUMDB="${GOSUMDB:-off}"
-        export GOTOOLCHAIN="${GOTOOLCHAIN:-auto}"
-        # 纯 Go 静态交叉编译到 Android arm64，无需 NDK
-        CGO_ENABLED=0 GOOS=android GOARCH=arm64 \
-            go build -trimpath -ldflags "-s -w -buildid=" -o "$ENVD_DST" .
-    )
-    chmod +x "$ENVD_DST"
-    file "$ENVD_DST" | grep -q "aarch64" || die "envd 产物不是 aarch64 ELF"
-    ls -lh "$ENVD_DST"
-}
-
-# ===== 步骤 2：应用 patchForRedroid 下的所有 patch =====
+# ===== 步骤 1：应用 patchForRedroid 下的所有 patch =====
 apply_patches() {
-    log "[2/4] 应用 Kbox-patches/patchForRedroid 下的所有 patch"
+    log "[1/3] 应用 Kbox-patches/patchForRedroid 下的所有 patch"
     [ -d "$PATCH_DIR" ] || die "patch 目录不存在: $PATCH_DIR"
 
     # 参照 apply-patch.sh：用 patch 文件在 patchForRedroid/ 下的相对路径
@@ -106,19 +83,19 @@ apply_patches() {
     log "  共应用 $count 个 patch"
 }
 
-# ===== 步骤 3：编译 AOSP 镜像 =====
+# ===== 步骤 2：编译 AOSP 镜像 =====
 # （GMS 载荷下载/注入统一由 pack_gms.sh 维护，pack 前自动调用，无需单独步骤）
 build_redroid() {
-    log "[3/4] 编译 redroid arm64-only 镜像"
+    log "[2/3] 编译 redroid arm64-only 镜像"
     cd "$AOSP"
     source build/envsetup.sh
     lunch "$LUNCH_TARGET"
     make -j"$(nproc)"
 }
 
-# ===== 步骤 4：打包 Docker 镜像 =====
+# ===== 步骤 3：打包 Docker 镜像 =====
 pack_image() {
-    log "[4/4] 打包 Docker 镜像"
+    log "[3/3] 打包 Docker 镜像"
     [ "$(id -u)" -eq 0 ] || die "打包需 root（loop 挂载镜像），请用 sudo 运行"
     [ -f "$PROD_DIR/system.img" ] || die "缺少 system.img: $PROD_DIR"
     [ -f "$PROD_DIR/vendor.img" ] || die "缺少 vendor.img: $PROD_DIR"
@@ -143,7 +120,7 @@ pack_image() {
     [ -L system/init ] || die "system/init 符号链接缺失"
     [ -f system/system/bin/init ] || die "system/system/bin/init 缺失"
     [ -f vendor/build.prop ] || die "vendor/build.prop 缺失"
-    [ -f vendor/bin/envd ] || die "vendor/bin/envd 缺失（envd 未编入镜像，检查步骤 1 与 vendor-redroid-0002 patch）"
+    [ -f vendor/bin/kbox-probe ] || die "vendor/bin/kbox-probe 缺失（kbox-probe 未编入镜像，检查 vendor-redroid-0001-add-kbox-probe patch 与 make 编译）"
 
     log "  tar + docker import ..."
     # GMS 三件套（MindTheGapps 14 核心组件）以 prebuilt 载荷形式在打包期叠加：
@@ -185,11 +162,10 @@ pack_image() {
 
 # ===== 主流程 =====
 case "${1:-all}" in
-    envd)    build_envd ;;
     patch)   apply_patches ;;
     gms)     bash "$GMS_SCRIPT" fetch ;;
     redroid) build_redroid ;;
     pack)    pack_image ;;
-    all)     build_envd; apply_patches; build_redroid; pack_image ;;
-    *) die "未知步骤: $1（可选: envd|patch|gms|redroid|pack|all）" ;;
+    all)     apply_patches; build_redroid; pack_image ;;
+    *) die "未知步骤: $1（可选: patch|gms|redroid|pack|all）" ;;
 esac
