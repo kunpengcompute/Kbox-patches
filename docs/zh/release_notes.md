@@ -16,7 +16,7 @@
 | 软件类型 | 版本 |
 | --- | --- |
 | Kunpeng BoostKit | Kunpeng BoostKit 26.3.T7 |
-| OS | openEuler 24.03 LTS SP3,aarch64（内核 6.6.0-132.0.0） |
+| OS | openEuler 24.03 LTS SP3,aarch64（内核 6.6.0-145.3.34） |
 
 ## 版本使用注意事项<a id="ZH-CN_TOPIC_0000002549705971"></a>
 
